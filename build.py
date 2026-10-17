@@ -519,13 +519,17 @@ def _phase(jetzt, kick):
     return "p1" if -d <= 3 * 3600 else "p0"
 
 
-def betfair_radar(prices, bf_hist, norm):
+def betfair_radar(prices, bf_hist, norm, norm_state=None):
     """Jedes Spiel im Betfair-Abruf (auch Slowakei 2, Finnland, China …), gemessen an seiner Liga.
 
     ×Norm = gematchtes Geld jetzt / Median dieser Liga in derselben Phase (letzte 60 Tage, nur
     abgeschlossene Phasen). Eine laufende Phase ist noch nicht fertig — ×Norm ist also eher zu niedrig.
     """
     medi = (norm or {}).get("byLeagueStage") or {}
+    # Lucas 17.10.: „ob da deine Daten wirklich stimmen". Neben dem Median die ganze Stichprobe:
+    # wie viele Spiele dieser Liga hatten in derselben Phase WENIGER Geld als dieses jetzt.
+    proben = {k: sorted(x[1] for x in v if isinstance(x, list) and len(x) > 1)
+              for k, v in ((norm_state or {}).get("samples") or {}).items()}
     spiele, stunden = [], {}
     grenze = JETZT - timedelta(hours=12)
     for eid, snaps in (bf_hist or {}).items():
@@ -555,6 +559,9 @@ def betfair_radar(prices, bf_hist, norm):
         ph = _phase(JETZT, kick)
         b = medi.get(f"{m.get('league')}|{ph}") or {}
         xnorm = round(vol / b["med"], 1) if b.get("med") and (b.get("n") or 0) >= 5 else None
+        pr = proben.get(f"{m.get('league')}|{ph}") or []
+        rang = {"weniger": sum(1 for x in pr if x < vol), "n": len(pr),
+                "max": pr[-1] if pr else None} if len(pr) >= 5 else None
         snaps = [s for s in (bf_hist or {}).get(str(m.get("matchId"))) or [] if isinstance(s, dict)]
         kurve, vor60, vor30, mo30, t30 = [], None, None, None, None
         for s in snaps:
@@ -592,7 +599,7 @@ def betfair_radar(prices, bf_hist, norm):
             # Spiel ist Abrechnungs-/Trading-Rauschen bei Quote 1,01–1,05, kein Signal.
             "entschieden": bool(dt_h < 0 and isinstance(li.get("time"), (int, float)) and (li.get("time") >= 70 or (
                 li.get("time") >= 30 and min([q for q in (mo.get("hw"), mo.get("dr"), mo.get("aw")) if q] or [9]) <= 1.10))),
-            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "phase": ph,
+            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "phase": ph, "rang": rang,
             "d60": round(vol - vor60) if vor60 is not None else None,
             # nur wenn der Vergleichspunkt nicht uralt ist (sonst wäre es kein 30-Min-Zufluss)
             "d30": round(vol - vor30) if vor30 is not None and t30 and t30 >= JETZT - timedelta(minutes=50) else None,
@@ -726,6 +733,7 @@ def main() -> int:
     prices = laden_bf("betfair_prices.json")
     bf_hist = laden_bf("betfair_history.json")
     bf_norm = laden("betfair_league_norm.json", {})
+    bf_norm_state = laden("betfair_league_norm_state.json", {})
     bf_led = laden("betfair_public_ledger.json", [])
     bf_rec = laden("betfair_public_record.json", {})
     overview = laden("betfair_overview.json", {})
@@ -751,7 +759,7 @@ def main() -> int:
             "hz": stand(finder, "updatedAt"),
         },
         "betfair": betfair(prices, overview, consensus),
-        "radar": (radar := betfair_radar(prices, bf_hist, bf_norm)),
+        "radar": (radar := betfair_radar(prices, bf_hist, bf_norm, bf_norm_state)),
         "zufluss30": zufluss_liste(radar, consensus),
         "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"],
         "bfPushes": betfair_pushes(bf_led, bf_rec),
