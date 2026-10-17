@@ -95,7 +95,7 @@ def remis(n) -> str:
 
 # ── die vier Arten ───────────────────────────────────────────────────────────────
 def zufluss(d):
-    for z in (d.get("betfair") or {}).get("zufluss") or []:
+    for z in d.get("zufluss30") or (d.get("betfair") or {}).get("zufluss") or []:
         if (z.get("zuflussEur") or 0) < ZUFLUSS_MIN_EUR or z.get("duenn"):
             continue
         key = f"zf|{z.get('id')}|{z.get('markt')}|{z.get('meistesGeldAuf')}"
@@ -107,7 +107,7 @@ def zufluss(d):
         text = (f"🟡 <b>Frischer Zufluss</b> · Betfair\n"
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}\n\n"
-                f"💶 <b>+{geld(z.get('zuflussEur'))}</b> neu, {geld(z.get('marktEur'))} im Markt ({e(z.get('markt'))})\n"
+                f"💶 <b>+{geld(z.get('zuflussEur'))}</b> neu in 30 Min, {geld(z.get('marktEur'))} gematcht\n"
                 f"➡️ Meistes Geld auf <b>{e(remis(z.get('meistesGeldAuf')))}</b> @ <b>{q2(z.get('quote'))}</b>, {richtung}\n"
                 + (f"📊 {vert}\n" if vert else "")
                 + (f"📌 Pinnacle {'einig ✅' if pin.get('einig') else 'anderer Meinung ⚠️'}\n" if pin else ""))

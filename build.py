@@ -62,6 +62,19 @@ def laden(name: str, default=None):
 
 
 FEHLER: list[str] = []
+BF_EIGEN = {"an": False}
+
+
+def laden_bf(name: str):
+    """Betfair aus dem EIGENEN 5-Min-Abruf (.bf/), sonst die Datei des alten Projekts."""
+    lokal = Path(__file__).resolve().parent / ".bf" / name
+    try:
+        if lokal.exists() and (datetime.now().timestamp() - lokal.stat().st_mtime) < 40 * 60:
+            BF_EIGEN["an"] = True
+            return json.loads(lokal.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        FEHLER.append(f".bf/{name}: {str(exc)[:120]}")
+    return laden(name, {})
 
 
 def ts(s):
@@ -539,7 +552,7 @@ def betfair_radar(prices, bf_hist, norm):
         b = medi.get(f"{m.get('league')}|{ph}") or {}
         xnorm = round(vol / b["med"], 1) if b.get("med") and (b.get("n") or 0) >= 5 else None
         snaps = [s for s in (bf_hist or {}).get(str(m.get("matchId"))) or [] if isinstance(s, dict)]
-        kurve, vor60 = [], None
+        kurve, vor60, vor30, mo30, t30 = [], None, None, None, None
         for s in snaps:
             t, v = ts(s.get("ts")), s.get("totalVol")
             if not t or not isinstance(v, (int, float)):
@@ -548,6 +561,8 @@ def betfair_radar(prices, bf_hist, norm):
                 kurve.append(round(v))
             if t <= JETZT - timedelta(minutes=60):
                 vor60 = v
+            if t <= JETZT - timedelta(minutes=30):
+                vor30, mo30, t30 = v, s.get("mo") or {}, t
         if len(kurve) > 18:
             schritt = len(kurve) / 18
             kurve = [kurve[int(i * schritt)] for i in range(18)] + [kurve[-1]]
@@ -575,6 +590,9 @@ def betfair_radar(prices, bf_hist, norm):
                 li.get("time") >= 30 and min([q for q in (mo.get("hw"), mo.get("dr"), mo.get("aw")) if q] or [9]) <= 1.10))),
             "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "phase": ph,
             "d60": round(vol - vor60) if vor60 is not None else None,
+            # nur wenn der Vergleichspunkt nicht uralt ist (sonst wäre es kein 30-Min-Zufluss)
+            "d30": round(vol - vor30) if vor30 is not None and t30 and t30 >= JETZT - timedelta(minutes=50) else None,
+            "quoten30": ({"heim": mo30.get("hw"), "remis": mo30.get("dr"), "gast": mo30.get("aw")} if mo30 else None),
             "kurve": kurve,
             "quoten": {"heim": mo.get("hw"), "remis": mo.get("dr"), "gast": mo.get("aw")},
             "wahrsch": ({"heim": fair.get("home"), "remis": fair.get("draw"), "gast": fair.get("away")} if fair else None),
@@ -639,6 +657,48 @@ def halbzeit(prices):
     return out[:40]
 
 
+def zufluss_liste(radar, consensus):
+    """Frischer Zufluss aus der eigenen Historie: wo kam in den letzten 30 Min am meisten Geld dazu.
+
+    Lucas 17.10.: oben stand oft nur 1–3 Spiele (die Liste des alten Projekts vergleicht nur zwei
+    Abrufe). Jetzt die größten 30-Min-Zuflüsse über alle Ligen, entschiedene Spiele raus.
+    """
+    kons = {str(g.get("matchId")): g for g in (consensus or {}).get("games") or []}
+    out = []
+    for sp in radar.get("spiele") or []:
+        d = sp.get("d30")
+        # Live-Spiele raus: dort fließt laufend Geld, weil sich mit jedem Angriff die Quote dreht —
+        # das ist Handel, kein frisches Urteil. Wie im alten Projekt nur vor Anpfiff.
+        if not d or d < 3000 or sp.get("entschieden") or sp.get("live"):
+            continue
+        vt = sp.get("verteilung") or []
+        top = max(vt, key=lambda v: v.get("eur") or 0) if vt else None
+        q = sp.get("quoten") or {}
+        if top:
+            seite, quote = top["name"], top.get("quote")
+            idx = [n for n in ("heim", "remis", "gast")][[sp["heim"], "The Draw", sp["gast"]].index(seite)] if seite in (sp["heim"], "The Draw", sp["gast"]) else None
+        else:
+            # ohne Runner-Volumen: der Favorit laut Quote (bei kleinen Ligen liefert Betwatch keine Verteilung)
+            idx = min((k for k in ("heim", "gast") if q.get(k)), key=lambda k: q[k], default=None)
+            seite, quote = ({"heim": sp["heim"], "gast": sp["gast"]}.get(idx), q.get(idx) if idx else None)
+        vor = (sp.get("quoten30") or {}).get(idx) if idx else None
+        richtung = "ruhig"
+        if vor and quote and abs(quote - vor) >= 0.02:
+            richtung = "faellt" if quote < vor else "steigt"
+        k = kons.get(sp["id"]) or {}
+        pin = None
+        if k.get("pinn") and idx:
+            pin = {"fav": k["pinn"].get("fav"), "einig": {"heim": "home", "remis": "draw", "gast": "away"}[idx] == k["pinn"].get("fav")}
+        out.append({"id": sp["id"], "heim": sp["heim"], "gast": sp["gast"], "liga": sp["liga"], "land": sp.get("land"),
+                    "anpfiff": sp["anpfiff"], "live": sp.get("live"), "markt": "alle Märkte", "zuflussEur": d,
+                    "marktEur": sp["eur"], "xnorm": sp.get("xnorm"), "meistesGeldAuf": seite, "quote": quote,
+                    "quoteVorher": vor, "quoteRichtung": richtung, "duenn": sp["eur"] < 3000,
+                    "verteilung": [{"name": v["name"], "quote": v.get("quote"), "eur": v["eur"]} for v in vt] or None,
+                    "pinnacle": pin})
+    out.sort(key=lambda x: -x["zuflussEur"])
+    return out[:10]
+
+
 def betfair_pushes(ledger, record):
     out = []
     for e in ledger or []:
@@ -659,8 +719,8 @@ def betfair_pushes(ledger, record):
 
 
 def main() -> int:
-    prices = laden("betfair_prices.json", {})
-    bf_hist = laden("betfair_history.json", {})
+    prices = laden_bf("betfair_prices.json")
+    bf_hist = laden_bf("betfair_history.json")
     bf_norm = laden("betfair_league_norm.json", {})
     bf_led = laden("betfair_public_ledger.json", [])
     bf_rec = laden("betfair_public_record.json", {})
@@ -687,7 +747,9 @@ def main() -> int:
             "hz": stand(finder, "updatedAt"),
         },
         "betfair": betfair(prices, overview, consensus),
-        "radar": betfair_radar(prices, bf_hist, bf_norm),
+        "radar": (radar := betfair_radar(prices, bf_hist, bf_norm)),
+        "zufluss30": zufluss_liste(radar, consensus),
+        "bfEigen": BF_EIGEN["an"],
         "bfPushes": betfair_pushes(bf_led, bf_rec),
         "halbzeit": halbzeit(prices),
         "sharp": sharp(consensus, history),

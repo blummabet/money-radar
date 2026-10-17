@@ -1,11 +1,12 @@
 name: Geld-Radar bauen
 
-# Phase 1: keine eigenen API-Abfragen. Liest die JSON-Dateien des alten Projekts
-# (blummabet/betting-dashboard, öffentlich), verdichtet sie zu site/data.json und
-# veröffentlicht die Seite über GitHub Pages. Nichts wird ins Repo committet.
+# Alle 5 Min: Betfair holt das Repo selbst (Betwatch, läuft auf GitHub-Servern), alles andere liest
+# es aus den JSON-Dateien des alten Projekts (blummabet/betting-dashboard). Dann Seite bauen,
+# Pushes in den Test-Channel, veröffentlichen. Nichts wird ins Repo committet: Betfair-Historie und
+# Push-Gedächtnis liegen im Actions-Cache.
 on:
   schedule:
-    - cron: '7,22,37,52 * * * *'   # alle 15 Min, versetzt zur alten Pipeline (die committet um :00/:15/…)
+    - cron: '*/5 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -17,7 +18,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false   # ein abgebrochener Lauf würde sein Push-Gedächtnis verlieren → Doppel-Pushes
+  cancel-in-progress: false   # ein abgebrochener Lauf würde sein Gedächtnis verlieren → Doppel-Pushes
 
 jobs:
   bauen:
@@ -28,27 +29,42 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Daten verdichten
-        run: python3 build.py
-      # Push-Gedächtnis (was schon im Test-Channel war) lebt im Actions-Cache, nicht im Repo.
-      - name: Push-Gedächtnis laden
+      - name: Gedächtnis laden (Betfair-Historie, Push-Stand)
         uses: actions/cache/restore@v4
         with:
-          path: .push_state
-          key: radar-push-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: radar-push-
+          path: |
+            .bf
+            .push_state
+          key: radar-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: radar-
+      - name: Betfair-Historie beim ersten Mal aus dem alten Projekt übernehmen
+        run: |
+          mkdir -p .bf
+          if [ ! -s .bf/betfair_history.json ]; then
+            curl -sf https://raw.githubusercontent.com/blummabet/betting-dashboard/main/betfair_history.json -o .bf/betfair_history.json || true
+            curl -sf https://raw.githubusercontent.com/blummabet/betting-dashboard/main/betfair_prices.json -o .bf/betfair_prices.json || true
+            touch -d '2 hours ago' .bf/betfair_prices.json 2>/dev/null || true
+          fi
+      - name: Betfair abrufen (Betwatch)
+        env:
+          BETWATCH_KEY: ${{ secrets.BETWATCH_KEY }}
+        run: python3 fetch_betfair.py || echo "Betfair-Abruf fehlgeschlagen, Seite nimmt die Daten des alten Projekts"
+      - name: Daten verdichten
+        run: python3 build.py
       - name: Pushes in den Test-Channel
         if: github.event_name != 'push'
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_TEST_CHAT_ID: ${{ secrets.TELEGRAM_TEST_CHAT_ID }}
         run: python3 push.py
-      - name: Push-Gedächtnis sichern
-        if: always() && github.event_name != 'push'
+      - name: Gedächtnis sichern
+        if: always()
         uses: actions/cache/save@v4
         with:
-          path: .push_state
-          key: radar-push-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .bf
+            .push_state
+          key: radar-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
