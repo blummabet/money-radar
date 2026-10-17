@@ -146,7 +146,8 @@ main{padding:22px 28px 60px;min-width:0}
   .spiel{max-width:calc(100vw - 215px)}
   .norm{min-width:42px;padding:3px 6px;font-size:12.5px}
   .det svg{max-width:100%}
-  .flag{display:none}
+  .flag{display:none!important}
+  .tab .nur-d{display:none}
   .nur-m{display:inline}
   .feedpanel{order:5}
   .det{grid-template-columns:1fr}
@@ -369,42 +370,58 @@ function pinKarten(liste){
 function seitePinnacle(D){
   return `<div class="grid"><div class="panel c12"><div class="ph"><h3>Pinnacle-Bewegungen</h3><span class="hint">Wahrscheinlichkeit laut Pinnacle, ohne Marge</span></div>${pinKarten(D.sharp)}</div></div>`;
 }
+const TL = {};
+const seiteName = n => /^draw/i.test(n) ? "Remis" : n;
+function polyDetail(m){
+  const ws = {}; for(const w of D.poly.wallets) ws[w.wallet] = w;
+  const teile = m.geld ? Object.entries(m.geld).map(([n,v])=>({name:seiteName(n), wert:v, preis:m.preise?.[n]})) : [];
+  const ges = teile.reduce((a,t)=>a+t.wert,0);
+  return `<tr class="detail"><td colspan="5"><div class="det">
+    <div><h4>Geld je Seite</h4>${teile.length?vbar(teile)+legende(teile, t=>usd(t.wert)):"–"}
+      <div class="mini-liste" style="margin-top:10px"><div><span>Volumen gesamt</span><b>${usd(m.usd)}</b></div><div><span>davon in offenen Positionen</span><b>${usd(ges)}</b></div></div></div>
+    <div><h4>Preis je Seite</h4><div class="mini-liste">${Object.entries(m.preise||{}).map(([n,v])=>`<div><span>${esc(seiteName(n))}</span><b>${Math.round(v*100)} ¢ <span style="color:var(--text-3);font-weight:600">= Quote ${v>0?q2(1/v):"–"}</span></b></div>`).join("")||"–"}</div>
+      <div style="margin-top:12px"><a href="https://polymarket.com/event/${encodeURIComponent(m.key)}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;display:inline-block">Markt auf Polymarket öffnen</a></div></div>
+    <div><h4>Größte Halter</h4><div class="mini-liste">${(m.wale||[]).slice(0,6).map(w=>{ const t = ws[w.wallet];
+      return `<div><span><a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener">${esc(w.wallet.slice(0,6))}…${esc(w.wallet.slice(-4))}</a>${w.bewiesen?` <span class="tag" style="background:${tint("var(--poly)",18)};color:var(--poly)">belegt${t?` +${dez(t.fensterClv)} pp`:""}</span>`:""}<br><span style="color:var(--text-3);font-size:12px">auf ${esc(seiteName(w.seite))}</span></span><b>${usd(w.usd)}</b></div>`;}).join("")||"–"}</div></div>
+  </div></td></tr>`;
+}
 function polyTabelle(liste, id){
   if(!liste.length) return `<div class="leer">Keine Märkte im Fenster.</div>`;
-  const zeilen = liste.map(m=>{
+  TL[id] = liste;
+  const zeilen = liste.map((m,i)=>{
     const bew = (m.wale||[]).filter(w=>w.bewiesen);
     const teile = m.geld ? Object.entries(m.geld).map(([n,v])=>({name:/^draw/i.test(n)?"Draw":n, wert:v})) : [];
     const top = (m.wale||[])[0];
-    return `<tr><td><div class="spiel"><span class="flag" style="display:grid;place-items:center;background:${tint("var(--poly)",18)};color:var(--poly);font-size:9px;font-weight:800">PM</span><div style="min-width:0"><div class="n"><a href="https://polymarket.com/event/${encodeURIComponent(m.key)}" target="_blank" rel="noopener" style="text-decoration:none">${esc(m.spiel)}</a></div><div class="l">${esc(m.liga||m.sport||"")}</div></div></div></td>
-      <td><span class="status">${wann(m.anpfiff)}</span></td>
+    return `<tr class="zeile" data-i="${i}" data-art="poly" tabindex="0" aria-expanded="false"><td><div class="spiel"><span class="flag" style="display:grid;place-items:center;background:${tint("var(--poly)",18)};color:var(--poly);font-size:9px;font-weight:800">PM</span><div style="min-width:0"><div class="n"><a href="https://polymarket.com/event/${encodeURIComponent(m.key)}" target="_blank" rel="noopener" style="text-decoration:none">${esc(m.spiel)}</a></div><div class="l"><span class="nur-m">${wann(m.anpfiff)}, </span>${esc(m.liga||m.sport||"")}${bew.length?`<span class="nur-m" style="color:var(--poly);font-weight:700">, ${bew.length} belegt</span>`:""}</div></div></div></td>
+      <td class="hide-m"><span class="status">${wann(m.anpfiff)}</span></td>
       <td class="r"><div class="geld">${usd(m.usd)}</div></td>
       <td class="hide-m">${teile.length?vbar(teile):""}</td>
-      <td>${top?`<div style="font-weight:700;white-space:nowrap">${usd(top.usd)} <span style="color:var(--text-2);font-weight:600">auf ${esc(nm(/^draw/i.test(top.seite)?"Draw":top.seite))}</span></div><div style="font-size:12px;color:var(--text-3)">${bew.length?`<span style="color:var(--poly);font-weight:700">${bew.length} belegte Wallet${bew.length>1?"s":""}</span>`:"größter Halter"}</div>`:""}</td></tr>`;
+      <td class="hide-m">${top?`<div style="font-weight:700;white-space:nowrap">${usd(top.usd)} <span style="color:var(--text-2);font-weight:600">auf ${esc(nm(/^draw/i.test(top.seite)?"Draw":top.seite))}</span></div><div style="font-size:12px;color:var(--text-3)">${bew.length?`<span style="color:var(--poly);font-weight:700">${bew.length} belegte Wallet${bew.length>1?"s":""}</span>`:"größter Halter"}</div>`:""}</td></tr>`;
   }).join("");
-  return `<div class="tw"><table class="tab" id="${id}"><thead><tr><th>Markt</th><th>Anpfiff</th><th class="r">Volumen</th><th class="hide-m">Geld je Seite</th><th>Größte Position</th></tr></thead><tbody>${zeilen}</tbody></table></div>`;
+  return `<div class="tw"><table class="tab" id="${id}"><thead><tr><th>Markt</th><th class="hide-m">Anpfiff</th><th class="r">Volumen</th><th class="hide-m">Geld je Seite</th><th class="hide-m">Größte Position</th></tr></thead><tbody>${zeilen}</tbody></table></div>`;
 }
 function seitePoly(D){
   const p = D.poly;
   return `<div class="grid">
     <div class="panel c12"><div class="ph"><h3>Märkte, nächste 30 Stunden</h3><span class="hint">mit belegten Wallets zuerst</span></div>${polyTabelle(p.maerkte.filter(belegt).concat(p.maerkte.filter(m=>!belegt(m))),"p-alle")}</div>
     <div class="panel c12"><div class="ph"><h3>Wallets, die den Schlusskurs schlagen</h3><span class="hint">gereiht nach der vorsichtigen Untergrenze, nicht nach Größe</span></div>
-    <table class="tab"><thead><tr><th>Wallet</th><th class="hide-m">Sport</th><th class="r">Vorsprung</th><th class="r hide-m">Wetten</th><th class="r hide-m">Schnitt</th><th class="r">Bilanz</th><th>Jetzt drin</th></tr></thead><tbody>
+    <div class="tw"><table class="tab"><thead><tr><th>Wallet</th><th class="hide-m">Sport</th><th class="r">Vorsprung</th><th class="r hide-m">Wetten</th><th class="r hide-m">Schnitt</th><th class="r hide-m">Bilanz</th><th>Jetzt drin</th></tr></thead><tbody>
     ${p.wallets.map(w=>`<tr><td><a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" style="font-weight:700;text-decoration:none">${esc(w.wallet.slice(0,6))}…${esc(w.wallet.slice(-4))}</a></td><td class="hide-m"><span class="status">${esc(w.sport)}</span></td>
       <td class="r"><b style="color:var(--poly)">+${dez(w.fensterClv)} pp</b><div style="font-size:11.5px;color:var(--text-3)">mind. +${dez(w.clvUg)}</div></td><td class="r hide-m">${w.fensterN}</td><td class="r hide-m">${usd(w.schnittUsd)}</td>
-      <td class="r" style="font-weight:700;color:${w.pnl>=0?"var(--up)":"var(--down)"}">${usd(w.pnl)}</td>
-      <td>${w.offen.length?w.offen.map(o=>`<div style="white-space:nowrap"><b>${usd(o.usd)}</b> auf ${esc(nm(o.seite))} <span style="color:var(--text-3)">${wann(o.anpfiff)}</span></div>`).join(""):`<span style="color:var(--text-3)">nichts offen</span>`}</td></tr>`).join("")}
-    </tbody></table></div></div>`;
+      <td class="r hide-m" style="font-weight:700;color:${w.pnl>=0?"var(--up)":"var(--down)"}">${usd(w.pnl)}</td>
+      <td>${w.offen.length?w.offen.map(o=>`<div><b>${usd(o.usd)}</b> auf ${esc(nm(o.seite))} <span style="color:var(--text-3)">${wann(o.anpfiff)}</span></div>`).join(""):`<span style="color:var(--text-3)">nichts offen</span>`}</td></tr>`).join("")}
+    </tbody></table></div></div></div>`;
 }
 function seiteStake(D){
   const st = D.stake;
   return `<div class="grid">
     ${Object.entries(st.bilanz||{}).map(([a,b])=>`<div class="panel kpi c3"><div class="lab">${icon("stake")}${esc(a)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} abgerechnet, ${b.treffer} % Treffer, ${b.ug>0?"belegt":"nicht belegt"}</div></div>`).join("")}
     <div class="panel c12"><div class="ph"><h3>Große Wetten, letzte 24 Stunden</h3><span class="hint">mehrere große Einsätze auf dieselbe Sache in kurzer Zeit</span></div>
-    <table class="tab"><thead><tr><th>Auswahl</th><th class="hide-m">Art</th><th>Wann</th><th class="r">Einsatz</th><th class="r hide-m">Quote</th><th>Ergebnis</th></tr></thead><tbody>
-    ${st.heute.map(x=>`<tr><td><div class="spiel"><div style="min-width:0"><div class="n">${esc(x.auswahl)}</div><div class="l">${esc(x.spiel)}, ${esc(x.liga)}${x.markt?", "+esc(x.markt):""}</div></div></div></td>
-      <td class="hide-m"><span class="status">${esc(x.art)}</span></td><td>${x.phase==="live"?`<span class="live">live</span>`:`<span class="status">vorher</span>`} <span class="status">${uhr(x.zeit)}</span></td>
+    <table class="tab"><thead><tr><th>Auswahl</th><th class="hide-m">Art</th><th class="hide-m">Wann</th><th class="r">Einsatz</th><th class="r hide-m">Quote</th><th class="r">Ergebnis</th></tr></thead><tbody>
+    ${st.heute.map(x=>`<tr><td><div class="spiel"><div style="min-width:0"><div class="n">${esc(x.auswahl)}</div><div class="l"><span class="nur-m">${x.phase==="live"?"live":"vorher"} ${uhr(x.zeit)}, ${esc(x.art)}, </span>${esc(x.spiel)}, ${esc(x.liga)}${x.markt?", "+esc(x.markt):""}</div></div></div></td>
+      <td class="hide-m"><span class="status">${esc(x.art)}</span></td><td class="hide-m">${x.phase==="live"?`<span class="live">live</span>`:`<span class="status">vorher</span>`} <span class="status">${uhr(x.zeit)}</span></td>
       <td class="r"><div class="geld">${usd(x.usd)}</div><div style="font-size:11.5px;color:var(--text-3);white-space:nowrap">${x.wetten} Wetten${x.faktor?`, ×${dez(x.faktor)}`:""}</div></td><td class="r hide-m">${q2(x.quote)}</td>
-      <td>${x.status==="abgerechnet"&&x.rendite!=null?(x.rendite>0?`<span class="tag t-won">gewonnen</span>`:`<span class="tag t-lost">verloren</span>`):`<span class="tag t-open">offen</span>`}</td></tr>`).join("")}
+      <td class="r">${x.status==="abgerechnet"&&x.rendite!=null?(x.rendite>0?`<span class="tag t-won">gewonnen</span>`:`<span class="tag t-lost">verloren</span>`):`<span class="tag t-open">offen</span>`}</td></tr>`).join("")}
     </tbody></table></div></div>`;
 }
 function seiteHz(D){
@@ -412,8 +429,8 @@ function seiteHz(D){
   return `<div class="grid">
     ${(z.bericht||[]).map(b=>`<div class="panel kpi c4"><div class="lab">${icon("hz")}${esc(b.wette)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Spiele, getroffen ${dez(b.treffer)} % bei erwarteten ${dez(b.erwartet)} %</div></div>`).join("")}
     <div class="panel c12"><div class="ph"><h3>Zur Pause 0:0</h3><span class="hint">Spiele, in denen vorher Tore oder ein klarer Favorit erwartet war</span></div>
-    <table class="tab"><thead><tr><th>Spiel</th><th>Erkannt</th>${Object.values(nm2).map(n=>`<th class="r">${n}</th>`).join("")}</tr></thead><tbody>
-    ${z.heute.map(e=>`<tr><td><div class="spiel">${flagge(e.land)}<div style="min-width:0"><div class="n">${esc(e.spiel)}</div><div class="l">${esc(e.liga)}</div></div></div></td><td><span class="status">${uhr(e.zeit)}</span></td>${Object.keys(nm2).map(k=>`<td class="r" style="font-weight:700">${q2(e.quoten?.[k])}</td>`).join("")}</tr>`).join("")}
+    <table class="tab"><thead><tr><th>Spiel</th><th class="hide-m">Erkannt</th>${Object.entries(nm2).map(([k,n])=>`<th class="r${k==="over15"?" hide-m":""}">${n}</th>`).join("")}</tr></thead><tbody>
+    ${z.heute.map(e=>`<tr><td><div class="spiel">${flagge(e.land)}<div style="min-width:0"><div class="n">${esc(e.spiel)}</div><div class="l"><span class="nur-m">${uhr(e.zeit)}, </span>${esc(e.liga)}</div></div></div></td><td class="hide-m"><span class="status">${uhr(e.zeit)}</span></td>${Object.keys(nm2).map(k=>`<td class="r${k==="over15"?" hide-m":""}" style="font-weight:700">${q2(e.quoten?.[k])}</td>`).join("")}</tr>`).join("")}
     </tbody></table></div></div>`;
 }
 
@@ -448,7 +465,7 @@ function quellen(q){
   const n = {betfair:"Betfair",pinnacle:"Pinnacle",polymarket:"Polymarket",stake:"Stake",hz:"HZ-Finder"};
   let schlecht = 0;
   $("#quellen").innerHTML = Object.entries(n).map(([k,t])=>{
-    const m = q[k] ? (Date.now()-new Date(q[k]))/60000 : 1e9, st = m<=35?0:m<=120?1:2; schlecht=Math.max(schlecht,st);
+    const gut = k==="polymarket" ? 90 : 35, m = q[k] ? (Date.now()-new Date(q[k]))/60000 : 1e9, st = m<=gut?0:m<=gut*3?1:2; schlecht=Math.max(schlecht,st);
     return `<div class="q"><i style="background:${["var(--up)","var(--bf)","var(--down)"][st]}"></i>${t}<span style="margin-left:auto;color:var(--text-3)">${q[k]?vor(q[k]):"–"}</span></div>`;}).join("");
   $("#puls").style.background = ["var(--up)","var(--bf)","var(--down)"][schlecht];
 }
@@ -468,8 +485,9 @@ function listeFuer(id){
 function aufklappen(tr){
   const naechste = tr.nextElementSibling;
   if(naechste && naechste.classList.contains("detail")){ naechste.remove(); tr.classList.remove("offen"); tr.setAttribute("aria-expanded","false"); return; }
-  const s = listeFuer(tr.closest("table").id)[+tr.dataset.i]; if(!s) return;
-  tr.classList.add("offen"); tr.setAttribute("aria-expanded","true"); tr.insertAdjacentHTML("afterend", spielDetail(s));
+  const id = tr.closest("table").id, poly = tr.dataset.art==="poly";
+  const s = (poly ? TL[id] : listeFuer(id))?.[+tr.dataset.i]; if(!s) return;
+  tr.classList.add("offen"); tr.setAttribute("aria-expanded","true"); tr.insertAdjacentHTML("afterend", poly ? polyDetail(s) : spielDetail(s));
 }
 document.addEventListener("click", e=>{
   const g = e.target.closest("[data-geh]"); if(g){ gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
