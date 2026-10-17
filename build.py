@@ -549,7 +549,9 @@ def auswahl_zufluss(snaps, minuten, min_eur, min_anteil=0.65):
         if ges <= 0:
             continue
         name, dv = max(d.items(), key=lambda kv: kv[1])
-        if dv >= min_eur and dv / ges >= min_anteil:
+        q = sel[name][1]
+        # Quote unter 1,10 = praktisch entschieden (z. B. Unter 4,5 bei 0:0 in der 80.) — Geld darauf ist kein Signal
+        if dv >= min_eur and dv / ges >= min_anteil and not (isinstance(q, (int, float)) and q < 1.10):
             out.append({"markt": markt, "auswahl": name, "eur": round(dv), "anteil": round(100 * dv / ges),
                         "quote": sel[name][1], "quoteVorher": (alt.get(name) or [None, None])[1],
                         "marktNeu": round(ges)})
