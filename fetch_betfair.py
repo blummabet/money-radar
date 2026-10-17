@@ -135,6 +135,7 @@ HIST_MAX_POINTS = 240   # 5-Min-Takt: 240 Punkte = 20 h
 TRACKED_MARKETS = ["Match Odds", "Over/Under 2.5 Goals", "Over/Under 3.5 Goals",
                    "Both teams to Score?", "Half Time", "First Half Goals 0.5", "First Half Goals 1.5"]
 MKV_KEEP_POINTS = 2
+SEL_KEEP_POINTS = 9
 
 
 def _now():
@@ -338,6 +339,11 @@ def append_history(hist, snap, now=None, keep_h=HIST_KEEP_H, max_points=HIST_MAX
     pt = {"ts": now.isoformat(), "totalVol": snap.get("totalVol"),
           "mo": {k: (snap.get("mo") or {}).get(k) for k in ("hw", "dr", "aw", "vol")},
           "kickoff": snap.get("kickoff"), "mkv": mkv,
+          # money-radar 17.10. (Lucas: „wichtig ist, auf welchen Markt das Geld geht, nicht auf welches
+          # Spiel"): Volumen + Quote JE AUSWAHL in jedem Markt, damit der Zufluss pro Auswahl rechenbar ist.
+          "sel": {name: {r["name"]: [round(r.get("vol") or 0, 1), r.get("odd")]
+                         for r in (mk.get("runners") or []) if isinstance(r, dict) and r.get("name") and (r.get("vol") or 0) > 0}
+                  for name, mk in (snap.get("markets") or {}).items() if isinstance(mk, dict) and (mk.get("vol") or 0) > 0},
           "min": li.get("time"), "sc": sc, "rc": rc}
     arr = list(hist.get(mid) or [])
     arr.append(pt)
@@ -346,6 +352,9 @@ def append_history(hist, snap, now=None, keep_h=HIST_KEEP_H, max_points=HIST_MAX
     for p in arr[:-MKV_KEEP_POINTS]:
         if isinstance(p, dict):
             p.pop("mkv", None)
+    for p in arr[:-SEL_KEEP_POINTS]:   # Auswahl-Volumina nur für die letzten ~40 Min
+        if isinstance(p, dict):
+            p.pop("sel", None)
     hist[mid] = arr
     return hist
 

@@ -32,7 +32,7 @@ STAND = BASIS / ".push_state" / "gesehen.json"
 SEITE = "https://blummabet.github.io/money-radar/"
 JETZT = datetime.now(timezone.utc)
 
-ZUFLUSS_MIN_EUR = 20000      # darunter kein Push (die Überblicks-Liste hat eigene, niedrigere Schwellen)
+ZUFLUSS_MIN_EUR = 10000      # darunter kein Push (die Überblicks-Liste hat eigene, niedrigere Schwellen)
 ZUFLUSS_PAUSE_H = 6          # dasselbe Spiel + dieselbe Seite höchstens alle 6 h
 FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als verpasst und werden nicht nachgeschickt
 WAL_MIN_USD = 1000
@@ -95,22 +95,39 @@ def remis(n) -> str:
 
 
 # ── die vier Arten ───────────────────────────────────────────────────────────────
+def _auswahl_de(n):
+    import re as _re
+    m = _re.match(r"^(Over|Under) (\d+)\.5( Goals)?$", str(n or ""))
+    if m:
+        return f"{'Über' if m.group(1) == 'Over' else 'Unter'} {m.group(2)},5"
+    return {"The Draw": "Remis", "Yes": "Ja", "No": "Nein"}.get(n, n)
+
+
+def _markt_de(n):
+    import re as _re
+    n = str(n or "")
+    m = _re.match(r"^Over/Under (\d)\.5 Goals$", n) or _re.match(r"^First Half Goals (\d)\.5$", n)
+    if m:
+        return ("HZ-Tore " if n.startswith("First") else "Über/Unter ") + f"{m.group(1)},5"
+    return {"Match Odds": "Sieg-Markt", "Both teams to Score?": "Beide treffen", "Half Time": "HZ-Sieger",
+            "Correct Score": "Ergebnis", "Half Time Score": "HZ-Ergebnis"}.get(n, n)
+
+
 def zufluss(d):
-    for z in d.get("zufluss30") or (d.get("betfair") or {}).get("zufluss") or []:
-        if (z.get("zuflussEur") or 0) < ZUFLUSS_MIN_EUR or z.get("duenn"):
+    """Lucas 17.10.: nicht das Geld aufs ganze Spiel, sondern auf WELCHE Auswahl es einseitig floss."""
+    for z in d.get("zufluss30") or []:
+        fl = (z.get("fluss") or [None])[0]
+        if not fl or fl.get("eur", 0) < ZUFLUSS_MIN_EUR:
             continue
-        key = f"zf|{z.get('id')}|{z.get('markt')}|{z.get('meistesGeldAuf')}"
-        vt = z.get("verteilung") or []
-        ges = sum(v.get("eur") or 0 for v in vt) or 1
-        vert = " · ".join(f"{e(remis(v.get('name')))} {round(100 * (v.get('eur') or 0) / ges)} %" for v in vt)
-        pin = z.get("pinnacle")
-        richtung = {"faellt": "Quote fällt ↓", "steigt": "Quote steigt ↑"}.get(z.get("quoteRichtung"), "Quote ruhig")
+        key = f"zf|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
+        q, qv = fl.get("quote"), fl.get("quoteVorher")
+        richtung = (f", Quote fällt ↓ (von {q2(qv)})" if q < qv else f", Quote steigt ↑ (von {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
+        pin = z.get("pinnacle") if fl.get("markt") == "Match Odds" else None
         text = (f"🟡 <b>Frischer Zufluss</b> · Betfair\n"
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}\n\n"
-                f"💶 <b>+{geld(z.get('zuflussEur'))}</b> neu in 30 Min, {geld(z.get('marktEur'))} gematcht\n"
-                f"➡️ Meistes Geld auf <b>{e(remis(z.get('meistesGeldAuf')))}</b> @ <b>{q2(z.get('quote'))}</b>, {richtung}\n"
-                + (f"📊 {vert}\n" if vert else "")
+                f"💶 <b>+{geld(fl.get('eur'))}</b> in 30 Min auf <b>{e(_auswahl_de(fl.get('auswahl')))}</b> @ <b>{q2(q)}</b>{richtung}\n"
+                f"📊 {fl.get('anteil')} % des neuen Geldes in {e(_markt_de(fl.get('markt')))}\n"
                 + (f"📌 Pinnacle {'einig ✅' if pin.get('einig') else 'anderer Meinung ⚠️'}\n" if pin else ""))
         yield key, text, ZUFLUSS_PAUSE_H
 

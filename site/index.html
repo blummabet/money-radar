@@ -155,6 +155,9 @@ main{padding:22px 28px 60px;min-width:0}
 #ligaschalter{margin-left:auto}
 #ligaschalter + .rechts{margin-left:10px}
 .live-k{border-left:3px solid var(--down)}
+.fl{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--text-2);border-top:1px solid var(--line);padding-top:5px;margin-top:5px}
+.fl small{color:var(--text-3)}
+.fl b{color:var(--up)}
 .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .kk{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0;transition:border-color .15s}
 .kk:hover{border-color:rgba(255,255,255,.18)}
@@ -593,9 +596,34 @@ const liste = (titel, n, html) => `<details class="als-liste"><summary>${titel} 
 const live = s => s.live ? `<span class="live">${s.live.ht?"HZ":s.live.min!=null?s.live.min+"'":"live"}</span> <b>${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}</b>` : `<span class="status">${wann(s.anpfiff)}</span>`;
 const spielInfo = s => D.radar.spiele.find(x=>x.id===s.id);
 
+// Markt- und Auswahlnamen auf Deutsch
+function marktDe(n){
+  n = String(n||"");
+  let m;
+  if((m = n.match(/^Over\/Under (\d)\.5 Goals$/))) return `Über/Unter ${m[1]},5`;
+  if((m = n.match(/^First Half Goals (\d)\.5$/))) return `HZ-Tore ${m[1]},5`;
+  if((m = n.match(/^Corners Over\/Under (\d+)\.5$/))) return `Ecken ${m[1]},5`;
+  if((m = n.match(/^Cards Over\/Under (\d)\.5$/))) return `Karten ${m[1]},5`;
+  return ({"Match Odds":"Sieg-Markt","Both teams to Score?":"Beide treffen","Half Time":"HZ-Sieger","Correct Score":"Ergebnis","Half Time Score":"HZ-Ergebnis","Half Time/Full Time":"HZ/Endstand","Draw no Bet":"Draw no Bet"})[n] || n;
+}
+function auswahlDe(n){
+  n = String(n||"");
+  let m;
+  if((m = n.match(/^(Over|Under) (\d+)\.5( Goals)?$/))) return `${m[1]==="Over"?"Über":"Unter"} ${m[2]},5`;
+  return ({"The Draw":"Remis","Yes":"Ja","No":"Nein"})[n] || n;
+}
+function flussZeilen(fl, mitErster){
+  return (fl||[]).slice(mitErster?0:1, 3).map(f=>`<div class="fl"><span>${esc(auswahlDe(f.auswahl))} <small>${esc(marktDe(f.markt))}</small></span><b>+${eur(f.eur)}</b></div>`).join("");
+}
+function flussKopf(f){
+  const q = f.quoteVorher && f.quote && Math.abs(f.quote-f.quoteVorher)>=0.02 ? (f.quote<f.quoteVorher?`<span class="hoch">↓ von ${q2(f.quoteVorher)}</span>`:`<span class="runter">↑ von ${q2(f.quoteVorher)}</span>`) : "";
+  return `<div class="kk-zahl gruen">+${eur(f.eur)}</div>
+    <div class="kk-auf">auf <b>${esc(auswahlDe(f.auswahl))}</b> @ <b>${q2(f.quote)}</b> ${q}</div>
+    <div class="kk-klein">${f.anteil} % des neuen Geldes in ${esc(marktDe(f.markt))}</div>`;
+}
 function zuflussKarten(D, max){
   const z = lf(D.zufluss30 && D.zufluss30.length ? D.zufluss30 : D.betfair.zufluss).slice(0, max);
-  if(!z.length) return `<div class="leer">In den letzten 30 Minuten kam vor Anpfiff kein nennenswertes Geld dazu${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
+  if(!z.length) return `<div class="leer">In den letzten 30 Minuten floss vor Anpfiff kein Geld einseitig auf eine Auswahl${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
   return `<div class="kgrid">${z.map(x=>{
     const vt = x.verteilung ? x.verteilung.map(v=>({name:v.name,wert:v.eur,quote:v.quote})) : null;
     const pf = x.quoteRichtung==="faellt" ? `<span class="hoch">↓ von ${q2(x.quoteVorher)}</span>` : x.quoteRichtung==="steigt" ? `<span class="runter">↑ von ${q2(x.quoteVorher)}</span>` : "";
@@ -603,16 +631,13 @@ function zuflussKarten(D, max){
     return `<div class="kk zf-k" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
       <div class="kk-oben">${flagge(x.land)}<span>${esc(x.liga)}</span><span class="rechts">${wann(x.anpfiff)}</span></div>
       <div class="kk-titel">${esc(x.heim)} – ${esc(x.gast)}</div>
-      <div class="kk-zahl gruen">+${eur(x.zuflussEur)}</div>
-      <div class="kk-klein">in 30 Min, ${eur(x.marktEur)} gematcht</div>
-      <div class="kk-auf">auf <b>${esc(nm(x.meistesGeldAuf))}</b> @ <b>${q2(x.quote)}</b> ${pf}</div>
-      ${vt?vbar(vt):""}
-      ${x.pinnacle?`<div class="kk-fuss">${x.pinnacle.einig?`<span class="tag t-won">Pinnacle einig</span>`:`<span class="tag t-lost">Pinnacle anders</span>`}</div>`:""}
+      ${(x.fluss||[]).length ? flussKopf(x.fluss[0]) + flussZeilen(x.fluss,false) : `<div class="kk-zahl gruen">+${eur(x.zuflussEur)}</div><div class="kk-auf">auf <b>${esc(nm(x.meistesGeldAuf))}</b> @ <b>${q2(x.quote)}</b> ${pf}</div>${vt?vbar(vt):""}`}
+      ${x.pinnacle && (x.fluss||[])[0]?.markt==="Match Odds"?`<div class="kk-fuss">${x.pinnacle.einig?`<span class="tag t-won">Pinnacle einig</span>`:`<span class="tag t-lost">Pinnacle anders</span>`}</div>`:""}
     </div>`;}).join("")}</div>`;
 }
 function liveKarten(D, max){
   const z = lf(D.liveZufluss||[]).slice(0, max);
-  if(!z.length) return `<div class="leer">Gerade fließt live kein nennenswertes Geld${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
+  if(!z.length) return `<div class="leer">Gerade fließt live kein Geld einseitig auf eine Auswahl${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
   const MN = {"Match Odds":"Sieg-Markt","Over/Under 2.5 Goals":"Über/Unter 2,5","Over/Under 3.5 Goals":"Über/Unter 3,5","Both teams to Score?":"Beide treffen","Half Time":"HZ-Sieger","First Half Goals 0.5":"HZ-Tore 0,5","First Half Goals 1.5":"HZ-Tore 1,5"};
   return `<div class="kgrid">${z.map(x=>{
     const vt = x.verteilung ? x.verteilung.map(v=>({name:v.name,wert:v.eur,quote:v.quote})) : null;
@@ -621,10 +646,7 @@ function liveKarten(D, max){
     return `<div class="kk live-k" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
       <div class="kk-oben">${flagge(x.land)}<span>${esc(x.liga)}</span><span class="rechts">${live(x)}</span></div>
       <div class="kk-titel">${esc(x.heim)} – ${esc(x.gast)}</div>
-      <div class="kk-zahl gruen">+${eur(x.zuflussEur)}</div>
-      <div class="kk-klein">in 15 Min, ${eur(x.eur)} gematcht${x.xnorm!=null?`, ×${dez(x.xnorm)} der Liga`:""}</div>
-      ${mz?`<div class="kk-auf">zuletzt vor allem in <b>${esc(MN[mz.name]||mz.name)}</b> (+${eur(mz.eur)})</div>`:""}
-      ${vt?vbar(vt):""}
+      ${(x.fluss||[]).length ? flussKopf(x.fluss[0]) + flussZeilen(x.fluss,false) : ""}
     </div>`;}).join("")}</div>`;
 }
 function normChart(liste){
@@ -710,9 +732,9 @@ function seiteStart(D){
   const r = D.radar, top = lf(r.spiele).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,8);
   const pm = lf(D.poly.maerkte).slice().sort((a,b)=>(b.nBelegt-a.nBelegt)||(b.usd-a.usd)).slice(0,6);
   return `<div class="grid">
-    <div class="panel c8"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">neues Geld vor Anpfiff, letzte 30 Min</span><button class="chip rechts" data-geh="betfair">Alle</button></div>${zuflussKarten(D,4)}</div>
+    <div class="panel c8"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">wohin neues Geld floss, vor Anpfiff, 30 Min</span><button class="chip rechts" data-geh="betfair">Alle</button></div>${zuflussKarten(D,4)}</div>
     <div class="panel c4 feedpanel" style="grid-row:span 2"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span></div><div class="feed">${feedListe(D,12)}</div></div>
-    <div class="panel c8"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">letzte 15 Min, ohne entschiedene Spiele</span></div>${liveKarten(D,4)}</div>
+    <div class="panel c8"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">wohin live Geld floss, 15 Min</span></div>${liveKarten(D,4)}</div>
     <div class="panel c8"><div class="ph"><h3>Ungewöhnlich viel Geld</h3><span class="hint">Geld im Verhältnis zur eigenen Liga</span><button class="chip rechts" data-geh="betfair">Alle ${r.spiele.length}</button></div>${normChart(top)}</div>
     <div class="panel c12"><div class="ph"><h3>Polymarket</h3><span class="hint">belegte Wale zuerst</span><button class="chip rechts" data-geh="poly">Alle Märkte</button></div>${polyKarten(pm)}</div>
     <div class="panel c8"><div class="ph"><h3>Pinnacle bewegt sich</h3><span class="hint">faire Quote vorher und jetzt</span><button class="chip rechts" data-geh="pinnacle">Alle</button></div>${pinKarten(lf(D.sharp).slice(0,6))}</div>
@@ -725,8 +747,8 @@ function seiteBetfair(D){
   const norm = lf(alle).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
   const hzl = lf(D.halbzeit||[]);
   return `<div class="grid">
-    <div class="panel c12"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">neues Geld vor Anpfiff, letzte 30 Min, alle Ligen</span></div>${zuflussKarten(D,8)}</div>
-    <div class="panel c12"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">letzte 15 Min, ohne entschiedene Spiele (ab 70' oder Quote unter 1,10)</span></div>${liveKarten(D,8)}</div>
+    <div class="panel c12"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">wohin neues Geld floss: Auswahl, die den Großteil des neuen Geldes in ihrem Markt bekam (vor Anpfiff, 30 Min)</span></div>${zuflussKarten(D,8)}</div>
+    <div class="panel c12"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">Auswahl, die in 15 Min den Großteil des neuen Geldes in ihrem Markt bekam; entschiedene Spiele raus</span></div>${liveKarten(D,8)}</div>
     <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">×2 = doppelt so viel Geld wie in dieser Liga üblich</span></div>${normChart(norm)}</div>
     <div class="panel c5"><div class="ph"><h3>Halbzeit-Geld</h3><span class="hint">Geld auf die 1. Halbzeit</span></div>${hzKarten(hzl.slice(0,4))}${hzl.length>4?liste("Alle Halbzeit-Spiele als Liste",hzl.length,hzTabelle(hzl,"hz-bf")):""}</div>
     <div class="panel c12">${liste(`Alle ${alle.length} Spiele aus ${D.radar.ligen} Ligen als Liste`, "", `<div class="chips" style="margin:12px 0">${Object.entries(BF_SETS).map(([k,[n,fn]])=>`<button class="chip${k===filterBf?" an":""}" data-filter="${k}">${n} <span style="opacity:.6">${fn(alle).length}</span></button>`).join("")}</div>${spielTabelle(liste_,"t-bf",25)}`)}</div>

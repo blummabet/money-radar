@@ -523,6 +523,40 @@ def _phase(jetzt, kick):
 TOP5_RX = re.compile(r"^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1)$", re.I)
 
 
+def auswahl_zufluss(snaps, minuten, min_eur, min_anteil=0.65):
+    """Zufluss JE AUSWAHL: wohin ging das neue Geld innerhalb eines Marktes?
+
+    Vergleicht die Auswahl-Volumina jetzt mit dem Punkt vor `minuten`. Gemeldet wird eine Auswahl,
+    wenn sie mindestens `min_eur` neu bekam UND den Großteil (`min_anteil`) des neuen Geldes in
+    ihrem Markt — sonst ist es ein gleichmäßig verteilter Markt, der nichts aussagt.
+    """
+    pts = [s for s in snaps if isinstance(s, dict) and isinstance(s.get("sel"), dict) and ts(s.get("ts"))]
+    if len(pts) < 2:
+        return []
+    jetzt = pts[-1]
+    t_jetzt = ts(jetzt["ts"])
+    vor = None
+    for s in pts[:-1]:
+        if ts(s["ts"]) <= t_jetzt - timedelta(minutes=minuten - 2):
+            vor = s
+    if not vor or ts(vor["ts"]) < t_jetzt - timedelta(minutes=minuten + 15):
+        return []
+    out = []
+    for markt, sel in jetzt["sel"].items():
+        alt = (vor.get("sel") or {}).get(markt) or {}
+        d = {n: v[0] - (alt.get(n) or [0])[0] for n, v in sel.items()}
+        ges = sum(x for x in d.values() if x > 0)
+        if ges <= 0:
+            continue
+        name, dv = max(d.items(), key=lambda kv: kv[1])
+        if dv >= min_eur and dv / ges >= min_anteil:
+            out.append({"markt": markt, "auswahl": name, "eur": round(dv), "anteil": round(100 * dv / ges),
+                        "quote": sel[name][1], "quoteVorher": (alt.get(name) or [None, None])[1],
+                        "marktNeu": round(ges)})
+    out.sort(key=lambda x: -x["eur"])
+    return out[:4]
+
+
 def markt_zufluss(snaps):
     mk = [s.get("mkv") for s in snaps if isinstance(s, dict) and isinstance(s.get("mkv"), dict)]
     if len(mk) < 2:
@@ -621,6 +655,8 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             "d15": round(vol - vor15) if vor15 is not None and t15 and t15 >= JETZT - timedelta(minutes=30) else None,
             # In welchen Markt floss das Geld zuletzt? (die Historie führt das Markt-Volumen der letzten 2 Abrufe)
             "marktZufluss": markt_zufluss(snaps),
+            "flussVorher": auswahl_zufluss(snaps, 30, 3000) if dt_h > 0 else [],
+            "flussLive": auswahl_zufluss(snaps, 15, 1500) if dt_h <= 0 else [],
             "top5": bool(TOP5_RX.search(str(m.get("league") or ""))),
             "quoten30": ({"heim": mo30.get("hw"), "remis": mo30.get("dr"), "gast": mo30.get("aw")} if mo30 else None),
             "kurve": kurve,
@@ -696,10 +732,11 @@ def zufluss_liste(radar, consensus):
     kons = {str(g.get("matchId")): g for g in (consensus or {}).get("games") or []}
     out = []
     for sp in radar.get("spiele") or []:
-        d = sp.get("d30")
+        fl = sp.get("flussVorher") or []
+        d = fl[0]["eur"] if fl else None
         # Live-Spiele raus: dort fließt laufend Geld, weil sich mit jedem Angriff die Quote dreht —
         # das ist Handel, kein frisches Urteil. Wie im alten Projekt nur vor Anpfiff.
-        if not d or d < 3000 or sp.get("entschieden") or sp.get("live"):
+        if not d or sp.get("entschieden") or sp.get("live"):
             continue
         vt = sp.get("verteilung") or []
         top = max(vt, key=lambda v: v.get("eur") or 0) if vt else None
@@ -724,7 +761,7 @@ def zufluss_liste(radar, consensus):
                     "marktEur": sp["eur"], "xnorm": sp.get("xnorm"), "meistesGeldAuf": seite, "quote": quote,
                     "quoteVorher": vor, "quoteRichtung": richtung, "duenn": sp["eur"] < 3000,
                     "verteilung": [{"name": v["name"], "quote": v.get("quote"), "eur": v["eur"]} for v in vt] or None,
-                    "pinnacle": pin})
+                    "pinnacle": pin, "fluss": fl})
     out.sort(key=lambda x: -x["zuflussEur"])
     return out[:20]
 
@@ -734,11 +771,12 @@ def live_zufluss(radar):
     in die in den letzten 15 Min Geld floss — ohne entschiedene (ab 70' / Quote unter 1,10)."""
     out = []
     for sp in radar.get("spiele") or []:
-        d = sp.get("d15")
-        if not sp.get("live") or sp.get("entschieden") or not d or d < 1500:
+        fl = sp.get("flussLive") or []
+        d = fl[0]["eur"] if fl else None
+        if not sp.get("live") or sp.get("entschieden") or not d:
             continue
         out.append({k: sp.get(k) for k in ("id", "heim", "gast", "liga", "land", "anpfiff", "live", "eur", "xnorm",
-                                            "quoten", "verteilung", "marktZufluss", "top5", "rang")} | {"zuflussEur": d})
+                                            "quoten", "verteilung", "marktZufluss", "top5", "rang")} | {"zuflussEur": d, "fluss": fl})
     out.sort(key=lambda x: -x["zuflussEur"])
     return out[:20]
 
