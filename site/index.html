@@ -213,6 +213,26 @@ main{padding:22px 28px 60px;min-width:0}
 .dr-x{margin-left:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;width:34px;height:34px}
 .drawer .det{grid-template-columns:1fr;gap:20px}
 .drawer .det svg{width:100%}
+.d-kopf{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--text-2)}
+.d-kopf .flag{display:inline-block!important}
+.dz{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.dz:first-of-type{border-top:0}
+.dz-l{min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dz-l small{color:var(--text-3)}
+.dz-bar{height:10px;background:var(--panel-3);border-radius:5px;overflow:hidden}
+.dz-bar i{display:block;height:100%;background:var(--up);border-radius:5px}
+.dz-r{text-align:right;font-weight:800;color:var(--up);white-space:nowrap;font-size:13.5px}
+.dz-r small{display:block;font-weight:600;font-size:11px;color:var(--text-3)}
+.mb{padding:10px 0;border-top:1px solid var(--line)}
+.mb:first-of-type{border-top:0;padding-top:2px}
+.mb-k{display:flex;justify-content:space-between;gap:8px;font-size:13.5px;margin-bottom:7px}
+.mb-k span{color:var(--text-2);font-weight:700}
+.mb-k em,.mb-l em{font-style:normal;color:var(--up);font-weight:700}
+.mb-l{margin-top:6px;font-size:12.5px;color:var(--text-2)}
+.mb-l div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+.mb-l i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+.mb-l small{color:var(--text-3)}
+.mb-l b{color:var(--text)}
 @media (prefers-reduced-motion:reduce){.drawer,.dr-schleier{transition:none}}
 .unten-nav{display:none}
 @media (max-width:1180px){
@@ -381,16 +401,28 @@ function spielZeile(s, i){
 }
 const PHASE = {p0:"mehr als 3 h vor Anpfiff", p1:"letzte 3 h vor Anpfiff", l1:"1. Halbzeit", l2:"2. Halbzeit"};
 function spielDetail(s){
-  const vt = s.verteilung ? s.verteilung.map(v=>({name:v.name,wert:v.eur,quote:v.quote})) : null;
+  const md = s.maerkteDetail || [], fm = s.fensterMin || 30;
+  const PAL = ["#ffb547","#5b9dff","#7d8aa3","#a183ff","#2fd38a","#ff77a8"];
+  // 1) wohin floss das neue Geld — quer über alle Märkte, je Auswahl
+  const fl = [];
+  for(const m of md) for(const a of m.auswahl) if(a.neu>0) fl.push({markt:m.name, name:a.name, neu:a.neu, quote:a.quote, anteil: m.neu? Math.round(a.neu/m.neu*100):null});
+  fl.sort((x,y)=>y.neu-x.neu);
+  const maxF = Math.max(1, ...fl.map(f=>f.neu));
+  const flussBlock = fl.length ? fl.slice(0,6).map(f=>`<div class="dz"><div class="dz-l"><b>${esc(auswahlDe(f.name))}</b> <small>${esc(marktDe(f.markt))}${f.quote?` @ ${q2(f.quote)}`:""}</small></div>
+      <div class="dz-bar"><i style="width:${(f.neu/maxF*100).toFixed(1)}%"></i></div><div class="dz-r">+${eur(f.neu)}${f.anteil!=null?`<small>${f.anteil} % des Marktes</small>`:""}</div></div>`).join("")
+    : `<div class="kk-klein">In den letzten ${fm} Minuten kam kein neues Geld dazu, oder die Historie reicht noch nicht.</div>`;
+  // 2) jeder Markt als Balken
+  const marktBlock = md.map(m=>{
+    const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1;
+    return `<div class="mb"><div class="mb-k"><b>${esc(marktDe(m.name))}</b><span>${eur(m.eur)}${m.neu>0?` <em>+${eur(m.neu)} neu</em>`:""}</span></div>
+      <div class="vbar" style="height:10px">${m.auswahl.map((a,i)=>`<span style="flex:${a.eur} 1 0;background:${PAL[i%PAL.length]}"></span>`).join("")}</div>
+      <div class="mb-l">${m.auswahl.map((a,i)=>`<div><span><i style="background:${PAL[i%PAL.length]}"></i>${esc(auswahlDe(a.name))}${a.quote?` <small>@ ${q2(a.quote)}</small>`:""}</span><span><b>${Math.round(a.eur/ges*100)} %</b>${a.neu>0?` <em>+${eur(a.neu)}</em>`:""}</span></div>`).join("")}</div></div>`;
+  }).join("");
   return `<tr class="detail"><td colspan="6"><div class="det">
-    <div><h4>Geld im Verlauf, letzte 10 Stunden</h4>${spark(s.kurve,"var(--bf)",320,70)}
-      <div class="mini-liste" style="margin-top:8px"><div><span>Gematcht, alle Märkte zusammen</span><b>${eur(s.eur)}</b></div>
-      <div><span>Üblich in dieser Liga, ${PHASE[s.phase]||"dieser Phase"} (Median)</span><b>${s.normEur?eur(s.normEur):"unbekannt"}</b></div>
-      ${s.rang?`<div><span>Mehr als … Spiele dieser Liga, letzte 60 Tage</span><b>${s.rang.weniger} von ${s.rang.n}</b></div><div><span>Höchster Wert in der Stichprobe</span><b>${eur(s.rang.max)}</b></div>`:""}
-      ${s.d60!=null?`<div><span>Letzte 60 Minuten</span><b>+${eur(Math.max(0,s.d60))}</b></div>`:""}</div></div>
-    <div><h4>Sieg-Markt</h4>${vt?vbar(vt)+legende(vt, t=>"zu "+q2(t.quote)):`<div class="mini-liste"><div><span>${esc(s.heim)}</span><b>${q2(s.quoten.heim)}</b></div><div><span>Remis</span><b>${q2(s.quoten.remis)}</b></div><div><span>${esc(s.gast)}</span><b>${q2(s.quoten.gast)}</b></div></div>`}
-      ${s.wahrsch?`<div style="margin-top:10px;color:var(--text-3);font-size:12px">Faire Wahrscheinlichkeit ${Math.round(s.wahrsch.heim*100)} / ${Math.round(s.wahrsch.remis*100)} / ${Math.round(s.wahrsch.gast*100)} %</div>`:""}</div>
-    <div><h4>Wo das Geld liegt</h4><div class="mini-liste">${(s.maerkte||[]).map(m=>`<div><span>${esc(m.name)}</span><b>${eur(m.eur)}</b></div>`).join("")||"–"}</div></div>
+    <div class="d-kopf">${flagge(s.land)} ${esc(s.liga)} · ${s.live?`<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}`:wann(s.anpfiff)} · ${eur(s.eur)} gematcht${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}</div>
+    <div><h4>Wohin das neue Geld floss, letzte ${fm} Min</h4>${flussBlock}</div>
+    <div><h4>Märkte</h4>${marktBlock||"–"}</div>
+    <div><h4>Geld im Spiel, letzte 10 Stunden</h4>${spark(s.kurve,"var(--bf)",320,48)}</div>
   </div></td></tr>`;
 }
 function spielTabelle(liste, id, max, mitVt=true){

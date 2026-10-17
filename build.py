@@ -557,6 +557,42 @@ def auswahl_zufluss(snaps, minuten, min_eur, min_anteil=0.65):
     return out[:4]
 
 
+def sel_delta(snaps, minuten):
+    """{Markt: {Auswahl: neues Geld}} gegenüber dem Punkt vor `minuten` (leer, wenn zu wenig Historie)."""
+    pts = [s for s in snaps if isinstance(s, dict) and isinstance(s.get("sel"), dict) and ts(s.get("ts"))]
+    if len(pts) < 2:
+        return {}
+    jetzt, t_jetzt, vor = pts[-1], ts(pts[-1]["ts"]), None
+    for s in pts[:-1]:
+        if ts(s["ts"]) <= t_jetzt - timedelta(minutes=minuten - 2):
+            vor = s
+    if not vor:
+        vor = pts[0]            # weniger Historie als das Fenster: ab dem ältesten Punkt
+    return {mk: {n: round(v[0] - ((vor["sel"].get(mk) or {}).get(n) or [0])[0]) for n, v in sel.items()}
+            for mk, sel in jetzt["sel"].items()}
+
+
+def maerkte_detail(m, snaps, minuten):
+    """Die geldstärksten Märkte eines Spiels mit Geld + Quote je Auswahl und dem Zufluss je Auswahl."""
+    dl = sel_delta(snaps, minuten)
+    out = []
+    for name, mk in sorted(((k, v) for k, v in (m.get("markets") or {}).items() if isinstance(v, dict)),
+                           key=lambda kv: -float(kv[1].get("vol") or 0))[:6]:
+        vol = float(mk.get("vol") or 0)
+        if vol < 200:
+            continue
+        rs = sorted((r for r in mk.get("runners") or [] if isinstance(r, dict) and (r.get("vol") or 0) > 0),
+                    key=lambda r: -(r.get("vol") or 0))
+        if name not in ("Match Odds", "Half Time", "Draw no Bet") and len(rs) > 4:   # Ergebnis-Märkte: Top 4 + Rest
+            rest = sum(r.get("vol") or 0 for r in rs[4:])
+            rs = rs[:4] + ([{"name": "Rest", "vol": rest, "odd": None}] if rest > 0 else [])
+        d = dl.get(name) or {}
+        out.append({"name": name, "eur": round(vol), "neu": round(sum(max(0, x) for x in d.values())),
+                    "auswahl": [{"name": r.get("name"), "eur": round(r.get("vol") or 0), "quote": r.get("odd"),
+                                 "neu": d.get(r.get("name"))} for r in rs]})
+    return out
+
+
 def markt_zufluss(snaps):
     mk = [s.get("mkv") for s in snaps if isinstance(s, dict) and isinstance(s.get("mkv"), dict)]
     if len(mk) < 2:
@@ -655,6 +691,8 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             "d15": round(vol - vor15) if vor15 is not None and t15 and t15 >= JETZT - timedelta(minutes=30) else None,
             # In welchen Markt floss das Geld zuletzt? (die Historie führt das Markt-Volumen der letzten 2 Abrufe)
             "marktZufluss": markt_zufluss(snaps),
+            "maerkteDetail": maerkte_detail(m, snaps, 30 if dt_h > 0 else 15),
+            "fensterMin": 30 if dt_h > 0 else 15,
             "flussVorher": auswahl_zufluss(snaps, 30, 3000) if dt_h > 0 else [],
             "flussLive": auswahl_zufluss(snaps, 15, 1500) if dt_h <= 0 else [],
             "top5": bool(TOP5_RX.search(str(m.get("league") or ""))),
