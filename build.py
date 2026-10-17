@@ -37,6 +37,11 @@ def sport_ok(sport) -> bool:
     return (sport or "Fußball") in SPORTARTEN
 
 
+def poly_key_ok(key) -> bool:
+    """Lucas 17.10.: auch bei Polymarket kein ATP/WTA, ITF bleibt."""
+    return not str(key or "").startswith(("atp-", "wta-"))
+
+
 def stake_ok(z) -> bool:
     if not sport_ok(z.get("kat")):
         return False
@@ -309,7 +314,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
         if isinstance(m, dict):
             quelle[key] = {**(quelle.get(key) or {}), **m}
     for key, m in quelle.items():
-        if not isinstance(m, dict) or key.endswith(("-more-markets", "-exact-score")) or not sport_ok(m.get("sport")):
+        if not isinstance(m, dict) or key.endswith(("-more-markets", "-exact-score")) or not sport_ok(m.get("sport")) or not poly_key_ok(key):
             continue
         h = m.get("hoursToKickoff")
         k = ts(m.get("koTs"))
@@ -361,7 +366,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
         if not w["bewiesen"]:
             continue
         for o in w["offen"]:
-            if float(o.get("usd") or 0) < 500 or not zukunft(o.get("anpfiff"), nach_h=0, bis_h=72) or not sport_ok(o.get("sport")):
+            if float(o.get("usd") or 0) < 500 or not poly_key_ok(o.get("markt")) or not zukunft(o.get("anpfiff"), nach_h=0, bis_h=72) or not sport_ok(o.get("sport")):
                 continue
             setzen.append({**o, "wallet": w["wallet"], "clv": w["fensterClv"], "clvUg": w["clvUg"],
                            "spiel": name_fuer(o["markt"]), "jetzt": ((quelle.get(o["markt"]) or {}).get("prices") or {}).get(o.get("seite"))})
@@ -371,7 +376,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
     tp = []
     for z in trades_ledger or []:
         t = ts(z.get("sentAt"))
-        if not t or t < JETZT - timedelta(hours=36) or not sport_ok(z.get("cat")):
+        if not t or t < JETZT - timedelta(hours=36) or not sport_ok(z.get("cat")) or not poly_key_ok(z.get("key")):
             continue
         tp.append({"wallet": z.get("wallet"), "markt": z.get("key"), "spiel": name_fuer(z.get("key")), "seite": z.get("side"),
                    "usd": z.get("usd"), "preis": z.get("pushPrice"), "sport": z.get("cat"), "zeit": z.get("sentAt"),
@@ -386,7 +391,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
     wale = []
     for z in whale_ledger or []:
         t = ts(z.get("sentAt"))
-        if not t or t < grenze or not sport_ok(z.get("cat")):
+        if not t or t < grenze or not sport_ok(z.get("cat")) or not poly_key_ok(z.get("key")):
             continue
         wale.append({"wallet": z.get("wallet"), "markt": z.get("key"), "seite": z.get("side"),
                      "usd": z.get("usd"), "preis": z.get("whaleEntry"), "anteilSeite": z.get("seitenAnteil"),
