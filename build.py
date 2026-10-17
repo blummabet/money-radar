@@ -1162,16 +1162,46 @@ _FUELL = {"fc", "cf", "sc", "ac", "as", "afc", "club", "de", "del", "la", "the",
           "fk", "sk", "if", "bk", "kv", "ssc", "us", "vs", "balompie", "1", "cfc", "saudi", "football"}
 
 
+_GENERISCH = {"real", "united", "city", "atletico", "athletic", "sporting", "deportivo", "racing", "inter", "internazionale",
+              "saint", "dinamo", "club", "union", "nacional", "independiente", "universidad", "town", "rovers", "wanderers",
+              "olimpia", "esporte", "clube", "sport", "america", "mineiro", "paris", "new", "york", "san", "santa"}
+_ALIAS = {"utd": "united", "man": "manchester", "atl": "atletico", "atletico": "atletico", "mg": "mineiro",
+          "rennais": "rennes", "mgladbach": "gladbach", "monchengladbach": "gladbach", "borussia": "", "nottm": "nottingham",
+          "wolves": "wolverhampton", "spurs": "tottenham", "psg": "paris", "munchen": "munich", "koln": "cologne",
+          "inter": "internazionale", "athletic": "athletic", "bilbao": "bilbao", "sporting": "sporting", "olympique": "",
+          "stade": "", "dep": "deportivo", "athletico": "paranaense", "pr": "paranaense", "dynamo": "dinamo", "fcsb": "steaua", "st": "saint", "ath": "athletic"}
+
+
 def _tokens(name):
     import unicodedata
     t = unicodedata.normalize("NFKD", str(name or "")).encode("ascii", "ignore").decode().lower()
     t = re.sub(r"\(.*?\)", " ", t)
-    return {w for w in re.split(r"[^a-z0-9]+", t) if len(w) >= 3 and w not in _FUELL}
+    aus = set()
+    for w in re.split(r"[^a-z0-9]+", t):
+        w = _ALIAS.get(w, w)
+        if w and len(w) >= 3 and not w.isdigit() and w not in _FUELL:
+            aus.add(w)
+    # Allerweltswörter („Real", „United", „Atletico") tragen allein keine Zuordnung — sonst wäre
+    # Real Madrid = Real Sociedad. Nur wenn der Name aus nichts anderem besteht, bleiben sie.
+    return aus
 
 
-def _gleich(a, b):
-    ta, tb = _tokens(a), _tokens(b)
-    return bool(ta and tb and (ta & tb))
+def _gleich(a, b, locker=False):
+    """Gleiches Team? Gemeinsames Kernwort (ohne Allerweltswörter wie „Real", „Atletico"), oder (locker)
+    gleicher Wortanfang ab 4 Buchstaben („Rennes"/„Rennais"). Besteht ein Name NUR aus Allerweltswörtern
+    („Atlético Nacional", „Real Racing Club"), reicht ein gemeinsames Wort davon."""
+    va, vb = _tokens(a), _tokens(b)
+    if not va or not vb:
+        return False
+    ka, kb = va - _GENERISCH, vb - _GENERISCH
+    if ka & kb:
+        return True
+    if (not ka or not kb) and (va & vb):
+        return True
+    if not ka or not kb:
+        return False
+    n = 4 if locker else 5
+    return any(len(x) >= n and len(y) >= n and x[:n] == y[:n] for x in ka for y in kb)
 
 
 def _teams(titel):
@@ -1193,12 +1223,10 @@ def _seite(name, heim, gast):
     return None
 
 
-def geld_toepfe(radar, poly_m, hr):
+def geld_toepfe(radar, poly_alle, hr):
     spiele = []
     # 1) Betfair als Grundgerüst (hat Land, Liga-Namen, Live-Stand)
     for sp in (radar or {}).get("spiele") or []:
-        if sp.get("entschieden"):
-            continue
         seiten = {}
         for v in sp.get("verteilung") or []:
             k = _seite(v["name"], sp["heim"], sp["gast"])
@@ -1206,36 +1234,57 @@ def geld_toepfe(radar, poly_m, hr):
                 seiten[k] = seiten.get(k, 0) + (v.get("eur") or 0)
         spiele.append({"id": sp["id"], "heim": sp["heim"], "gast": sp["gast"], "liga": sp["liga"], "land": sp.get("land"),
                        "anpfiff": sp["anpfiff"], "live": sp.get("live"), "top5": bool(sp.get("top5")), "sport": "Fußball",
+                       "entschieden": bool(sp.get("entschieden")),
                        "q": {"betfair": {"betrag": sp["eur"], "seiten": seiten, "quoten": sp.get("quoten")}}})
 
     def finden(heim, gast, anpfiff):
+        """Beide Teams passen (Anpfiff ±3 h) — oder Anpfiff fast gleich (±20 Min) und ein Team sicher, das andere locker."""
         t = ts(anpfiff)
         for g in spiele:
             tg = ts(g["anpfiff"])
-            if t and tg and abs((t - tg).total_seconds()) > 3 * 3600:
+            dt = abs((t - tg).total_seconds()) if t and tg else 0
+            if dt > 3 * 3600:
                 continue
-            if (_gleich(heim, g["heim"]) and _gleich(gast, g["gast"])) or (_gleich(heim, g["gast"]) and _gleich(gast, g["heim"])):
-                return g
+            for a, b in ((heim, gast), (gast, heim)):
+                if _gleich(a, g["heim"]) and _gleich(b, g["gast"]):
+                    return g
+                if dt <= 20 * 60 and ((_gleich(a, g["heim"]) and _gleich(b, g["gast"], locker=True))
+                                      or (_gleich(a, g["heim"], locker=True) and _gleich(b, g["gast"]))):
+                    return g
         return None
 
-    # 2) Polymarket (Volumen gesamt; Seiten aus dem Geld in offenen Positionen)
-    for m in poly_m or []:
-        h, gst = _teams(m.get("spiel"))
-        if not h:
+    # 2) Polymarket — ALLE Märkte (upcoming + laufend), nicht nur die ausgewählten der Poly-Seite.
+    #    Die Schlüssel tragen nur Kürzel („mls-nyr-tor-…"); die Teamnamen stehen in den Preis-Schlüsseln.
+    #    „…-more-markets" (Tore, BTTS, Handicap) zählt zum Volumen desselben Spiels.
+    mm_vol = {}
+    for key, m in (poly_alle or {}).items():
+        if isinstance(m, dict) and key.endswith("-more-markets"):
+            mm_vol[key[:-len("-more-markets")]] = float(m.get("totalUsd") or 0)
+    for key, m in (poly_alle or {}).items():
+        if not isinstance(m, dict) or key.endswith(("-more-markets", "-exact-score")) or not poly_key_ok(key):
             continue
-        g = finden(h, gst, m.get("anpfiff"))
+        if not sport_ok(m.get("sport")):
+            continue
+        teams = [n for n in (m.get("prices") or {}) if not re.match(r"^draw", n, re.I)]
+        if len(teams) != 2:
+            continue
+        h, gst = teams
+        g = finden(h, gst, m.get("koTs"))
         if not g:
-            g = {"id": "pm:" + str(m.get("key")), "heim": h, "gast": gst, "liga": m.get("liga"), "land": None,
-                 "anpfiff": m.get("anpfiff"), "live": None, "top5": str(m.get("key") or "").split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1"},
+            g = {"id": "pm:" + key, "heim": h, "gast": gst, "liga": m.get("league"), "land": None,
+                 "anpfiff": m.get("koTs"), "live": None, "top5": key.split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1"},
                  "sport": m.get("sport") or "Fußball", "q": {}}
             spiele.append(g)
+        betrag = float(m.get("totalUsd") or 0) + mm_vol.get(key, 0)
+        if (g["q"].get("poly") or {}).get("betrag", -1) >= betrag:
+            continue                    # dasselbe Spiel unter zwei Schlüsseln (alter Schlüssel neu terminiert) → der größere zählt
         seiten = {}
-        for n, v in (m.get("geld") or {}).items():
+        for n, v in (m.get("shares") or {}).items():
             k = _seite(n, g["heim"], g["gast"])
             if k:
-                seiten[k] = seiten.get(k, 0) + v
-        g["q"]["poly"] = {"betrag": m.get("usd"), "seiten": seiten, "key": m.get("key"),
-                          "preise": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("preise") or {}).items()}}
+                seiten[k] = seiten.get(k, 0) + float(v or 0)
+        g["q"]["poly"] = {"betrag": round(betrag), "seiten": seiten, "key": key,
+                          "preise": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("prices") or {}).items()}}
 
     # 3) Stake: große Einzelwetten der letzten Stunden (Highroller ab $1000)
     je_event = {}
@@ -1248,7 +1297,10 @@ def geld_toepfe(radar, poly_m, hr):
         e = je_event.setdefault(w.get("eventId"), {"w": w, "summe": 0.0, "n": 0, "seiten": {}})
         e["summe"] += w.get("einsatzUsd") or 0
         e["n"] += 1
-        if str(w.get("markt") or "").lower() in ("1x2", "match result", "winner", "match winner", "moneyline", "winner - twoway"):
+        mk = str(w.get("markt") or "").lower()
+        # Seite aus Sieg-Märkten, aber auch aus Handicap / Draw No Bet (Auswahl = Teamname, ggf. mit Linie)
+        if mk in ("1x2", "match result", "winner", "match winner", "moneyline", "winner - twoway") \
+                or ("handicap" in mk and "half" not in mk and "1st" not in mk) or "draw no bet" in mk:
             e["seiten"].setdefault(w.get("auswahl"), 0.0)
             e["seiten"][w.get("auswahl")] += w.get("einsatzUsd") or 0
     for e in je_event.values():
@@ -1272,7 +1324,8 @@ def geld_toepfe(radar, poly_m, hr):
     out = []
     for g in spiele:
         k = ts(g["anpfiff"])
-        if not k or not (-2.2 <= (k - JETZT).total_seconds() / 3600 <= 30):
+        # entschiedene Spiele dienten nur als Anker, damit Polymarket/Stake sich nicht als eigenes Spiel listen
+        if g.get("entschieden") or not k or not (-2.2 <= (k - JETZT).total_seconds() / 3600 <= 30):
             continue
         ges, seiten_ges, meinungen = 0.0, {}, {}
         for qn, q in g["q"].items():
@@ -1391,7 +1444,7 @@ def main() -> int:
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
-        "toepfe": geld_toepfe(radar, pmd.get("maerkte"), hr),
+        "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(laden("poly_money_broad_live.json", {}) or {})}, hr),
         "stake": stake(burst),
         "hz": hz(finder),
         "fehler": FEHLER,
