@@ -2,3 +2,4 @@ site/data.json
 __pycache__/
 .push_state/
 .bf/
+.pin/

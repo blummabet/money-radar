@@ -62,16 +62,20 @@ def laden(name: str, default=None):
 
 
 FEHLER: list[str] = []
-BF_EIGEN = {"an": False}
+BF_EIGEN = {"an": False, "pin": False}
 
 
-def laden_bf(name: str):
-    """Betfair aus dem EIGENEN 5-Min-Abruf (.bf/), sonst die Datei des alten Projekts."""
-    lokal = Path(__file__).resolve().parent / ".bf" / name
+def laden_bf(name: str, ordner: str = ".bf"):
+    """Aus dem EIGENEN 5-Min-Abruf (.bf/ Betfair, .pin/ Pinnacle), sonst die Datei des alten Projekts."""
+    lokal = Path(__file__).resolve().parent / ordner / name
     try:
         if lokal.exists() and (datetime.now().timestamp() - lokal.stat().st_mtime) < 40 * 60:
-            BF_EIGEN["an"] = True
-            return json.loads(lokal.read_text(encoding="utf-8"))
+            d = json.loads(lokal.read_text(encoding="utf-8"))
+            # Ein Pinnacle-Lauf ohne einen einzigen Anker (Schlüssel fehlt, API weg) ist kein Ergebnis.
+            if name == "betfair_consensus.json" and not (d or {}).get("covered"):
+                raise ValueError("eigener Pinnacle-Lauf ohne Anker — nehme das alte Projekt")
+            BF_EIGEN["an" if ordner == ".bf" else "pin"] = True
+            return d
     except Exception as exc:  # noqa: BLE001
         FEHLER.append(f".bf/{name}: {str(exc)[:120]}")
     return laden(name, {})
@@ -725,8 +729,8 @@ def main() -> int:
     bf_led = laden("betfair_public_ledger.json", [])
     bf_rec = laden("betfair_public_record.json", {})
     overview = laden("betfair_overview.json", {})
-    consensus = laden("betfair_consensus.json", {})
-    history = laden("betfair_consensus_history.json", {})
+    consensus = laden_bf("betfair_consensus.json", ".pin")
+    history = laden_bf("betfair_consensus_history.json", ".pin")
     track = laden("poly_wallet_track.json", {})
     upcoming = laden("poly_money_upcoming.json", {})
     wale = laden("poly_whale_public_ledger.json", [])
@@ -749,7 +753,7 @@ def main() -> int:
         "betfair": betfair(prices, overview, consensus),
         "radar": (radar := betfair_radar(prices, bf_hist, bf_norm)),
         "zufluss30": zufluss_liste(radar, consensus),
-        "bfEigen": BF_EIGEN["an"],
+        "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"],
         "bfPushes": betfair_pushes(bf_led, bf_rec),
         "halbzeit": halbzeit(prices),
         "sharp": sharp(consensus, history),

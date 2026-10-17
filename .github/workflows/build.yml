@@ -23,7 +23,7 @@ concurrency:
 jobs:
   bauen:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -34,6 +34,7 @@ jobs:
         with:
           path: |
             .bf
+            .pin
             .push_state
           key: radar-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: radar-
@@ -49,6 +50,25 @@ jobs:
         env:
           BETWATCH_KEY: ${{ secrets.BETWATCH_KEY }}
         run: python3 fetch_betfair.py || echo "Betfair-Abruf fehlgeschlagen, Seite nimmt die Daten des alten Projekts"
+      - name: Pinnacle abrufen (Odds API) und mit Betfair/Polymarket abgleichen
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          BF_MAX_ODDS_KEYS: '60'
+          BF_ODDS_BUDGET_S: '60'
+        run: |
+          mkdir -p .pin && cd .pin
+          RAW=https://raw.githubusercontent.com/blummabet/betting-dashboard/main
+          # Gedächtnis-Dateien nur beim ersten Mal aus dem alten Projekt, danach führt dieses Repo sie selbst
+          for f in betfair_consensus_history.json odds_sports.json betfair_anker.json money_map_ledger.json; do
+            [ -s "$f" ] || curl -sf "$RAW/$f" -o "$f" || true
+          done
+          # Eingaben, die das alte Projekt laufend erneuert (Polymarket kommt vom Mac)
+          for f in betfair_direction.json poly_money_broad_close.json poly_money_broad_live.json poly_money_upcoming.json liga_poly_prices.json pinnacle_poly_scan.json; do
+            curl -sf "$RAW/$f" -o "$f.neu" && mv "$f.neu" "$f" || true
+          done
+          cp ../.bf/betfair_prices.json . 2>/dev/null || curl -sf "$RAW/betfair_prices.json" -o betfair_prices.json
+          if [ -n "$ODDS_API_KEY" ]; then timeout 200 python3 ../pinnacle_konsens.py || echo "Pinnacle-Lauf fehlgeschlagen, Seite nimmt das alte Projekt"; fi
+          rm -f poly_money_broad_close.json   # 20 MB, wird jedes Mal frisch geholt — nicht in den Cache
       - name: Daten verdichten
         run: python3 build.py
       - name: Pushes in den Test-Channel
@@ -63,6 +83,7 @@ jobs:
         with:
           path: |
             .bf
+            .pin
             .push_state
           key: radar-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-pages-artifact@v3
