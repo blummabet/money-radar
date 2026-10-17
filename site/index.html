@@ -39,7 +39,7 @@ aside{position:sticky;top:0;height:100vh;padding:22px 14px;border-right:1px soli
 .q i{width:7px;height:7px;border-radius:50%;flex:none}
 
 main{padding:22px 28px 60px;min-width:0}
-.kopf{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.kopf{display:flex;align-items:center;gap:14px;margin:-22px -28px 20px;padding:14px 28px;position:sticky;top:0;z-index:15;background:rgba(13,19,32,.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
 .kopf h1{font-size:22px;font-weight:800;margin:0;letter-spacing:-.01em}
 .kopf .sub{color:var(--text-2);font-size:13px}
 .kopf .rechts{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--text-2);font-size:13px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;white-space:nowrap}
@@ -220,6 +220,7 @@ main{padding:22px 28px 60px;min-width:0}
   .app{grid-template-columns:1fr}
   .app>aside{display:none}
   main{padding:16px 14px calc(84px + env(safe-area-inset-bottom))}
+  .kopf{margin:-16px -14px 14px;padding:10px 14px calc(10px);padding-top:calc(10px + env(safe-area-inset-top));gap:8px 10px}
   .grid{gap:12px}
   .kpi .wert{font-size:22px}
   .kpi svg{display:none}
