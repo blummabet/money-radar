@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<title>Geld-Radar</title>
+<style>
+:root{
+  --bg:#0d1117;--panel:#161b22;--panel2:#1c2330;--line:#2a3340;--text:#e6edf3;--mut:#8b949e;--dim:#6e7681;
+  --geld:#3fb950;--geld-bg:rgba(63,185,80,.12);--warn:#e3b341;--warn-bg:rgba(227,179,65,.12);
+  --rot:#f85149;--blau:#58a6ff;--lila:#a78bfa;--radius:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+header{position:sticky;top:0;z-index:5;background:rgba(13,17,23,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.kopf{max-width:980px;margin:0 auto;padding:12px 16px 0;display:flex;align-items:center;gap:10px}
+.kopf h1{font-size:17px;margin:0;font-weight:800;letter-spacing:-.01em}
+.kopf .stand{margin-left:auto;font-size:12px;color:var(--mut);white-space:nowrap}
+nav{max-width:980px;margin:0 auto;display:flex;gap:4px;padding:10px 12px 0;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{flex:0 0 auto;background:none;border:0;color:var(--mut);font:inherit;font-weight:600;padding:8px 12px 10px;border-bottom:2px solid transparent;cursor:pointer}
+nav button.an{color:var(--text);border-bottom-color:var(--geld)}
+nav button .z{font-size:11px;color:var(--dim);margin-left:4px;font-weight:500}
+main{max-width:980px;margin:0 auto;padding:14px 16px 60px}
+section{display:none}section.an{display:block}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:22px 0 8px;font-weight:700}
+h2:first-child{margin-top:4px}
+.hinweis{font-size:13px;color:var(--mut);margin:-2px 0 10px}
+.liste{display:flex;flex-direction:column;gap:8px}
+.karte{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+.zeile{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.spiel{font-weight:700}
+.meta{font-size:12px;color:var(--mut)}
+.rechts{margin-left:auto;text-align:right}
+.betrag{font-weight:800;color:var(--geld);font-variant-numeric:tabular-nums}
+.zahl{font-variant-numeric:tabular-nums}
+.chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--panel2);color:var(--mut);white-space:nowrap}
+.chip.geld{background:var(--geld-bg);color:var(--geld)}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.rot{background:rgba(248,81,73,.12);color:var(--rot)}
+.chip.blau{background:rgba(88,166,255,.12);color:var(--blau)}
+.balken{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--panel2);margin:9px 0 5px}
+.balken span{display:block;height:100%}
+.legende{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mut)}
+.legende b{color:var(--text);font-weight:700}
+.punkt{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0}
+.leer{color:var(--mut);font-size:14px;padding:14px;border:1px dashed var(--line);border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--mut);font-weight:600;font-size:12px;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.tabwrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto}
+.spark{display:inline-block;vertical-align:middle}
+.mini{font-size:12px;color:var(--mut);margin-top:6px}
+.mini b{color:var(--text)}
+.pos{display:flex;flex-direction:column;gap:3px;margin-top:8px}
+.pos div{font-size:13px}
+.wallet{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--lila);text-decoration:none}
+.frisch{display:flex;gap:6px;flex-wrap:wrap;max-width:980px;margin:0 auto;padding:0 16px 8px}
+.frisch .chip{font-weight:600}
+footer{max-width:980px;margin:0 auto;padding:0 16px 30px;font-size:12px;color:var(--dim)}
+@media (min-width:720px){.zwei{display:grid;grid-template-columns:1fr 1fr;gap:8px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="kopf"><h1>💰 Geld-Radar</h1><span class="stand" id="stand">lädt…</span></div>
+  <nav id="nav">
+    <button data-t="betfair" class="an">Betfair<span class="z" id="z-betfair"></span></button>
+    <button data-t="poly">Polymarket<span class="z" id="z-poly"></span></button>
+    <button data-t="sharp">Sharp Radar<span class="z" id="z-sharp"></span></button>
+    <button data-t="stake">Stake<span class="z" id="z-stake"></span></button>
+    <button data-t="hz">HZ 0:0<span class="z" id="z-hz"></span></button>
+  </nav>
+  <div class="frisch" id="frisch"></div>
+</header>
+<main>
+  <section id="betfair" class="an"></section>
+  <section id="poly"></section>
+  <section id="sharp"></section>
+  <section id="stake"></section>
+  <section id="hz"></section>
+</main>
+<footer>Keine Wettempfehlung. Gezeigt wird, wo Geld liegt und wer es setzt. Bilanzen ohne Untergrenze über null sind kein Beleg.</footer>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const tz = "Europe/Vienna";
+const fmtZeit = iso => { if(!iso) return "–"; const d=new Date(iso); return d.toLocaleString("de-AT",{timeZone:tz,weekday:"short",hour:"2-digit",minute:"2-digit"}); };
+const fmtUhr = iso => { if(!iso) return "–"; return new Date(iso).toLocaleTimeString("de-AT",{timeZone:tz,hour:"2-digit",minute:"2-digit"}); };
+const bis = iso => { if(!iso) return ""; const m=Math.round((new Date(iso)-Date.now())/60000); if(m<0) return "läuft"; if(m<60) return "in "+m+" Min"; const h=Math.floor(m/60); return h<24 ? "in "+h+" h "+(m%60)+" Min" : fmtZeit(iso); };
+const vor = iso => { if(!iso) return "–"; const m=Math.round((Date.now()-new Date(iso))/60000); if(m<1) return "gerade"; if(m<60) return "vor "+m+" Min"; const h=Math.round(m/60); return h<24?"vor "+h+" h":"vor "+Math.round(h/24)+" T"; };
+const eur = v => v==null ? "–" : "€"+(Math.abs(v)>=1e6 ? (v/1e6).toFixed(1).replace(".",",")+"M" : Math.abs(v)>=1e3 ? Math.round(v/1e3)+"k" : Math.round(v));
+const usd = v => v==null ? "–" : "$"+(Math.abs(v)>=1e6 ? (v/1e6).toFixed(1).replace(".",",")+"M" : Math.abs(v)>=1e3 ? Math.round(v/1e3)+"k" : Math.round(v));
+const pp = v => v==null ? "–" : (v>0?"+":"")+String(v).replace(".",",")+" pp";
+const pct = v => v==null ? "–" : Math.round(v)+" %";
+const quote = v => v==null ? "–" : Number(v).toFixed(2).replace(".",",");
+const FARBEN = ["#3fb950","#8b949e","#58a6ff"];
+const kurz = w => w ? w.slice(0,6)+"…"+w.slice(-4) : "";
+const polyLink = (key, text) => `<a href="https://polymarket.com/event/${encodeURIComponent(key)}" target="_blank" rel="noopener">${esc(text)} ↗</a>`;
+const walletLink = w => `<a class="wallet" href="https://polymarket.com/profile/${encodeURIComponent(w)}" target="_blank" rel="noopener">${esc(kurz(w))}</a>`;
+
+function farbeFuer(teile){
+  // Remis immer grau, die Seiten gruen/blau — sonst sieht bei Zwei-Wege-Maerkten Seite 2 wie ein Remis aus.
+  let k = 0;
+  return teile.map(t => ({...t, farbe: t.farbe || (/^remis$/i.test(t.name) ? "#6e7681" : (k++ === 0 ? "#3fb950" : "#58a6ff"))}));
+}
+function balken(teile){
+  teile = farbeFuer(teile);
+  const ges = teile.reduce((a,t)=>a+(t.wert||0),0); if(!ges) return "";
+  return `<div class="balken">${teile.map((t,i)=>`<span style="width:${(t.wert/ges*100).toFixed(1)}%;background:${t.farbe||FARBEN[i%3]}"></span>`).join("")}</div>`
+   + `<div class="legende">${teile.map((t,i)=>`<span><i class="punkt" style="background:${t.farbe||FARBEN[i%3]}"></i>${esc(t.name)} <b>${Math.round(t.wert/ges*100)} %</b>${t.zusatz?" · "+esc(t.zusatz):""}</span>`).join("")}</div>`;
+}
+function spark(werte){
+  if(!werte || werte.length<2) return "";
+  const w=90,h=22,min=Math.min(...werte),max=Math.max(...werte),sp=(max-min)||1;
+  const pts=werte.map((v,i)=>`${(i/(werte.length-1)*w).toFixed(1)},${(h-2-(v-min)/sp*(h-4)).toFixed(1)}`).join(" ");
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline fill="none" stroke="#58a6ff" stroke-width="1.6" points="${pts}"/></svg>`;
+}
+const leer = t => `<div class="leer">${esc(t)}</div>`;
+
+// ── Betfair ────────────────────────────────────────────────
+function renderBetfair(b){
+  let h = `<h2>Frisches Geld</h2><p class="hinweis">Wo in den letzten Minuten am meisten neu gematcht wurde (vor Anpfiff).</p>`;
+  h += b.zufluss.length ? `<div class="liste">${b.zufluss.map(z=>`
+    <div class="karte">
+      <div class="zeile"><span class="spiel">${esc(z.heim)} – ${esc(z.gast)}</span><span class="rechts betrag">+${eur(z.zuflussEur)}</span></div>
+      <div class="zeile meta"><span>${esc(z.liga)} · ${bis(z.anpfiff)}</span><span class="rechts">${esc(z.markt)} · gesamt ${eur(z.marktEur)}</span></div>
+      ${z.verteilung ? balken(z.verteilung.map(v=>({name:v.name==="The Draw"?"Remis":v.name,wert:v.eur,zusatz:quote(v.quote)}))) : ""}
+      <div class="mini">Meistes Geld auf <b>${esc(z.meistesGeldAuf)}</b> @ ${quote(z.quote)} · Quote ${z.quoteRichtung==="faellt"?"fällt ↓":z.quoteRichtung==="steigt"?"steigt ↑":"ruhig"}
+      ${z.duenn?` <span class="chip warn">dünner Markt</span>`:""}
+      ${z.pinnacle?(z.pinnacle.einig?` <span class="chip blau">Pinnacle gleiche Seite</span>`:` <span class="chip rot">Pinnacle andere Seite</span>`):""}</div>
+    </div>`).join("")}</div>` : leer("Gerade kein frischer Zufluss über der Schwelle.");
+
+  h += `<h2>Meistes Geld heute</h2><p class="hinweis">Spiele der nächsten 30 Stunden nach gematchtem Gesamtvolumen.</p>`;
+  h += b.groesste.length ? `<div class="liste">${b.groesste.slice(0,15).map(g=>`
+    <div class="karte">
+      <div class="zeile"><span class="spiel">${esc(g.heim)} – ${esc(g.gast)}</span><span class="rechts betrag">${eur(g.volEur)}</span></div>
+      <div class="meta">${esc(g.liga)} · ${bis(g.anpfiff)}</div>
+      ${balken(g.verteilung.map(v=>({name:v.name==="The Draw"?"Remis":v.name,wert:v.eur,zusatz:quote(v.quote)})))}
+    </div>`).join("")}</div>` : leer("Keine Spiele mit Volumen in den nächsten 30 Stunden.");
+
+  h += `<h2>Kurs bewegt sich</h2><p class="hinweis">Größte Bewegung der Betfair-Wahrscheinlichkeit seit Beginn der Beobachtung.</p>`;
+  h += b.bewegung.length ? `<div class="tabwrap"><table><thead><tr><th>Spiel</th><th>auf</th><th class="n">Bewegung</th><th class="n">Quote</th><th class="n">Anpfiff</th></tr></thead><tbody>${
+    b.bewegung.map(s=>`<tr><td>${esc(s.heim)} – ${esc(s.gast)}<div class="meta">${esc(s.liga)}</div></td><td>${esc(s.auf)}</td><td class="n" style="color:${s.pp>0?"var(--geld)":"var(--rot)"}">${pp(s.pp)}</td><td class="n">${quote(s.quote)}</td><td class="n">${fmtUhr(s.anpfiff)}</td></tr>`).join("")
+  }</tbody></table></div>` : leer("Keine nennenswerten Bewegungen.");
+  return h;
+}
+
+// ── Polymarket ─────────────────────────────────────────────
+function renderPoly(p){
+  let h = `<h2>Wo das Geld liegt</h2><p class="hinweis">Märkte der nächsten 30 Stunden nach Gesamtvolumen. ✓ = Wallet mit belegter Bilanz.</p>`;
+  h += p.maerkte.length ? `<div class="liste">${p.maerkte.slice(0,15).map(m=>{
+    const geld = m.geld ? Object.entries(m.geld) : null;
+    const teile = geld ? geld.map(([n,v])=>({name:n.startsWith("Draw")?"Remis":n,wert:v,zusatz:m.preise&&m.preise[n]!=null?Math.round(m.preise[n]*100)+"¢":""})) : null;
+    const bew = (m.wale||[]).filter(w=>w.bewiesen);
+    return `<div class="karte">
+      <div class="zeile"><span class="spiel">${polyLink(m.key, m.spiel)}</span><span class="rechts betrag">${usd(m.usd)}</span></div>
+      <div class="meta">${esc(m.liga)} · ${esc(m.sport||"")} · ${bis(m.anpfiff)}</div>
+      ${teile ? balken(teile) : `<div class="mini">Preise: ${Object.entries(m.preise||{}).map(([n,v])=>esc(n.startsWith("Draw")?"Remis":n)+" <b>"+Math.round(v*100)+"¢</b>").join(" · ")}</div>`}
+      ${(m.wale||[]).length?`<div class="mini">Größte Halter: ${m.wale.slice(0,3).map(w=>`${w.bewiesen?"✓ ":""}${walletLink(w.wallet)} ${usd(w.usd)} auf <b>${esc(w.seite)}</b>`).join(" · ")}</div>`:""}
+      ${bew.length?`<div class="mini"><span class="chip geld">✓ ${bew.length} belegte Wallet${bew.length>1?"s":""} drin</span></div>`:""}
+    </div>`;}).join("")}</div>` : leer("Keine Märkte im Fenster.");
+
+  h += `<h2>Wallets mit belegter Bilanz</h2><p class="hinweis">Sortiert nach der CLV-Untergrenze (95 %): nicht nur im Schnitt gut, sondern belegt. Mindestens ${p.regel.minN} getrackte Wetten, ${p.regel.minFenster} im Messfenster, Ø-Einsatz ab $${p.regel.minSchnittUsd}. G/V = Polymarket-weite Bilanz der Wallet.</p>`;
+  h += p.wallets.length ? `<div class="liste">${p.wallets.map((w,i)=>`
+    <div class="karte">
+      <div class="zeile"><span class="spiel">${i+1}. ${walletLink(w.wallet)}</span> <span class="chip">${esc(w.sport)}</span>
+        <span class="rechts">${w.clvUg>0?`<span class="chip geld">belegt</span>`:`<span class="chip">nicht belegt</span>`}</span></div>
+      <div class="mini">Ø CLV <b>${pp(w.fensterClv)}</b> · Untergrenze <b style="color:${w.clvUg>0?"var(--geld)":"var(--mut)"}">${pp(w.clvUg)}</b> · ${w.fensterN} im Fenster / ${w.n} gesamt · Ø ${usd(w.schnittUsd)} · G/V ${usd(w.pnl)} · zuletzt ${esc(w.zuletzt||"–")}</div>
+      ${w.offen.length?`<div class="pos">${w.offen.map(o=>`<div>→ ${usd(o.usd)} auf <b>${esc(o.seite)}</b> · ${polyLink(o.markt, o.markt)} <span class="meta">${bis(o.anpfiff)}</span></div>`).join("")}</div>`:`<div class="mini">setzt gerade auf nichts, was wir sehen</div>`}
+    </div>`).join("")}</div>` : leer("Noch keine Wallet mit genug Historie.");
+
+  if(p.walPushes.length){
+    h += `<h2>Große Einzel-Positionen (24 h)</h2><div class="tabwrap"><table><thead><tr><th>Markt</th><th>Seite</th><th class="n">Einsatz</th><th class="n">Preis</th><th class="n">Zeit</th></tr></thead><tbody>${
+      p.walPushes.map(w=>`<tr><td>${polyLink(w.markt,w.markt)}<div class="meta">${walletLink(w.wallet)}</div></td><td>${esc(w.seite)}</td><td class="n betrag">${usd(w.usd)}</td><td class="n">${w.preis!=null?Math.round(w.preis*100)+"¢":"–"}</td><td class="n">${fmtUhr(w.zeit)}</td></tr>`).join("")
+    }</tbody></table></div>`;
+  }
+  return h;
+}
+
+// ── Sharp Radar ────────────────────────────────────────────
+function renderSharp(s){
+  let h = `<h2>Pinnacle bewegt sich</h2><p class="hinweis"><b>Lauf</b> = viele kleine Schritte in eine Richtung (der Kurs fällt evtl. weiter). <b>Sprung</b> = ein großer Schritt, meist News — danach meist eingepreist. Nur Spiele mit Pinnacle-Anker.</p>`;
+  h += s.length ? `<div class="liste">${s.map(r=>`
+    <div class="karte">
+      <div class="zeile"><span class="spiel">${esc(r.heim)} – ${esc(r.gast)}</span>
+        <span class="rechts">${r.art==="lauf"?(r.laeuftNoch?`<span class="chip geld">läuft noch</span>`:`<span class="chip">Lauf, steht</span>`):(r.frisch?`<span class="chip warn">frischer Sprung</span>`:`<span class="chip">Sprung, eingepreist</span>`)}</span></div>
+      <div class="meta">${esc(r.liga)} · ${bis(r.anpfiff)}</div>
+      <div class="zeile" style="margin-top:8px"><span>Auf <b>${esc(r.auf)}</b>: ${String(r.vonPct).replace(".",",")} % → <b>${String(r.nachPct).replace(".",",")} %</b> <span style="color:var(--geld)">(${pp(r.pp)})</span></span><span class="rechts">${spark(r.verlauf)}</span></div>
+      <div class="mini">Fair-Quote ${quote(r.fairQuote)}
+        ${r.betfairGeld?` · Betfair-Geld ${r.betfairGeld.anteil} % auf <b>${esc(r.betfairGeld.auf)}</b> @ ${quote(r.betfairGeld.quote)}`:""}
+        ${r.poly&&r.poly.anteil!=null?` · Polymarket ${r.poly.anteil} % (${usd(r.poly.usd)})`:""}</div>
+    </div>`).join("")}</div>` : leer("Gerade keine Pinnacle-Bewegung über 1,5 pp. Pinnacle-Anker gibt es nur für die größeren Ligen.");
+  return h;
+}
+
+// ── Stake ──────────────────────────────────────────────────
+function renderStake(st){
+  const bil = Object.entries(st.bilanz||{});
+  let h = `<h2>Bilanz der Meldungen</h2><p class="hinweis">Alle bisher abgerechneten Stake-Meldungen je Art (Rendite je eingesetztem Dollar). Belegt ist eine Art erst, wenn die Untergrenze (95 %) über null liegt.</p>`;
+  h += bil.length ? `<div class="tabwrap"><table><thead><tr><th>Art</th><th class="n">n</th><th class="n">Treffer</th><th class="n">ROI</th><th class="n">Untergrenze</th></tr></thead><tbody>${
+    bil.map(([a,b])=>`<tr><td>${esc(a)}</td><td class="n">${b.n}</td><td class="n">${pct(b.treffer)}</td><td class="n" style="color:${b.roi>0?"var(--geld)":"var(--rot)"}">${b.roi>0?"+":""}${String(b.roi).replace(".",",")} %</td><td class="n" style="color:${b.ug>0?"var(--geld)":"var(--mut)"}">${b.ug==null?"–":(b.ug>0?"+":"")+String(b.ug).replace(".",",")+" %"}</td></tr>`).join("")
+  }</tbody></table></div>` : leer("Noch nichts abgerechnet.");
+  h += `<h2>Meldungen der letzten 24 h</h2>`;
+  h += st.heute.length ? `<div class="liste">${st.heute.map(z=>`
+    <div class="karte">
+      <div class="zeile"><span class="chip">${esc(z.art)}</span><span class="spiel">${esc(z.spiel)}</span><span class="rechts betrag">${usd(z.usd)}</span></div>
+      <div class="meta">${esc(z.liga)} · ${z.phase==="live"?"live"+(z.minute?" "+z.minute+"'":""):"vor Anpfiff"} · ${fmtUhr(z.zeit)}</div>
+      <div class="mini">→ <b>${esc(z.auswahl||"–")}</b>${z.markt?" · "+esc(z.markt):""}${z.quote?" @ "+quote(z.quote):""} · ${z.wetten} Wette${z.wetten>1?"n":""}${z.faktor?" · "+String(z.faktor).replace(".",",")+"× der Norm":""}
+      ${z.status==="abgerechnet"&&z.rendite!=null?(z.rendite>0?` <span class="chip geld">gewonnen</span>`:` <span class="chip rot">verloren</span>`):""}</div>
+    </div>`).join("")}</div>` : leer("Keine Meldungen in den letzten 24 Stunden.");
+  return h;
+}
+
+// ── HZ 0:0 ─────────────────────────────────────────────────
+function renderHz(z){
+  let h = `<h2>Bilanz</h2><p class="hinweis">Spiele, die zur Halbzeit 0:0 stehen, nach den Regeln des HZ-Finders. Untergrenze = 95 %-Grenze des ROI.</p>`;
+  h += (z.bericht||[]).length ? `<div class="tabwrap"><table><thead><tr><th>Wette</th><th class="n">n</th><th class="n">Treffer</th><th class="n">erwartet</th><th class="n">ROI</th><th class="n">Untergrenze</th></tr></thead><tbody>${
+    z.bericht.map(b=>`<tr><td>${esc(b.wette)}</td><td class="n">${b.n??"–"}</td><td class="n">${pct(b.treffer)}</td><td class="n">${pct(b.erwartet)}</td><td class="n" style="color:${b.roi>0?"var(--geld)":"var(--rot)"}">${b.roi==null?"–":(b.roi>0?"+":"")+String(b.roi).replace(".",",")+" %"}</td><td class="n">${b.ug==null?"–":String(b.ug).replace(".",",")+" %"}</td></tr>`).join("")
+  }</tbody></table></div>` : leer("Noch keine Bilanz.");
+  h += `<h2>Heute erkannt</h2>`;
+  h += (z.heute||[]).length ? `<div class="liste">${z.heute.map(e=>`
+    <div class="karte"><div class="zeile"><span class="spiel">${esc(e.spiel)}</span><span class="rechts meta">${fmtUhr(e.zeit)}</span></div>
+      <div class="meta">${esc(e.liga)}${e.land?" · "+esc(e.land):""} · ${(e.gruppen||[]).map(g=>`<span class="chip">${esc(g)}</span>`).join(" ")}</div>
+      <div class="mini">${Object.entries(e.quoten||{}).map(([k,v])=>`${esc(k)} <b>${quote(v)}</b>`).join(" · ")}</div></div>`).join("")}</div>` : leer("Heute noch keine HZ-0:0-Spiele.");
+  return h;
+}
+
+function frische(q){
+  const namen = {betfair:"Betfair",pinnacle:"Pinnacle",polymarket:"Polymarket",stake:"Stake",hz:"HZ"};
+  $("#frisch").innerHTML = Object.entries(namen).map(([k,n])=>{
+    const t=q[k]; const m=t?(Date.now()-new Date(t))/60000:1e9;
+    const cls = m<=35 ? "geld" : m<=120 ? "warn" : "rot";
+    return `<span class="chip ${cls}" title="${esc(t||"")}">${n} ${vor(t)}</span>`;
+  }).join("");
+}
+
+let DATEN = null;
+async function laden(){
+  try{
+    const r = await fetch("data.json?t="+Date.now(), {cache:"no-store"});
+    DATEN = await r.json();
+    $("#stand").textContent = "Stand "+fmtUhr(DATEN.generatedAt);
+    frische(DATEN.quellen||{});
+    $("#betfair").innerHTML = renderBetfair(DATEN.betfair);
+    $("#poly").innerHTML = renderPoly(DATEN.poly);
+    $("#sharp").innerHTML = renderSharp(DATEN.sharp);
+    $("#stake").innerHTML = renderStake(DATEN.stake);
+    $("#hz").innerHTML = renderHz(DATEN.hz);
+    $("#z-betfair").textContent = DATEN.betfair.zufluss.length||"";
+    $("#z-sharp").textContent = DATEN.sharp.length||"";
+    $("#z-stake").textContent = DATEN.stake.heute.length||"";
+    $("#z-hz").textContent = (DATEN.hz.heute||[]).length||"";
+    $("#z-poly").textContent = DATEN.poly.maerkte.filter(m=>(m.wale||[]).some(w=>w.bewiesen)).length||"";
+  }catch(e){
+    $("#stand").textContent = "Daten nicht ladbar";
+  }
+}
+document.getElementById("nav").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("an", x===b));
+  document.querySelectorAll("section").forEach(s=>s.classList.toggle("an", s.id===b.dataset.t));
+  try{ localStorage.setItem("radar-tab", b.dataset.t); }catch(_){}
+  window.scrollTo({top:0});
+});
+try{ const t=localStorage.getItem("radar-tab"); if(t) document.querySelector(`nav button[data-t="${t}"]`)?.click(); }catch(_){}
+laden();
+setInterval(laden, 5*60*1000);
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) laden(); });
+</script>
+</body>
+</html>
