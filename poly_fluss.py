@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""
+poly_fluss.py — wohin fließt auf Polymarket gerade das NEUE Geld? (Lucas, 17.10.2026)
+
+„Bei Polymarket interessiert mich dasselbe": nicht das Volumen eines Spiels, sondern auf welche
+SEITE die Käufe der letzten 30 Minuten gingen. Quelle sind die einzelnen Trades je Markt
+(data-api.polymarket.com/trades), zugeordnet über die Gamma-Ereignisse (Slug → Märkte → Seiten).
+
+Läuft auf dem Mac-Runner „radar" (Polymarket blockt Rechenzentren), alle ~10 Min. Liest die
+Marktliste aus dem alten Projekt (öffentliches Repo), schreibt .pf/poly_fluss.json. Nichts wird
+committet — die Datei reist über den Actions-Cache zum Seitenbau.
+
+Zuordnung:
+  * 1X2 (drei Ja/Nein-Märkte „Gewinnt X?"): Kauf von „Ja" = Geld AUF X, Kauf von „Nein" = Geld GEGEN X.
+  * Zwei-Wege (E-Sport, Tennis, Über/Unter): Kauf einer Seite = Geld auf diese Seite.
+  * Verkäufe zählen nicht als neues Geld (das ist Geld, das geht).
+"""
+from __future__ import annotations
+
+import json
+import os
+import ssl
+import sys
+import time
+import urllib.parse
+import urllib.request
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+RAW = "https://raw.githubusercontent.com/blummabet/betting-dashboard/main/"
+GAMMA = "https://gamma-api.polymarket.com/events?slug={slug}"
+TRADES = "https://data-api.polymarket.com/trades?market={cond}&limit=500&takerOnly=true"
+OUT = Path(__file__).resolve().parent / ".pf" / "poly_fluss.json"
+JETZT = datetime.now(timezone.utc)
+FENSTER_MIN = (30, 10)
+MAX_EVENTS = int(os.environ.get("POLY_FLUSS_MAX") or 60)
+SPORTARTEN = {"Fußball", "E-Sport", "Tennis"}
+UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126 Safari/537.36",
+      "Accept": "application/json"}
+
+try:
+    import certifi  # noqa: F401
+    CTX = ssl.create_default_context(cafile=certifi.where())
+except Exception:  # noqa: BLE001
+    CTX = ssl.create_default_context()
+
+
+def get(url, tries=2):
+    for i in range(tries):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=20, context=CTX) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            if i == tries - 1:
+                print(f"  ⚠️ {url[:90]}: {str(exc)[:120]}")
+            time.sleep(0.6)
+    return None
+
+
+def ts(s):
+    try:
+        if isinstance(s, (int, float)):
+            return datetime.fromtimestamp(float(s), tz=timezone.utc)
+        d = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def kandidaten():
+    """Märkte aus dem alten Projekt: kommende 30 h + laufende, erlaubte Sportarten, kein ATP/WTA."""
+    up = get(RAW + "poly_money_upcoming.json") or {}
+    live = get(RAW + "poly_money_broad_live.json") or {}
+    pool = {}
+    for quelle, ist_live in ((up, False), (live, True)):
+        for key, m in (quelle or {}).items():
+            if not isinstance(m, dict) or key.endswith("-exact-score") or key.startswith(("atp-", "wta-")):
+                continue
+            if (m.get("sport") or "Fußball") not in SPORTARTEN:
+                continue
+            k = ts(m.get("koTs"))
+            if not k or not (-2.5 <= (k - JETZT).total_seconds() / 3600 <= 30):
+                continue
+            pool[key] = {"key": key, "sport": m.get("sport") or "Fußball", "liga": m.get("league"),
+                         "anpfiff": m.get("koTs"), "usd": float(m.get("totalUsd") or 0),
+                         "live": ist_live or (k <= JETZT)}
+    # nach Volumen, Live-Spiele bevorzugt (dort ändert sich am meisten)
+    return sorted(pool.values(), key=lambda m: (not m["live"], -m["usd"]))[:MAX_EVENTS]
+
+
+def seiten(event):
+    """Gamma-Event → [(conditionId, {outcome: Etikett-für-Kauf})]."""
+    out = []
+    for mk in event.get("markets") or []:
+        cond = mk.get("conditionId")
+        if not cond or mk.get("closed"):
+            continue
+        try:
+            outs = json.loads(mk.get("outcomes") or "[]")
+        except Exception:  # noqa: BLE001
+            outs = []
+        titel = (mk.get("groupItemTitle") or "").strip()
+        if [o.lower() for o in outs] == ["yes", "no"] and titel:
+            lab = {"Yes": titel, "No": f"gegen {titel}"}
+        else:
+            lab = {o: o for o in outs}
+        out.append((cond, lab, mk.get("question") or titel))
+    return out
+
+
+def fluss_fuer(m):
+    ev = get(GAMMA.format(slug=urllib.parse.quote(m["key"])))
+    if not isinstance(ev, list) or not ev:
+        return None
+    event = ev[0]
+    summe = {f: {} for f in FENSTER_MIN}
+    gross = []
+    for cond, lab, frage in seiten(event):
+        tr = get(TRADES.format(cond=cond))
+        if not isinstance(tr, list):
+            continue
+        for t in tr:
+            if str(t.get("side") or "").upper() != "BUY":
+                continue
+            t0 = ts(t.get("timestamp"))
+            if not t0:
+                continue
+            alter = (JETZT - t0).total_seconds() / 60
+            try:
+                usd = float(t.get("size") or 0) * float(t.get("price") or 0)
+            except (TypeError, ValueError):
+                continue
+            etikett = lab.get(t.get("outcome")) or t.get("outcome") or "?"
+            for f in FENSTER_MIN:
+                if alter <= f:
+                    summe[f][etikett] = summe[f].get(etikett, 0) + usd
+            if alter <= 30 and usd >= 1000:
+                gross.append({"auf": etikett, "usd": round(usd), "preis": round(float(t.get("price") or 0), 3),
+                              "vor": round(alter), "wallet": t.get("proxyWallet")})
+        time.sleep(0.15)
+    titel = event.get("title") or m["key"]
+    fenster = {}
+    for f, s in summe.items():
+        ges = sum(s.values())
+        if ges <= 0:
+            continue
+        top = max(s.items(), key=lambda kv: kv[1])
+        fenster[str(f)] = {"neu": round(ges), "auf": top[0], "usd": round(top[1]), "anteil": round(100 * top[1] / ges),
+                           "seiten": {k: round(v) for k, v in sorted(s.items(), key=lambda kv: -kv[1])[:5]}}
+    if not fenster:
+        return None
+    gross.sort(key=lambda g: -g["usd"])
+    return {**m, "titel": titel, "fenster": fenster, "gross": gross[:5]}
+
+
+def main() -> int:
+    OUT.parent.mkdir(exist_ok=True)
+    k = kandidaten()
+    print(f"poly_fluss: {len(k)} Märkte")
+    rows = []
+    for m in k:
+        r = fluss_fuer(m)
+        if r:
+            rows.append(r)
+    rows.sort(key=lambda r: -(r["fenster"].get("30") or {}).get("usd", 0))
+    OUT.write_text(json.dumps({"generatedAt": JETZT.isoformat(), "n": len(rows), "maerkte": rows},
+                              ensure_ascii=False), encoding="utf-8")
+    print(f"poly_fluss: {len(rows)} Märkte mit Käufen in 30 Min → {OUT}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
