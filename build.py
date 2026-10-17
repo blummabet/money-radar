@@ -191,6 +191,7 @@ def sharp(consensus, history):
             "vonPct": round(erst[i] * 100, 1), "nachPct": round(letzt[i] * 100, 1), "pp": round(gesamt, 1),
             "art": art, "laeuftNoch": art == "lauf" and letzte3 >= 0.5, "frisch": art == "sprung" and frisch,
             "fairQuote": round(1 / letzt[i], 2) if letzt[i] else None,
+            "vonQuote": round(1 / erst[i], 2) if erst[i] else None,
             "betfairGeld": {"auf": g.get("moneyName"), "anteil": g.get("moneySharePct"),
                             "quote": g.get("moneyOdd")} if g.get("moneyName") else None,
             "poly": {"anteil": po.get("sharePct"), "quote": po.get("odd"), "usd": po.get("vol")} if po else None,
@@ -198,6 +199,37 @@ def sharp(consensus, history):
         })
     out.sort(key=lambda r: (-int(r["laeuftNoch"] or r["frisch"]), -r["pp"]))
     return out[:20]
+
+
+def pinn_alle(consensus, history):
+    """Jedes Spiel mit Pinnacle-Quote: faire Quote jetzt und beim ersten Abruf, je Ausgang."""
+    out = []
+    for g in (consensus or {}).get("games") or []:
+        pn = g.get("pinn") or {}
+        if not pn.get("home") or not zukunft(g.get("kickoff"), nach_h=2.2, bis_h=48):
+            continue
+        jetzt = [pn.get("home"), pn.get("draw"), pn.get("away")]
+        h = [p["pinn"] for p in (history or {}).get(str(g.get("matchId"))) or [] if isinstance(p.get("pinn"), list)]
+        erst = h[0] if h else jetzt
+        q = lambda p: round(1 / p, 2) if p else None
+        namen = [g.get("home"), "Remis", g.get("away")]
+        aus = []
+        for i in range(3):
+            aus.append({"name": namen[i], "quote": q(jetzt[i]), "vorher": q(erst[i]),
+                        "pp": round((jetzt[i] - erst[i]) * 100, 1) if jetzt[i] and erst[i] else 0,
+                        "kurve": [round(x[i] * 100, 1) for x in h][-24:]})
+        po = g.get("poly") or {}
+        out.append({
+            "id": str(g.get("matchId")), "heim": g.get("home"), "gast": g.get("away"), "liga": g.get("league"),
+            "land": g.get("country"), "anpfiff": g.get("kickoff"), "live": bool(g.get("live")),
+            "ausgaenge": aus, "bewegung": max((abs(a["pp"]) for a in aus), default=0),
+            "geld": ({"auf": g.get("moneyName"), "anteil": g.get("moneySharePct"), "eur": g.get("totVol"),
+                      "betfair": g.get("moneyOdd"), "pinnacle": g.get("pinnOdd"), "buchmacher": g.get("softOdd"),
+                      "nBuecher": g.get("softN"), "poly": po.get("odd")} if g.get("moneyName") else None),
+            "einig": g.get("agree"),
+        })
+    out.sort(key=lambda r: (r["live"], -r["bewegung"]))
+    return out
 
 
 # ── Polymarket ───────────────────────────────────────────────────────────────────
@@ -314,6 +346,13 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None):
 ARTEN = {None: "Burst", "spiel": "Spiel-Burst", "tore": "Torlinien-Burst", "klein": "Kleine Liga"}
 
 
+def _norm_name(t):
+    """„Atlético de Madrid" und „Atletico Madrid" sind dieselbe Auswahl."""
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(t or "")).encode("ascii", "ignore").decode().lower()
+    return " ".join(w for w in t.replace("-", " ").split() if w not in {"de", "fc", "cf", "sc", "the", "club"})
+
+
 def stake(ledger):
     zeilen = [z for z in (ledger or []) if isinstance(z, dict)]
     grenze = JETZT - timedelta(hours=24)
@@ -329,6 +368,25 @@ def stake(ledger):
                       "phase": z.get("phase"), "minute": z.get("spielminute"), "faktor": z.get("faktor"),
                       "zeit": z.get("sentAt"), "status": z.get("status"), "rendite": z.get("rendite")})
     heute.sort(key=lambda r: r["zeit"] or "", reverse=True)
+    # Lucas 17.10.: dieselbe Wette (Spiel + Auswahl) steht als Burst UND Spiel-Burst da → zusammenfassen.
+    # Betrag = der größte Einzelwert, nicht die Summe: die Signale überlappen und zählen dieselben Wetten.
+    gruppen = {}
+    for z in heute:
+        k = (_norm_name(z["spiel"]), _norm_name(z["auswahl"]))
+        g = gruppen.get(k)
+        if not g:
+            gruppen[k] = g = dict(z, arten=[], signale=0, ersteZeit=z["zeit"])
+        g["signale"] += 1
+        if z["art"] not in g["arten"]:
+            g["arten"].append(z["art"])
+        g["ersteZeit"] = min(g["ersteZeit"] or "", z["zeit"] or "")
+        if (z["usd"] or 0) > (g["usd"] or 0):
+            g.update(usd=z["usd"], wetten=z["wetten"], quote=z["quote"] or g["quote"])
+        if z["faktor"] and (z["faktor"] > (g["faktor"] or 0)):
+            g["faktor"] = z["faktor"]
+        if z["status"] == "abgerechnet" and g["status"] != "abgerechnet":
+            g["status"], g["rendite"] = z["status"], z["rendite"]
+    zusammen = sorted(gruppen.values(), key=lambda r: r["zeit"] or "", reverse=True)
 
     bilanz = {}
     for z in zeilen:
@@ -348,7 +406,7 @@ def stake(ledger):
         b["ug"] = round(100 * (m - 1.645 * math.sqrt(var / n)), 1) if n >= 30 else None
         b.pop("summe")
         b["treffer"] = round(100 * b.pop("gew") / n)
-    return {"heute": heute[:40], "bilanz": bilanz}
+    return {"heute": heute[:40], "gruppen": zusammen[:40], "bilanz": bilanz}
 
 
 # ── HZ 0:0 ───────────────────────────────────────────────────────────────────────
@@ -466,6 +524,57 @@ def betfair_radar(prices, bf_hist, norm):
             "summeEur": round(sum(s["eur"] for s in spiele))}
 
 
+HZ_MAERKTE = ("Half Time", "First Half Goals 0.5", "First Half Goals 1.5", "First Half Goals 2.5", "Half Time Score")
+
+
+def halbzeit(prices):
+    """Geld auf die ERSTE HALBZEIT (HZ-1X2, HZ-Tore, HZ-Ergebnis) — vor Anpfiff und solange die 1. HZ läuft.
+
+    Mehr Geld auf den HZ-Sieg-Markt als auf den Spiel-Sieg-Markt ist ungewöhnlich (im alten Projekt
+    der „Fix-Verdacht"); das Verhältnis steht als quote/hzAnteil dabei.
+    """
+    out = []
+    for m in (prices or {}).get("matches") or []:
+        kick = ts(m.get("kickoff"))
+        li = m.get("liveInfo") or {}
+        if not kick or li.get("finished"):
+            continue
+        dt_min = (kick - JETZT).total_seconds() / 60
+        minute = li.get("time")
+        if dt_min > 30 * 60 or dt_min < -75 or li.get("is_ht") or (dt_min < 0 and isinstance(minute, (int, float)) and minute > 45):
+            continue
+        mk = m.get("markets") or {}
+        maerkte = []
+        tore = sum(x or 0 for x in (li.get("goal_v1"), li.get("goal_v2"))) if dt_min < 0 else 0
+        for name in HZ_MAERKTE:
+            # Lucas 05.09.: ein HZ-Tormarkt, der durch die gefallenen Tore schon entschieden ist, ist kein Signal.
+            if name.startswith("First Half Goals") and tore > float(name.split()[-1]):
+                continue
+            v = mk.get(name) or {}
+            vol = float(v.get("vol") or 0)
+            if vol < 200:
+                continue
+            rs = [r for r in v.get("runners") or [] if isinstance(r, dict) and (r.get("vol") or 0) > 0]
+            top = max(rs, key=lambda r: r.get("vol") or 0) if rs else None
+            maerkte.append({"name": name, "eur": round(vol),
+                            "runner": [{"name": r.get("name"), "eur": round(r.get("vol") or 0), "quote": r.get("odd")} for r in rs][:8],
+                            "auf": top.get("name") if top else None, "quote": top.get("odd") if top else None,
+                            "anteil": round(100 * (top.get("vol") or 0) / vol) if top else None})
+        hz_eur = sum(x["eur"] for x in maerkte)
+        if hz_eur < 1500:
+            continue
+        mo = float((mk.get("Match Odds") or {}).get("vol") or 0)
+        ht = float((mk.get("Half Time") or {}).get("vol") or 0)
+        maerkte.sort(key=lambda x: -x["eur"])
+        out.append({"id": str(m.get("matchId")), "heim": m.get("home"), "gast": m.get("away"), "liga": m.get("league"),
+                    "land": m.get("country"), "anpfiff": m.get("kickoff"),
+                    "live": ({"min": minute, "stand": [li.get("goal_v1"), li.get("goal_v2")]} if dt_min < 0 else None),
+                    "eur": round(hz_eur), "moEur": round(mo), "htZuMo": round(ht / mo, 2) if mo > 0 else None,
+                    "maerkte": maerkte})
+    out.sort(key=lambda x: -x["eur"])
+    return out[:40]
+
+
 def betfair_pushes(ledger, record):
     out = []
     for e in ledger or []:
@@ -514,7 +623,9 @@ def main() -> int:
         "betfair": betfair(prices, overview, consensus),
         "radar": betfair_radar(prices, bf_hist, bf_norm),
         "bfPushes": betfair_pushes(bf_led, bf_rec),
+        "halbzeit": halbzeit(prices),
         "sharp": sharp(consensus, history),
+        "pinnAlle": pinn_alle(consensus, history),
         "poly": poly(track, upcoming, wale, offen_m),
         "stake": stake(burst),
         "hz": hz(finder),
