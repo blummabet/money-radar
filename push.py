@@ -20,6 +20,7 @@ import json
 import os
 import sys
 import urllib.parse
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -168,22 +169,35 @@ ARTEN = (zufluss, halbzeit, wale, stake)
 
 
 # ── Senden ───────────────────────────────────────────────────────────────────────
+STATUS = {"fehler": []}
+
+
 def senden(token, chat, text) -> bool:
     body = urllib.parse.urlencode({"chat_id": chat, "text": text + f'\n<a href="{SEITE}">Geldradar</a>',
                                    "parse_mode": "HTML", "disable_web_page_preview": "true"}).encode()
     try:
         with urllib.request.urlopen(f"https://api.telegram.org/bot{token}/sendMessage", body, timeout=20) as r:
             return json.loads(r.read().decode()).get("ok", False)
+    except urllib.error.HTTPError as exc:
+        msg = f"HTTP {exc.code}: {exc.read().decode(errors='replace')[:200]}"
     except Exception as exc:  # noqa: BLE001
-        print(f"  ⚠️ Telegram: {str(exc)[:160]}")
-        return False
+        msg = str(exc)[:200]
+    msg = msg.replace(token, "***")
+    print(f"  ⚠️ Telegram: {msg}")
+    STATUS["fehler"].append(msg)
+    return False
 
 
 def main() -> int:
     trocken = "--trocken" in sys.argv
-    token, chat = os.environ.get("TELEGRAM_TOKEN", ""), os.environ.get("TELEGRAM_TEST_CHAT_ID", "")
+    token, chat = os.environ.get("TELEGRAM_TOKEN", "").strip(), os.environ.get("TELEGRAM_TEST_CHAT_ID", "").strip()
     if not trocken and not (token and chat):
         print("push: TELEGRAM_TOKEN/TELEGRAM_TEST_CHAT_ID fehlen — nichts gesendet")
+        status_schreiben({"fehlt": [n for n, v in (("TELEGRAM_TOKEN", token), ("TELEGRAM_TEST_CHAT_ID", chat)) if not v]})
+        return 0
+    if os.environ.get("PUSH_TEST") == "1":
+        ok = senden(token, chat, "✅ <b>Testnachricht</b> vom Geldradar — der Test-Channel ist verbunden.")
+        status_schreiben({"test": ok, "fehler": STATUS["fehler"]})
         return 0
     d = json.loads(DATEN.read_text(encoding="utf-8"))
     erster_lauf = not STAND.exists()
@@ -215,7 +229,17 @@ def main() -> int:
         STAND.parent.mkdir(parents=True, exist_ok=True)
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
     print(f"push: {'erster Lauf, ' + str(len(gesehen)) + ' als gesehen markiert' if erster_lauf else str(gesendet) + ' gesendet'}")
+    if not trocken:
+        status_schreiben({"ersterLauf": erster_lauf, "gesendet": gesendet, "gesehen": len(gesehen), "fehler": STATUS["fehler"][:5]})
     return 0
+
+
+def status_schreiben(info):
+    """Kurzer Lauf-Bericht neben der Seite (site/push_status.json) — ohne Token/Chat-ID, nur zum Nachsehen."""
+    try:
+        (BASIS / "site" / "push_status.json").write_text(json.dumps({"zeit": JETZT.isoformat(), **info}, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

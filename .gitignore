@@ -3,3 +3,4 @@ __pycache__/
 .push_state/
 .bf/
 .pin/
+site/push_status.json

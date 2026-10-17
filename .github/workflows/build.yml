@@ -8,11 +8,17 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+    inputs:
+      push_test:
+        description: 'Nur eine Testnachricht in den Test-Channel schicken'
+        type: boolean
+        default: false
   push:
     branches: [main]
 
 permissions:
   contents: read
+  actions: write      # der Lauf stößt am Ende den nächsten an (siehe letzter Schritt)
   pages: write
   id-token: write
 
@@ -29,6 +35,8 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Startzeit merken
+        run: echo "START=$(date +%s)" >> $GITHUB_ENV
       - name: Gedächtnis laden (Betfair-Historie, Push-Stand)
         uses: actions/cache/restore@v4
         with:
@@ -76,6 +84,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_TEST_CHAT_ID: ${{ secrets.TELEGRAM_TEST_CHAT_ID }}
+          PUSH_TEST: ${{ inputs.push_test && '1' || '' }}
         run: python3 push.py
       - name: Gedächtnis sichern
         if: always()
@@ -91,3 +100,23 @@ jobs:
           path: site
       - id: deploy
         uses: actions/deploy-pages@v4
+      # 17.10.2026: GitHub hat in den ersten Stunden KEINEN einzigen geplanten Lauf gestartet (bekanntes
+      # Verhalten bei neuen Repos, und auch später oft verzögert). Deshalb hält sich der Takt selbst:
+      # jeder Lauf wartet, bis 5 Minuten seit seinem Start um sind, und stößt dann den nächsten an.
+      # Der Zeitplan oben bleibt als Notanker, falls die Kette einmal reißt. Läuft schon ein anderer
+      # Lauf oder wartet einer, wird nichts angestoßen — so entsteht nie eine zweite Kette.
+      - name: Nächsten Lauf anstoßen
+        if: always() && github.event_name != 'push' && !inputs.push_test
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rest=$(( 300 - ($(date +%s) - START) ))
+          [ $rest -gt 0 ] && sleep $rest
+          andere=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?per_page=10" \
+            --jq "[.workflow_runs[] | select(.id != ${{ github.run_id }}) | select(.status==\"queued\" or .status==\"in_progress\" or .status==\"waiting\" or .status==\"pending\")] | length")
+          if [ "$andere" = "0" ]; then
+            gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main
+            echo "nächster Lauf angestoßen"
+          else
+            echo "es läuft/wartet schon ein Lauf ($andere) — keine zweite Kette"
+          fi
