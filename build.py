@@ -781,6 +781,24 @@ def live_zufluss(radar):
     return out[:20]
 
 
+def poly_fluss():
+    """Käufe je Seite auf Polymarket (vom Mac-Runner, .pf/poly_fluss.json). Älter als 40 Min → weglassen."""
+    p = Path(__file__).resolve().parent / ".pf" / "poly_fluss.json"
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {"stand": None, "maerkte": []}
+    t = ts(d.get("generatedAt"))
+    if not t or (JETZT - t).total_seconds() > 40 * 60:
+        return {"stand": d.get("generatedAt"), "maerkte": [], "alt": True}
+    rows = []
+    for m in d.get("maerkte") or []:
+        pre = str(m.get("key") or "").split("-")[0]
+        m["top5"] = pre in {"epl", "bun", "lal", "sea", "fl1", "lig1"}
+        rows.append(m)
+    return {"stand": d.get("generatedAt"), "maerkte": rows}
+
+
 def betfair_pushes(ledger, record):
     out = []
     for e in ledger or []:
@@ -833,6 +851,7 @@ def main() -> int:
         "radar": (radar := betfair_radar(prices, bf_hist, bf_norm, bf_norm_state)),
         "zufluss30": zufluss_liste(radar, consensus),
         "liveZufluss": live_zufluss(radar),
+        "polyFluss": poly_fluss(),
         "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"],
         "bfPushes": betfair_pushes(bf_led, bf_rec),
         "halbzeit": halbzeit(prices),

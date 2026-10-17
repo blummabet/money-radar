@@ -102,6 +102,8 @@ def seiten(event):
         titel = (mk.get("groupItemTitle") or "").strip()
         if [o.lower() for o in outs] == ["yes", "no"] and titel:
             lab = {"Yes": titel, "No": f"gegen {titel}"}
+        elif titel and len(event.get("markets") or []) > 1:
+            lab = {o: f"{o} ({titel})" for o in outs}       # z. B. „Under (O/U 2.5)"
         else:
             lab = {o: o for o in outs}
         out.append((cond, lab, mk.get("question") or titel))
@@ -114,6 +116,7 @@ def fluss_fuer(m):
         return None
     event = ev[0]
     summe = {f: {} for f in FENSTER_MIN}
+    je_markt = {f: {} for f in FENSTER_MIN}     # cond -> {Etikett: usd}
     gross = []
     for cond, lab, frage in seiten(event):
         tr = get(TRADES.format(cond=cond))
@@ -134,18 +137,32 @@ def fluss_fuer(m):
             for f in FENSTER_MIN:
                 if alter <= f:
                     summe[f][etikett] = summe[f].get(etikett, 0) + usd
+                    jm = je_markt[f].setdefault(cond, {})
+                    jm[etikett] = jm.get(etikett, 0) + usd
             if alter <= 30 and usd >= 1000:
                 gross.append({"auf": etikett, "usd": round(usd), "preis": round(float(t.get("price") or 0), 3),
                               "vor": round(alter), "wallet": t.get("proxyWallet")})
         time.sleep(0.15)
     titel = event.get("title") or m["key"]
     fenster = {}
+    mehrere = m["key"].endswith("-more-markets")
     for f, s in summe.items():
         ges = sum(s.values())
         if ges <= 0:
             continue
-        top = max(s.items(), key=lambda kv: kv[1])
-        fenster[str(f)] = {"neu": round(ges), "auf": top[0], "usd": round(top[1]), "anteil": round(100 * top[1] / ges),
+        if mehrere:
+            # Über/Unter-Linien, BTTS … sind eigene Märkte: Anteil INNERHALB des Marktes, sonst verwässert er
+            best = None
+            for cond, sm in je_markt[f].items():
+                mg = sum(sm.values())
+                lab, v = max(sm.items(), key=lambda kv: kv[1])
+                if not best or v > best[1]:
+                    best = (lab, v, mg)
+            top_lab, top_usd, basis = best
+        else:
+            top_lab, top_usd = max(s.items(), key=lambda kv: kv[1])
+            basis = ges
+        fenster[str(f)] = {"neu": round(ges), "auf": top_lab, "usd": round(top_usd), "anteil": round(100 * top_usd / basis),
                            "seiten": {k: round(v) for k, v in sorted(s.items(), key=lambda kv: -kv[1])[:5]}}
     if not fenster:
         return None

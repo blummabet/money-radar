@@ -46,6 +46,12 @@ jobs:
             .push_state
           key: radar-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: radar-
+      - name: Polymarket-Fluss vom Mac-Runner laden
+        uses: actions/cache/restore@v4
+        with:
+          path: .pf
+          key: polyfluss-none
+          restore-keys: polyfluss-
       - name: Betfair-Historie beim ersten Mal aus dem alten Projekt übernehmen
         run: |
           mkdir -p .bf
@@ -72,6 +78,13 @@ jobs:
           [ $((m % 10)) -lt 5 ] && stoss betfair.yml
           [ $((m % 15)) -lt 5 ] && stoss poly-global-scan.yml
           true
+      - name: Polymarket-Fluss auf dem Mac anstoßen (alle 10 Min)
+        if: github.event_name != 'push' && !inputs.push_test
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          m=$((10#$(date -u +%M)))
+          if [ $((m % 10)) -ge 5 ]; then gh api -X POST "repos/${{ github.repository }}/actions/workflows/poly-fluss.yml/dispatches" -f ref=main && echo angestoßen || echo "nicht angestoßen"; fi
       - name: Betfair abrufen (Betwatch)
         env:
           BETWATCH_KEY: ${{ secrets.BETWATCH_KEY }}
