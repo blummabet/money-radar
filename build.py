@@ -499,7 +499,12 @@ def hz(finder):
         heute.append({"spiel": f"{e.get('home')} – {e.get('away')}", "liga": e.get("league"),
                       "land": e.get("country"), "gruppen": e.get("gruppen"), "quoten": e.get("quoten"),
                       "zeit": e.get("gebuchtAt"), "status": e.get("status"), "anpfiff": e.get("kickoff"),
-                      "ft": e.get("ft"), "wetten": {k: bool((w or {}).get("win")) for k, w in (e.get("wetten") or {}).items()}})
+                      "ft": e.get("ft"), "wetten": {k: bool((w or {}).get("win")) for k, w in (e.get("wetten") or {}).items()},
+                      # für den HZ-Push im alten Format (Lucas 17.10.: „die waren sehr wichtig für mich")
+                      "heim": e.get("home"), "gast": e.get("away"), "vor": e.get("vor"), "phase": e.get("phase"),
+                      "minute": e.get("minute"), "zufluss": e.get("zufluss"),
+                      "statistik": (e.get("apif") or {}).get("statistik"),
+                      "serie": {**(e.get("serie") or {}), **((e.get("apif") or {}).get("serie") or {})}})
     heute.sort(key=lambda r: r["zeit"] or "", reverse=True)
     bericht = []
     for k, b in (f.get("bericht") or {}).items():

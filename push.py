@@ -162,19 +162,92 @@ def live(d):
         yield key, text, 12
 
 
+def _hz_q(q):
+    """„@1,26 (79 %)" — Quote mit der Wahrscheinlichkeit, die sie sagt."""
+    return f"@{q2(q)} <i>({round(100 / q)} %)</i>" if q else "–"
+
+
+def _hz_k(v):
+    return f"{v / 1000:.1f}K".replace(".", ",") if v >= 1000 else f"{round(v)}"
+
+
+def _hz_zufluss(z):
+    if not z:
+        return None
+    teile = []
+    for kurz, lab in (("o15", "O/U 1,5"), ("o05", "O/U 0,5")):
+        x = z.get(kurz)
+        if not x:
+            continue
+        summe = (x.get("over") or 0) + (x.get("under") or 0)
+        teile.append(f"{lab}: kein neues Geld" if summe < 1 else f"{lab}: €{_hz_k(summe)}, davon {round(100 * (x.get('overAnteil') or 0))} % auf Over")
+    return f"💶 <b>Geld letzte {z.get('minuten')} Min:</b> " + " · ".join(teile) if teile else None
+
+
+def _hz_stat(st):
+    h, g = st.get("heim") or {}, st.get("gast") or {}
+    teile = [f"{lab} {h[f]}–{g[f]}" for f, lab in (("aufsTor", "aufs Tor"), ("schuesse", "Schüsse"), ("ecken", "Ecken"),
+                                                   ("gefAngriffe", "gef. Angriffe")) if f in h and f in g]
+    if "ballbesitz" in h and "ballbesitz" in g:
+        teile.append(f"Ballbesitz {round(h['ballbesitz'])}–{round(g['ballbesitz'])} %")
+    if "xg" in h and "xg" in g:
+        teile.append(f"xG {h['xg']:.2f}–{g['xg']:.2f}".replace(".", ","))
+    return " · ".join(teile) or None
+
+
+def _hz_serie(s):
+    if not s:
+        return "noch keine Spiele"
+    if s.get("toreFuer") is not None and s.get("toreGegen") is not None:
+        tore = f"Ø {s['toreFuer']:.1f}:{s['toreGegen']:.1f} Tore".replace(".", ",")
+    else:
+        tore = f"Ø {s.get('toreSchnitt') or 0:.1f} Tore".replace(".", ",")
+    txt = f"{' '.join(s.get('form') or '')} · {tore} · O2,5 {s.get('over25')}/{s.get('n')}"
+    if s.get("nHz"):
+        txt += f" · Tor in 2. HZ {s.get('torIn2hz')}/{s['nHz']}"
+    return txt
+
+
 def halbzeit(d):
+    """Lucas 17.10.: die HZ-Pushes „waren im alten sehr wichtig für mich" — darum im selben Aufbau wie
+    dort (Vorher-Erwartung, Pausenquoten mit Wahrscheinlichkeit, Geld rund um die Pause, Statistik
+    der 1. HZ, Form beider Teams). Je Spiel eine Nachricht."""
     for h in (d.get("hz") or {}).get("heute") or []:
         t = ts(h.get("zeit"))
         if not t or (JETZT - t).total_seconds() > FRISCH_MIN * 60:
             continue
         key = f"hz|{h.get('spiel')}|{t:%Y-%m-%d}"
-        q = h.get("quoten") or {}
-        text = (f"⏸ <b>Halbzeit 0:0</b>\n"
-                f"{flagge(h.get('land'))}<b>{e(h.get('spiel'))}</b>\n{e(h.get('liga'))}\n\n"
-                f"⚽ Tor in der 2. HZ @ <b>{q2(q.get('over05'))}</b>\n"
-                f"⚽⚽ 2+ Tore @ <b>{q2(q.get('over15'))}</b>\n"
-                f"🏠 Heimsieg @ <b>{q2(q.get('heim'))}</b>\n")
-        yield key, text, None
+        q, v, gr = h.get("quoten") or {}, h.get("vor") or {}, h.get("gruppen") or []
+        wann = "zur Pause" if (h.get("phase") or "HZ") == "HZ" else f"{h.get('minute')}' · 2. HZ läuft schon"
+        z = [f"⏸️ <b>HALBZEIT 0:0</b>\n",
+             f"{flagge(h.get('land'))}<b>{e(h.get('spiel'))}</b>\n<i>{e(str(h.get('liga') or '')[:38])} · {wann}</i>\n\n"]
+        erw = ([f"Over 2,5 {_hz_q(v.get('over25'))}"] if "tore" in gr and v.get("over25") else []) + \
+              ([f"Heimsieg {_hz_q(v.get('heim'))}"] if "heim" in gr and v.get("heim") else [])
+        if erw:
+            z.append(f"🎯 <b>Vorher:</b> {' · '.join(erw)}\n")
+        jetzt = []
+        if q.get("over05"):
+            jetzt.append(f"Tor in 2. HZ <b>{_hz_q(q['over05'])}</b>")
+        if q.get("over15"):
+            jetzt.append(f"2+ Tore {_hz_q(q['over15'])}")
+        if q.get("heim"):
+            jetzt.append((f"<b>Heimsieg {_hz_q(q['heim'])}</b>" if "heim" in gr else f"Heimsieg {_hz_q(q['heim'])}"))
+        z.append("💰 <b>Jetzt:</b>\n   " + ("\n   ".join(jetzt) if jetzt else "–") + "\n")
+        zt = _hz_zufluss(h.get("zufluss"))
+        if zt:
+            z.append(zt + "\n")
+        st = _hz_stat(h.get("statistik") or {}) if h.get("statistik") else None
+        if st:
+            z.append(f"📊 <b>1. HZ:</b> {st}\n")
+        s = h.get("serie") or {}
+        if s.get("heim") or s.get("gast"):
+            z.append(f"📈 <b>Form</b> (neueste zuerst)\n   {e(h.get('heim') or 'Heim')}: {_hz_serie(s.get('heim'))}\n"
+                     f"   {e(h.get('gast') or 'Gast')}: {_hz_serie(s.get('gast'))}\n")
+        b = next((x for x in (d.get("hz") or {}).get("bericht") or [] if "Tor in 2" in str(x.get("wette"))), None)
+        if b and b.get("n"):
+            z.append(f"\n🔬 <i>Buch „Tor in 2. HZ“: {b['n']} abgerechnet · getroffen {round(b.get('treffer') or 0)} %, "
+                     f"Quote sagte {round(b.get('erwartet') or 0)} % · ROI {str(round(b.get('roi') or 0, 1)).replace('.', ',')} %</i>\n")
+        yield key, "".join(z), None
 
 
 SPORT = {"Fußball": "⚽", "E-Sport": "🎮", "Tennis": "🎾"}
