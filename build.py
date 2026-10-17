@@ -1074,6 +1074,63 @@ def poly_serien(pf):
 
 
 
+def stake_serien(hr):
+    """Dieselbe Idee für Stake (Lucas 17.10.: „Ja"), aus den einzelnen Highroller-Wetten mit Zeitstempel
+    (stake_highroller.json vom Mac, Wetten ab $1000). Nur Einzelwetten — bei Kombis ist unklar, welches Bein
+    das Geld trägt. 10-Min-Abschnitte über 4 h; Serie wie bei Polymarket."""
+    asof = ts((hr or {}).get("asof"))
+    if not asof or JETZT - asof > timedelta(minutes=45):
+        return []
+    top5_slugs = {"premier-league", "la-liga", "laliga", "bundesliga", "serie-a", "ligue-1"}
+    gruppen = {}
+    for w in (hr or {}).get("wetten") or []:
+        if not isinstance(w, dict) or w.get("kombi") or not stake_ok(w):
+            continue
+        t = ts(w.get("ts"))
+        if not t:
+            continue
+        b = int((asof - t).total_seconds() // 600)
+        if not 0 <= b < 24:
+            continue
+        i = 23 - b
+        ev = (w.get("eventId"), w.get("markt"))
+        g = gruppen.setdefault(ev, {"summe": [0.0] * 24, "sel": {}, "w": w})
+        g["summe"][i] += w.get("einsatzUsd") or 0
+        sel = g["sel"].setdefault(w.get("auswahl"), {"werte": [0.0] * 24, "quote": None, "n": 0})
+        sel["werte"][i] += w.get("einsatzUsd") or 0
+        sel["quote"] = w.get("beinQuote") or w.get("quote") or sel["quote"]
+        sel["n"] += 1
+    out = []
+    for (eid, markt), g in gruppen.items():
+        w0 = g["w"]
+        top5 = str(w0.get("ligaSlug") or "") in top5_slugs
+        for auswahl, sel in g["sel"].items():
+            v = sel["werte"]
+            hits = [i for i in range(24) if v[i] >= 1000 and g["summe"][i] > 0 and v[i] / g["summe"][i] >= 0.6]
+            if len(hits) < SERIE_MIN_N or hits[-1] < 22:
+                continue
+            kette = [hits[-1]]
+            for i in reversed(hits[:-1]):
+                if kette[-1] - i <= 2:
+                    kette.append(i)
+                else:
+                    break
+            if len(kette) < SERIE_MIN_N:
+                continue
+            summe = sum(v[i] for i in kette)
+            if summe < (20000 if top5 else 5000):
+                continue
+            out.append({"id": eid, "titel": w0.get("event"), "liga": w0.get("liga"), "sport": w0.get("kat"),
+                        "anpfiff": w0.get("anpfiff"), "live": w0.get("phase") == "live", "top5": top5, "quelle": "stake",
+                        "markt": markt, "auswahl": auswahl, "quote": sel["quote"], "n": len(kette), "usd": round(summe),
+                        "wetten": sel["n"], "dauerMin": (max(kette) - min(kette) + 1) * 10, "saeulen": [round(x) for x in v],
+                        "zeit": iso(asof)})
+    best = {}
+    for x in sorted(out, key=lambda x: -x["usd"]):
+        best.setdefault(x["id"], x)
+    return sorted(best.values(), key=lambda x: (-x["n"], -x["usd"]))[:12]
+
+
 def push_bilanz():
     """Auswertung der neuen Pushes (bilanz.py schreibt sie nach jedem Push-Lauf in den Cache)."""
     try:
@@ -1136,6 +1193,7 @@ def main() -> int:
     tr_led = laden("poly_whale_trades_ledger.json", [])
     tr_rec = laden("poly_whale_trades_record.json", {})
     burst = laden("stake_burst_ledger.json", [])
+    hr = laden("stake_highroller.json", {})      # einzelne Highroller-Wetten mit Zeitstempel (für die Serien)
     finder = laden("hz_finder.json", {})
 
     daten = {
@@ -1147,6 +1205,7 @@ def main() -> int:
             "polymarket": stand(track, "updatedAt"),
             "stake": max((z.get("sentAt") or "" for z in burst or [] if isinstance(z, dict)), default=None) or None,
             "hz": stand(finder, "updatedAt"),
+            "stakeAbruf": (hr or {}).get("asof"),
         },
         "betfair": betfair(prices, overview, consensus),
         "radar": (radar := betfair_radar(prices, bf_hist, bf_norm, bf_norm_state)),
@@ -1155,6 +1214,7 @@ def main() -> int:
         "polyFluss": (pfl := poly_fluss()),
         "serien": serien(takt_fortschreiben(bf_hist), radar),
         "polySerien": poly_serien(pfl),
+        "stakeSerien": stake_serien(hr),
         "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"],
         "bfPushes": betfair_pushes(bf_led, bf_rec),
         "halbzeit": halbzeit(prices),

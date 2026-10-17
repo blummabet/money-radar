@@ -382,6 +382,15 @@ def serie(d):
                 f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
         yield key, text, None
+    for x in d.get("stakeSerien") or []:
+        key = f"ss|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}"
+        text = (f"🔁 <b>Dauerzufluss</b> · Stake · <b>{x['n']}× in Folge</b>\n"
+                f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{e(x.get('liga'))} · {'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n\n"
+                f"💵 <b>{geld(x['usd'], '$')}</b> in {x['wetten']} Wetten über {x['dauerMin']} Min auf <b>{e(x['auswahl'])}</b>"
+                + (f" @ {q2(x.get('quote'))}" if x.get("quote") else "") + "\n"
+                f"🗂 {e(x.get('markt'))}\n"
+                f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n")
+        yield key, text, None
 
 
 ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, wale, stake)
@@ -391,7 +400,7 @@ ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, wale, stake)
 # Lucas 17.10.: „Sind da Wächter notwendig?" — ja: Mac aus, Schlüssel abgelaufen, Betwatch down.
 # Stake fehlt bewusst: dessen Zeitstempel ist die letzte Meldung, nicht der letzte Abruf (nachts ruhig).
 WAECHTER = {"betfair": ("Betfair (Betwatch)", 30), "pinnacle": ("Pinnacle", 30), "hz": ("HZ-Finder (altes Projekt, Mac)", 45),
-            "polymarket": ("Polymarket-Wale (altes Projekt, Mac)", 120), "polyFluss": ("Polymarket-Fluss (Mac-Runner radar)", 40)}
+            "polymarket": ("Polymarket-Wale (altes Projekt, Mac)", 120), "stakeAbruf": ("Stake-Abruf (altes Projekt, Mac)", 45), "polyFluss": ("Polymarket-Fluss (Mac-Runner radar)", 40)}
 
 
 def waechter(d, gesehen):

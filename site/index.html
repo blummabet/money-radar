@@ -449,23 +449,24 @@ function saeulenSvg(werte, farbe, w=260, h=42, schritt=5){
 const serieVon = (D, id) => (D.serien||[]).find(x=>x.id===id);
 const serieTag = x => x ? `<span class="serie-tag" title="${x.n} Abrufe in Folge Geld auf dieselbe Auswahl">🔁 ${x.n}×</span>` : "";
 function serienKarten(D, max, quelle){
-  const bf = quelle==="poly" ? [] : lf(D.serien||[]);
-  const pm = quelle==="betfair" ? [] : (D.polySerien||[]).filter(top5Ok);
-  const alle = [...bf, ...pm].sort((a,b)=>(b.n-a.n)||((b.eur||b.usd)-(a.eur||a.usd))).slice(0,max);
+  const bf = quelle==="poly"||quelle==="stake" ? [] : lf(D.serien||[]);
+  const pm = quelle==="betfair"||quelle==="stake" ? [] : (D.polySerien||[]).filter(top5Ok);
+  const st = quelle==="betfair"||quelle==="poly" ? [] : (D.stakeSerien||[]).filter(top5Ok);
+  const alle = [...bf, ...pm, ...st].sort((a,b)=>(b.n-a.n)||((b.eur||b.usd)-(a.eur||a.usd))).slice(0,max);
   if(!alle.length) return `<div class="leer">Gerade läuft nirgends wiederholt Geld auf dieselbe Auswahl${ligaModus==="ohne"?" (ohne Top-5)":""}. Eine Serie beginnt ab drei Abrufen in Folge.</div>`;
   return `<div class="kgrid">${alle.map(x=>{
     const istBf = x.quelle==="betfair", sp = istBf ? spielInfo(x) : null;
     const titel = istBf ? `${esc(x.heim)} – ${esc(x.gast)}` : esc(pmTitel(x.titel));
     const lv = sp?.live;
     const rechts = lv ? `<span class="live">${lv.min!=null?lv.min+"'":"live"}</span> ${lv.stand?.[0]??0}:${lv.stand?.[1]??0}` : x.live ? `<span class="live">live</span>` : wann(x.anpfiff);
-    const farbe = istBf ? "var(--bf)" : "var(--poly)";
+    const istSt = x.quelle==="stake", farbe = istBf ? "var(--bf)" : istSt ? "var(--stake)" : "var(--poly)";
     return `<div class="kk serie-k" style="box-shadow:inset 3px 0 0 ${farbe}" ${sp?klick(titel, ohneHuelle(spielDetail(sp))):""}>
       <div class="kk-oben">${istBf?flagge(x.land):sportIco(x.sport)}<span>${esc(x.liga||x.sport||"")}</span><span class="rechts">${rechts}</span></div>
       <div class="kk-titel">${titel}</div>
-      <div class="serie-kopf"><span class="serie-n">🔁 ${x.n}× in Folge</span><span class="tag" style="background:${tint(farbe,16)};color:${farbe}">${istBf?"Betfair":"Polymarket"}</span></div>
+      <div class="serie-kopf"><span class="serie-n">🔁 ${x.n}× in Folge</span><span class="tag" style="background:${tint(farbe,16)};color:${farbe}">${istBf?"Betfair":istSt?"Stake":"Polymarket"}</span></div>
       <div class="kk-zahl" style="color:${farbe}">${istBf?eur(x.eur):usd(x.usd)} <small style="font-size:13px;color:var(--text-2);font-weight:600">in ${x.dauerMin} Min</small></div>
-      <div class="kk-auf">auf <b>${esc(istBf?auswahlDe(x.auswahl):pmLabel(x.auswahl))}</b>${x.quote?` @ ${q2(x.quote)}`:""}${x.quoteStart&&x.quote&&Math.abs(x.quote-x.quoteStart)>=0.02?` <span class="${x.quote<x.quoteStart?"hoch":"runter"}">${x.quote<x.quoteStart?"↓":"↑"} von ${q2(x.quoteStart)}</span>`:""}</div>
-      ${istBf?`<div class="kk-klein">${esc(marktDe(x.markt))}${x.letzteVorMin!=null?`, zuletzt vor ${x.letzteVorMin} Min`:""}</div>`:""}
+      <div class="kk-auf">auf <b>${esc(istBf?auswahlDe(x.auswahl):istSt?x.auswahl:pmLabel(x.auswahl))}</b>${x.quote?` @ ${q2(x.quote)}`:""}${x.quoteStart&&x.quote&&Math.abs(x.quote-x.quoteStart)>=0.02?` <span class="${x.quote<x.quoteStart?"hoch":"runter"}">${x.quote<x.quoteStart?"↓":"↑"} von ${q2(x.quoteStart)}</span>`:""}</div>
+      ${istBf?`<div class="kk-klein">${esc(marktDe(x.markt))}${x.letzteVorMin!=null?`, zuletzt vor ${x.letzteVorMin} Min`:""}</div>`:istSt?`<div class="kk-klein">${esc(x.markt)}, ${x.wetten} Wetten ab $1000</div>`:""}
       ${saeulenSvg(istBf ? x.saeulen.slice(-24) : x.saeulen, farbe, 260, 38, istBf?5:10)}
     </div>`;}).join("")}</div>`;
 }
@@ -529,6 +530,7 @@ function feedEintraege(D){
     f.push({q:"betfair", k:"live", live:true, t:`+${eur(fl.eur)} auf ${auswahlDe(fl.auswahl)} @ ${q2(fl.quote)}`, s:`${x.heim} – ${x.gast}, ${lv.min!=null?lv.min+"'":"live"} ${st[0]}:${st[1]}, ${marktDe(fl.markt)} (${fl.anteil} %)`, b:eur(fl.eur), zeit:bfZeit, sp:x, wert:fl.eur}); }
   for(const x of lf(D.serien||[])) f.push({q:"betfair", k:"serie", live:!!x.live, t:`🔁 ${x.n}× in Folge: ${eur(x.eur)} auf ${auswahlDe(x.auswahl)} @ ${q2(x.quote)}`, s:`${x.heim} – ${x.gast}, ${marktDe(x.markt)}, in ${x.dauerMin} Min`, b:eur(x.eur), zeit:bfZeit, sp:x, wert:x.eur*3});
   for(const x of (D.polySerien||[]).filter(top5Ok)) f.push({q:"poly", k:"serie", live:!!x.live, t:`🔁 ${x.n}× in Folge: ${usd(x.usd)} auf ${pmLabel(x.auswahl)}`, s:`${pmTitel(x.titel)}, in ${x.dauerMin} Min`, b:usd(x.usd), zeit:D.polyFluss?.stand, wert:x.usd*3});
+  for(const x of (D.stakeSerien||[]).filter(top5Ok)) f.push({q:"stake", k:"serie", live:!!x.live, t:`🔁 ${x.n}× in Folge: ${usd(x.usd)} auf ${x.auswahl}${x.quote?" @ "+q2(x.quote):""}`, s:`${x.titel}, ${x.markt}, ${x.wetten} Wetten in ${x.dauerMin} Min`, b:usd(x.usd), zeit:x.zeit, wert:x.usd*3});
   for(const x of lf(D.zufluss30||[])){ const fl = (x.fluss||[])[0]; if(!fl) continue;
     f.push({q:"betfair", k:"zufluss", t:`+${eur(fl.eur)} auf ${auswahlDe(fl.auswahl)} @ ${q2(fl.quote)}`, s:`${x.heim} – ${x.gast}, ${wann(x.anpfiff)}, ${marktDe(fl.markt)} (${fl.anteil} %)`, b:eur(fl.eur), zeit:bfZeit, sp:x, wert:fl.eur}); }
   for(const m of (D.polyFluss?.maerkte||[]).filter(top5Ok)){ const fw = m.fenster?.["30"]; if(!fw || fw.usd<1000 || fw.anteil<55) continue;
@@ -964,6 +966,7 @@ function seitePoly(D){
 function seiteStake(D){
   const st = D.stake;
   return `<div class="grid">
+    <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Einzelwetten ab $1000: mind. 3 Zehn-Minuten-Abschnitte in Folge mit derselben Auswahl vorn</span></div>${serienKarten(D,8,"stake")}</div>
     ${Object.entries(st.bilanz||{}).map(([a,b])=>`<div class="panel kpi c3"><div class="lab">${icon("stake")}${esc(a)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Tipps, ${b.treffer} % Treffer</div></div>`).join("")}
     <div class="panel c12"><div class="ph"><h3>Große Wetten, letzte 24 Stunden</h3><span class="hint">je Spiel und Auswahl zusammengefasst</span></div>${stakeKarten((st.gruppen||[]).slice(0,16))}</div>
   </div>`;
