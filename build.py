@@ -373,8 +373,124 @@ def hz(finder):
     return {"heute": heute[:30], "bericht": bericht, "regel": f.get("regel")}
 
 
+# ── Betfair über ALLE Ligen: Geld gegen die Liga-Norm ────────────────────────────
+def _phase(jetzt, kick):
+    """p0 >3h vor Anpfiff · p1 letzte 3h · l1 1. HZ · l2 ab 45' — wie betfair_league_norm.py."""
+    d = (jetzt - kick).total_seconds()
+    if d >= 0:
+        if d > 3.5 * 3600:
+            return None
+        return "l2" if d > 45 * 60 else "l1"
+    return "p1" if -d <= 3 * 3600 else "p0"
+
+
+def betfair_radar(prices, bf_hist, norm):
+    """Jedes Spiel im Betfair-Abruf (auch Slowakei 2, Finnland, China …), gemessen an seiner Liga.
+
+    ×Norm = gematchtes Geld jetzt / Median dieser Liga in derselben Phase (letzte 60 Tage, nur
+    abgeschlossene Phasen). Eine laufende Phase ist noch nicht fertig — ×Norm ist also eher zu niedrig.
+    """
+    medi = (norm or {}).get("byLeagueStage") or {}
+    spiele, stunden = [], {}
+    grenze = JETZT - timedelta(hours=12)
+    for eid, snaps in (bf_hist or {}).items():
+        if not isinstance(snaps, list):
+            continue
+        prev = None
+        for s in snaps:
+            t, v = ts(s.get("ts")), s.get("totalVol")
+            if t and isinstance(v, (int, float)) and prev and t >= grenze:
+                dv = v - prev
+                if 0 < dv < 5e6:
+                    h = t.replace(minute=0, second=0, microsecond=0)
+                    stunden[h] = stunden.get(h, 0) + dv
+            if isinstance(v, (int, float)):
+                prev = v
+    for m in (prices or {}).get("matches") or []:
+        kick = ts(m.get("kickoff"))
+        li = m.get("liveInfo") or {}
+        if not kick or li.get("finished"):
+            continue
+        dt_h = (kick - JETZT).total_seconds() / 3600
+        if not (-2.2 <= dt_h <= 30):
+            continue
+        vol = float(m.get("totalVol") or 0)
+        if vol < 300:
+            continue
+        ph = _phase(JETZT, kick)
+        b = medi.get(f"{m.get('league')}|{ph}") or {}
+        xnorm = round(vol / b["med"], 1) if b.get("med") and (b.get("n") or 0) >= 5 else None
+        snaps = [s for s in (bf_hist or {}).get(str(m.get("matchId"))) or [] if isinstance(s, dict)]
+        kurve, vor60 = [], None
+        for s in snaps:
+            t, v = ts(s.get("ts")), s.get("totalVol")
+            if not t or not isinstance(v, (int, float)):
+                continue
+            if t >= JETZT - timedelta(hours=10):
+                kurve.append(round(v))
+            if t <= JETZT - timedelta(minutes=60):
+                vor60 = v
+        if len(kurve) > 18:
+            schritt = len(kurve) / 18
+            kurve = [kurve[int(i * schritt)] for i in range(18)] + [kurve[-1]]
+        mo = m.get("mo") or {}
+        fair = mo.get("fair") or {}
+        mk = ((m.get("markets") or {}).get("Match Odds") or {})
+        rs = [r for r in mk.get("runners") or [] if isinstance(r, dict)]
+        gv = sum(float(r.get("vol") or 0) for r in rs)
+        if gv > 0:
+            vert = [{"name": r.get("name"), "eur": round(float(r.get("vol") or 0)), "quote": r.get("odd")} for r in rs]
+        elif fair:
+            vert = None
+        else:
+            vert = None
+        maerkte = sorted(((k, float(v.get("vol") or 0)) for k, v in (m.get("markets") or {}).items()
+                          if isinstance(v, dict)), key=lambda x: -x[1])
+        spiele.append({
+            "id": str(m.get("matchId")), "heim": m.get("home"), "gast": m.get("away"),
+            "liga": m.get("league"), "land": m.get("country"), "anpfiff": m.get("kickoff"),
+            "live": ({"min": li.get("time"), "stand": [li.get("goal_v1"), li.get("goal_v2")],
+                      "ht": bool(li.get("is_ht"))} if dt_h < 0 else None),
+            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "phase": ph,
+            "d60": round(vol - vor60) if vor60 is not None else None,
+            "kurve": kurve,
+            "quoten": {"heim": mo.get("hw"), "remis": mo.get("dr"), "gast": mo.get("aw")},
+            "wahrsch": ({"heim": fair.get("home"), "remis": fair.get("draw"), "gast": fair.get("away")} if fair else None),
+            "verteilung": vert,
+            "maerkte": [{"name": k, "eur": round(v)} for k, v in maerkte[:4] if v > 0],
+        })
+    spiele.sort(key=lambda s: -(s["xnorm"] or 0))
+    std = [{"h": iso(h), "eur": round(v)} for h, v in sorted(stunden.items())][-12:]
+    ligen = len({s["liga"] for s in spiele})
+    return {"spiele": spiele[:120], "stunden": std, "ligen": ligen,
+            "summeEur": round(sum(s["eur"] for s in spiele))}
+
+
+def betfair_pushes(ledger, record):
+    out = []
+    for e in ledger or []:
+        t = ts(e.get("sentAt"))
+        if not t or t < JETZT - timedelta(hours=36):
+            continue
+        out.append({"zeit": e.get("sentAt"), "art": {"fresh": "Frisches Geld", "ht": "Halbzeit"}.get(e.get("scenario"), e.get("scenario")),
+                    "markt": e.get("market"), "liga": e.get("league"), "heim": e.get("home"), "gast": e.get("away"),
+                    "auf": e.get("leadName"), "quote": e.get("leadOdd"), "eur": round(e.get("value") or 0),
+                    "anteil": round((e.get("leadShare") or 0) * 100), "status": e.get("status"),
+                    "pinnacleEinig": (e.get("consensus") or {}).get("agree")})
+    out.sort(key=lambda x: x["zeit"], reverse=True)
+    r = record or {}
+    bil = {"n": r.get("n"), "treffer": round((r.get("hitRate") or 0) * 100, 1), "roi": round((r.get("roi") or 0) * 100, 1),
+           "roiUg": round((r.get("roiUg") or 0) * 100, 1) if r.get("roiUg") is not None else None,
+           "schlaegtPinnacle": round((r.get("pctBeatPinn") or 0) * 100) if r.get("pctBeatPinn") is not None else None}
+    return {"liste": out[:40], "bilanz": bil}
+
+
 def main() -> int:
     prices = laden("betfair_prices.json", {})
+    bf_hist = laden("betfair_history.json", {})
+    bf_norm = laden("betfair_league_norm.json", {})
+    bf_led = laden("betfair_public_ledger.json", [])
+    bf_rec = laden("betfair_public_record.json", {})
     overview = laden("betfair_overview.json", {})
     consensus = laden("betfair_consensus.json", {})
     history = laden("betfair_consensus_history.json", {})
@@ -396,6 +512,8 @@ def main() -> int:
             "hz": stand(finder, "updatedAt"),
         },
         "betfair": betfair(prices, overview, consensus),
+        "radar": betfair_radar(prices, bf_hist, bf_norm),
+        "bfPushes": betfair_pushes(bf_led, bf_rec),
         "sharp": sharp(consensus, history),
         "poly": poly(track, upcoming, wale, offen_m),
         "stake": stake(burst),
