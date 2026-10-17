@@ -769,6 +769,117 @@ def halbzeit(prices):
     return out[:40]
 
 
+# ── Betfair-HZ-Pushes wie im alten Projekt (betfair_alerts.py, Lucas 17.10.: „die sollen auch rein") ──
+# 🔵 Halbzeit-Geld (einseitig): HZ-1X2 oder HZ Über/Unter 1,5 mit ≥ Schwelle gematcht, ≥85 % auf EINEM
+#    Ausgang, Quote ≥1,30. Schwellen wie dort: Top-5 + internationale Bewerbe 15k, Rest 10k.
+# ⚫ Fix-Verdacht: ein HZ-Markt hat mind. doppelt so viel Geld wie der größte Spiel-Markt, ≥€2k,
+#    ≥65 % einseitig, Quote ≥1,15, nur vor Anpfiff oder bis Minute 30.
+# Beide nur, solange die erste Halbzeit läuft und die Torlinie nicht schon gerissen ist.
+BF_HT_MAERKTE = ("Half Time", "First Half Goals 1.5")
+BF_FIX_HT = ("Half Time", "First Half Goals 0.5", "First Half Goals 1.5")
+BF_FIX_FT = ("Match Odds", "Over/Under 2.5 Goals", "Over/Under 3.5 Goals", "Both teams to Score?")
+_UEFA_RX = re.compile(r"(champions league|europa league|europa conference|conference league|uefa)", re.I)
+
+
+def _bf_top(m):
+    return bool(TOP5_RX.search(str(m.get("league") or "").strip())) or bool(_UEFA_RX.search(str(m.get("league") or ""))) \
+        or bool(re.match(r"^(int|international|eu|europe)$", str(m.get("country") or ""), re.I))
+
+
+def _bf_vol(mk):
+    return sum((r.get("vol") or 0.0) for r in (mk.get("runners") or []) if isinstance(r, dict))
+
+
+def _bf_hz_offen(m, name=None):
+    li = m.get("liveInfo") or {}
+    if li.get("finished") or li.get("is_ht"):
+        return False
+    t = li.get("time")
+    if t is not None:
+        try:
+            if float(t) > 45:
+                return False
+        except (TypeError, ValueError):
+            return False
+    if name:
+        mm = re.search(r"(\d+(?:\.\d+)?)\s*$", name)
+        g1, g2 = li.get("goal_v1"), li.get("goal_v2")
+        if mm and t is not None and g1 is not None and g2 is not None and (g1 + g2) > float(mm.group(1)):
+            return False
+    return True
+
+
+def bf_ht_pushes(prices):
+    out = []
+    for m in (prices or {}).get("matches") or []:
+        mk = m.get("markets") or {}
+        li = m.get("liveInfo") or {}
+        top = _bf_top(m)
+        basis = {"id": str(m.get("matchId")), "heim": m.get("home"), "gast": m.get("away"), "liga": m.get("league"),
+                 "land": m.get("country"), "anpfiff": m.get("kickoff"), "top": top,
+                 "live": ({"min": li.get("time"), "stand": [li.get("goal_v1"), li.get("goal_v2")]} if li.get("time") is not None else None)}
+        if not _bf_hz_offen(m):
+            continue
+        # 🔵 einseitiges HZ-Geld
+        best = None
+        for name in BF_HT_MAERKTE:
+            x = mk.get(name)
+            if not x or not _bf_hz_offen(m, name):
+                continue
+            tot = _bf_vol(x)
+            if tot < (15000 if top else 10000):
+                continue
+            rs = [r for r in x.get("runners") or [] if isinstance(r, dict)]
+            lead = max(rs, key=lambda r: r.get("vol") or 0, default=None)
+            if not lead or (lead.get("vol") or 0) / tot < 0.85:
+                continue
+            if isinstance(lead.get("odd"), (int, float)) and lead["odd"] < 1.30:
+                continue
+            if not best or tot > best["eur"]:
+                best = {**basis, "art": "ht", "markt": name, "eur": round(tot), "auf": lead.get("name"), "quote": lead.get("odd"),
+                        "anteil": round(100 * (lead.get("vol") or 0) / tot),
+                        "seiten": [{"name": r.get("name"), "anteil": round(100 * (r.get("vol") or 0) / tot)} for r in rs]}
+        if best:
+            out.append(best)
+        # ⚫ Fix-Verdacht
+        t = li.get("time")
+        if isinstance(t, (int, float)) and t > 30:
+            continue
+        ft_max, ft_name = 0.0, None
+        for name in BF_FIX_FT:
+            if mk.get(name):
+                v = _bf_vol(mk[name])
+                if v > ft_max:
+                    ft_max, ft_name = v, name
+        if ft_max <= 0:
+            continue
+        fb = None
+        for name in BF_FIX_HT:
+            x = mk.get(name)
+            if not x or not _bf_hz_offen(m, name):
+                continue
+            tot = _bf_vol(x)
+            if tot < 2000:
+                continue
+            lead = max((r for r in x.get("runners") or [] if isinstance(r, dict)), key=lambda r: r.get("vol") or 0, default=None)
+            if not lead or (lead.get("vol") or 0) / tot < 0.65:
+                continue
+            if isinstance(lead.get("odd"), (int, float)) and lead["odd"] < 1.15:
+                continue
+            if not fb or (lead.get("vol") or 0) > fb[0]:
+                fb = (lead.get("vol") or 0, name, tot, lead)
+        if fb and fb[2] >= 2 * ft_max:
+            _, name, tot, lead = fb
+            out.append({**basis, "art": "fix", "markt": name, "eur": round(tot), "ftEur": round(ft_max), "ftMarkt": ft_name,
+                        "faktor": round(tot / ft_max, 1), "auf": lead.get("name"), "quote": lead.get("odd"),
+                        "anteil": round(100 * (lead.get("vol") or 0) / tot)})
+    # beides am selben Spiel → nur der Fix-Verdacht (der ist die schärfere Aussage)
+    fix_ids = {x["id"] for x in out if x["art"] == "fix"}
+    out = [x for x in out if x["art"] == "fix" or x["id"] not in fix_ids]
+    out.sort(key=lambda x: -x["eur"])
+    return out
+
+
 def zufluss_liste(radar, consensus):
     """Frischer Zufluss aus der eigenen Historie: wo kam in den letzten 30 Min am meisten Geld dazu.
 
@@ -901,6 +1012,7 @@ def main() -> int:
         "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"],
         "bfPushes": betfair_pushes(bf_led, bf_rec),
         "halbzeit": halbzeit(prices),
+        "bfHtPushes": bf_ht_pushes(prices),
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
         "poly": poly(track, upcoming, wale, offen_m, tr_led, tr_rec),

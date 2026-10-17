@@ -250,6 +250,34 @@ def halbzeit(d):
         yield key, "".join(z), None
 
 
+def bf_halbzeit(d):
+    """Lucas 17.10.: die Betfair-HZ-Pushes aus dem alten Projekt („die sollen auch rein") —
+    🔵 Halbzeit-Geld (einseitig) und ⚫ Fix-Verdacht. Erneut gemeldet erst, wenn das Geld um +50 % wuchs."""
+    import math
+    for a in d.get("bfHtPushes") or []:
+        stufe = int(math.log(max(a.get("eur") or 1, 1)) / math.log(1.5))
+        key = f"bfht|{a.get('art')}|{a.get('id')}|{a.get('markt')}|{a.get('auf')}|{stufe}"
+        lv = a.get("live")
+        st = (f"🔴 live {lv.get('min')}' · {lv['stand'][0] or 0}:{lv['stand'][1] or 0}" if lv
+              else f"⏰ {anpfiff(a.get('anpfiff'))}")
+        kopf = (f"{flagge(a.get('land'))}<b>{e(a.get('heim'))} – {e(a.get('gast'))}</b>\n"
+                f"<i>{e(str(a.get('liga') or '')[:48])}</i>\n{st}\n\n")
+        auf = remis(_auswahl_de(a.get("auf")))
+        quote = f" @ <b>{q2(a.get('quote'))}</b>" if a.get("quote") else ""
+        if a.get("art") == "fix":
+            text = (f"⚫ <b>Betfair · Fix-Verdacht</b>\nmehr Geld auf die Halbzeit als aufs Spiel\n" + kopf
+                    + f"💷 {e(_markt_de(a.get('markt')))}: <b>{geld(a.get('eur'))}</b>  vs  {e(_markt_de(a.get('ftMarkt')))}: {geld(a.get('ftEur'))}"
+                      f" · <b>{str(a.get('faktor')).replace('.', ',')}×</b>\n"
+                    + f"📊 <b>{a.get('anteil')} %</b> auf <b>{e(auf)}</b>{quote}" + (" · sehr einseitig" if (a.get("anteil") or 0) >= 90 else "") + "\n")
+        else:
+            seiten = " · ".join(f"{e(remis(_auswahl_de(x['name'])))} {x['anteil']} %" for x in a.get("seiten") or [])
+            text = (f"🔵 <b>Betfair · Halbzeit-Geld (einseitig)</b>\n" + kopf
+                    + f"💷 {e(_markt_de(a.get('markt')))}: <b>{geld(a.get('eur'))}</b> gematcht\n"
+                    + f"📊 <b>{a.get('anteil')} %</b> auf <b>{e(auf)}</b>{quote}\n"
+                    + (f"<i>{seiten}</i>\n" if seiten else ""))
+        yield key, text, None
+
+
 SPORT = {"Fußball": "⚽", "E-Sport": "🎮", "Tennis": "🎾"}
 
 
@@ -286,7 +314,7 @@ def stake(d):
         yield key, text, None
 
 
-ARTEN = (zufluss, live, halbzeit, wale, stake)
+ARTEN = (zufluss, live, bf_halbzeit, halbzeit, wale, stake)
 
 
 # ── Senden ───────────────────────────────────────────────────────────────────────
