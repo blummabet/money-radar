@@ -185,6 +185,16 @@ main{padding:22px 28px 60px;min-width:0}
 .qpills div{background:var(--panel-3);border-radius:9px;padding:6px 8px;text-align:center}
 .qpills small{display:block;font-size:11px;color:var(--text-3)}
 .qpills b{font-size:16px}
+.qpills div{position:relative;border:1px solid transparent}
+.qpills .q-ok{border-color:rgba(47,211,138,.55);background:rgba(47,211,138,.10)}
+.qpills .q-no{border-color:rgba(255,107,107,.45);background:rgba(255,107,107,.08)}
+.qpills .q-ok b{color:var(--up)} .qpills .q-no b{color:var(--down);opacity:.85}
+.qpills .q-z{position:absolute;top:4px;right:6px;font-size:12px;font-weight:800}
+.qpills .q-ok .q-z{color:var(--up)} .qpills .q-no .q-z{color:var(--down)}
+.qpills .q-tipp{box-shadow:inset 0 -2px 0 var(--hz)}
+.qpills .q-tipp small{color:var(--text-2)}
+.hz-end{font-weight:800;font-size:13px;padding:1px 8px;border-radius:999px;background:var(--panel-3);color:var(--text)}
+.hz-lauf{font-size:12px;color:var(--text-3)}
 .nchart{display:flex;flex-direction:column;gap:2px}
 .nz{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 92px;gap:14px;align-items:center;padding:9px 8px;border-radius:10px;cursor:pointer;color:inherit}
 .nz:hover{background:rgba(255,255,255,.03)}
@@ -776,11 +786,20 @@ function stakeKarten(gr){
 function hzSpielKarten(liste){
   const nm2 = {over05:"Tor 2. HZ", over15:"2+ Tore", heim:"Heimsieg"};
   if(!liste.length) return `<div class="leer">Noch kein Spiel zur Pause 0:0.</div>`;
-  return `<div class="kgrid">${liste.map(e=>`<div class="kk">
-      <div class="kk-oben">${flagge(e.land)}<span>${esc(e.liga)}</span><span class="rechts">${uhr(e.zeit)}</span></div>
+  // Pause war 0:0, also ist der Endstand genau die 2. Halbzeit
+  const ausw = (k, ft) => { if(!Array.isArray(ft)) return null; const [h,a] = ft, t = h + a;
+    return k==="over05" ? t>=1 : k==="over15" ? t>=2 : k==="heim" ? h>a : null; };
+  return `<div class="kgrid">${liste.map(e=>{
+    const ft = Array.isArray(e.ft) ? e.ft : null, tipps = e.gruppen||[];
+    const istTipp = k => k==="heim" ? tipps.includes("heim") : tipps.includes("tore");
+    const rechts = ft ? `<span class="hz-end">${ft[0]}:${ft[1]}</span>` : `<span class="hz-lauf">${(Date.now()-new Date(e.zeit))/6e4>75?"Ergebnis folgt":"läuft"} · ${uhr(e.zeit)}</span>`;
+    return `<div class="kk">
+      <div class="kk-oben">${flagge(e.land)}<span>${esc(e.liga)}</span><span class="rechts">${rechts}</span></div>
       <div class="kk-titel">${esc(e.spiel)}</div>
-      <div class="qpills">${Object.entries(nm2).map(([k,n])=>`<div><small>${n}</small><b>${q2(e.quoten?.[k])}</b></div>`).join("")}</div>
-    </div>`).join("")}</div>`;
+      <div class="qpills">${Object.entries(nm2).map(([k,n])=>{ const r = ausw(k, ft);
+        const kl = [r===true?"q-ok":r===false?"q-no":"", istTipp(k)?"q-tipp":""].join(" ");
+        return `<div class="${kl}">${r===null?"":`<span class="q-z">${r?"✓":"✗"}</span>`}<small>${n}</small><b>${q2(e.quoten?.[k])}</b></div>`; }).join("")}</div>
+    </div>`; }).join("")}</div>`;
 }
 function rangliste(ws){
   if(!ws.length) return `<div class="leer">Noch keine Wallet mit genug Historie.</div>`;
@@ -861,7 +880,7 @@ function seiteHz(D){
   const z = D.hz;
   return `<div class="grid">
     ${(z.bericht||[]).map(b=>`<div class="panel kpi c4"><div class="lab">${icon("hz")}${esc(b.wette)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Spiele, getroffen ${dez(b.treffer,0)} % (erwartet ${dez(b.erwartet,0)} %)</div></div>`).join("")}
-    <div class="panel c12"><div class="ph"><h3>Zur Pause 0:0</h3><span class="hint">letzte 24 Stunden, Quoten zur Pause</span></div>${hzSpielKarten(z.heute||[])}</div>
+    <div class="panel c12"><div class="ph"><h3>Zur Pause 0:0</h3><span class="hint">letzte 24 Stunden, Quoten zur Pause · ✓/✗ nach Abpfiff · Strich unten = vom Signal gespielt</span></div>${hzSpielKarten(z.heute||[])}</div>
   </div>`;
 }
 

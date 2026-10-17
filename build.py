@@ -498,7 +498,8 @@ def hz(finder):
             continue
         heute.append({"spiel": f"{e.get('home')} – {e.get('away')}", "liga": e.get("league"),
                       "land": e.get("country"), "gruppen": e.get("gruppen"), "quoten": e.get("quoten"),
-                      "zeit": e.get("gebuchtAt"), "status": e.get("status")})
+                      "zeit": e.get("gebuchtAt"), "status": e.get("status"), "anpfiff": e.get("kickoff"),
+                      "ft": e.get("ft"), "wetten": {k: bool((w or {}).get("win")) for k, w in (e.get("wetten") or {}).items()}})
     heute.sort(key=lambda r: r["zeit"] or "", reverse=True)
     bericht = []
     for k, b in (f.get("bericht") or {}).items():
