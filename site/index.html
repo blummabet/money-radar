@@ -384,16 +384,6 @@ function spark(werte, farbe, w=110, h=32){
   const id = "g"+Math.random().toString(36).slice(2,8);
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${farbe}" stop-opacity=".35"/><stop offset="1" stop-color="${farbe}" stop-opacity="0"/></linearGradient></defs><path d="${d} L${w} ${h} L0 ${h} Z" fill="url(#${id})"/><path d="${d}" fill="none" stroke="${farbe}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
 }
-function saeulen(daten, farbe, h=170){
-  if(!daten.length) return `<div class="leer">Noch kein Verlauf.</div>`;
-  const W = window.innerWidth < 860 ? 360 : 640; if(W===360) daten = daten.slice(-8);
-  const max = Math.max(...daten.map(d=>d.eur)) || 1, bw = (W-44)/daten.length;
-  return `<svg viewBox="0 -18 ${W} ${h+42}" width="100%" role="img" aria-label="Gematchtes Geld pro Stunde">
-    ${[0,.5,1].map(f=>{const y=(h-f*(h-10)).toFixed(1);return `<line x1="44" x2="${W}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,.06)"/><text x="0" y="${(+y+4).toFixed(1)}" fill="#64718a" font-size="11" font-family="Manrope">${esc(eur(max*f))}</text>`;}).join("")}
-    ${daten.map((d,i)=>{ const x=44+i*bw+bw*.18, hh=Math.max(2,d.eur/max*(h-10)), letzte=i===daten.length-1;
-      return `<rect x="${x.toFixed(1)}" y="${(h-hh).toFixed(1)}" width="${(bw*.64).toFixed(1)}" height="${hh.toFixed(1)}" rx="5" fill="${farbe}" opacity="${letzte?1:.5}"><title>${uhr(d.h)} Uhr: ${eur(d.eur)}</title></rect>${letzte?`<text x="${(x+bw*.64).toFixed(1)}" y="${(h-hh-7).toFixed(1)}" fill="#e9eef7" font-size="12" font-weight="800" text-anchor="end" font-family="Manrope">${esc(eur(d.eur))}</text>`:""}<text x="${(x+bw*.32).toFixed(1)}" y="${h+17}" fill="#64718a" font-size="11" text-anchor="middle" font-family="Manrope">${uhr(d.h).slice(0,2)}h</text>`;}).join("")}
-  </svg>`;
-}
 function ring(prozent, farbe, mitte){
   const r=34, u=2*Math.PI*r, p=Math.max(0,Math.min(100,prozent||0));
   return `<svg width="86" height="86" viewBox="0 0 86 86" aria-hidden="true"><circle cx="43" cy="43" r="${r}" fill="none" stroke="var(--panel-3)" stroke-width="8"/><circle cx="43" cy="43" r="${r}" fill="none" stroke="${farbe}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${(u*p/100).toFixed(1)} ${u.toFixed(1)}" transform="rotate(-90 43 43)"/><text x="43" y="48" text-anchor="middle" fill="#e9eef7" font-size="14" font-weight="800" font-family="Manrope">${esc(mitte)}</text></svg>`;
@@ -435,7 +425,6 @@ function spielZeile(s, i){
     <td class="hide-m vt">${vt?vbar(vt):`<span style="color:var(--text-3);font-size:12px;white-space:nowrap">${s.quoten.heim?`${q2(s.quoten.heim)} / ${q2(s.quoten.remis)} / ${q2(s.quoten.gast)}`:""}</span>`}</td>
   </tr>`;
 }
-const PHASE = {p0:"mehr als 3 h vor Anpfiff", p1:"letzte 3 h vor Anpfiff", l1:"1. Halbzeit", l2:"2. Halbzeit"};
 function spielDetail(s){
   const md = s.maerkteDetail || [], fm = s.fensterMin || 30;
   const PAL = ["#ffb547","#5b9dff","#7d8aa3","#a183ff","#2fd38a","#ff77a8"];
@@ -527,23 +516,6 @@ function pushPanel(D){
 }
 
 // ── Frischer Zufluss ────────────────────────────────────────────────
-function zuflussListe(D, max=10){
-  const z = (D.zufluss30 && D.zufluss30.length ? D.zufluss30 : D.betfair.zufluss).slice(0, max);
-  if(!z.length) return `<div class="leer">In den letzten 30 Minuten kam vor Anpfiff kein nennenswertes Geld dazu.</div>`;
-  TL["zf-"+max] = z;
-  return `<div class="tw"><table class="tab" id="zf-${max}"><thead><tr><th>Spiel</th><th class="hide-m">Anpfiff</th><th class="r">Neu in 30 Min</th><th>Meistes Geld auf</th><th class="hide-m">Pinnacle</th><th class="hide-m">Verteilung</th></tr></thead><tbody>
-  ${z.map((x,i)=>{
-    const vt = x.verteilung ? x.verteilung.map(v=>({name:v.name,wert:v.eur,quote:v.quote})) : null;
-    const pf = x.quoteRichtung==="faellt" ? `<span style="color:var(--up)">↓ von ${q2(x.quoteVorher)}</span>` : x.quoteRichtung==="steigt" ? `<span style="color:var(--down)">↑ von ${q2(x.quoteVorher)}</span>` : "";
-    return `<tr class="zeile" data-i="${i}" data-art="zf" tabindex="0" aria-expanded="false"><td><div class="spiel">${flagge(x.land)}<div style="min-width:0"><div class="n">${esc(x.heim)} – ${esc(x.gast)}</div><div class="l"><span class="nur-m">${wann(x.anpfiff)}, </span>${esc(x.liga)}</div></div></div></td>
-      <td class="hide-m"><span class="status">${wann(x.anpfiff)}</span></td>
-      <td class="r"><div class="geld" style="color:var(--up)">+${eur(x.zuflussEur)}</div><div style="font-size:11.5px;color:var(--text-3);white-space:nowrap">von ${eur(x.marktEur)}</div></td>
-      <td><div style="font-weight:700;white-space:nowrap">${esc(nm(x.meistesGeldAuf))} @ ${q2(x.quote)}</div><div style="font-size:11.5px;white-space:nowrap">${pf}</div></td>
-      <td class="hide-m">${x.pinnacle?(x.pinnacle.einig?`<span class="tag t-won">einig</span>`:`<span class="tag t-lost">anders</span>`):`<span class="status">–</span>`}</td>
-      <td class="hide-m">${vt?vbar(vt):""}</td></tr>`;}).join("")}
-  </tbody></table></div>`;
-}
-
 let D = null, filterBf = "norm";
 const belegt = m => (m.wale||[]).some(w=>w.bewiesen);
 const offen = s => !s.entschieden;
@@ -637,7 +609,6 @@ function polyDetail(m){
 }
 const SPORT_ICO = {"Fußball":"⚽","E-Sport":"🎮","Tennis":"🎾"};
 const sportIco = sp => `<span class="sico" title="${esc(sp||"Fußball")}">${SPORT_ICO[sp]||"⚽"}</span>`;
-const wkurz = w => `${esc(String(w).slice(0,6))}…${esc(String(w).slice(-4))}`;
 let filterSport = "alle";
 function polyTabelle(liste, id){
   if(!liste.length) return `<div class="leer">Keine Märkte in dieser Auswahl.</div>`;
@@ -734,10 +705,8 @@ function zuflussKarten(D, max){
 function liveKarten(D, max){
   const z = lf(D.liveZufluss||[]).slice(0, max);
   if(!z.length) return `<div class="leer">Gerade fließt live kein Geld einseitig auf eine Auswahl${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
-  const MN = {"Match Odds":"Sieg-Markt","Over/Under 2.5 Goals":"Über/Unter 2,5","Over/Under 3.5 Goals":"Über/Unter 3,5","Both teams to Score?":"Beide treffen","Half Time":"HZ-Sieger","First Half Goals 0.5":"HZ-Tore 0,5","First Half Goals 1.5":"HZ-Tore 1,5"};
   return `<div class="kgrid">${z.map(x=>{
     const vt = x.verteilung ? x.verteilung.map(v=>({name:v.name,wert:v.eur,quote:v.quote})) : null;
-    const mz = (x.marktZufluss||[])[0];
     const sp = spielInfo(x);
     return `<div class="kk live-k" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
       <div class="kk-oben">${flagge(x.land)}<span>${esc(x.liga)}</span><span class="rechts">${live(x)}</span></div>
@@ -855,7 +824,6 @@ function bilanzRinge(D){
 
 function seiteStart(D){
   const r = D.radar, top = lf(r.spiele).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,8);
-  const pm = lf(D.poly.maerkte).slice().sort((a,b)=>(b.nBelegt-a.nBelegt)||(b.usd-a.usd)).slice(0,6);
   return `<div class="grid">
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div><div class="feed">${feedListe(D,5,1)}</div></div>
     <div class="panel c8"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">wohin neues Geld floss, vor Anpfiff, 30 Min</span><button class="chip rechts" data-geh="betfair">Alle</button></div>${zuflussKarten(D,4)}</div>
@@ -935,16 +903,20 @@ function gehe(k){
 }
 function render(){
   drZaehler = 0; for(const k in DR) delete DR[k];
-  $("#ligaschalter").innerHTML = ligaSchalter();
-  $("#s-start").innerHTML = seiteStart(D);
-  $("#s-feed").innerHTML = seiteFeed(D);
-  $("#s-betfair").innerHTML = seiteBetfair(D);
-  $("#s-pinnacle").innerHTML = seitePinnacle(D);
-  $("#s-poly").innerHTML = seitePoly(D);
-  $("#s-stake").innerHTML = seiteStake(D);
-  $("#s-hz").innerHTML = seiteHz(D);
-  navAufbauen({betfair:D.radar.spiele.filter(s=>s.xnorm>=1.5).length, pinnacle:D.sharp.filter(s=>s.frisch||s.laeuftNoch).length,
-    poly:D.poly.maerkte.filter(belegt).length, stake:(D.stake.gruppen||D.stake.heute).length, hz:D.hz.heute.length, feed:lf(D.liveZufluss||[]).length||null});
+  // Wächter: wirft ein Bereich einen Fehler (z. B. ein Feld fehlt in den Daten), bleibt der Rest stehen
+  const sicher = (sel, fn) => { try{ $(sel).innerHTML = fn(); }catch(e){ console.error(sel, e);
+    $(sel).innerHTML = `<div class="panel"><div class="leer">Dieser Bereich konnte gerade nicht gebaut werden (${esc(String(e.message||e).slice(0,80))}). Der Rest läuft weiter.</div></div>`; } };
+  sicher("#ligaschalter", ligaSchalter);
+  sicher("#s-start", ()=>seiteStart(D));
+  sicher("#s-feed", ()=>seiteFeed(D));
+  sicher("#s-betfair", ()=>seiteBetfair(D));
+  sicher("#s-pinnacle", ()=>seitePinnacle(D));
+  sicher("#s-poly", ()=>seitePoly(D));
+  sicher("#s-stake", ()=>seiteStake(D));
+  sicher("#s-hz", ()=>seiteHz(D));
+  try{ navAufbauen({betfair:D.radar.spiele.filter(s=>s.xnorm>=1.5).length, pinnacle:D.sharp.filter(s=>s.frisch||s.laeuftNoch).length,
+    poly:D.poly.maerkte.filter(belegt).length, stake:(D.stake.gruppen||D.stake.heute).length, hz:D.hz.heute.length, feed:lf(D.liveZufluss||[]).length||null}); }
+  catch(e){ console.error(e); navAufbauen({}); }
   gehe(aktiv);
 }
 function quellen(q){

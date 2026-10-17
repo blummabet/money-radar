@@ -317,6 +317,28 @@ def stake(d):
 ARTEN = (zufluss, live, bf_halbzeit, halbzeit, wale, stake)
 
 
+# ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────
+# Lucas 17.10.: „Sind da Wächter notwendig?" — ja: Mac aus, Schlüssel abgelaufen, Betwatch down.
+# Stake fehlt bewusst: dessen Zeitstempel ist die letzte Meldung, nicht der letzte Abruf (nachts ruhig).
+WAECHTER = {"betfair": ("Betfair (Betwatch)", 30), "pinnacle": ("Pinnacle", 30), "hz": ("HZ-Finder (altes Projekt, Mac)", 45),
+            "polymarket": ("Polymarket-Wale (altes Projekt, Mac)", 120), "polyFluss": ("Polymarket-Fluss (Mac-Runner radar)", 40)}
+
+
+def waechter(d, gesehen):
+    q = dict(d.get("quellen") or {})
+    q["polyFluss"] = (d.get("polyFluss") or {}).get("stand")
+    for k, (name, grenze) in WAECHTER.items():
+        t = ts(q.get(k))
+        alt = (JETZT - t).total_seconds() / 60 if t else None
+        key = f"wa|{k}"
+        if alt is None or alt > grenze:
+            if key not in gesehen:
+                wie = f"seit {round(alt)} Min kein neuer Stand" if alt is not None else "gar kein Stand"
+                yield key, f"⚠️ <b>Wächter</b>: {e(name)} — {wie} (Grenze {grenze} Min).\nPushes dieser Quelle fallen aus, bis sie wieder läuft.", "setzen"
+        elif key in gesehen:
+            yield key, f"✅ <b>Wächter</b>: {e(name)} läuft wieder (Stand vor {round(alt)} Min).", "loeschen"
+
+
 # ── Senden ───────────────────────────────────────────────────────────────────────
 STATUS = {"fehler": []}
 
@@ -352,9 +374,19 @@ def main() -> int:
     erster_lauf = not STAND.exists()
     gesehen = {} if erster_lauf else json.loads(STAND.read_text(encoding="utf-8"))
     grenze = (JETZT - timedelta(days=3)).isoformat()
-    gesehen = {k: v for k, v in gesehen.items() if v >= grenze}      # alte Einträge vergessen
+    gesehen = {k: v for k, v in gesehen.items() if v >= grenze or k.startswith("wa|")}      # alte Einträge vergessen
 
     gesendet = 0
+    if not erster_lauf:
+        for key, text, was in waechter(d, gesehen):
+            ok = True if trocken else senden(token, chat, text)
+            if trocken:
+                print("──", key, "\n" + text)
+            if ok:
+                if was == "setzen":
+                    gesehen[key] = JETZT.isoformat()
+                else:
+                    gesehen.pop(key, None)
     for art in ARTEN:
         for key, text, pause_h in art(d):
             alt = gesehen.get(key)

@@ -112,6 +112,7 @@ jobs:
         run: python3 build.py
       - name: Pushes in den Test-Channel
         if: github.event_name != 'push'
+        continue-on-error: true   # ein Fehler beim Pushen darf die Seite nicht vom Veröffentlichen abhalten
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_TEST_CHAT_ID: ${{ secrets.TELEGRAM_TEST_CHAT_ID }}
