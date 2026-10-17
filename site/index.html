@@ -100,6 +100,12 @@ main{padding:22px 28px 60px;min-width:0}
 .mini-liste b{color:var(--text)}
 
 .feed{display:flex;flex-direction:column}
+.ticker{display:none}
+.feed-gross .fe{padding:12px 4px}
+.feed-gross .fe .t{font-size:14.5px}
+.fe[data-dr]{cursor:pointer}
+.fe-live{box-shadow:inset 3px 0 0 var(--down);padding-left:8px!important}
+.feedchips{margin-bottom:6px;flex-wrap:wrap}
 .fe{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
 .fe:first-child{border-top:0}
 .fe .ico{width:34px;height:34px;border-radius:10px}
@@ -279,7 +285,9 @@ main{padding:22px 28px 60px;min-width:0}
   .tab .flag{display:none!important}
   .tab .nur-d{display:none}
   .nur-m{display:inline}
-  .feedpanel{order:5}
+  .feedpanel{display:none}
+  .ticker{display:block}
+  .ticker .ph{margin-bottom:2px}
   .det{grid-template-columns:1fr}
   .kgrid{grid-template-columns:1fr;gap:8px}
   .mgrid{grid-template-columns:1fr 1fr;gap:6px}
@@ -292,7 +300,7 @@ main{padding:22px 28px 60px;min-width:0}
   .kk-reihe svg{width:52px;height:52px}
   .nz{grid-template-columns:minmax(0,1fr) 72px 70px;gap:8px;padding:8px 2px}
   .drawer{top:auto;width:100vw;max-height:85vh;border-left:0;border-top:1px solid var(--line);border-radius:18px 18px 0 0;transform:translateY(102%)}
-  .unten-nav{display:grid;grid-template-columns:repeat(6,1fr);position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(13,19,32,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .unten-nav{display:grid;grid-template-columns:repeat(7,1fr);position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(13,19,32,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
   .unten-nav button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--text-3);padding:6px 0}
   .unten-nav button .dot{width:18px;height:4px;border-radius:2px;opacity:.35}
   .unten-nav button.an{color:var(--text)}
@@ -301,7 +309,7 @@ main{padding:22px 28px 60px;min-width:0}
   .kopf h1{font-size:19px}
   .kopf .sub{display:none}
   .kopf{flex-wrap:wrap}
-  #ligaschalter{order:3;margin-left:0;width:100%}
+  #ligaschalter{order:-1;margin-left:0;width:100%}
   .seg{width:100%;justify-content:space-between}
   .seg button{flex:1;padding:6px 4px}
 }
@@ -318,6 +326,7 @@ main{padding:22px 28px 60px;min-width:0}
 <main>
   <div class="kopf"><div><h1 id="titel">Übersicht</h1><div class="sub" id="untertitel"></div></div><div id="ligaschalter"></div><div class="rechts"><span class="puls" id="puls"></span><span id="stand">lädt</span></div></div>
   <section class="seite an" id="s-start"></section>
+  <section class="seite" id="s-feed"></section>
   <section class="seite" id="s-betfair"></section>
   <section class="seite" id="s-pinnacle"></section>
   <section class="seite" id="s-poly"></section>
@@ -477,13 +486,36 @@ function allePushes(D){
   return f.sort((a,b)=>new Date(b.zeit)-new Date(a.zeit));
 }
 const feZeile = x => `<div class="fe">${icon(x.q)}<div style="min-width:0"><div class="t">${esc(x.t)}${statusTag(x.status)}</div><div class="s">${esc(x.s)}</div></div><div class="b">${esc(x.b)}<small>${x.zeit?vor(x.zeit):""}</small></div></div>`;
-function feedListe(D, n=12){
-  const f = allePushes(D);
-  for(const s of D.sharp.filter(s=>s.frisch||s.laeuftNoch)) f.push({q:"pinnacle", t:`${s.auf}: Quote ${q2(s.vonQuote)} → ${q2(s.fairQuote)}`, s:`${s.heim} – ${s.gast}`, b:q2(s.fairQuote), zeit:D.quellen.pinnacle});
-  f.sort((a,b)=>new Date(b.zeit)-new Date(a.zeit));
+// Lucas 17.10.: „Der Live-Feed gefällt mir, der muss prominenter werden" — eigener Menüpunkt,
+// und er zeigt jetzt auch die neuen Geldflüsse (live, vor Anpfiff, Polymarket), nicht nur Pushes.
+function feedEintraege(D){
+  const f = allePushes(D).map(x=>({...x, k:x.q==="betfair"?"push":x.q}));
+  const bfZeit = D.quellen?.betfair, pfZeit = D.polyFluss?.stand;
+  for(const x of lf(D.liveZufluss||[])){ const fl = (x.fluss||[])[0]; if(!fl) continue; const lv = x.live||{}, st = lv.stand||[0,0];
+    f.push({q:"betfair", k:"live", live:true, t:`+${eur(fl.eur)} auf ${auswahlDe(fl.auswahl)} @ ${q2(fl.quote)}`, s:`${x.heim} – ${x.gast}, ${lv.min!=null?lv.min+"'":"live"} ${st[0]}:${st[1]}, ${marktDe(fl.markt)} (${fl.anteil} %)`, b:eur(fl.eur), zeit:bfZeit, sp:x, wert:fl.eur}); }
+  for(const x of lf(D.zufluss30||[])){ const fl = (x.fluss||[])[0]; if(!fl) continue;
+    f.push({q:"betfair", k:"zufluss", t:`+${eur(fl.eur)} auf ${auswahlDe(fl.auswahl)} @ ${q2(fl.quote)}`, s:`${x.heim} – ${x.gast}, ${wann(x.anpfiff)}, ${marktDe(fl.markt)} (${fl.anteil} %)`, b:eur(fl.eur), zeit:bfZeit, sp:x, wert:fl.eur}); }
+  for(const m of (D.polyFluss?.maerkte||[]).filter(top5Ok)){ const fw = m.fenster?.["30"]; if(!fw || fw.usd<1000 || fw.anteil<55) continue;
+    f.push({q:"poly", k:"pfluss", live:m.live, t:`+${usd(fw.usd)} auf ${pmLabel(fw.auf)}`, s:`${pmTitel(m.titel)}, ${fw.anteil} % der Käufe`, b:usd(fw.usd), zeit:pfZeit, wert:fw.usd}); }
+  for(const s of lf(D.sharp).filter(s=>s.frisch||s.laeuftNoch)) f.push({q:"pinnacle", k:"pinnacle", t:`${s.auf}: Quote ${q2(s.vonQuote)} → ${q2(s.fairQuote)}`, s:`${s.heim} – ${s.gast}`, b:q2(s.fairQuote), zeit:D.quellen.pinnacle});
+  // gleiche Zeit (eine Abrufrunde) → größere Beträge zuerst
+  return f.sort((a,b)=>(new Date(b.zeit||0)-new Date(a.zeit||0)) || ((b.wert||0)-(a.wert||0)));
+}
+const feZeile2 = x => `<div class="fe${x.live?" fe-live":""}" ${x.sp?klickSpiel(x.sp):""}>${icon(x.q)}<div style="min-width:0"><div class="t">${x.live?`<span class="live">live</span> `:""}${esc(x.t)}${statusTag(x.status)}</div><div class="s">${esc(x.s)}</div></div><div class="b">${esc(x.b)}<small>${x.zeit?vor(x.zeit):""}</small></div></div>`;
+function klickSpiel(x){ const sp = spielInfo(x); return sp ? klick(esc(x.heim)+" – "+esc(x.gast), ohneHuelle(spielDetail(sp))) : ""; }
+function feedListe(D, n=12, jeArt=4){
   const je = {}, aus = [];
-  for(const x of f){ je[x.q]=(je[x.q]||0)+1; if(je[x.q]>4) continue; aus.push(x); }
-  return aus.slice(0,n).map(feZeile).join("") || `<div class="leer">Noch nichts passiert.</div>`;
+  for(const x of feedEintraege(D)){ je[x.k]=(je[x.k]||0)+1; if(je[x.k]>jeArt) continue; aus.push(x); }
+  return aus.slice(0,n).map(feZeile2).join("") || `<div class="leer">Noch nichts passiert.</div>`;
+}
+const FEED_ARTEN = [["alle","Alle"],["live","Live"],["zufluss","Vor Anpfiff"],["pfluss","Polymarket"],["pinnacle","Pinnacle"],["stake","Stake"],["hz","HZ 0:0"],["push","Betfair-Pushes"],["poly","Wale"]];
+let filterFeed = "alle";
+function seiteFeed(D){
+  const alle = feedEintraege(D), liste = filterFeed==="alle" ? alle : alle.filter(x=>x.k===filterFeed);
+  return `<div class="grid"><div class="panel c12">
+    <div class="chips feedchips">${FEED_ARTEN.map(([k,n])=>{ const c = k==="alle"?alle.length:alle.filter(x=>x.k===k).length; return c||k==="alle" ? `<button class="chip${k===filterFeed?" an":""}" data-feed="${k}">${n} <span style="opacity:.6">${c}</span></button>` : ""; }).join("")}</div>
+    <div class="feed feed-gross">${liste.slice(0,80).map(feZeile2).join("") || `<div class="leer">Hier ist gerade nichts.</div>`}</div>
+  </div></div>`;
 }
 let filterPush = "alle";
 function pushPanel(D){
@@ -825,8 +857,9 @@ function seiteStart(D){
   const r = D.radar, top = lf(r.spiele).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,8);
   const pm = lf(D.poly.maerkte).slice().sort((a,b)=>(b.nBelegt-a.nBelegt)||(b.usd-a.usd)).slice(0,6);
   return `<div class="grid">
+    <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div><div class="feed">${feedListe(D,5,1)}</div></div>
     <div class="panel c8"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">wohin neues Geld floss, vor Anpfiff, 30 Min</span><button class="chip rechts" data-geh="betfair">Alle</button></div>${zuflussKarten(D,4)}</div>
-    <div class="panel c4 feedpanel" style="grid-row:span 2"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span></div><div class="feed">${feedListe(D,12)}</div></div>
+    <div class="panel c4 feedpanel" style="grid-row:span 2"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span><button class="chip rechts" data-geh="feed">Alle</button></div><div class="feed">${feedListe(D,12)}</div></div>
     <div class="panel c8"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">wohin live Geld floss, 15 Min</span></div>${liveKarten(D,4)}</div>
     <div class="panel c8"><div class="ph"><h3>Ungewöhnlich viel Geld</h3><span class="hint">Geld im Verhältnis zur eigenen Liga</span><button class="chip rechts" data-geh="betfair">Alle ${r.spiele.length}</button></div>${normChart(top)}</div>
     <div class="panel c12"><div class="ph"><h3>Polymarket: wohin das Geld fließt</h3><span class="hint">Käufe der letzten 30 Min, Seite mit dem Großteil</span><button class="chip rechts" data-geh="poly">Mehr</button></div>${polyFlussKarten(D,4)}</div>
@@ -884,9 +917,9 @@ function seiteHz(D){
   </div>`;
 }
 
-const SEITEN = [["start","Übersicht","var(--text)"],["betfair","Betfair","var(--bf)"],["pinnacle","Pinnacle","var(--pin)"],
+const SEITEN = [["start","Übersicht","var(--text)"],["feed","Feed","var(--down)"],["betfair","Betfair","var(--bf)"],["pinnacle","Pinnacle","var(--pin)"],
   ["poly","Polymarket","var(--poly)"],["stake","Stake","var(--stake)"],["hz","HZ 0:0","var(--hz)"]];
-const UNTER = {start:"Wo gerade das Geld liegt, quer über alle Quellen", betfair:"Jedes Spiel im Abruf, gemessen an seiner Liga", pinnacle:"Wohin die schärfste Quote zieht", poly:"Wer setzt, und wer davon nachweislich gut ist", stake:"Serien großer Einsätze", hz:"Spiele, die zur Pause anders laufen als erwartet"};
+const UNTER = {start:"Wo gerade das Geld liegt, quer über alle Quellen", betfair:"Jedes Spiel im Abruf, gemessen an seiner Liga", pinnacle:"Wohin die schärfste Quote zieht", poly:"Wer setzt, und wer davon nachweislich gut ist", stake:"Serien großer Einsätze", hz:"Spiele, die zur Pause anders laufen als erwartet", feed:"Alles, was gerade passiert, neueste zuerst"};
 let aktiv = "start";
 function navAufbauen(z){
   $("#navliste").innerHTML = SEITEN.map(([k,n,f])=>`<button class="nav${k===aktiv?" an":""}" data-geh="${k}"><span class="dot" style="background:${f}"></span>${n}${z[k]?`<span class="cnt">${z[k]}</span>`:""}</button>`).join("");
@@ -904,13 +937,14 @@ function render(){
   drZaehler = 0; for(const k in DR) delete DR[k];
   $("#ligaschalter").innerHTML = ligaSchalter();
   $("#s-start").innerHTML = seiteStart(D);
+  $("#s-feed").innerHTML = seiteFeed(D);
   $("#s-betfair").innerHTML = seiteBetfair(D);
   $("#s-pinnacle").innerHTML = seitePinnacle(D);
   $("#s-poly").innerHTML = seitePoly(D);
   $("#s-stake").innerHTML = seiteStake(D);
   $("#s-hz").innerHTML = seiteHz(D);
   navAufbauen({betfair:D.radar.spiele.filter(s=>s.xnorm>=1.5).length, pinnacle:D.sharp.filter(s=>s.frisch||s.laeuftNoch).length,
-    poly:D.poly.maerkte.filter(belegt).length, stake:(D.stake.gruppen||D.stake.heute).length, hz:D.hz.heute.length});
+    poly:D.poly.maerkte.filter(belegt).length, stake:(D.stake.gruppen||D.stake.heute).length, hz:D.hz.heute.length, feed:lf(D.liveZufluss||[]).length||null});
   gehe(aktiv);
 }
 function quellen(q){
@@ -948,6 +982,7 @@ document.addEventListener("click", e=>{
   const dk = e.target.closest("[data-dr]"); if(dk && !e.target.closest("a")){ drOeffnen(dk.dataset.dr); return; }
   const g = e.target.closest("[data-geh]"); if(g){ gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
   const sp = e.target.closest("[data-sport]"); if(sp){ filterSport = sp.dataset.sport; $("#s-poly").innerHTML = seitePoly(D); return; }
+  const fd = e.target.closest("[data-feed]"); if(fd){ filterFeed = fd.dataset.feed; $("#s-feed").innerHTML = seiteFeed(D); return; }
   const pu = e.target.closest("[data-push]"); if(pu){ filterPush = pu.dataset.push; $("#pushpanel").innerHTML = pushPanel(D); return; }
   const f = e.target.closest("[data-filter]"); if(f){ filterBf = f.dataset.filter; $("#s-betfair").innerHTML = seiteBetfair(D); return; }
   const m = e.target.closest("[data-mehr]");

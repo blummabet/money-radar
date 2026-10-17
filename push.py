@@ -32,10 +32,19 @@ STAND = BASIS / ".push_state" / "gesehen.json"
 SEITE = "https://blummabet.github.io/money-radar/"
 JETZT = datetime.now(timezone.utc)
 
-ZUFLUSS_MIN_EUR = 10000      # darunter kein Push (die Überblicks-Liste hat eigene, niedrigere Schwellen)
+# Lucas 17.10.: Schwellen getrennt nach Top-5 und Rest, sonst kommt zu viel. Geeicht an 3,5 Tagen
+# Betfair-Historie (größter Sieg-Markt-Zuwachs je Spiel): in den Top-5 kommen fast in JEDEM Spiel
+# 50–100k in 30 Min dazu, im Rest liegt die Mitte bei unter 3k vor Anpfiff und ~2,4k live.
+# Gezählt wird hier nur das Geld auf EINE Auswahl mit mind. 65 % des neuen Geldes im Markt.
+SCHWELLE = {                  # (vor Anpfiff in 30 Min, live in 15 Min)
+    True:  (50000, 100000),   # Top-5
+    False: (10000, 15000),    # alle anderen Ligen
+}
+ZUFLUSS_MIN_EUR = SCHWELLE[False][0]
 ZUFLUSS_PAUSE_H = 6          # dasselbe Spiel + dieselbe Seite höchstens alle 6 h
 FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als verpasst und werden nicht nachgeschickt
 WAL_MIN_USD = 1000
+WAL_MIN_USD_TOP5 = 3000      # in den Top-5 sind $1000 Alltag
 MAX_JE_LAUF = 12             # Notbremse gegen Spam
 
 
@@ -117,7 +126,7 @@ def zufluss(d):
     """Lucas 17.10.: nicht das Geld aufs ganze Spiel, sondern auf WELCHE Auswahl es einseitig floss."""
     for z in d.get("zufluss30") or []:
         fl = (z.get("fluss") or [None])[0]
-        if not fl or fl.get("eur", 0) < ZUFLUSS_MIN_EUR:
+        if not fl or fl.get("eur", 0) < SCHWELLE[bool(z.get("top5"))][0]:
             continue
         key = f"zf|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
         q, qv = fl.get("quote"), fl.get("quoteVorher")
@@ -130,6 +139,27 @@ def zufluss(d):
                 f"📊 {fl.get('anteil')} % des neuen Geldes in {e(_markt_de(fl.get('markt')))}\n"
                 + (f"📌 Pinnacle {'einig ✅' if pin.get('einig') else 'anderer Meinung ⚠️'}\n" if pin else ""))
         yield key, text, ZUFLUSS_PAUSE_H
+
+
+def live(d):
+    """Lucas 17.10.: „Ja, inplay will ich auch" — einseitiges neues Geld in laufenden Spielen (15 Min).
+    Je Spiel + Markt + Auswahl nur einmal (12 h Pause), entschiedene Spiele kommen gar nicht in die Liste."""
+    for z in d.get("liveZufluss") or []:
+        fl = (z.get("fluss") or [None])[0]
+        if not fl or fl.get("eur", 0) < SCHWELLE[bool(z.get("top5"))][1]:
+            continue
+        lv = z.get("live") or {}
+        st = lv.get("stand") or [0, 0]
+        key = f"lz|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
+        q, qv = fl.get("quote"), fl.get("quoteVorher")
+        richtung = (f", Quote fällt ↓ (von {q2(qv)})" if q < qv else f", Quote steigt ↑ (von {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
+        minute = f"{lv.get('min')}'" if lv.get("min") is not None else "live"
+        text = (f"🔴 <b>Live-Zufluss</b> · Betfair\n"
+                f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
+                f"{e(z.get('liga'))} · {minute} · <b>{st[0]}:{st[1]}</b>\n\n"
+                f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(_auswahl_de(fl.get('auswahl')))}</b> @ <b>{q2(q)}</b>{richtung}\n"
+                f"📊 {fl.get('anteil')} % des neuen Geldes in {e(_markt_de(fl.get('markt')))}\n")
+        yield key, text, 12
 
 
 def halbzeit(d):
@@ -152,7 +182,8 @@ SPORT = {"Fußball": "⚽", "E-Sport": "🎮", "Tennis": "🎾"}
 
 def wale(d):
     for o in (d.get("poly") or {}).get("setzen") or []:
-        if (o.get("usd") or 0) < WAL_MIN_USD:
+        top5 = str(o.get("markt") or "").split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1"}
+        if (o.get("usd") or 0) < (WAL_MIN_USD_TOP5 if top5 else WAL_MIN_USD):
             continue
         key = f"wal|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}"
         preis, jetzt = o.get("preis"), o.get("jetzt")
@@ -182,7 +213,7 @@ def stake(d):
         yield key, text, None
 
 
-ARTEN = (zufluss, halbzeit, wale, stake)
+ARTEN = (zufluss, live, halbzeit, wale, stake)
 
 
 # ── Senden ───────────────────────────────────────────────────────────────────────
