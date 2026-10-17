@@ -31,7 +31,7 @@ ERGEBNISSE = "https://raw.githubusercontent.com/blummabet/betting-dashboard/main
 KOMMISSION = 0.02
 VERFALL_TAGE = 4          # nach 4 Tagen ohne Ergebnis: „unaufgelöst"
 BEHALTEN = 3000
-ARTEN = {"zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht"}
+ARTEN = {"serie": "Dauerzufluss", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht"}
 
 
 def _ts(s):

@@ -938,6 +938,142 @@ def live_zufluss(radar):
     return out[:20]
 
 
+# ── Serien: läuft wiederholt Geld auf dieselbe Auswahl? (Lucas 17.10.: „wichtiger KPI in meinen Augen") ──
+# Jeder Lauf schreibt je Spiel und Markt, welche Auswahl seit dem letzten Abruf (~5 Min) den Großteil des
+# neuen Geldes bekam, in ein schlankes Protokoll (.bf/takt.json, 6 h, lebt im Actions-Cache). Daraus:
+#   Serie = mind. 3 Abrufe mit derselben Auswahl vorn (≥60 % des neuen Geldes, mind. ein Boden-Betrag),
+#           Lücken bis 15 Min zählen nicht als Abbruch, der letzte Treffer höchstens 20 Min alt.
+TAKT_DATEI = Path(__file__).resolve().parent / ".bf" / "takt.json"
+TAKT_H = 6
+SERIE_BODEN = {True: 4000, False: 400}       # neues Geld je Abruf, ab dem er als Treffer zählt (Top-5 / Rest)
+SERIE_SUMME = {True: 30000, False: 3000}     # Summe der Serie, ab der sie gezeigt wird
+SERIE_MIN_N = 3
+SAEULEN = 48                                 # 4 h in 5-Min-Schritten
+
+
+def takt_fortschreiben(bf_hist):
+    try:
+        takt = json.loads(TAKT_DATEI.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        takt = {}
+    grenze = JETZT - timedelta(hours=TAKT_H)
+    for mid, arr in (bf_hist or {}).items():
+        if mid == "_meta" or not isinstance(arr, list):
+            continue
+        pts = [p for p in arr if isinstance(p, dict) and isinstance(p.get("sel"), dict) and ts(p.get("ts"))]
+        if len(pts) < 2:
+            continue
+        a, b = pts[-2], pts[-1]
+        if not (0 < (ts(b["ts"]) - ts(a["ts"])).total_seconds() <= 12 * 60):
+            continue
+        liste = takt.setdefault(mid, [])
+        if liste and liste[-1].get("t") == b["ts"]:
+            continue                                  # dieser Abruf steht schon drin
+        h = {}
+        for markt, sel in b["sel"].items():
+            alt = (a.get("sel") or {}).get(markt) or {}
+            d = {n: v[0] - (alt.get(n) or [0])[0] for n, v in sel.items()}
+            ges = sum(x for x in d.values() if x > 0)
+            if ges < 100:
+                continue
+            name, dv = max(d.items(), key=lambda kv: kv[1])
+            h[f"{markt}|{name}"] = [round(dv), round(100 * dv / ges), sel[name][1]]
+        if h:
+            liste.append({"t": b["ts"], "h": h})
+    takt = {mid: [x for x in liste if (ts(x.get("t")) or grenze) > grenze] for mid, liste in takt.items()}
+    takt = {mid: liste for mid, liste in takt.items() if liste}
+    try:
+        TAKT_DATEI.parent.mkdir(exist_ok=True)
+        TAKT_DATEI.write_text(json.dumps(takt, separators=(",", ":")), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        FEHLER.append(f"takt: {str(exc)[:100]}")
+    return takt
+
+
+def serien(takt, radar):
+    spiele = {sp["id"]: sp for sp in (radar or {}).get("spiele") or []}
+    out = []
+    for mid, liste in takt.items():
+        sp = spiele.get(str(mid))
+        if not sp or sp.get("entschieden"):
+            continue
+        top5 = bool(sp.get("top5"))
+        letzte_t = ts(liste[-1]["t"])
+        if not letzte_t or JETZT - letzte_t > timedelta(minutes=25):
+            continue
+        for key in {k for x in liste for k in x["h"]}:
+            treffer = [(ts(x["t"]), *x["h"][key]) for x in liste if key in x["h"]
+                       and x["h"][key][0] >= SERIE_BODEN[top5] and x["h"][key][1] >= 60]
+            if len(treffer) < SERIE_MIN_N:
+                continue
+            kette = [treffer[-1]]
+            for tr in reversed(treffer[:-1]):          # rückwärts, solange die Lücken klein bleiben
+                if (kette[-1][0] - tr[0]).total_seconds() <= 16 * 60:
+                    kette.append(tr)
+                else:
+                    break
+            kette.reverse()
+            if len(kette) < SERIE_MIN_N or JETZT - kette[-1][0] > timedelta(minutes=20):
+                continue
+            summe = sum(k[1] for k in kette)
+            if summe < SERIE_SUMME[top5]:
+                continue
+            markt, auswahl = key.split("|", 1)
+            if isinstance(kette[-1][3], (int, float)) and kette[-1][3] < 1.20:
+                continue                               # wie beim Zufluss: praktisch entschieden
+            saeulen = [0] * SAEULEN
+            for x in liste:
+                v = x["h"].get(key)
+                if not v:
+                    continue
+                i = SAEULEN - 1 - int((JETZT - ts(x["t"])).total_seconds() // 300)
+                if 0 <= i < SAEULEN:
+                    saeulen[i] = max(saeulen[i], v[0])
+            out.append({"id": str(mid), "heim": sp["heim"], "gast": sp["gast"], "liga": sp["liga"], "land": sp.get("land"),
+                        "anpfiff": sp["anpfiff"], "live": sp.get("live"), "top5": top5, "quelle": "betfair",
+                        "markt": markt, "auswahl": auswahl, "n": len(kette), "eur": round(summe),
+                        "quote": kette[-1][3], "quoteStart": kette[0][3],
+                        "seit": iso(kette[0][0]), "dauerMin": round((kette[-1][0] - kette[0][0]).total_seconds() / 60) + 5,
+                        "letzteVorMin": round((JETZT - kette[-1][0]).total_seconds() / 60), "saeulen": saeulen})
+    # je Spiel nur die stärkste Serie (sonst steht ein Spiel mit drei Märkten dreimal da)
+    best = {}
+    for x in sorted(out, key=lambda x: -x["eur"]):
+        best.setdefault(x["id"], x)
+    return sorted(best.values(), key=lambda x: (-x["n"], -x["eur"]))[:20]
+
+
+def poly_serien(pf):
+    """Dieselbe Idee für Polymarket, aus den 10-Min-Säulen von poly_fluss.py (Trades mit Zeitstempel)."""
+    out = []
+    for m in (pf or {}).get("maerkte") or []:
+        takt, summe_b = m.get("takt") or {}, m.get("taktSumme") or []
+        for lab, werte in takt.items():
+            n = len(werte)
+            hits = [i for i, v in enumerate(werte) if v >= 500 and summe_b and summe_b[i] > 0 and v / summe_b[i] >= 0.6]
+            if len(hits) < SERIE_MIN_N or hits[-1] < n - 2:
+                continue
+            kette = [hits[-1]]
+            for i in reversed(hits[:-1]):
+                if kette[-1] - i <= 2:
+                    kette.append(i)
+                else:
+                    break
+            if len(kette) < SERIE_MIN_N:
+                continue
+            summe = sum(werte[i] for i in kette)
+            if summe < (10000 if m.get("top5") else 2000):
+                continue
+            out.append({"id": m.get("key"), "titel": m.get("titel"), "liga": m.get("liga"), "sport": m.get("sport"),
+                        "anpfiff": m.get("anpfiff"), "live": m.get("live"), "top5": m.get("top5"), "quelle": "poly",
+                        "auswahl": lab, "n": len(kette), "usd": round(summe),
+                        "dauerMin": (max(kette) - min(kette) + 1) * 10, "saeulen": werte})
+    best = {}
+    for x in sorted(out, key=lambda x: -x["usd"]):
+        best.setdefault(x["id"], x)
+    return sorted(best.values(), key=lambda x: (-x["n"], -x["usd"]))[:12]
+
+
+
 def push_bilanz():
     """Auswertung der neuen Pushes (bilanz.py schreibt sie nach jedem Push-Lauf in den Cache)."""
     try:
@@ -1016,7 +1152,9 @@ def main() -> int:
         "radar": (radar := betfair_radar(prices, bf_hist, bf_norm, bf_norm_state)),
         "zufluss30": zufluss_liste(radar, consensus),
         "liveZufluss": live_zufluss(radar),
-        "polyFluss": poly_fluss(),
+        "polyFluss": (pfl := poly_fluss()),
+        "serien": serien(takt_fortschreiben(bf_hist), radar),
+        "polySerien": poly_serien(pfl),
         "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"],
         "bfPushes": betfair_pushes(bf_led, bf_rec),
         "halbzeit": halbzeit(prices),

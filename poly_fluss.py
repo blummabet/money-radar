@@ -33,6 +33,7 @@ TRADES = "https://data-api.polymarket.com/trades?market={cond}&limit=500&takerOn
 OUT = Path(__file__).resolve().parent / ".pf" / "poly_fluss.json"
 JETZT = datetime.now(timezone.utc)
 FENSTER_MIN = (30, 10)
+TAKT_MIN, TAKT_N = 10, 24          # Säulen für die Serien: 24 × 10 Min = 4 h (Lucas 17.10.)
 MAX_EVENTS = int(os.environ.get("POLY_FLUSS_MAX") or 60)
 SPORTARTEN = {"Fußball", "E-Sport", "Tennis"}
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126 Safari/537.36",
@@ -118,6 +119,7 @@ def fluss_fuer(m):
     summe = {f: {} for f in FENSTER_MIN}
     je_markt = {f: {} for f in FENSTER_MIN}     # cond -> {Etikett: usd}
     gross = []
+    takt, takt_summe, aeltester = {}, [0.0] * TAKT_N, 0.0
     for cond, lab, frage in seiten(event):
         tr = get(TRADES.format(cond=cond))
         if not isinstance(tr, list):
@@ -134,6 +136,12 @@ def fluss_fuer(m):
             except (TypeError, ValueError):
                 continue
             etikett = lab.get(t.get("outcome")) or t.get("outcome") or "?"
+            aeltester = max(aeltester, alter)
+            b = int(alter // TAKT_MIN)
+            if 0 <= b < TAKT_N:
+                i = TAKT_N - 1 - b                       # links alt, rechts neu
+                takt.setdefault(etikett, [0.0] * TAKT_N)[i] += usd
+                takt_summe[i] += usd
             for f in FENSTER_MIN:
                 if alter <= f:
                     summe[f][etikett] = summe[f].get(etikett, 0) + usd
@@ -167,7 +175,11 @@ def fluss_fuer(m):
     if not fenster:
         return None
     gross.sort(key=lambda g: -g["usd"])
-    return {**m, "titel": titel, "fenster": fenster, "gross": gross[:5]}
+    top = sorted(takt.items(), key=lambda kv: -sum(kv[1]))[:4]
+    return {**m, "titel": titel, "fenster": fenster, "gross": gross[:5],
+            "takt": {k: [round(x) for x in v] for k, v in top}, "taktSumme": [round(x) for x in takt_summe],
+            # die Trade-Abfrage holt höchstens 500 je Markt — so weit zurück reichen die Säulen wirklich
+            "taktReichweiteMin": round(aeltester)}
 
 
 def main() -> int:

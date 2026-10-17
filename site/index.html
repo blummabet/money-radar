@@ -100,6 +100,11 @@ main{padding:22px 28px 60px;min-width:0}
 .mini-liste b{color:var(--text)}
 
 .feed{display:flex;flex-direction:column}
+.saeulen{display:block;width:100%;height:50px;margin-top:10px}
+.serie-k{box-shadow:inset 3px 0 0 var(--bf)}
+.serie-kopf{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.serie-n{font-weight:800;font-size:14px}
+.serie-tag{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:999px;background:color-mix(in srgb, var(--bf) 18%, transparent);color:var(--bf);vertical-align:2px;white-space:nowrap}
 .pm-net{display:grid;grid-template-columns:minmax(0,1fr) 110px auto;gap:10px;align-items:center;font-size:13px;padding:5px 0;border-top:1px solid var(--line)}
 .pm-net span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pm-bar{position:relative;height:8px;background:var(--panel-3);border-radius:4px}
@@ -432,6 +437,38 @@ function spielZeile(s, i){
     <td class="hide-m vt">${vt?vbar(vt):`<span style="color:var(--text-3);font-size:12px;white-space:nowrap">${s.quoten.heim?`${q2(s.quoten.heim)} / ${q2(s.quoten.remis)} / ${q2(s.quoten.gast)}`:""}</span>`}</td>
   </tr>`;
 }
+// ── Serien / Dauerzufluss (Lucas 17.10.: „wichtiger KPI in meinen Augen") ─────────────────────
+// Eine Säule je Abruf (Betfair 5 Min, Polymarket 10 Min): Stoß = eine hohe Säule, Dauerzufluss = viele.
+function saeulenSvg(werte, farbe, w=260, h=42, schritt=5){
+  const v = werte||[], mx = Math.max(1, ...v), bw = w / Math.max(1, v.length);
+  const bars = v.map((x,i)=> x>0 ? `<rect x="${(i*bw+0.5).toFixed(1)}" y="${(h - Math.max(2, x/mx*h)).toFixed(1)}" width="${Math.max(1, bw-1.5).toFixed(1)}" height="${Math.max(2, x/mx*h).toFixed(1)}" rx="1.5" fill="${farbe}"/>` : `<rect x="${(i*bw+0.5).toFixed(1)}" y="${h-1.5}" width="${Math.max(1,bw-1.5).toFixed(1)}" height="1.5" fill="var(--panel-3)"/>`).join("");
+  const std = v.length*schritt/60;
+  return `<svg class="saeulen" viewBox="0 0 ${w} ${h+12}" preserveAspectRatio="none" role="img" aria-label="neues Geld je ${schritt} Minuten"><g>${bars}</g>
+    <text x="0" y="${h+11}" font-size="9" fill="var(--text-3)">vor ${dez(std,0)} h</text><text x="${w}" y="${h+11}" font-size="9" fill="var(--text-3)" text-anchor="end">jetzt</text></svg>`;
+}
+const serieVon = (D, id) => (D.serien||[]).find(x=>x.id===id);
+const serieTag = x => x ? `<span class="serie-tag" title="${x.n} Abrufe in Folge Geld auf dieselbe Auswahl">🔁 ${x.n}×</span>` : "";
+function serienKarten(D, max, quelle){
+  const bf = quelle==="poly" ? [] : lf(D.serien||[]);
+  const pm = quelle==="betfair" ? [] : (D.polySerien||[]).filter(top5Ok);
+  const alle = [...bf, ...pm].sort((a,b)=>(b.n-a.n)||((b.eur||b.usd)-(a.eur||a.usd))).slice(0,max);
+  if(!alle.length) return `<div class="leer">Gerade läuft nirgends wiederholt Geld auf dieselbe Auswahl${ligaModus==="ohne"?" (ohne Top-5)":""}. Eine Serie beginnt ab drei Abrufen in Folge.</div>`;
+  return `<div class="kgrid">${alle.map(x=>{
+    const istBf = x.quelle==="betfair", sp = istBf ? spielInfo(x) : null;
+    const titel = istBf ? `${esc(x.heim)} – ${esc(x.gast)}` : esc(pmTitel(x.titel));
+    const lv = sp?.live;
+    const rechts = lv ? `<span class="live">${lv.min!=null?lv.min+"'":"live"}</span> ${lv.stand?.[0]??0}:${lv.stand?.[1]??0}` : x.live ? `<span class="live">live</span>` : wann(x.anpfiff);
+    const farbe = istBf ? "var(--bf)" : "var(--poly)";
+    return `<div class="kk serie-k" style="box-shadow:inset 3px 0 0 ${farbe}" ${sp?klick(titel, ohneHuelle(spielDetail(sp))):""}>
+      <div class="kk-oben">${istBf?flagge(x.land):sportIco(x.sport)}<span>${esc(x.liga||x.sport||"")}</span><span class="rechts">${rechts}</span></div>
+      <div class="kk-titel">${titel}</div>
+      <div class="serie-kopf"><span class="serie-n">🔁 ${x.n}× in Folge</span><span class="tag" style="background:${tint(farbe,16)};color:${farbe}">${istBf?"Betfair":"Polymarket"}</span></div>
+      <div class="kk-zahl" style="color:${farbe}">${istBf?eur(x.eur):usd(x.usd)} <small style="font-size:13px;color:var(--text-2);font-weight:600">in ${x.dauerMin} Min</small></div>
+      <div class="kk-auf">auf <b>${esc(istBf?auswahlDe(x.auswahl):pmLabel(x.auswahl))}</b>${x.quote?` @ ${q2(x.quote)}`:""}${x.quoteStart&&x.quote&&Math.abs(x.quote-x.quoteStart)>=0.02?` <span class="${x.quote<x.quoteStart?"hoch":"runter"}">${x.quote<x.quoteStart?"↓":"↑"} von ${q2(x.quoteStart)}</span>`:""}</div>
+      ${istBf?`<div class="kk-klein">${esc(marktDe(x.markt))}${x.letzteVorMin!=null?`, zuletzt vor ${x.letzteVorMin} Min`:""}</div>`:""}
+      ${saeulenSvg(istBf ? x.saeulen.slice(-24) : x.saeulen, farbe, 260, 38, istBf?5:10)}
+    </div>`;}).join("")}</div>`;
+}
 function spielDetail(s){
   const md = s.maerkteDetail || [], fm = s.fensterMin || 30;
   const PAL = ["#ffb547","#5b9dff","#7d8aa3","#a183ff","#2fd38a","#ff77a8"];
@@ -457,6 +494,7 @@ function spielDetail(s){
   }).join("")}</div>`;
   return `<tr class="detail"><td colspan="6"><div class="det">
     <div class="d-kopf">${flagge(s.land)} ${esc(s.liga)} · ${s.live?`<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}`:wann(s.anpfiff)} · ${eur(s.eur)} gematcht über alle Märkte${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}</div>
+    ${(()=>{ const se = serieVon(D, s.id); return se ? `<div><h4>🔁 Dauerzufluss: ${se.n}× in Folge auf ${esc(auswahlDe(se.auswahl))} (${esc(marktDe(se.markt))}), ${eur(se.eur)} in ${se.dauerMin} Min</h4>${saeulenSvg(se.saeulen,"var(--bf)",320,44,5)}</div>` : ""; })()}
     <div><h4>Wohin das neue Geld floss, letzte ${fm} Min</h4>${flussBlock}</div>
     <div><h4>Märkte</h4>${marktBlock||"–"}</div>
     <div><h4>Geld im Spiel, letzte 10 Stunden</h4>${spark(s.kurve,"var(--bf)",320,48)}</div>
@@ -489,6 +527,8 @@ function feedEintraege(D){
   const bfZeit = D.quellen?.betfair, pfZeit = D.polyFluss?.stand;
   for(const x of lf(D.liveZufluss||[])){ const fl = (x.fluss||[])[0]; if(!fl) continue; const lv = x.live||{}, st = lv.stand||[0,0];
     f.push({q:"betfair", k:"live", live:true, t:`+${eur(fl.eur)} auf ${auswahlDe(fl.auswahl)} @ ${q2(fl.quote)}`, s:`${x.heim} – ${x.gast}, ${lv.min!=null?lv.min+"'":"live"} ${st[0]}:${st[1]}, ${marktDe(fl.markt)} (${fl.anteil} %)`, b:eur(fl.eur), zeit:bfZeit, sp:x, wert:fl.eur}); }
+  for(const x of lf(D.serien||[])) f.push({q:"betfair", k:"serie", live:!!x.live, t:`🔁 ${x.n}× in Folge: ${eur(x.eur)} auf ${auswahlDe(x.auswahl)} @ ${q2(x.quote)}`, s:`${x.heim} – ${x.gast}, ${marktDe(x.markt)}, in ${x.dauerMin} Min`, b:eur(x.eur), zeit:bfZeit, sp:x, wert:x.eur*3});
+  for(const x of (D.polySerien||[]).filter(top5Ok)) f.push({q:"poly", k:"serie", live:!!x.live, t:`🔁 ${x.n}× in Folge: ${usd(x.usd)} auf ${pmLabel(x.auswahl)}`, s:`${pmTitel(x.titel)}, in ${x.dauerMin} Min`, b:usd(x.usd), zeit:D.polyFluss?.stand, wert:x.usd*3});
   for(const x of lf(D.zufluss30||[])){ const fl = (x.fluss||[])[0]; if(!fl) continue;
     f.push({q:"betfair", k:"zufluss", t:`+${eur(fl.eur)} auf ${auswahlDe(fl.auswahl)} @ ${q2(fl.quote)}`, s:`${x.heim} – ${x.gast}, ${wann(x.anpfiff)}, ${marktDe(fl.markt)} (${fl.anteil} %)`, b:eur(fl.eur), zeit:bfZeit, sp:x, wert:fl.eur}); }
   for(const m of (D.polyFluss?.maerkte||[]).filter(top5Ok)){ const fw = m.fenster?.["30"]; if(!fw || fw.usd<1000 || fw.anteil<55) continue;
@@ -506,7 +546,7 @@ function feedListe(D, n=12, jeArt=4){
   for(const x of feedEintraege(D)){ je[x.k]=(je[x.k]||0)+1; if(je[x.k]>jeArt) continue; aus.push(x); }
   return aus.slice(0,n).map(feZeile2).join("") || `<div class="leer">Noch nichts passiert.</div>`;
 }
-const FEED_ARTEN = [["alle","Alle"],["live","Live"],["zufluss","Vor Anpfiff"],["pfluss","Polymarket"],["pinnacle","Pinnacle"],["stake","Stake"],["hz","HZ 0:0"],["push","Betfair-Pushes"],["poly","Wale"]];
+const FEED_ARTEN = [["alle","Alle"],["serie","🔁 Serien"],["live","Live"],["zufluss","Vor Anpfiff"],["pfluss","Polymarket"],["pinnacle","Pinnacle"],["stake","Stake"],["hz","HZ 0:0"],["push","Betfair-Pushes"],["poly","Wale"]];
 let filterFeed = "alle";
 function seiteFeed(D){
   const alle = feedEintraege(D), liste = filterFeed==="alle" ? alle : alle.filter(x=>x.k===filterFeed);
@@ -724,7 +764,7 @@ function zuflussKarten(D, max){
     const sp = spielInfo(x);
     return `<div class="kk zf-k" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
       <div class="kk-oben">${flagge(x.land)}<span>${esc(x.liga)}</span><span class="rechts">${wann(x.anpfiff)}</span></div>
-      <div class="kk-titel">${esc(x.heim)} – ${esc(x.gast)}</div>
+      <div class="kk-titel">${esc(x.heim)} – ${esc(x.gast)} ${serieTag(serieVon(D, x.id))}</div>
       ${(x.fluss||[]).length ? flussKopf(x.fluss[0]) + flussZeilen(x.fluss,false) : `<div class="kk-zahl gruen">+${eur(x.zuflussEur)}</div><div class="kk-auf">auf <b>${esc(nm(x.meistesGeldAuf))}</b> @ <b>${q2(x.quote)}</b> ${pf}</div>${vt?vbar(vt):""}`}
       ${x.pinnacle && (x.fluss||[])[0]?.markt==="Match Odds"?`<div class="kk-fuss">${x.pinnacle.einig?`<span class="tag t-won">Pinnacle einig</span>`:`<span class="tag t-lost">Pinnacle anders</span>`}</div>`:""}
     </div>`;}).join("")}</div>`;
@@ -737,7 +777,7 @@ function liveKarten(D, max){
     const sp = spielInfo(x);
     return `<div class="kk live-k" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
       <div class="kk-oben">${flagge(x.land)}<span>${esc(x.liga)}</span><span class="rechts">${live(x)}</span></div>
-      <div class="kk-titel">${esc(x.heim)} – ${esc(x.gast)}</div>
+      <div class="kk-titel">${esc(x.heim)} – ${esc(x.gast)} ${serieTag(serieVon(D, x.id))}</div>
       ${(x.fluss||[]).length ? flussKopf(x.fluss[0]) + flussZeilen(x.fluss,false) : ""}
     </div>`;}).join("")}</div>`;
 }
@@ -874,6 +914,7 @@ function seiteStart(D){
   const r = D.radar, top = lf(r.spiele).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,8);
   return `<div class="grid">
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div><div class="feed">${feedListe(D,5,1)}</div></div>
+    <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Geld fließt Abruf für Abruf auf dieselbe Auswahl, eine Säule je Abruf</span></div>${serienKarten(D,4)}</div>
     <div class="panel c8"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">wohin neues Geld floss, vor Anpfiff, 30 Min</span><button class="chip rechts" data-geh="betfair">Alle</button></div>${zuflussKarten(D,4)}</div>
     <div class="panel c4 feedpanel" style="grid-row:span 2"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span><button class="chip rechts" data-geh="feed">Alle</button></div><div class="feed">${feedListe(D,12)}</div></div>
     <div class="panel c8"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">wohin live Geld floss, 15 Min</span></div>${liveKarten(D,4)}</div>
@@ -889,6 +930,7 @@ function seiteBetfair(D){
   const norm = lf(alle).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
   const hzl = lf(D.halbzeit||[]);
   return `<div class="grid">
+    <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">mind. 3 Abrufe in Folge mit derselben Auswahl vorn (≥60 % des neuen Geldes)</span></div>${serienKarten(D,8,"betfair")}</div>
     <div class="panel c12"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">wohin neues Geld floss: Auswahl, die den Großteil des neuen Geldes in ihrem Markt bekam (vor Anpfiff, 30 Min)</span></div>${zuflussKarten(D,8)}</div>
     <div class="panel c12"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">Auswahl, die in 15 Min den Großteil des neuen Geldes in ihrem Markt bekam; entschiedene Spiele raus</span></div>${liveKarten(D,8)}</div>
     <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">×2 = doppelt so viel Geld wie in dieser Liga üblich</span></div>${normChart(norm)}</div>
@@ -910,6 +952,7 @@ function seitePoly(D){
   return `<div class="grid">
     ${["Fußball","E-Sport","Tennis"].filter(s=>tb[s]).map(s=>{ const b = tb[s]; return `<div class="panel kpi c4"><div class="lab"><span class="ico" style="background:${tint("var(--poly)",16)};font-size:15px">${SPORT_ICO[s]}</span>Wal-Pushes ${s}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Tipps, ${dez(b.treffer,0)} % Treffer${b.belegt?`, <b style="color:var(--up)">belegt</b>`:""}</div></div>`;}).join("")}
     ${(p.setzen||[]).length?`<div class="panel c12"><div class="ph"><h3>Belegte Wale setzen gerade</h3><span class="hint">Wallets, die nachweislich den Schlusskurs schlagen</span></div>${setzenKarten(p.setzen)}</div>`:""}
+    <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">mind. 3 Zehn-Minuten-Abschnitte in Folge mit derselben Seite vorn</span></div>${serienKarten(D,8,"poly")}</div>
     <div class="panel c12"><div class="ph"><h3>Wohin das Geld fließt</h3><span class="hint">Käufe der letzten 30 Min je Seite (vom Mac, alle 10 Min); gezeigt, wenn eine Seite den Großteil bekam</span></div>${polyFlussKarten(D,12)}</div>
     <div class="panel c12"><div class="ph"><h3>Märkte, nächste 30 Stunden</h3>
       <div class="chips rechts">${sports.map(s=>`<button class="chip${s===filterSport?" an":""}" data-sport="${s}">${s==="alle"?"Alle":SPORT_ICO[s]+" "+s} <span style="opacity:.6">${s==="alle"?p.maerkte.length:p.maerkte.filter(m=>(m.sport||"Fußball")===s).length}</span></button>`).join("")}</div></div>

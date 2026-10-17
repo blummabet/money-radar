@@ -346,7 +346,45 @@ def stake(d):
         yield key, text, None
 
 
-ARTEN = (zufluss, live, bf_halbzeit, halbzeit, wale, stake)
+def _balken(werte):
+    """▁▂▃▅▇ — die Säulen als Text für Telegram."""
+    zeichen, mx = "·▁▂▃▄▅▆▇█", max(werte or [0])
+    return "".join(zeichen[0 if not v else max(1, round(v / mx * 8))] for v in werte) if mx > 0 else ""
+
+
+def _stufe(n):
+    return 3 if n < 5 else 5 if n < 8 else 8 if n < 12 else 12
+
+
+def serie(d):
+    """Lucas 17.10.: wiederholter Zufluss auf dieselbe Auswahl („bei jedem Scan wieder 10.000") ist ein
+    eigener KPI. Push ab 3 Abrufen in Folge, wieder bei 5, 8 und 12 — nicht bei jedem neuen Treffer."""
+    for x in d.get("serien") or []:
+        key = f"se|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}"
+        q, q0 = x.get("quote"), x.get("quoteStart")
+        richtung = f" (Start {q2(q0)})" if q and q0 and abs(q - q0) >= 0.02 else ""
+        lv = next((sp.get("live") for sp in (d.get("radar") or {}).get("spiele") or [] if sp.get("id") == x["id"]), None)
+        st = (f"🔴 {lv.get('min')}' · {(lv.get('stand') or [0, 0])[0]}:{(lv.get('stand') or [0, 0])[1]}" if lv else f"⏰ {anpfiff(x.get('anpfiff'))}")
+        text = (f"🔁 <b>Dauerzufluss</b> · Betfair · <b>{x['n']}× in Folge</b>\n"
+                f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n{e(x.get('liga'))} · {st}\n\n"
+                f"💶 <b>{geld(x['eur'])}</b> in {x['dauerMin']} Min auf <b>{e(remis(_auswahl_de(x['auswahl'])))}</b> @ <b>{q2(q)}</b>{richtung}\n"
+                f"🗂 {e(_markt_de(x['markt']))}\n"
+                f"<code>{_balken(x['saeulen'][-24:])}</code> <i>letzte 2 h, je Säule 5 Min</i>\n")
+        yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
+                                "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
+                                "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"]}
+    for x in d.get("polySerien") or []:
+        key = f"ps|{x['id']}|{x['auswahl']}|{_stufe(x['n'])}"
+        lab = str(x["auswahl"]).replace("Draw", "Remis")
+        text = (f"🔁 <b>Dauerzufluss</b> · Polymarket · <b>{x['n']}× in Folge</b>\n"
+                f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n\n"
+                f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min auf <b>{e(lab)}</b>\n"
+                f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
+                f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
+        yield key, text, None
+
+
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, wale, stake)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────
