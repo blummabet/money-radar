@@ -945,8 +945,10 @@ def live_zufluss(radar):
 #           Lücken bis 15 Min zählen nicht als Abbruch, der letzte Treffer höchstens 20 Min alt.
 TAKT_DATEI = Path(__file__).resolve().parent / ".bf" / "takt.json"
 TAKT_H = 6
-SERIE_BODEN = {True: 4000, False: 400}       # neues Geld je Abruf, ab dem er als Treffer zählt (Top-5 / Rest)
-SERIE_SUMME = {True: 30000, False: 3000}     # Summe der Serie, ab der sie gezeigt wird
+# Lucas 17.10. abends: „sehr viele Meldungen von kleinen Beträgen" → hochgesetzt (vorher 400/3k bzw. 4k/30k)
+SERIE_BODEN = {True: 10000, False: 1000}     # neues Geld je Abruf, ab dem er als Treffer zählt (Top-5 / Rest)
+SERIE_SUMME = {True: 75000, False: 10000}    # Summe der Serie, ab der sie gezeigt wird
+SERIE_NORM_ANTEIL = 0.25                     # … und mind. ein Viertel dessen, was ein Spiel dieser Liga üblicherweise insgesamt hat
 SERIE_MIN_N = 3
 SAEULEN = 48                                 # 4 h in 5-Min-Schritten
 
@@ -1016,7 +1018,7 @@ def serien(takt, radar):
             if len(kette) < SERIE_MIN_N or JETZT - kette[-1][0] > timedelta(minutes=20):
                 continue
             summe = sum(k[1] for k in kette)
-            if summe < SERIE_SUMME[top5]:
+            if summe < max(SERIE_SUMME[top5], SERIE_NORM_ANTEIL * (sp.get("normEur") or 0)):
                 continue
             markt, auswahl = key.split("|", 1)
             if isinstance(kette[-1][3], (int, float)) and kette[-1][3] < 1.20:
@@ -1049,7 +1051,7 @@ def poly_serien(pf):
         takt, summe_b = m.get("takt") or {}, m.get("taktSumme") or []
         for lab, werte in takt.items():
             n = len(werte)
-            hits = [i for i, v in enumerate(werte) if v >= 500 and summe_b and summe_b[i] > 0 and v / summe_b[i] >= 0.6]
+            hits = [i for i, v in enumerate(werte) if v >= 1000 and summe_b and summe_b[i] > 0 and v / summe_b[i] >= 0.6]
             if len(hits) < SERIE_MIN_N or hits[-1] < n - 2:
                 continue
             kette = [hits[-1]]
@@ -1061,7 +1063,7 @@ def poly_serien(pf):
             if len(kette) < SERIE_MIN_N:
                 continue
             summe = sum(werte[i] for i in kette)
-            if summe < (10000 if m.get("top5") else 2000):
+            if summe < (25000 if m.get("top5") else 6000):
                 continue
             out.append({"id": m.get("key"), "titel": m.get("titel"), "liga": m.get("liga"), "sport": m.get("sport"),
                         "anpfiff": m.get("anpfiff"), "live": m.get("live"), "top5": m.get("top5"), "quelle": "poly",
@@ -1118,7 +1120,7 @@ def stake_serien(hr):
             if len(kette) < SERIE_MIN_N:
                 continue
             summe = sum(v[i] for i in kette)
-            if summe < (20000 if top5 else 5000):
+            if summe < (50000 if top5 else 15000):
                 continue
             out.append({"id": eid, "titel": w0.get("event"), "liga": w0.get("liga"), "sport": w0.get("kat"),
                         "anpfiff": w0.get("anpfiff"), "live": w0.get("phase") == "live", "top5": top5, "quelle": "stake",

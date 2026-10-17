@@ -962,7 +962,7 @@ function seiteBetfair(D){
   const norm = lf(alle).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
   const hzl = lf(D.halbzeit||[]);
   return `<div class="grid">
-    <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">mind. 3 Abrufe in Folge mit derselben Auswahl vorn (≥60 % des neuen Geldes)</span></div>${serienKarten(D,8,"betfair")}</div>
+    <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">mind. 3 Abrufe in Folge mit derselben Auswahl vorn (≥60 % des neuen Geldes), ab €10k (Top-5 €75k)</span></div>${serienKarten(D,8,"betfair")}</div>
     <div class="panel c12"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">wohin neues Geld floss: Auswahl, die den Großteil des neuen Geldes in ihrem Markt bekam (vor Anpfiff, 30 Min)</span></div>${zuflussKarten(D,8)}</div>
     <div class="panel c12"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">Auswahl, die in 15 Min den Großteil des neuen Geldes in ihrem Markt bekam; entschiedene Spiele raus</span></div>${liveKarten(D,8)}</div>
     <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">×2 = doppelt so viel Geld wie in dieser Liga üblich</span></div>${normChart(norm)}</div>
