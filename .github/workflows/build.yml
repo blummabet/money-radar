@@ -131,7 +131,7 @@ jobs:
           rest=$(( 300 - ($(date +%s) - START) ))
           [ $rest -gt 0 ] && sleep $rest
           andere=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?per_page=10" \
-            --jq "[.workflow_runs[] | select(.id != ${{ github.run_id }}) | select(.status==\"queued\" or .status==\"in_progress\" or .status==\"waiting\" or .status==\"pending\")] | length")
+            --jq "[.workflow_runs[] | select(.id != ${{ github.run_id }}) | select(.event != \"push\") | select(.status==\"queued\" or .status==\"in_progress\" or .status==\"waiting\" or .status==\"pending\")] | length")
           if [ "$andere" = "0" ]; then
             gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main
             echo "nächster Lauf angestoßen"
