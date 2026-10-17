@@ -223,6 +223,19 @@ main{padding:22px 28px 60px;min-width:0}
 .dz-bar i{display:block;height:100%;background:var(--up);border-radius:5px}
 .dz-r{text-align:right;font-weight:800;color:var(--up);white-space:nowrap;font-size:13.5px}
 .dz-r small{display:block;font-weight:600;font-size:11px;color:var(--text-3)}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.mk{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.mk-k{display:flex;justify-content:space-between;gap:6px;font-size:12.5px;margin-bottom:4px}
+.mk-k span{color:var(--text-2);font-weight:700;white-space:nowrap}
+.mk-k em,.mk-l em{font-style:normal;color:var(--up);font-weight:700}
+.mk-i{display:flex;align-items:center;gap:8px}
+.mk-i svg{flex:none}
+.mk-l{flex:1;min-width:0;font-size:12px;color:var(--text-2)}
+.mk-l div{display:grid;grid-template-columns:8px minmax(0,1fr) auto auto;gap:5px;align-items:center;padding:1.5px 0}
+.mk-l i{width:8px;height:8px;border-radius:2px}
+.mk-l span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-l b{color:var(--text)}
+.mk-l small{color:var(--text-3)}
 .mb{padding:10px 0;border-top:1px solid var(--line)}
 .mb:first-of-type{border-top:0;padding-top:2px}
 .mb-k{display:flex;justify-content:space-between;gap:8px;font-size:13.5px;margin-bottom:7px}
@@ -259,6 +272,10 @@ main{padding:22px 28px 60px;min-width:0}
   .feedpanel{order:5}
   .det{grid-template-columns:1fr}
   .kgrid{grid-template-columns:1fr;gap:8px}
+  .mgrid{grid-template-columns:1fr 1fr;gap:6px}
+  .mk{padding:8px}
+  .mk-i{flex-direction:column;align-items:stretch}
+  .mk-i svg{align-self:center;width:62px;height:62px}
   .nz-bar em{display:none}
   .kk{padding:11px}
   .kk-zahl{font-size:20px}
@@ -411,13 +428,18 @@ function spielDetail(s){
   const flussBlock = fl.length ? fl.slice(0,6).map(f=>`<div class="dz"><div class="dz-l"><b>${esc(auswahlDe(f.name))}</b> <small>${esc(marktDe(f.markt))}${f.quote?` @ ${q2(f.quote)}`:""}</small></div>
       <div class="dz-bar"><i style="width:${(f.neu/maxF*100).toFixed(1)}%"></i></div><div class="dz-r">+${eur(f.neu)}${f.anteil!=null?`<small>${f.anteil} % des Marktes</small>`:""}</div></div>`).join("")
     : `<div class="kk-klein">In den letzten ${fm} Minuten kam kein neues Geld dazu, oder die Historie reicht noch nicht.</div>`;
-  // 2) jeder Markt als Balken
-  const marktBlock = md.map(m=>{
+  // 2) jeder Markt als Kreis (Lucas 17.10.: „spart Höhe") — Kacheln, zwei nebeneinander
+  const donut = (teile, mitte) => {
+    const R = 26, U = 2*Math.PI*R, ges = teile.reduce((x,t)=>x+t.w,0)||1; let off = 0;
+    return `<svg width="70" height="70" viewBox="0 0 70 70" aria-hidden="true"><circle cx="35" cy="35" r="${R}" fill="none" stroke="var(--panel-3)" stroke-width="10"/>${teile.map(t=>{ const l = t.w/ges*U; const c = `<circle cx="35" cy="35" r="${R}" fill="none" stroke="${t.f}" stroke-width="10" stroke-dasharray="${l.toFixed(2)} ${(U-l).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 35 35)"/>`; off += l; return c; }).join("")}<text x="35" y="39" text-anchor="middle" fill="#e9eef7" font-size="12" font-weight="800" font-family="Manrope">${mitte}</text></svg>`;
+  };
+  const marktBlock = `<div class="mgrid">${md.map(m=>{
     const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1;
-    return `<div class="mb"><div class="mb-k"><b>${esc(marktDe(m.name))}</b><span>${eur(m.eur)}${m.neu>0?` <em>+${eur(m.neu)} neu</em>`:""}</span></div>
-      <div class="vbar" style="height:10px">${m.auswahl.map((a,i)=>`<span style="flex:${a.eur} 1 0;background:${PAL[i%PAL.length]}"></span>`).join("")}</div>
-      <div class="mb-l">${m.auswahl.map((a,i)=>`<div><span><i style="background:${PAL[i%PAL.length]}"></i>${esc(auswahlDe(a.name))}${a.quote?` <small>@ ${q2(a.quote)}</small>`:""}</span><span><b>${Math.round(a.eur/ges*100)} %</b>${a.neu>0?` <em>+${eur(a.neu)}</em>`:""}</span></div>`).join("")}</div></div>`;
-  }).join("");
+    const teile = m.auswahl.map((a,i)=>({w:a.eur, f:PAL[i%PAL.length]}));
+    return `<div class="mk"><div class="mk-k"><b>${esc(marktDe(m.name))}</b><span>${eur(m.eur)}${m.neu>0?` <em>+${eur(m.neu)}</em>`:""}</span></div>
+      <div class="mk-i">${donut(teile, Math.round(m.auswahl[0].eur/ges*100)+"%")}
+      <div class="mk-l">${m.auswahl.slice(0,4).map((a,i)=>`<div><i style="background:${PAL[i%PAL.length]}"></i><span>${esc(auswahlDe(a.name))}${a.quote?` <small>${q2(a.quote)}</small>`:""}</span><b>${Math.round(a.eur/ges*100)}%</b>${a.neu>0?`<em>+${eur(a.neu)}</em>`:""}</div>`).join("")}</div></div></div>`;
+  }).join("")}</div>`;
   return `<tr class="detail"><td colspan="6"><div class="det">
     <div class="d-kopf">${flagge(s.land)} ${esc(s.liga)} · ${s.live?`<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}`:wann(s.anpfiff)} · ${eur(s.eur)} gematcht${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}</div>
     <div><h4>Wohin das neue Geld floss, letzte ${fm} Min</h4>${flussBlock}</div>
