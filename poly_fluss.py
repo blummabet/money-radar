@@ -142,7 +142,7 @@ def fluss_fuer(m):
             if alter <= 30 and usd >= 1000:
                 gross.append({"auf": etikett, "usd": round(usd), "preis": round(float(t.get("price") or 0), 3),
                               "vor": round(alter), "wallet": t.get("proxyWallet")})
-        time.sleep(0.15)
+        time.sleep(0.05)
     titel = event.get("title") or m["key"]
     fenster = {}
     mehrere = m["key"].endswith("-more-markets")
@@ -171,18 +171,37 @@ def fluss_fuer(m):
 
 
 def main() -> int:
+    """17.10.: abends (viele Live-Spiele, viele Trades) brauchte der Lauf nacheinander > 8 Min und wurde
+    vom Zeitlimit abgebrochen — dann gab es GAR KEINE Datei. Jetzt parallel (8 gleichzeitig) und mit
+    Zeitbudget: was bis dahin fertig ist, wird geschrieben, der Rest kommt im nächsten Lauf."""
+    from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
     OUT.parent.mkdir(exist_ok=True)
     k = kandidaten()
     print(f"poly_fluss: {len(k)} Märkte")
-    rows = []
-    for m in k:
-        r = fluss_fuer(m)
-        if r:
-            rows.append(r)
+    rows, start, budget = [], time.time(), float(os.environ.get("POLY_FLUSS_BUDGET_S") or 240)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        offen = {pool.submit(fluss_fuer, m) for m in k}
+        while offen:
+            rest = budget - (time.time() - start)
+            if rest <= 0:
+                print(f"  Zeitbudget {budget:.0f}s erreicht — {len(offen)} Märkte bleiben für den nächsten Lauf")
+                for f in offen:
+                    f.cancel()
+                break
+            fertig, offen = wait(offen, timeout=rest, return_when=FIRST_COMPLETED)
+            for f in fertig:
+                try:
+                    r = f.result()
+                except Exception as exc:  # noqa: BLE001
+                    print(f"  ⚠️ {str(exc)[:120]}")
+                    continue
+                if r:
+                    rows.append(r)
+        pool.shutdown(wait=False, cancel_futures=True)
     rows.sort(key=lambda r: -(r["fenster"].get("30") or {}).get("usd", 0))
     OUT.write_text(json.dumps({"generatedAt": JETZT.isoformat(), "n": len(rows), "maerkte": rows},
                               ensure_ascii=False), encoding="utf-8")
-    print(f"poly_fluss: {len(rows)} Märkte mit Käufen in 30 Min → {OUT}")
+    print(f"poly_fluss: {len(rows)} Märkte mit Käufen in 30 Min → {OUT} ({time.time() - start:.0f}s)")
     return 0
 
 

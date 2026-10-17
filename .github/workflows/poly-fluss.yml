@@ -22,7 +22,7 @@ concurrency:
 jobs:
   fluss:
     runs-on: [self-hosted, radar]
-    timeout-minutes: 8
+    timeout-minutes: 9
     steps:
       - uses: actions/checkout@v4
       - name: Käufe je Seite holen
