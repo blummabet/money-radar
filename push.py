@@ -352,6 +352,9 @@ def _balken(werte):
     return "".join(zeichen[0 if not v else max(1, round(v / mx * 8))] for v in werte) if mx > 0 else ""
 
 
+SERIE_PUSH_MIN_QUOTE = 1.40   # Lucas 17.10. (Bayern 1,30): viel Geld auf den klaren Favoriten ist der Normalfall — anzeigen ja, pushen nein
+
+
 def _stufe(n):
     return 3 if n < 5 else 5 if n < 8 else 8 if n < 12 else 12
 
@@ -360,6 +363,8 @@ def serie(d):
     """Lucas 17.10.: wiederholter Zufluss auf dieselbe Auswahl („bei jedem Scan wieder 10.000") ist ein
     eigener KPI. Push ab 3 Abrufen in Folge, wieder bei 5, 8 und 12 — nicht bei jedem neuen Treffer."""
     for x in d.get("serien") or []:
+        if isinstance(x.get("quote"), (int, float)) and x["quote"] < SERIE_PUSH_MIN_QUOTE:
+            continue
         key = f"se|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}"
         q, q0 = x.get("quote"), x.get("quoteStart")
         richtung = f" (Start {q2(q0)})" if q and q0 and abs(q - q0) >= 0.02 else ""
@@ -383,6 +388,8 @@ def serie(d):
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
         yield key, text, None
     for x in d.get("stakeSerien") or []:
+        if isinstance(x.get("quote"), (int, float)) and x["quote"] < SERIE_PUSH_MIN_QUOTE:
+            continue
         key = f"ss|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}"
         text = (f"🔁 <b>Dauerzufluss</b> · Stake · <b>{x['n']}× in Folge</b>\n"
                 f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{e(x.get('liga'))} · {'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n\n"
