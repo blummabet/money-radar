@@ -501,10 +501,28 @@ const FEED_ARTEN = [["alle","Alle"],["live","Live"],["zufluss","Vor Anpfiff"],["
 let filterFeed = "alle";
 function seiteFeed(D){
   const alle = feedEintraege(D), liste = filterFeed==="alle" ? alle : alle.filter(x=>x.k===filterFeed);
-  return `<div class="grid"><div class="panel c12">
+  return `<div class="grid">${pushBilanz(D)}<div class="panel c12">
     <div class="chips feedchips">${FEED_ARTEN.map(([k,n])=>{ const c = k==="alle"?alle.length:alle.filter(x=>x.k===k).length; return c||k==="alle" ? `<button class="chip${k===filterFeed?" an":""}" data-feed="${k}">${n} <span style="opacity:.6">${c}</span></button>` : ""; }).join("")}</div>
     <div class="feed feed-gross">${liste.slice(0,80).map(feZeile2).join("") || `<div class="leer">Hier ist gerade nichts.</div>`}</div>
   </div></div>`;
+}
+// Lucas 17.10.: „du kannst gern die Push auswerten". Messlatte zuerst die Schlussquote (CLV):
+// schlägt der Push den Schlusskurs, hat er eine Kante — Treffer und ROI schwanken bei kleinem n stark.
+function pushBilanz(D){
+  const B = D.pushBilanz; if(!B || !B.arten) return "";
+  const pz = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
+  const farbe = v => v==null ? "var(--text-2)" : v>0 ? "var(--up)" : "var(--down)";
+  const kachel = ([k,b]) => { const haupt = b.clvN ? b.clv : b.roi;
+    return `<div class="panel kpi c3"><div class="lab">${icon("betfair")}${esc(b.name)}</div>
+      <div class="wert" style="color:${farbe(haupt)}">${b.n ? pz(haupt) : "–"}</div>
+      <div class="neben">${!b.n ? "noch kein Push" : b.clvN ? `besser als die Schlussquote (Schnitt aus ${b.clvN})` : b.abgerechnet ? "Rendite pro Push" : `${b.n} gesendet, wartet auf Ergebnisse`}</div>
+      <div class="neben">${b.abgerechnet ? `${b.abgerechnet} abgerechnet: ${b.treffer} % Treffer (Quote sagte ${b.erwartet} %), Rendite ${pz(b.roi)}` : ""}${b.offen?` · ${b.offen} offen`:""}</div></div>`; };
+  const zeile = x => `<div class="fe"><span class="ico" style="background:${tint(x.status==="offen"?"var(--text-3)":x.win?"var(--up)":"var(--down)",18)};color:${x.status==="offen"?"var(--text-2)":x.win?"var(--up)":"var(--down)"}">${x.status==="offen"?"…":x.win?"✓":"✗"}</span>
+    <div style="min-width:0"><div class="t">${esc(auswahlDe(x.auswahl||""))} @ ${q2(x.quote)} <small style="color:var(--text-3)">${esc(marktDe(x.markt||""))}</small></div>
+    <div class="s">${esc(x.heim)} – ${esc(x.gast)}${x.ft?`, Endstand ${x.ft[0]}:${x.ft[1]}`:""}${x.schluss?`, Schlussquote ${q2(x.schluss)}`:""}</div></div>
+    <div class="b">${esc(B.arten[x.art]?.name||x.art)}<small>${x.ts?vor(x.ts):""}</small></div></div>`;
+  return `${Object.entries(B.arten).map(kachel).join("")}
+    ${(B.letzte||[]).length ? `<div class="panel c12">${liste("Unsere letzten Pushes mit Ergebnis", B.letzte.length, `<div class="feed">${B.letzte.slice(0,30).map(zeile).join("")}</div>`)}</div>` : ""}`;
 }
 let filterPush = "alle";
 function pushPanel(D){

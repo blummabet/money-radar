@@ -938,6 +938,14 @@ def live_zufluss(radar):
     return out[:20]
 
 
+def push_bilanz():
+    """Auswertung der neuen Pushes (bilanz.py schreibt sie nach jedem Push-Lauf in den Cache)."""
+    try:
+        return json.loads((Path(__file__).resolve().parent / ".push_state" / "bilanz.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def poly_fluss():
     """Käufe je Seite auf Polymarket (vom Mac-Runner, .pf/poly_fluss.json). Älter als 40 Min → weglassen."""
     p = Path(__file__).resolve().parent / ".pf" / "poly_fluss.json"
@@ -1013,6 +1021,7 @@ def main() -> int:
         "bfPushes": betfair_pushes(bf_led, bf_rec),
         "halbzeit": halbzeit(prices),
         "bfHtPushes": bf_ht_pushes(prices),
+        "pushBilanz": push_bilanz(),
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
         "poly": poly(track, upcoming, wale, offen_m, tr_led, tr_rec),

@@ -122,6 +122,37 @@ def _markt_de(n):
             "Correct Score": "Ergebnis", "Half Time Score": "HZ-Ergebnis"}.get(n, n)
 
 
+def pinnacle_zeile(d, z, fl):
+    """Lucas 17.10.: „Pinnacle in die Push, sofern die Ligen Pini auch haben". Nur für den Sieg-Markt
+    (Pinnacle-Quoten haben wir nur als 1X2). Wahrscheinlichkeit rauf = Quote fällt = zieht mit dem Geld."""
+    if fl.get("markt") != "Match Odds":
+        return ""
+    p = next((x for x in d.get("pinnAlle") or [] if str(x.get("id")) == str(z.get("id"))), None)
+    if not p:
+        return ""
+    a = str(fl.get("auswahl") or "")
+    name = "Remis" if a.lower() in ("the draw", "draw") else a
+    o = next((x for x in p.get("ausgaenge") or [] if x.get("name") == name), None)
+    if not o or not o.get("quote"):
+        return ""
+    k = o.get("kurve") or []
+    pp30 = round(k[-1] - k[-7], 1) if len(k) >= 7 else (round(k[-1] - k[0], 1) if len(k) >= 2 else None)
+    if pp30 is None or abs(pp30) < 0.5:
+        wie = "ruhig"
+    elif pp30 > 0:
+        wie = f"zieht mit ✅ ({pp30:+.1f} pp in 30 Min)".replace(".", ",")
+    else:
+        wie = f"geht dagegen ⚠️ ({pp30:+.1f} pp in 30 Min)".replace(".", ",")
+    vorher = f", seit Beginn {q2(o['vorher'])} → {q2(o['quote'])}" if o.get("vorher") and abs((o.get("pp") or 0)) >= 0.5 else ""
+    return f"📌 Pinnacle {q2(o['quote'])}: {wie}{vorher}\n"
+
+
+def _beleg(art, z, fl, live=False):
+    return {"art": art, "id": str(z.get("id")), "heim": z.get("heim"), "gast": z.get("gast"), "liga": z.get("liga"),
+            "anpfiff": z.get("anpfiff"), "top5": bool(z.get("top5")), "live": live,
+            "markt": fl.get("markt"), "auswahl": fl.get("auswahl"), "quote": fl.get("quote"), "eur": fl.get("eur")}
+
+
 def zufluss(d):
     """Lucas 17.10.: nicht das Geld aufs ganze Spiel, sondern auf WELCHE Auswahl es einseitig floss."""
     for z in d.get("zufluss30") or []:
@@ -131,14 +162,13 @@ def zufluss(d):
         key = f"zf|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
         q, qv = fl.get("quote"), fl.get("quoteVorher")
         richtung = (f", Quote fällt ↓ (von {q2(qv)})" if q < qv else f", Quote steigt ↑ (von {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
-        pin = z.get("pinnacle") if fl.get("markt") == "Match Odds" else None
         text = (f"🟡 <b>Frischer Zufluss</b> · Betfair\n"
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 30 Min auf <b>{e(_auswahl_de(fl.get('auswahl')))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"📊 {fl.get('anteil')} % des neuen Geldes in {e(_markt_de(fl.get('markt')))}\n"
-                + (f"📌 Pinnacle {'einig ✅' if pin.get('einig') else 'anderer Meinung ⚠️'}\n" if pin else ""))
-        yield key, text, ZUFLUSS_PAUSE_H
+                + pinnacle_zeile(d, z, fl))
+        yield key, text, ZUFLUSS_PAUSE_H, _beleg("zufluss", z, fl)
 
 
 def live(d):
@@ -159,7 +189,7 @@ def live(d):
                 f"{e(z.get('liga'))} · {minute} · <b>{st[0]}:{st[1]}</b>\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(_auswahl_de(fl.get('auswahl')))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"📊 {fl.get('anteil')} % des neuen Geldes in {e(_markt_de(fl.get('markt')))}\n")
-        yield key, text, 12
+        yield key, text, 12, _beleg("live", z, fl, live=True)
 
 
 def _hz_q(q):
@@ -275,7 +305,9 @@ def bf_halbzeit(d):
                     + f"💷 {e(_markt_de(a.get('markt')))}: <b>{geld(a.get('eur'))}</b> gematcht\n"
                     + f"📊 <b>{a.get('anteil')} %</b> auf <b>{e(auf)}</b>{quote}\n"
                     + (f"<i>{seiten}</i>\n" if seiten else ""))
-        yield key, text, None
+        yield key, text, None, {"art": a.get("art"), "id": str(a.get("id")), "heim": a.get("heim"), "gast": a.get("gast"),
+                                "liga": a.get("liga"), "anpfiff": a.get("anpfiff"), "top5": bool(a.get("top")), "live": bool(lv),
+                                "markt": a.get("markt"), "auswahl": a.get("auf"), "quote": a.get("quote"), "eur": a.get("eur")}
 
 
 SPORT = {"Fußball": "⚽", "E-Sport": "🎮", "Tennis": "🎾"}
@@ -387,8 +419,12 @@ def main() -> int:
                     gesehen[key] = JETZT.isoformat()
                 else:
                     gesehen.pop(key, None)
+    import bilanz
+    buch = bilanz.laden()
     for art in ARTEN:
-        for key, text, pause_h in art(d):
+        for item in art(d):
+            key, text, pause_h = item[:3]
+            beleg = item[3] if len(item) > 3 else None
             alt = gesehen.get(key)
             if alt and (pause_h is None or (JETZT - ts(alt)).total_seconds() < pause_h * 3600):
                 continue
@@ -406,7 +442,13 @@ def main() -> int:
             if ok:
                 gesehen[key] = JETZT.isoformat()
                 gesendet += 1
+                if beleg and not trocken:
+                    bilanz.eintragen(buch, beleg, JETZT)
     if not trocken:
+        try:
+            bilanz.schreiben(bilanz.aktualisieren(buch, JETZT), JETZT)
+        except Exception as exc:  # noqa: BLE001  — Auswertung darf das Pushen nie aufhalten
+            print(f"  bilanz: {exc}")
         STAND.parent.mkdir(parents=True, exist_ok=True)
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
     print(f"push: {'erster Lauf, ' + str(len(gesehen)) + ' als gesehen markiert' if erster_lauf else str(gesendet) + ' gesendet'}")
