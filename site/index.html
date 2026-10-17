@@ -234,7 +234,7 @@ function saeulen(daten, farbe, h=170){
   return `<svg viewBox="0 -18 ${W} ${h+42}" width="100%" role="img" aria-label="Gematchtes Geld pro Stunde">
     ${[0,.5,1].map(f=>{const y=(h-f*(h-10)).toFixed(1);return `<line x1="44" x2="${W}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,.06)"/><text x="0" y="${(+y+4).toFixed(1)}" fill="#64718a" font-size="11" font-family="Manrope">${esc(eur(max*f))}</text>`;}).join("")}
     ${daten.map((d,i)=>{ const x=44+i*bw+bw*.18, hh=Math.max(2,d.eur/max*(h-10)), letzte=i===daten.length-1;
-      return `<rect x="${x.toFixed(1)}" y="${(h-hh).toFixed(1)}" width="${(bw*.64).toFixed(1)}" height="${hh.toFixed(1)}" rx="5" fill="${farbe}" opacity="${letzte?1:.5}"><title>${uhr(d.h)} Uhr: ${eur(d.eur)}</title></rect>${letzte?`<text x="${(x+bw*.32).toFixed(1)}" y="${(h-hh-7).toFixed(1)}" fill="#e9eef7" font-size="12" font-weight="800" text-anchor="middle" font-family="Manrope">${esc(eur(d.eur))}</text>`:""}<text x="${(x+bw*.32).toFixed(1)}" y="${h+17}" fill="#64718a" font-size="11" text-anchor="middle" font-family="Manrope">${uhr(d.h).slice(0,2)}h</text>`;}).join("")}
+      return `<rect x="${x.toFixed(1)}" y="${(h-hh).toFixed(1)}" width="${(bw*.64).toFixed(1)}" height="${hh.toFixed(1)}" rx="5" fill="${farbe}" opacity="${letzte?1:.5}"><title>${uhr(d.h)} Uhr: ${eur(d.eur)}</title></rect>${letzte?`<text x="${(x+bw*.64).toFixed(1)}" y="${(h-hh-7).toFixed(1)}" fill="#e9eef7" font-size="12" font-weight="800" text-anchor="end" font-family="Manrope">${esc(eur(d.eur))}</text>`:""}<text x="${(x+bw*.32).toFixed(1)}" y="${h+17}" fill="#64718a" font-size="11" text-anchor="middle" font-family="Manrope">${uhr(d.h).slice(0,2)}h</text>`;}).join("")}
   </svg>`;
 }
 function ring(prozent, farbe, mitte){
