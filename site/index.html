@@ -3,271 +3,369 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0d1117">
+<meta name="theme-color" content="#0f2b23">
 <title>Geld-Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0d1117;--panel:#161b22;--panel2:#1c2330;--line:#2a3340;--text:#e6edf3;--mut:#8b949e;--dim:#6e7681;
-  --geld:#3fb950;--geld-bg:rgba(63,185,80,.12);--warn:#e3b341;--warn-bg:rgba(227,179,65,.12);
-  --rot:#f85149;--blau:#58a6ff;--lila:#a78bfa;--radius:12px;
+  --rasen:#0f2b23;
+  --rasen-2:#14382e;
+  --rasen-3:#1b4639;
+  --kreide:#eef3ea;
+  --kreide-2:#a9bcb2;
+  --kreide-3:#6f8a7e;
+  --gold:#f2c14e;
+  --himmel:#7cc4ff;
+  --koralle:#ff8a78;
+  --linie:rgba(238,243,234,.09);
+  --breit:"wdth" 118;
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-a{color:inherit}
-header{position:sticky;top:0;z-index:5;background:rgba(13,17,23,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.kopf{max-width:980px;margin:0 auto;padding:12px 16px 0;display:flex;align-items:center;gap:10px}
-.kopf h1{font-size:17px;margin:0;font-weight:800;letter-spacing:-.01em}
-.kopf .stand{margin-left:auto;font-size:12px;color:var(--mut);white-space:nowrap}
-nav{max-width:980px;margin:0 auto;display:flex;gap:4px;padding:10px 12px 0;overflow-x:auto;scrollbar-width:none}
-nav::-webkit-scrollbar{display:none}
-nav button{flex:0 0 auto;background:none;border:0;color:var(--mut);font:inherit;font-weight:600;padding:8px 12px 10px;border-bottom:2px solid transparent;cursor:pointer}
-nav button.an{color:var(--text);border-bottom-color:var(--geld)}
-nav button .z{font-size:11px;color:var(--dim);margin-left:4px;font-weight:500}
-main{max-width:980px;margin:0 auto;padding:14px 16px 60px}
-section{display:none}section.an{display:block}
-h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:22px 0 8px;font-weight:700}
-h2:first-child{margin-top:4px}
-.hinweis{font-size:13px;color:var(--mut);margin:-2px 0 10px}
-.liste{display:flex;flex-direction:column;gap:8px}
-.karte{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
-.zeile{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.spiel{font-weight:700}
-.meta{font-size:12px;color:var(--mut)}
-.rechts{margin-left:auto;text-align:right}
-.betrag{font-weight:800;color:var(--geld);font-variant-numeric:tabular-nums}
-.zahl{font-variant-numeric:tabular-nums}
-.chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--panel2);color:var(--mut);white-space:nowrap}
-.chip.geld{background:var(--geld-bg);color:var(--geld)}
-.chip.warn{background:var(--warn-bg);color:var(--warn)}
-.chip.rot{background:rgba(248,81,73,.12);color:var(--rot)}
-.chip.blau{background:rgba(88,166,255,.12);color:var(--blau)}
-.balken{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--panel2);margin:9px 0 5px}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--rasen);color:var(--kreide);font-family:Archivo,system-ui,sans-serif;font-size:16px;line-height:1.45;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+a{color:inherit;text-decoration-color:var(--kreide-3);text-underline-offset:3px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
+
+.oben{max-width:1080px;margin:0 auto;padding:18px 20px 6px;display:flex;align-items:center;gap:12px}
+.marke{font-weight:800;font-size:18px;letter-spacing:-.01em;font-variation-settings:var(--breit)}
+.marke span{color:var(--gold)}
+.stand{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--kreide-2);background:none;border:0;padding:6px 4px;cursor:pointer}
+.ampel{width:9px;height:9px;border-radius:50%;background:var(--kreide-3)}
+.ampel.gut{background:#5fd38d}.ampel.alt{background:var(--gold)}.ampel.weg{background:var(--koralle)}
+.quellen{max-width:1080px;margin:0 auto;padding:0 20px;display:none;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--kreide-2)}
+.quellen.offen{display:flex}
+.quellen i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
+
+main{max-width:1080px;margin:0 auto;padding:6px 20px 30px}
+.seite{display:none}.seite.an{display:block}
+
+.held{padding:22px 0 28px;border-bottom:1px solid var(--linie);margin-bottom:8px}
+.held .wo{font-size:14px;color:var(--kreide-2);margin-bottom:6px}
+.held .summe{font-size:clamp(56px,17vw,112px);line-height:.92;font-weight:850;font-variation-settings:var(--breit);color:var(--gold);letter-spacing:-.02em}
+.held .satz{font-size:clamp(20px,5.2vw,28px);font-weight:600;margin-top:10px;max-width:22ch;line-height:1.2}
+.held .spiel{font-size:15px;color:var(--kreide-2);margin-top:12px}
+.held .balken-held{max-width:520px;margin-top:6px}
+.held .balken{height:10px;border-radius:5px}
+
+@media (min-width:860px){
+  .jetzt{display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:start}
+  .held{border-bottom:0;position:sticky;top:12px}
+}
+
+h2{font-size:21px;font-weight:750;margin:30px 0 4px;letter-spacing:-.01em;font-variation-settings:"wdth" 108}
+.unter{font-size:14px;color:var(--kreide-2);margin:0 0 12px;max-width:62ch}
+
+.momente{list-style:none;margin:0;padding:0}
+.moment{display:grid;grid-template-columns:4px 1fr auto;gap:0 14px;padding:14px 0;border-bottom:1px solid var(--linie);align-items:center}
+.moment .streifen{align-self:stretch;border-radius:2px}
+.moment .text{font-size:16px;line-height:1.3}
+.moment .klein{font-size:13px;color:var(--kreide-2);margin-top:3px}
+.moment .zahl{font-weight:800;font-size:20px;font-variation-settings:var(--breit);text-align:right;white-space:nowrap}
+.q-betfair{background:var(--gold)}.q-poly{background:#b9a3ff}.q-pinn{background:var(--himmel)}.q-stake{background:#5fd38d}.q-hz{background:var(--kreide-2)}
+
+.zeilen{list-style:none;margin:0;padding:0;border-top:1px solid var(--linie)}
+.zeile{border-bottom:1px solid var(--linie)}
+.zeile>button{all:unset;display:block;width:100%;box-sizing:border-box;padding:14px 0 12px;cursor:pointer}
+.zeile>button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.kopf{display:flex;align-items:baseline;gap:12px}
+.kopf .wer{font-weight:650;font-size:16.5px;line-height:1.25;flex:1;min-width:0}
+.kopf .betrag{font-weight:800;font-size:19px;font-variation-settings:var(--breit);color:var(--gold);white-space:nowrap}
+.kopf .betrag.leise{color:var(--kreide)}
+.wann{font-size:13px;color:var(--kreide-2);margin-top:2px}
+.marke-zeile{display:inline-block;font-size:12px;font-weight:650;padding:1px 8px;border-radius:999px;margin-left:6px;vertical-align:1px}
+.mk-gold{background:rgba(242,193,78,.16);color:var(--gold)}
+.mk-himmel{background:rgba(124,196,255,.15);color:var(--himmel)}
+.mk-gruen{background:rgba(95,211,141,.15);color:#7fe0a5}
+.mk-koralle{background:rgba(255,138,120,.15);color:var(--koralle)}
+.mk-leise{background:var(--rasen-3);color:var(--kreide-2)}
+.details{display:none;padding:2px 0 16px;font-size:14px;color:var(--kreide-2)}
+.zeile.offen .details{display:block;animation:auf .18s ease-out}
+@keyframes auf{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.zeile.offen .details{animation:none}}
+.details p{margin:6px 0}
+.details b{color:var(--kreide);font-weight:650}
+.details a{color:var(--kreide)}
+
+.balken{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--rasen-3);margin-top:10px;gap:2px}
 .balken span{display:block;height:100%}
-.legende{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mut)}
-.legende b{color:var(--text);font-weight:700}
-.punkt{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0}
-.leer{color:var(--mut);font-size:14px;padding:14px;border:1px dashed var(--line);border-radius:var(--radius)}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;color:var(--mut);font-weight:600;font-size:12px;padding:6px 8px;border-bottom:1px solid var(--line)}
-td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
-td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-.tabwrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto}
-.spark{display:inline-block;vertical-align:middle}
-.mini{font-size:12px;color:var(--mut);margin-top:6px}
-.mini b{color:var(--text)}
-.pos{display:flex;flex-direction:column;gap:3px;margin-top:8px}
-.pos div{font-size:13px}
-.wallet{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--lila);text-decoration:none}
-.frisch{display:flex;gap:6px;flex-wrap:wrap;max-width:980px;margin:0 auto;padding:0 16px 8px}
-.frisch .chip{font-weight:600}
-footer{max-width:980px;margin:0 auto;padding:0 16px 30px;font-size:12px;color:var(--dim)}
-@media (min-width:720px){.zwei{display:grid;grid-template-columns:1fr 1fr;gap:8px}}
+.legende{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--kreide-2);margin-top:7px}
+.legende b{color:var(--kreide);font-weight:650}
+
+.bilanz{margin-top:26px;padding:16px 18px;background:var(--rasen-2);border-radius:14px;font-size:14.5px;color:var(--kreide-2);max-width:70ch}
+.bilanz b{color:var(--kreide)}
+.bilanz p{margin:4px 0}
+.mehr{all:unset;cursor:pointer;margin-top:10px;font-size:14px;font-weight:650;color:var(--kreide-2);padding:6px 0}
+.mehr:hover{color:var(--kreide)}
+.leer{color:var(--kreide-2);font-size:15px;padding:16px 0;border-top:1px solid var(--linie);border-bottom:1px solid var(--linie)}
+.spark{display:block;margin-top:8px}
+
+nav.unten{position:fixed;left:0;right:0;bottom:0;z-index:10;background:rgba(15,43,35,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--linie);padding-bottom:env(safe-area-inset-bottom)}
+nav.unten .innen{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.unten button{background:none;border:0;padding:10px 2px 12px;font-size:12.5px;font-weight:600;color:var(--kreide-3);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative}
+nav.unten button .pkt{width:22px;height:4px;border-radius:2px;background:transparent}
+nav.unten button.an{color:var(--kreide)}
+nav.unten button.an .pkt{background:var(--gold)}
+nav.unten button .n{position:absolute;top:4px;right:calc(50% - 26px);font-size:10.5px;font-weight:750;background:var(--rasen-3);color:var(--kreide-2);border-radius:999px;padding:0 5px;min-width:16px;text-align:center}
+footer{max-width:1080px;margin:0 auto;padding:6px 20px 20px;font-size:12.5px;color:var(--kreide-3)}
 </style>
 </head>
 <body>
-<header>
-  <div class="kopf"><h1>💰 Geld-Radar</h1><span class="stand" id="stand">lädt…</span></div>
-  <nav id="nav">
-    <button data-t="betfair" class="an">Betfair<span class="z" id="z-betfair"></span></button>
-    <button data-t="poly">Polymarket<span class="z" id="z-poly"></span></button>
-    <button data-t="sharp">Sharp Radar<span class="z" id="z-sharp"></span></button>
-    <button data-t="stake">Stake<span class="z" id="z-stake"></span></button>
-    <button data-t="hz">HZ 0:0<span class="z" id="z-hz"></span></button>
-  </nav>
-  <div class="frisch" id="frisch"></div>
-</header>
+<div class="oben">
+  <div class="marke">Geld<span>radar</span></div>
+  <button class="stand" id="stand" aria-expanded="false" aria-controls="quellen"><i class="ampel" id="ampel"></i><span id="standtext">lädt</span></button>
+</div>
+<div class="quellen" id="quellen"></div>
+
 <main>
-  <section id="betfair" class="an"></section>
-  <section id="poly"></section>
-  <section id="sharp"></section>
-  <section id="stake"></section>
-  <section id="hz"></section>
+  <section class="seite an" id="jetzt"></section>
+  <section class="seite" id="betfair"></section>
+  <section class="seite" id="poly"></section>
+  <section class="seite" id="stake"></section>
+  <section class="seite" id="hz"></section>
 </main>
-<footer>Keine Wettempfehlung. Gezeigt wird, wo Geld liegt und wer es setzt. Bilanzen ohne Untergrenze über null sind kein Beleg.</footer>
+<footer>Keine Wettempfehlung. Hier steht, wo Geld liegt und wer es setzt.</footer>
+
+<nav class="unten" aria-label="Bereiche"><div class="innen">
+  <button data-t="jetzt" class="an"><i class="pkt"></i>Jetzt</button>
+  <button data-t="betfair"><i class="pkt"></i>Betfair<span class="n" id="n-betfair" hidden></span></button>
+  <button data-t="poly"><i class="pkt"></i>Polymarket<span class="n" id="n-poly" hidden></span></button>
+  <button data-t="stake"><i class="pkt"></i>Stake<span class="n" id="n-stake" hidden></span></button>
+  <button data-t="hz"><i class="pkt"></i>HZ 0:0<span class="n" id="n-hz" hidden></span></button>
+</div></nav>
+
 <script>
 "use strict";
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const tz = "Europe/Vienna";
-const fmtZeit = iso => { if(!iso) return "–"; const d=new Date(iso); return d.toLocaleString("de-AT",{timeZone:tz,weekday:"short",hour:"2-digit",minute:"2-digit"}); };
-const fmtUhr = iso => { if(!iso) return "–"; return new Date(iso).toLocaleTimeString("de-AT",{timeZone:tz,hour:"2-digit",minute:"2-digit"}); };
-const bis = iso => { if(!iso) return ""; const m=Math.round((new Date(iso)-Date.now())/60000); if(m<0) return "läuft"; if(m<60) return "in "+m+" Min"; const h=Math.floor(m/60); return h<24 ? "in "+h+" h "+(m%60)+" Min" : fmtZeit(iso); };
-const vor = iso => { if(!iso) return "–"; const m=Math.round((Date.now()-new Date(iso))/60000); if(m<1) return "gerade"; if(m<60) return "vor "+m+" Min"; const h=Math.round(m/60); return h<24?"vor "+h+" h":"vor "+Math.round(h/24)+" T"; };
-const eur = v => v==null ? "–" : "€"+(Math.abs(v)>=1e6 ? (v/1e6).toFixed(1).replace(".",",")+"M" : Math.abs(v)>=1e3 ? Math.round(v/1e3)+"k" : Math.round(v));
-const usd = v => v==null ? "–" : "$"+(Math.abs(v)>=1e6 ? (v/1e6).toFixed(1).replace(".",",")+"M" : Math.abs(v)>=1e3 ? Math.round(v/1e3)+"k" : Math.round(v));
-const pp = v => v==null ? "–" : (v>0?"+":"")+String(v).replace(".",",")+" pp";
-const pct = v => v==null ? "–" : Math.round(v)+" %";
-const quote = v => v==null ? "–" : Number(v).toFixed(2).replace(".",",");
-const FARBEN = ["#3fb950","#8b949e","#58a6ff"];
-const kurz = w => w ? w.slice(0,6)+"…"+w.slice(-4) : "";
-const polyLink = (key, text) => `<a href="https://polymarket.com/event/${encodeURIComponent(key)}" target="_blank" rel="noopener">${esc(text)} ↗</a>`;
-const walletLink = w => `<a class="wallet" href="https://polymarket.com/profile/${encodeURIComponent(w)}" target="_blank" rel="noopener">${esc(kurz(w))}</a>`;
-
-function farbeFuer(teile){
-  // Remis immer grau, die Seiten gruen/blau — sonst sieht bei Zwei-Wege-Maerkten Seite 2 wie ein Remis aus.
-  let k = 0;
-  return teile.map(t => ({...t, farbe: t.farbe || (/^remis$/i.test(t.name) ? "#6e7681" : (k++ === 0 ? "#3fb950" : "#58a6ff"))}));
+const TZ = "Europe/Vienna";
+const uhr = iso => iso ? new Date(iso).toLocaleTimeString("de-AT",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}) : "";
+const tag = iso => iso ? new Date(iso).toLocaleDateString("de-AT",{timeZone:TZ,weekday:"long"}) : "";
+function anpfiff(iso){
+  if(!iso) return "";
+  const m = Math.round((new Date(iso)-Date.now())/60000);
+  if(m < 0) return "läuft";
+  if(m < 60) return `Anpfiff in ${m} Min`;
+  if(m < 24*60){ const h=Math.floor(m/60); return `Anpfiff in ${h} Std${m%60?" "+(m%60)+" Min":""}`; }
+  return `${tag(iso)}, ${uhr(iso)}`;
 }
-function balken(teile){
-  teile = farbeFuer(teile);
-  const ges = teile.reduce((a,t)=>a+(t.wert||0),0); if(!ges) return "";
-  return `<div class="balken">${teile.map((t,i)=>`<span style="width:${(t.wert/ges*100).toFixed(1)}%;background:${t.farbe||FARBEN[i%3]}"></span>`).join("")}</div>`
-   + `<div class="legende">${teile.map((t,i)=>`<span><i class="punkt" style="background:${t.farbe||FARBEN[i%3]}"></i>${esc(t.name)} <b>${Math.round(t.wert/ges*100)} %</b>${t.zusatz?" · "+esc(t.zusatz):""}</span>`).join("")}</div>`;
+function vor(iso){
+  if(!iso) return "unbekannt";
+  const m = Math.round((Date.now()-new Date(iso))/60000);
+  if(m < 1) return "gerade eben"; if(m < 60) return `vor ${m} Min`;
+  const h = Math.round(m/60); return h < 24 ? `vor ${h} Std` : `vor ${Math.round(h/24)} Tagen`;
+}
+const geld = (v, z="€") => v==null ? "–" : (v<0?"-":"") + z + (Math.abs(v)>=1e6 ? (Math.abs(v)/1e6).toFixed(1).replace(".",",")+" Mio" : Math.abs(v)>=1e3 ? Math.round(Math.abs(v)/1e3)+"k" : Math.round(Math.abs(v)));
+const eur = v => geld(v,"€"), usd = v => geld(v,"$");
+const dez = (v,n=1) => v==null ? "–" : Number(v).toFixed(n).replace(".",",");
+const quote = v => v==null ? "–" : Number(v).toFixed(2).replace(".",",");
+const cent = v => v==null ? "–" : Math.round(v*100)+" ¢";
+const remis = n => /^(the draw|draw)/i.test(n||"") ? "Remis" : n;
+const kurzWallet = w => w ? w.slice(2,6) : "";
+const wallet = w => `<a href="https://polymarket.com/profile/${encodeURIComponent(w)}" target="_blank" rel="noopener">Wallet ${esc(kurzWallet(w))}</a>`;
+const polyMarkt = (key, text) => `<a href="https://polymarket.com/event/${encodeURIComponent(key)}" target="_blank" rel="noopener">${esc(text)}</a>`;
+const teamAusKey = key => String(key||"").replace(/-\d{4}-\d{2}-\d{2}.*$/,"").split("-").slice(1).map(s=>s.toUpperCase()).join(" – ");
+
+function balken(teile, mitLegende=true){
+  teile = teile.filter(t => t.wert > 0);
+  const ges = teile.reduce((a,t)=>a+t.wert,0); if(!ges) return "";
+  const top = Math.max(...teile.filter(t=>remis(t.name)!=="Remis").map(t=>t.wert));
+  teile = teile.map(t => ({...t, farbe: remis(t.name)==="Remis" ? "var(--kreide-3)" : (t.wert===top ? "var(--gold)" : "var(--himmel)")}));
+  return `<div class="balken" role="img" aria-label="${esc(teile.map(t=>remis(t.name)+" "+Math.round(t.wert/ges*100)+" Prozent").join(", "))}">${teile.map(t=>`<span style="flex:${t.wert} 1 0;background:${t.farbe}"></span>`).join("")}</div>`
+    + (mitLegende ? `<div class="legende">${teile.map(t=>`<span>${esc(remis(t.name))} <b>${Math.round(t.wert/ges*100)} %</b>${t.zusatz?" zu "+esc(t.zusatz):""}</span>`).join("")}</div>` : "");
 }
 function spark(werte){
-  if(!werte || werte.length<2) return "";
-  const w=90,h=22,min=Math.min(...werte),max=Math.max(...werte),sp=(max-min)||1;
-  const pts=werte.map((v,i)=>`${(i/(werte.length-1)*w).toFixed(1)},${(h-2-(v-min)/sp*(h-4)).toFixed(1)}`).join(" ");
-  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline fill="none" stroke="#58a6ff" stroke-width="1.6" points="${pts}"/></svg>`;
+  if(!werte || werte.length < 2) return "";
+  const w=220,h=36,min=Math.min(...werte),max=Math.max(...werte),sp=(max-min)||1;
+  const pts = werte.map((v,i)=>`${(i/(werte.length-1)*w).toFixed(1)},${(h-3-(v-min)/sp*(h-6)).toFixed(1)}`).join(" ");
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline fill="none" stroke="#7cc4ff" stroke-width="2" stroke-linejoin="round" points="${pts}"/></svg>`;
 }
+const zeile = (kopf, wann, details, betrag, leise=false) => `<li class="zeile"><button aria-expanded="false"><div class="kopf"><span class="wer">${kopf}</span>${betrag?`<span class="betrag${leise?" leise":""}">${betrag}</span>`:""}</div><div class="wann">${wann}</div></button><div class="details">${details}</div></li>`;
 const leer = t => `<div class="leer">${esc(t)}</div>`;
+const stunden = iso => (Date.now()-new Date(iso))/36e5;
 
-// ── Betfair ────────────────────────────────────────────────
-function renderBetfair(b){
-  let h = `<h2>Frisches Geld</h2><p class="hinweis">Wo in den letzten Minuten am meisten neu gematcht wurde (vor Anpfiff).</p>`;
-  h += b.zufluss.length ? `<div class="liste">${b.zufluss.map(z=>`
-    <div class="karte">
-      <div class="zeile"><span class="spiel">${esc(z.heim)} – ${esc(z.gast)}</span><span class="rechts betrag">+${eur(z.zuflussEur)}</span></div>
-      <div class="zeile meta"><span>${esc(z.liga)} · ${bis(z.anpfiff)}</span><span class="rechts">${esc(z.markt)} · gesamt ${eur(z.marktEur)}</span></div>
-      ${z.verteilung ? balken(z.verteilung.map(v=>({name:v.name==="The Draw"?"Remis":v.name,wert:v.eur,zusatz:quote(v.quote)}))) : ""}
-      <div class="mini">Meistes Geld auf <b>${esc(z.meistesGeldAuf)}</b> @ ${quote(z.quote)} · Quote ${z.quoteRichtung==="faellt"?"fällt ↓":z.quoteRichtung==="steigt"?"steigt ↑":"ruhig"}
-      ${z.duenn?` <span class="chip warn">dünner Markt</span>`:""}
-      ${z.pinnacle?(z.pinnacle.einig?` <span class="chip blau">Pinnacle gleiche Seite</span>`:` <span class="chip rot">Pinnacle andere Seite</span>`):""}</div>
-    </div>`).join("")}</div>` : leer("Gerade kein frischer Zufluss über der Schwelle.");
+function momente(D){
+  const m = [];
+  const z = D.betfair.zufluss[0];
+  if(z) m.push({q:"betfair", text:`Frisches Geld bei ${z.heim} – ${z.gast}, das meiste auf ${remis(z.meistesGeldAuf)}`, klein:`Betfair, ${anpfiff(z.anpfiff)}`, zahl:"+"+eur(z.zuflussEur), gewicht:(z.zuflussEur||0)/1000});
+  let np = 0;
+  for(const mk of D.poly.maerkte){
+    const w = (mk.wale||[]).find(x=>x.bewiesen);
+    if(!w) continue;
+    m.push({q:"poly", text:`Eine Wallet mit belegter Bilanz setzt auf ${remis(w.seite)}`, klein:`Polymarket, ${mk.spiel}, ${anpfiff(mk.anpfiff)}`, zahl:usd(w.usd), gewicht:(w.usd||0)/1000+30});
+    if(++np >= 2) break;
+  }
+  for(const s of D.sharp.filter(s=>s.laeuftNoch||s.frisch).slice(0,2)){
+    m.push({q:"pinn", text: s.laeuftNoch ? `Pinnacle zieht stetig Richtung ${s.auf}` : `Pinnacle springt gerade auf ${s.auf}`, klein:`${s.heim} – ${s.gast}, von ${dez(s.vonPct)} auf ${dez(s.nachPct)} %`, zahl:"+"+dez(s.pp)+" pp", gewicht:s.pp*12});
+  }
+  for(const x of D.stake.heute.filter(x => stunden(x.zeit) < 3).slice(0,2))
+    m.push({q:"stake", text:`${x.wetten} große Wetten auf ${x.auswahl}`, klein:`Stake, ${x.spiel}, ${x.phase==="live"?"live":"vor Anpfiff"}`, zahl:usd(x.usd), gewicht:(x.usd||0)/1500});
+  const h = (D.hz.heute||[])[0];
+  if(h && stunden(h.zeit) < 2) m.push({q:"hz", text:`Halbzeit 0:0 bei ${h.spiel}`, klein:`${h.liga}, erkannt ${uhr(h.zeit)}`, zahl:"0:0", gewicht:20});
+  return m.sort((a,b)=>b.gewicht-a.gewicht).slice(0,6);
+}
 
-  h += `<h2>Meistes Geld heute</h2><p class="hinweis">Spiele der nächsten 30 Stunden nach gematchtem Gesamtvolumen.</p>`;
-  h += b.groesste.length ? `<div class="liste">${b.groesste.slice(0,15).map(g=>`
-    <div class="karte">
-      <div class="zeile"><span class="spiel">${esc(g.heim)} – ${esc(g.gast)}</span><span class="rechts betrag">${eur(g.volEur)}</span></div>
-      <div class="meta">${esc(g.liga)} · ${bis(g.anpfiff)}</div>
-      ${balken(g.verteilung.map(v=>({name:v.name==="The Draw"?"Remis":v.name,wert:v.eur,zusatz:quote(v.quote)})))}
-    </div>`).join("")}</div>` : leer("Keine Spiele mit Volumen in den nächsten 30 Stunden.");
+function seiteJetzt(D){
+  const z = D.betfair.zufluss[0], g = D.betfair.groesste[0];
+  const vert = x => x.verteilung ? `<div class="balken-held">${balken(x.verteilung.map(v=>({name:v.name,wert:v.eur,zusatz:quote(v.quote)})))}</div>` : "";
+  let held;
+  if(z){
+    held = `<div class="held"><div class="wo">Gerade eben auf Betfair</div><div class="summe">+${eur(z.zuflussEur)}</div>
+      <div class="satz">frisches Geld, das meiste auf ${esc(remis(z.meistesGeldAuf))}</div>
+      <div class="spiel">${esc(z.heim)} – ${esc(z.gast)}, ${esc(z.liga)}, ${anpfiff(z.anpfiff)}</div>${vert(z)}</div>`;
+  } else if(g){
+    held = `<div class="held"><div class="wo">Meistes Geld heute auf Betfair</div><div class="summe">${eur(g.volEur)}</div>
+      <div class="satz">${esc(g.heim)} – ${esc(g.gast)}</div>
+      <div class="spiel">${esc(g.liga)}, ${anpfiff(g.anpfiff)}</div>${vert(g)}</div>`;
+  } else held = `<div class="held"><div class="summe">–</div><div class="satz">Gerade bewegt sich kaum Geld.</div></div>`;
+  const ms = momente(D);
+  const liste = ms.length ? `<ul class="momente">${ms.map(m=>`<li class="moment"><span class="streifen q-${m.q}"></span><div><div class="text">${esc(m.text)}</div><div class="klein">${esc(m.klein)}</div></div><div class="zahl">${esc(m.zahl)}</div></li>`).join("")}</ul>` : leer("Im Moment fällt nichts auf. Die Seite lädt sich alle fünf Minuten neu.");
+  return `<div class="jetzt">${held}<div><h2>Was gerade auffällt</h2><p class="unter">Quer über alle Quellen, das Auffälligste zuerst.</p>${liste}</div></div>`;
+}
 
-  h += `<h2>Kurs bewegt sich</h2><p class="hinweis">Größte Bewegung der Betfair-Wahrscheinlichkeit seit Beginn der Beobachtung.</p>`;
-  h += b.bewegung.length ? `<div class="tabwrap"><table><thead><tr><th>Spiel</th><th>auf</th><th class="n">Bewegung</th><th class="n">Quote</th><th class="n">Anpfiff</th></tr></thead><tbody>${
-    b.bewegung.map(s=>`<tr><td>${esc(s.heim)} – ${esc(s.gast)}<div class="meta">${esc(s.liga)}</div></td><td>${esc(s.auf)}</td><td class="n" style="color:${s.pp>0?"var(--geld)":"var(--rot)"}">${pp(s.pp)}</td><td class="n">${quote(s.quote)}</td><td class="n">${fmtUhr(s.anpfiff)}</td></tr>`).join("")
-  }</tbody></table></div>` : leer("Keine nennenswerten Bewegungen.");
+function seiteBetfair(D){
+  const b = D.betfair;
+  const vert = x => x.verteilung ? balken(x.verteilung.map(v=>({name:v.name,wert:v.eur,zusatz:quote(v.quote)}))) : "";
+  let h = `<h2>Frisches Geld</h2><p class="unter">Wo seit dem letzten Abruf am meisten neu gematcht wurde.</p>`;
+  h += b.zufluss.length ? `<ul class="zeilen">${b.zufluss.map(z=>zeile(
+      `${esc(z.heim)} – ${esc(z.gast)}`,
+      `${anpfiff(z.anpfiff)}, ${esc(z.liga)}`,
+      `${vert(z)}<p>Das meiste Geld liegt auf <b>${esc(remis(z.meistesGeldAuf))}</b> zur Quote <b>${quote(z.quote)}</b>, die Quote ${z.quoteRichtung==="faellt"?"fällt":z.quoteRichtung==="steigt"?"steigt":"bewegt sich kaum"}.</p>
+       <p>Markt ${esc(z.markt)}, insgesamt ${eur(z.marktEur)} gematcht.${z.duenn?" Dünner Markt, kleine Beträge wiegen schwer.":""}</p>
+       ${z.pinnacle?`<p>Pinnacle sieht ${z.pinnacle.einig?"dieselbe Seite vorn":"eine andere Seite vorn"}.</p>`:""}`,
+      "+"+eur(z.zuflussEur))).join("")}</ul>` : leer("Gerade kein frisches Geld über der Schwelle.");
+
+  const piv = D.sharp;
+  h += `<h2>Pinnacle bewegt sich</h2><p class="unter">Ein stetiger Lauf kann weitergehen. Ein einzelner Sprung ist meist eine Nachricht und danach eingepreist.</p>`;
+  h += piv.length ? `<ul class="zeilen">${piv.map(s=>{
+      const m = s.art==="lauf" ? (s.laeuftNoch?`<span class="marke-zeile mk-gruen">läuft</span>`:`<span class="marke-zeile mk-leise">Lauf steht</span>`) : (s.frisch?`<span class="marke-zeile mk-gold">frischer Sprung</span>`:`<span class="marke-zeile mk-leise">eingepreist</span>`);
+      return zeile(`${esc(s.auf)}${m}`, `${esc(s.heim)} – ${esc(s.gast)}, ${anpfiff(s.anpfiff)}`,
+        `${spark(s.verlauf)}<p>Pinnacle sieht ${esc(s.auf)} jetzt bei <b>${dez(s.nachPct)} %</b> (vorher ${dez(s.vonPct)} %), faire Quote <b>${quote(s.fairQuote)}</b>.</p>
+         ${s.betfairGeld?`<p>Betfair-Geld: ${s.betfairGeld.anteil} % auf <b>${esc(remis(s.betfairGeld.auf))}</b>${s.betfairGeld.auf!==s.auf?", also auf der anderen Seite":""}.</p>`:""}
+         ${s.poly&&s.poly.anteil!=null?`<p>Polymarket: ${s.poly.anteil} % des Geldes auf derselben Seite, ${usd(s.poly.usd)} im Markt.</p>`:""}`,
+        "+"+dez(s.pp)+" pp", true);}).join("")}</ul>` : leer("Gerade keine Pinnacle-Bewegung über 1,5 Prozentpunkte.");
+
+  const top = b.groesste.slice(0,8), rest = b.groesste.slice(8,20);
+  const reihe = g => zeile(`${esc(g.heim)} – ${esc(g.gast)}`, `${anpfiff(g.anpfiff)}, ${esc(g.liga)}`,
+      `${vert(g)}<p>${g.anteil} % des Geldes auf <b>${esc(remis(g.meistesGeldAuf))}</b>.</p>`, eur(g.volEur), true);
+  h += `<h2>Meistes Geld heute</h2><p class="unter">Spiele der nächsten 30 Stunden nach gematchtem Volumen.</p>`;
+  h += top.length ? `<ul class="zeilen">${top.map(reihe).join("")}</ul>${rest.length?`<button class="mehr" data-mehr="bf-rest">${rest.length} weitere zeigen</button><ul class="zeilen" id="bf-rest" hidden>${rest.map(reihe).join("")}</ul>`:""}` : leer("Keine Spiele mit Volumen in den nächsten 30 Stunden.");
   return h;
 }
 
-// ── Polymarket ─────────────────────────────────────────────
-function renderPoly(p){
-  let h = `<h2>Wo das Geld liegt</h2><p class="hinweis">Märkte der nächsten 30 Stunden nach Gesamtvolumen. ✓ = Wallet mit belegter Bilanz.</p>`;
-  h += p.maerkte.length ? `<div class="liste">${p.maerkte.slice(0,15).map(m=>{
-    const geld = m.geld ? Object.entries(m.geld) : null;
-    const teile = geld ? geld.map(([n,v])=>({name:n.startsWith("Draw")?"Remis":n,wert:v,zusatz:m.preise&&m.preise[n]!=null?Math.round(m.preise[n]*100)+"¢":""})) : null;
+function seitePoly(D){
+  const p = D.poly;
+  const belegt = m => (m.wale||[]).some(w=>w.bewiesen);
+  const mitBeleg = p.maerkte.filter(belegt), ohne = p.maerkte.filter(m=>!belegt(m));
+  const nm = n => remis(/^draw/i.test(n) ? "Draw" : n);
+  const marktZeile = m => {
     const bew = (m.wale||[]).filter(w=>w.bewiesen);
-    return `<div class="karte">
-      <div class="zeile"><span class="spiel">${polyLink(m.key, m.spiel)}</span><span class="rechts betrag">${usd(m.usd)}</span></div>
-      <div class="meta">${esc(m.liga)} · ${esc(m.sport||"")} · ${bis(m.anpfiff)}</div>
-      ${teile ? balken(teile) : `<div class="mini">Preise: ${Object.entries(m.preise||{}).map(([n,v])=>esc(n.startsWith("Draw")?"Remis":n)+" <b>"+Math.round(v*100)+"¢</b>").join(" · ")}</div>`}
-      ${(m.wale||[]).length?`<div class="mini">Größte Halter: ${m.wale.slice(0,3).map(w=>`${w.bewiesen?"✓ ":""}${walletLink(w.wallet)} ${usd(w.usd)} auf <b>${esc(w.seite)}</b>`).join(" · ")}</div>`:""}
-      ${bew.length?`<div class="mini"><span class="chip geld">✓ ${bew.length} belegte Wallet${bew.length>1?"s":""} drin</span></div>`:""}
-    </div>`;}).join("")}</div>` : leer("Keine Märkte im Fenster.");
+    const geldTeile = m.geld ? Object.entries(m.geld).map(([n,v])=>({name:nm(n),wert:v,zusatz:m.preise&&m.preise[n]!=null?cent(m.preise[n]):""})) : null;
+    return zeile(`${esc(m.spiel)}${bew.length?`<span class="marke-zeile mk-gold">${bew.length===1?"belegte Wallet":bew.length+" belegte Wallets"}</span>`:""}`,
+      `${anpfiff(m.anpfiff)}, ${esc(m.sport||"")}`,
+      `${geldTeile?balken(geldTeile):`<p>Preise: ${Object.entries(m.preise||{}).map(([n,v])=>esc(nm(n))+" <b>"+cent(v)+"</b>").join(", ")}</p>`}
+       ${(m.wale||[]).length?m.wale.slice(0,4).map(w=>`<p>${wallet(w.wallet)}${w.bewiesen?" (belegt)":""}: <b>${usd(w.usd)}</b> auf ${esc(nm(w.seite))}</p>`).join(""):""}
+       <p>${polyMarkt(m.key, "Markt auf Polymarket öffnen")}</p>`,
+      usd(m.usd));
+  };
+  let h = `<h2>Wo belegte Wallets drin sind</h2><p class="unter">Märkte, in denen eine Wallet mit nachweislich gutem Timing zu den größten Haltern gehört.</p>`;
+  h += mitBeleg.length ? `<ul class="zeilen">${mitBeleg.map(marktZeile).join("")}</ul>` : leer("Gerade ist keine belegte Wallet unter den größten Haltern eines Marktes.");
+  h += `<h2>Größte Märkte</h2><p class="unter">Nächste 30 Stunden, nach Volumen.</p>`;
+  h += ohne.length ? `<ul class="zeilen">${ohne.slice(0,10).map(marktZeile).join("")}</ul>` : leer("Keine weiteren Märkte im Fenster.");
 
-  h += `<h2>Wallets mit belegter Bilanz</h2><p class="hinweis">Sortiert nach der CLV-Untergrenze (95 %): nicht nur im Schnitt gut, sondern belegt. Mindestens ${p.regel.minN} getrackte Wetten, ${p.regel.minFenster} im Messfenster, Ø-Einsatz ab $${p.regel.minSchnittUsd}. G/V = Polymarket-weite Bilanz der Wallet.</p>`;
-  h += p.wallets.length ? `<div class="liste">${p.wallets.map((w,i)=>`
-    <div class="karte">
-      <div class="zeile"><span class="spiel">${i+1}. ${walletLink(w.wallet)}</span> <span class="chip">${esc(w.sport)}</span>
-        <span class="rechts">${w.clvUg>0?`<span class="chip geld">belegt</span>`:`<span class="chip">nicht belegt</span>`}</span></div>
-      <div class="mini">Ø CLV <b>${pp(w.fensterClv)}</b> · Untergrenze <b style="color:${w.clvUg>0?"var(--geld)":"var(--mut)"}">${pp(w.clvUg)}</b> · ${w.fensterN} im Fenster / ${w.n} gesamt · Ø ${usd(w.schnittUsd)} · G/V ${usd(w.pnl)} · zuletzt ${esc(w.zuletzt||"–")}</div>
-      ${w.offen.length?`<div class="pos">${w.offen.map(o=>`<div>→ ${usd(o.usd)} auf <b>${esc(o.seite)}</b> · ${polyLink(o.markt, o.markt)} <span class="meta">${bis(o.anpfiff)}</span></div>`).join("")}</div>`:`<div class="mini">setzt gerade auf nichts, was wir sehen</div>`}
-    </div>`).join("")}</div>` : leer("Noch keine Wallet mit genug Historie.");
+  h += `<h2>Wallets mit belegter Bilanz</h2><p class="unter">Gereiht danach, wie sicher sie den Schlusskurs schlagen, nicht nach Größe.</p>`;
+  h += p.wallets.length ? `<ul class="zeilen">${p.wallets.map((w,i)=>zeile(
+      `Wallet ${esc(kurzWallet(w.wallet))}${w.offen.length?`<span class="marke-zeile mk-gold">setzt gerade</span>`:""}`,
+      `${esc(w.sport)}, im Schnitt ${usd(w.schnittUsd)} je Wette`,
+      `<p>Schlägt den Schlusskurs im Schnitt um <b>${dez(w.fensterClv)} Prozentpunkte</b>, vorsichtig gerechnet um mindestens <b>${dez(w.clvUg)}</b> (aus ${w.fensterN} Wetten).</p>
+       <p>Polymarket-Bilanz gesamt <b>${usd(w.pnl)}</b>, zuletzt aktiv ${w.zuletzt?new Date(w.zuletzt).toLocaleDateString("de-AT",{day:"numeric",month:"long"}):"unbekannt"}.</p>
+       ${w.offen.length?w.offen.map(o=>`<p>Jetzt <b>${usd(o.usd)}</b> auf ${esc(nm(o.seite))}, ${polyMarkt(o.markt, teamAusKey(o.markt)||o.markt)}, ${anpfiff(o.anpfiff)}</p>`).join(""):"<p>Hält gerade nichts, was wir sehen.</p>"}<p>${wallet(w.wallet)} auf Polymarket ansehen</p>`,
+      "+"+dez(w.fensterClv)+" pp", true)).join("")}</ul>` : leer("Noch keine Wallet mit genug Historie.");
+  return h;
+}
 
-  if(p.walPushes.length){
-    h += `<h2>Große Einzel-Positionen (24 h)</h2><div class="tabwrap"><table><thead><tr><th>Markt</th><th>Seite</th><th class="n">Einsatz</th><th class="n">Preis</th><th class="n">Zeit</th></tr></thead><tbody>${
-      p.walPushes.map(w=>`<tr><td>${polyLink(w.markt,w.markt)}<div class="meta">${walletLink(w.wallet)}</div></td><td>${esc(w.seite)}</td><td class="n betrag">${usd(w.usd)}</td><td class="n">${w.preis!=null?Math.round(w.preis*100)+"¢":"–"}</td><td class="n">${fmtUhr(w.zeit)}</td></tr>`).join("")
-    }</tbody></table></div>`;
+function seiteStake(D){
+  const st = D.stake;
+  let h = `<h2>Große Wetten, letzte 24 Stunden</h2><p class="unter">Mehrere große Einsätze auf dieselbe Sache in kurzer Zeit.</p>`;
+  const top = st.heute.slice(0,12), rest = st.heute.slice(12);
+  const reihe = z=>{
+      const erg = z.status==="abgerechnet"&&z.rendite!=null ? (z.rendite>0?`<span class="marke-zeile mk-gruen">gewonnen</span>`:`<span class="marke-zeile mk-koralle">verloren</span>`) : "";
+      return zeile(`${esc(z.auswahl||"–")}${erg}`, `${esc(z.spiel)}, ${z.phase==="live"?"live"+(z.minute?" "+z.minute+".":""):"vor Anpfiff"}, ${uhr(z.zeit)}`,
+        `<p>${esc(z.art)}: <b>${z.wetten} Wette${z.wetten>1?"n":""}</b>${z.quote?` zur Quote <b>${quote(z.quote)}</b>`:""}${z.faktor?`, ${dez(z.faktor)}-mal so viel wie in dieser Liga üblich`:""}.</p>
+         ${z.markt?`<p>Markt ${esc(z.markt)}, ${esc(z.liga)}</p>`:`<p>${esc(z.liga)}</p>`}`,
+        usd(z.usd));};
+  h += top.length ? `<ul class="zeilen">${top.map(reihe).join("")}</ul>${rest.length?`<button class="mehr" data-mehr="st-rest">${rest.length} weitere zeigen</button><ul class="zeilen" id="st-rest" hidden>${rest.map(reihe).join("")}</ul>`:""}` : leer("In den letzten 24 Stunden keine Meldung.");
+  const bil = Object.entries(st.bilanz||{});
+  if(bil.length){
+    h += `<div class="bilanz"><p><b>Bisherige Bilanz</b></p>${bil.map(([a,b])=>`<p>${esc(a)}: ${b.n} abgerechnet, Rendite <b>${b.roi>0?"+":""}${dez(b.roi)} %</b>, ${b.ug!=null&&b.ug>0?"<b>belegt</b>":"noch nicht belegt"}.</p>`).join("")}</div>`;
   }
   return h;
 }
 
-// ── Sharp Radar ────────────────────────────────────────────
-function renderSharp(s){
-  let h = `<h2>Pinnacle bewegt sich</h2><p class="hinweis"><b>Lauf</b> = viele kleine Schritte in eine Richtung (der Kurs fällt evtl. weiter). <b>Sprung</b> = ein großer Schritt, meist News — danach meist eingepreist. Nur Spiele mit Pinnacle-Anker.</p>`;
-  h += s.length ? `<div class="liste">${s.map(r=>`
-    <div class="karte">
-      <div class="zeile"><span class="spiel">${esc(r.heim)} – ${esc(r.gast)}</span>
-        <span class="rechts">${r.art==="lauf"?(r.laeuftNoch?`<span class="chip geld">läuft noch</span>`:`<span class="chip">Lauf, steht</span>`):(r.frisch?`<span class="chip warn">frischer Sprung</span>`:`<span class="chip">Sprung, eingepreist</span>`)}</span></div>
-      <div class="meta">${esc(r.liga)} · ${bis(r.anpfiff)}</div>
-      <div class="zeile" style="margin-top:8px"><span>Auf <b>${esc(r.auf)}</b>: ${String(r.vonPct).replace(".",",")} % → <b>${String(r.nachPct).replace(".",",")} %</b> <span style="color:var(--geld)">(${pp(r.pp)})</span></span><span class="rechts">${spark(r.verlauf)}</span></div>
-      <div class="mini">Fair-Quote ${quote(r.fairQuote)}
-        ${r.betfairGeld?` · Betfair-Geld ${r.betfairGeld.anteil} % auf <b>${esc(r.betfairGeld.auf)}</b> @ ${quote(r.betfairGeld.quote)}`:""}
-        ${r.poly&&r.poly.anteil!=null?` · Polymarket ${r.poly.anteil} % (${usd(r.poly.usd)})`:""}</div>
-    </div>`).join("")}</div>` : leer("Gerade keine Pinnacle-Bewegung über 1,5 pp. Pinnacle-Anker gibt es nur für die größeren Ligen.");
-  return h;
-}
-
-// ── Stake ──────────────────────────────────────────────────
-function renderStake(st){
-  const bil = Object.entries(st.bilanz||{});
-  let h = `<h2>Bilanz der Meldungen</h2><p class="hinweis">Alle bisher abgerechneten Stake-Meldungen je Art (Rendite je eingesetztem Dollar). Belegt ist eine Art erst, wenn die Untergrenze (95 %) über null liegt.</p>`;
-  h += bil.length ? `<div class="tabwrap"><table><thead><tr><th>Art</th><th class="n">n</th><th class="n">Treffer</th><th class="n">ROI</th><th class="n">Untergrenze</th></tr></thead><tbody>${
-    bil.map(([a,b])=>`<tr><td>${esc(a)}</td><td class="n">${b.n}</td><td class="n">${pct(b.treffer)}</td><td class="n" style="color:${b.roi>0?"var(--geld)":"var(--rot)"}">${b.roi>0?"+":""}${String(b.roi).replace(".",",")} %</td><td class="n" style="color:${b.ug>0?"var(--geld)":"var(--mut)"}">${b.ug==null?"–":(b.ug>0?"+":"")+String(b.ug).replace(".",",")+" %"}</td></tr>`).join("")
-  }</tbody></table></div>` : leer("Noch nichts abgerechnet.");
-  h += `<h2>Meldungen der letzten 24 h</h2>`;
-  h += st.heute.length ? `<div class="liste">${st.heute.map(z=>`
-    <div class="karte">
-      <div class="zeile"><span class="chip">${esc(z.art)}</span><span class="spiel">${esc(z.spiel)}</span><span class="rechts betrag">${usd(z.usd)}</span></div>
-      <div class="meta">${esc(z.liga)} · ${z.phase==="live"?"live"+(z.minute?" "+z.minute+"'":""):"vor Anpfiff"} · ${fmtUhr(z.zeit)}</div>
-      <div class="mini">→ <b>${esc(z.auswahl||"–")}</b>${z.markt?" · "+esc(z.markt):""}${z.quote?" @ "+quote(z.quote):""} · ${z.wetten} Wette${z.wetten>1?"n":""}${z.faktor?" · "+String(z.faktor).replace(".",",")+"× der Norm":""}
-      ${z.status==="abgerechnet"&&z.rendite!=null?(z.rendite>0?` <span class="chip geld">gewonnen</span>`:` <span class="chip rot">verloren</span>`):""}</div>
-    </div>`).join("")}</div>` : leer("Keine Meldungen in den letzten 24 Stunden.");
-  return h;
-}
-
-// ── HZ 0:0 ─────────────────────────────────────────────────
-function renderHz(z){
-  let h = `<h2>Bilanz</h2><p class="hinweis">Spiele, die zur Halbzeit 0:0 stehen, nach den Regeln des HZ-Finders. Untergrenze = 95 %-Grenze des ROI.</p>`;
-  h += (z.bericht||[]).length ? `<div class="tabwrap"><table><thead><tr><th>Wette</th><th class="n">n</th><th class="n">Treffer</th><th class="n">erwartet</th><th class="n">ROI</th><th class="n">Untergrenze</th></tr></thead><tbody>${
-    z.bericht.map(b=>`<tr><td>${esc(b.wette)}</td><td class="n">${b.n??"–"}</td><td class="n">${pct(b.treffer)}</td><td class="n">${pct(b.erwartet)}</td><td class="n" style="color:${b.roi>0?"var(--geld)":"var(--rot)"}">${b.roi==null?"–":(b.roi>0?"+":"")+String(b.roi).replace(".",",")+" %"}</td><td class="n">${b.ug==null?"–":String(b.ug).replace(".",",")+" %"}</td></tr>`).join("")
-  }</tbody></table></div>` : leer("Noch keine Bilanz.");
-  h += `<h2>Heute erkannt</h2>`;
-  h += (z.heute||[]).length ? `<div class="liste">${z.heute.map(e=>`
-    <div class="karte"><div class="zeile"><span class="spiel">${esc(e.spiel)}</span><span class="rechts meta">${fmtUhr(e.zeit)}</span></div>
-      <div class="meta">${esc(e.liga)}${e.land?" · "+esc(e.land):""} · ${(e.gruppen||[]).map(g=>`<span class="chip">${esc(g)}</span>`).join(" ")}</div>
-      <div class="mini">${Object.entries(e.quoten||{}).map(([k,v])=>`${esc(k)} <b>${quote(v)}</b>`).join(" · ")}</div></div>`).join("")}</div>` : leer("Heute noch keine HZ-0:0-Spiele.");
+function seiteHz(D){
+  const z = D.hz;
+  const namen = {over05:"Tor in der 2. HZ", over15:"2+ Tore", heim:"Heimsieg", over25:"Over 2,5"};
+  let h = `<h2>Zur Pause 0:0, letzte 24 Stunden</h2><p class="unter">Spiele, in denen vorher mehr Tore oder ein klarer Favorit erwartet war.</p>`;
+  h += (z.heute||[]).length ? `<ul class="zeilen">${z.heute.map(e=>zeile(esc(e.spiel), `${esc(e.liga)}, erkannt ${uhr(e.zeit)}`,
+      `<p>Quoten zur Pause: ${Object.entries(e.quoten||{}).map(([k,v])=>`${esc(namen[k]||k)} <b>${quote(v)}</b>`).join(", ")}</p>`, "", true)).join("")}</ul>` : leer("Noch kein Spiel zur Pause 0:0.");
+  if((z.bericht||[]).length){
+    h += `<div class="bilanz"><p><b>Bisherige Bilanz</b></p>${z.bericht.map(b=>`<p>${esc(b.wette)}: ${b.n} Spiele, getroffen ${dez(b.treffer)} %, die Quote erwartete ${dez(b.erwartet)} %. Rendite <b>${b.roi>0?"+":""}${dez(b.roi)} %</b>, ${b.ug!=null&&b.ug>0?"<b>belegt</b>":"noch nicht belegt"}.</p>`).join("")}</div>`;
+  }
   return h;
 }
 
 function frische(q){
-  const namen = {betfair:"Betfair",pinnacle:"Pinnacle",polymarket:"Polymarket",stake:"Stake",hz:"HZ"};
-  $("#frisch").innerHTML = Object.entries(namen).map(([k,n])=>{
-    const t=q[k]; const m=t?(Date.now()-new Date(t))/60000:1e9;
-    const cls = m<=35 ? "geld" : m<=120 ? "warn" : "rot";
-    return `<span class="chip ${cls}" title="${esc(t||"")}">${n} ${vor(t)}</span>`;
+  const namen = {betfair:"Betfair",pinnacle:"Pinnacle",polymarket:"Polymarket",stake:"Stake",hz:"HZ-Finder"};
+  let schlechteste = 0;
+  $("#quellen").innerHTML = Object.entries(namen).map(([k,n])=>{
+    const m = q[k] ? (Date.now()-new Date(q[k]))/60000 : 1e9;
+    const st = m<=35?0:m<=120?1:2; schlechteste = Math.max(schlechteste, st);
+    return `<span><i style="background:${["#5fd38d","var(--gold)","var(--koralle)"][st]}"></i>${n} ${vor(q[k])}</span>`;
   }).join("");
+  $("#ampel").className = "ampel " + ["gut","alt","weg"][schlechteste];
 }
 
-let DATEN = null;
 async function laden(){
   try{
     const r = await fetch("data.json?t="+Date.now(), {cache:"no-store"});
-    DATEN = await r.json();
-    $("#stand").textContent = "Stand "+fmtUhr(DATEN.generatedAt);
-    frische(DATEN.quellen||{});
-    $("#betfair").innerHTML = renderBetfair(DATEN.betfair);
-    $("#poly").innerHTML = renderPoly(DATEN.poly);
-    $("#sharp").innerHTML = renderSharp(DATEN.sharp);
-    $("#stake").innerHTML = renderStake(DATEN.stake);
-    $("#hz").innerHTML = renderHz(DATEN.hz);
-    $("#z-betfair").textContent = DATEN.betfair.zufluss.length||"";
-    $("#z-sharp").textContent = DATEN.sharp.length||"";
-    $("#z-stake").textContent = DATEN.stake.heute.length||"";
-    $("#z-hz").textContent = (DATEN.hz.heute||[]).length||"";
-    $("#z-poly").textContent = DATEN.poly.maerkte.filter(m=>(m.wale||[]).some(w=>w.bewiesen)).length||"";
+    const D = await r.json();
+    $("#standtext").textContent = "Stand " + uhr(D.generatedAt);
+    frische(D.quellen||{});
+    $("#jetzt").innerHTML = seiteJetzt(D);
+    $("#betfair").innerHTML = seiteBetfair(D);
+    $("#poly").innerHTML = seitePoly(D);
+    $("#stake").innerHTML = seiteStake(D);
+    $("#hz").innerHTML = seiteHz(D);
+    const zahl = (id, n) => { const e=$(id); e.hidden=!n; e.textContent=n; };
+    zahl("#n-betfair", D.betfair.zufluss.length + D.sharp.filter(s=>s.laeuftNoch||s.frisch).length);
+    zahl("#n-poly", D.poly.maerkte.filter(m=>(m.wale||[]).some(w=>w.bewiesen)).length);
+    zahl("#n-stake", D.stake.heute.filter(x=>stunden(x.zeit)<3).length);
+    zahl("#n-hz", (D.hz.heute||[]).filter(x=>stunden(x.zeit)<3).length);
   }catch(e){
-    $("#stand").textContent = "Daten nicht ladbar";
+    console.error(e);
+    $("#standtext").textContent = "Daten nicht erreichbar";
+    $("#ampel").className = "ampel weg";
   }
 }
-document.getElementById("nav").addEventListener("click", e=>{
-  const b = e.target.closest("button"); if(!b) return;
-  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("an", x===b));
-  document.querySelectorAll("section").forEach(s=>s.classList.toggle("an", s.id===b.dataset.t));
-  try{ localStorage.setItem("radar-tab", b.dataset.t); }catch(_){}
-  window.scrollTo({top:0});
+document.addEventListener("click", e=>{
+  const nav = e.target.closest("nav.unten button");
+  if(nav){
+    document.querySelectorAll("nav.unten button").forEach(b=>b.classList.toggle("an", b===nav));
+    document.querySelectorAll(".seite").forEach(s=>s.classList.toggle("an", s.id===nav.dataset.t));
+    try{ localStorage.setItem("radar-seite", nav.dataset.t); }catch(_){}
+    window.scrollTo({top:0});
+    return;
+  }
+  if(e.target.closest(".details a, .wer a")) return;
+  const z = e.target.closest(".zeile>button");
+  if(z){ const li=z.parentElement; const offen=li.classList.toggle("offen"); z.setAttribute("aria-expanded", offen); return; }
+  const mehr = e.target.closest(".mehr");
+  if(mehr){ const t=document.getElementById(mehr.dataset.mehr); if(t){ t.hidden=false; mehr.remove(); } return; }
+  if(e.target.closest("#stand")){ const q=$("#quellen"); const o=q.classList.toggle("offen"); $("#stand").setAttribute("aria-expanded", o); }
 });
-try{ const t=localStorage.getItem("radar-tab"); if(t) document.querySelector(`nav button[data-t="${t}"]`)?.click(); }catch(_){}
+try{ const t=localStorage.getItem("radar-seite"); if(t) document.querySelector(`nav.unten button[data-t="${t}"]`)?.click(); }catch(_){}
 laden();
 setInterval(laden, 5*60*1000);
 document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) laden(); });
