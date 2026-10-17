@@ -1153,6 +1153,152 @@ def stake_serien(hr):
     return sorted(best.values(), key=lambda x: (-x["n"], -x["usd"]))[:12]
 
 
+# ── Wo am meisten liegt: alle Quellen je Spiel (Lucas 17.10.: „Übersicht anders als die Betfair-Seite") ──
+# Dasselbe Spiel heißt überall anders („Real Betis – Barcelona", „Real Betis Balompié vs. FC Barcelona",
+# „Real Betis - Barcelona"). Zuordnung über bereinigte Teamnamen + Anpfiff (±3 h). Im Zweifel NICHT
+# zusammenlegen — dann steht das Spiel nur mit den sicher zugeordneten Quellen da.
+USD_EUR = 0.86          # grobe Umrechnung nur fürs Sortieren und die ≈-Summe; jede Quelle zeigt ihre eigene Währung
+_FUELL = {"fc", "cf", "sc", "ac", "as", "afc", "club", "de", "del", "la", "the", "calcio", "sv", "cd", "ud", "sd", "rc",
+          "fk", "sk", "if", "bk", "kv", "ssc", "us", "vs", "balompie", "1", "cfc", "saudi", "football"}
+
+
+def _tokens(name):
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(name or "")).encode("ascii", "ignore").decode().lower()
+    t = re.sub(r"\(.*?\)", " ", t)
+    return {w for w in re.split(r"[^a-z0-9]+", t) if len(w) >= 3 and w not in _FUELL}
+
+
+def _gleich(a, b):
+    ta, tb = _tokens(a), _tokens(b)
+    return bool(ta and tb and (ta & tb))
+
+
+def _teams(titel):
+    for sep in (" vs. ", " vs ", " - ", " – ", " v "):
+        if sep in str(titel or ""):
+            h, g = str(titel).split(sep, 1)
+            return h.strip(), g.strip()
+    return None, None
+
+
+def _seite(name, heim, gast):
+    n = str(name or "")
+    if re.match(r"^(the draw|draw|x|remis|unentschieden)\b", n, re.I):
+        return "remis"
+    if _gleich(n, heim) and not _gleich(n, gast):
+        return "heim"
+    if _gleich(n, gast) and not _gleich(n, heim):
+        return "gast"
+    return None
+
+
+def geld_toepfe(radar, poly_m, hr):
+    spiele = []
+    # 1) Betfair als Grundgerüst (hat Land, Liga-Namen, Live-Stand)
+    for sp in (radar or {}).get("spiele") or []:
+        if sp.get("entschieden"):
+            continue
+        seiten = {}
+        for v in sp.get("verteilung") or []:
+            k = _seite(v["name"], sp["heim"], sp["gast"])
+            if k:
+                seiten[k] = seiten.get(k, 0) + (v.get("eur") or 0)
+        spiele.append({"id": sp["id"], "heim": sp["heim"], "gast": sp["gast"], "liga": sp["liga"], "land": sp.get("land"),
+                       "anpfiff": sp["anpfiff"], "live": sp.get("live"), "top5": bool(sp.get("top5")), "sport": "Fußball",
+                       "q": {"betfair": {"betrag": sp["eur"], "seiten": seiten, "quoten": sp.get("quoten")}}})
+
+    def finden(heim, gast, anpfiff):
+        t = ts(anpfiff)
+        for g in spiele:
+            tg = ts(g["anpfiff"])
+            if t and tg and abs((t - tg).total_seconds()) > 3 * 3600:
+                continue
+            if (_gleich(heim, g["heim"]) and _gleich(gast, g["gast"])) or (_gleich(heim, g["gast"]) and _gleich(gast, g["heim"])):
+                return g
+        return None
+
+    # 2) Polymarket (Volumen gesamt; Seiten aus dem Geld in offenen Positionen)
+    for m in poly_m or []:
+        h, gst = _teams(m.get("spiel"))
+        if not h:
+            continue
+        g = finden(h, gst, m.get("anpfiff"))
+        if not g:
+            g = {"id": "pm:" + str(m.get("key")), "heim": h, "gast": gst, "liga": m.get("liga"), "land": None,
+                 "anpfiff": m.get("anpfiff"), "live": None, "top5": str(m.get("key") or "").split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1"},
+                 "sport": m.get("sport") or "Fußball", "q": {}}
+            spiele.append(g)
+        seiten = {}
+        for n, v in (m.get("geld") or {}).items():
+            k = _seite(n, g["heim"], g["gast"])
+            if k:
+                seiten[k] = seiten.get(k, 0) + v
+        g["q"]["poly"] = {"betrag": m.get("usd"), "seiten": seiten, "key": m.get("key"),
+                          "preise": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("preise") or {}).items()}}
+
+    # 3) Stake: große Einzelwetten der letzten Stunden (Highroller ab $1000)
+    je_event = {}
+    for w in (hr or {}).get("wetten") or []:
+        if not isinstance(w, dict) or w.get("kombi") or not stake_ok(w):
+            continue
+        t = ts(w.get("ts"))
+        if not t or JETZT - t > timedelta(hours=12):
+            continue
+        e = je_event.setdefault(w.get("eventId"), {"w": w, "summe": 0.0, "n": 0, "seiten": {}})
+        e["summe"] += w.get("einsatzUsd") or 0
+        e["n"] += 1
+        if str(w.get("markt") or "").lower() in ("1x2", "match result", "winner", "match winner", "moneyline", "winner - twoway"):
+            e["seiten"].setdefault(w.get("auswahl"), 0.0)
+            e["seiten"][w.get("auswahl")] += w.get("einsatzUsd") or 0
+    for e in je_event.values():
+        w = e["w"]
+        h, gst = _teams(w.get("event"))
+        if not h:
+            continue
+        g = finden(h, gst, w.get("anpfiff"))
+        if not g:
+            g = {"id": "st:" + str(w.get("eventId")), "heim": h, "gast": gst, "liga": w.get("liga"), "land": None,
+                 "anpfiff": w.get("anpfiff"), "live": None, "top5": str(w.get("ligaSlug") or "") in {"premier-league", "la-liga", "bundesliga", "serie-a", "ligue-1"},
+                 "sport": w.get("kat") or "Fußball", "q": {}}
+            spiele.append(g)
+        seiten = {}
+        for n, v in e["seiten"].items():
+            k = _seite(n, g["heim"], g["gast"])
+            if k:
+                seiten[k] = seiten.get(k, 0) + v
+        g["q"]["stake"] = {"betrag": round(e["summe"]), "seiten": seiten, "wetten": e["n"]}
+
+    out = []
+    for g in spiele:
+        k = ts(g["anpfiff"])
+        if not k or not (-2.2 <= (k - JETZT).total_seconds() / 3600 <= 30):
+            continue
+        ges, seiten_ges, meinungen = 0.0, {}, {}
+        for qn, q in g["q"].items():
+            f = 1.0 if qn == "betfair" else USD_EUR
+            ges += (q.get("betrag") or 0) * f
+            summe = sum(q["seiten"].values())
+            for sk, v in q["seiten"].items():
+                seiten_ges[sk] = seiten_ges.get(sk, 0) + v * f
+            if summe > 0:
+                top, tv = max(q["seiten"].items(), key=lambda kv: kv[1])
+                q["auf"], q["anteil"] = top, round(100 * tv / summe)
+                q["seitenBetrag"] = round(tv)
+                if tv / summe >= 0.55 and tv * f >= 5000:      # eine $1000-Wette ist keine Meinung der Quelle
+                    meinungen[qn] = top
+                    q["meinung"] = True
+        if ges < 1000:
+            continue
+        einig = None
+        if len(meinungen) >= 2:
+            einig = len(set(meinungen.values())) == 1
+        out.append({**g, "gesamt": round(ges), "seiten": {k: round(v) for k, v in seiten_ges.items()},
+                    "einig": einig, "meinungen": meinungen})
+    out.sort(key=lambda x: -x["gesamt"])
+    return out[:40]
+
+
 def push_bilanz():
     """Auswertung der neuen Pushes (bilanz.py schreibt sie nach jedem Push-Lauf in den Cache)."""
     try:
@@ -1244,7 +1390,8 @@ def main() -> int:
         "pushBilanz": push_bilanz(),
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
-        "poly": poly(track, upcoming, wale, offen_m, tr_led, tr_rec),
+        "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
+        "toepfe": geld_toepfe(radar, pmd.get("maerkte"), hr),
         "stake": stake(burst),
         "hz": hz(finder),
         "fehler": FEHLER,
