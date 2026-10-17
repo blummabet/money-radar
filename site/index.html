@@ -441,7 +441,7 @@ function spielDetail(s){
   fl.sort((x,y)=>y.neu-x.neu);
   const maxF = Math.max(1, ...fl.map(f=>f.neu));
   const flussBlock = fl.length ? fl.slice(0,6).map(f=>`<div class="dz"><div class="dz-l"><b>${esc(auswahlDe(f.name))}</b> <small>${esc(marktDe(f.markt))}${f.quote?` @ ${q2(f.quote)}`:""}</small></div>
-      <div class="dz-bar"><i style="width:${(f.neu/maxF*100).toFixed(1)}%"></i></div><div class="dz-r">+${eur(f.neu)}${f.anteil!=null?`<small>${f.anteil} % des Marktes</small>`:""}</div></div>`).join("")
+      <div class="dz-bar"><i style="width:${(f.neu/maxF*100).toFixed(1)}%"></i></div><div class="dz-r">+${eur(f.neu)}${f.anteil!=null?`<small>${f.anteil} % des neuen Geldes</small>`:""}</div></div>`).join("")
     : `<div class="kk-klein">In den letzten ${fm} Minuten kam kein neues Geld dazu, oder die Historie reicht noch nicht.</div>`;
   // 2) jeder Markt als Kreis (Lucas 17.10.: „spart Höhe") — Kacheln, zwei nebeneinander
   const donut = (teile, mitte) => {
@@ -456,7 +456,7 @@ function spielDetail(s){
       <div class="mk-l">${m.auswahl.slice(0,4).map((a,i)=>`<div><i style="background:${PAL[i%PAL.length]}"></i><span>${esc(auswahlDe(a.name))}${a.quote?` <small>${q2(a.quote)}</small>`:""}</span><b>${Math.round(a.eur/ges*100)}%</b>${a.neu>0?`<em>+${eur(a.neu)}</em>`:""}</div>`).join("")}</div></div></div>`;
   }).join("")}</div>`;
   return `<tr class="detail"><td colspan="6"><div class="det">
-    <div class="d-kopf">${flagge(s.land)} ${esc(s.liga)} · ${s.live?`<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}`:wann(s.anpfiff)} · ${eur(s.eur)} gematcht${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}</div>
+    <div class="d-kopf">${flagge(s.land)} ${esc(s.liga)} · ${s.live?`<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}`:wann(s.anpfiff)} · ${eur(s.eur)} gematcht über alle Märkte${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}</div>
     <div><h4>Wohin das neue Geld floss, letzte ${fm} Min</h4>${flussBlock}</div>
     <div><h4>Märkte</h4>${marktBlock||"–"}</div>
     <div><h4>Geld im Spiel, letzte 10 Stunden</h4>${spark(s.kurve,"var(--bf)",320,48)}</div>
