@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sys
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -519,6 +520,18 @@ def _phase(jetzt, kick):
     return "p1" if -d <= 3 * 3600 else "p0"
 
 
+TOP5_RX = re.compile(r"^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1)$", re.I)
+
+
+def markt_zufluss(snaps):
+    mk = [s.get("mkv") for s in snaps if isinstance(s, dict) and isinstance(s.get("mkv"), dict)]
+    if len(mk) < 2:
+        return None
+    a, b = mk[-2], mk[-1]
+    d = sorted(((k, (b.get(k) or 0) - (a.get(k) or 0)) for k in b), key=lambda x: -x[1])
+    return [{"name": k, "eur": round(v)} for k, v in d[:3] if v > 0] or None
+
+
 def betfair_radar(prices, bf_hist, norm, norm_state=None):
     """Jedes Spiel im Betfair-Abruf (auch Slowakei 2, Finnland, China …), gemessen an seiner Liga.
 
@@ -563,7 +576,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
         rang = {"weniger": sum(1 for x in pr if x < vol), "n": len(pr),
                 "max": pr[-1] if pr else None} if len(pr) >= 5 else None
         snaps = [s for s in (bf_hist or {}).get(str(m.get("matchId"))) or [] if isinstance(s, dict)]
-        kurve, vor60, vor30, mo30, t30 = [], None, None, None, None
+        kurve, vor60, vor30, mo30, t30, vor15, t15 = [], None, None, None, None, None, None
         for s in snaps:
             t, v = ts(s.get("ts")), s.get("totalVol")
             if not t or not isinstance(v, (int, float)):
@@ -574,6 +587,8 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                 vor60 = v
             if t <= JETZT - timedelta(minutes=30):
                 vor30, mo30, t30 = v, s.get("mo") or {}, t
+            if t <= JETZT - timedelta(minutes=15):
+                vor15, t15 = v, t
         if len(kurve) > 18:
             schritt = len(kurve) / 18
             kurve = [kurve[int(i * schritt)] for i in range(18)] + [kurve[-1]]
@@ -603,6 +618,10 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             "d60": round(vol - vor60) if vor60 is not None else None,
             # nur wenn der Vergleichspunkt nicht uralt ist (sonst wäre es kein 30-Min-Zufluss)
             "d30": round(vol - vor30) if vor30 is not None and t30 and t30 >= JETZT - timedelta(minutes=50) else None,
+            "d15": round(vol - vor15) if vor15 is not None and t15 and t15 >= JETZT - timedelta(minutes=30) else None,
+            # In welchen Markt floss das Geld zuletzt? (die Historie führt das Markt-Volumen der letzten 2 Abrufe)
+            "marktZufluss": markt_zufluss(snaps),
+            "top5": bool(TOP5_RX.search(str(m.get("league") or ""))),
             "quoten30": ({"heim": mo30.get("hw"), "remis": mo30.get("dr"), "gast": mo30.get("aw")} if mo30 else None),
             "kurve": kurve,
             "quoten": {"heim": mo.get("hw"), "remis": mo.get("dr"), "gast": mo.get("aw")},
@@ -700,14 +719,28 @@ def zufluss_liste(radar, consensus):
         pin = None
         if k.get("pinn") and idx:
             pin = {"fav": k["pinn"].get("fav"), "einig": {"heim": "home", "remis": "draw", "gast": "away"}[idx] == k["pinn"].get("fav")}
-        out.append({"id": sp["id"], "heim": sp["heim"], "gast": sp["gast"], "liga": sp["liga"], "land": sp.get("land"),
+        out.append({"id": sp["id"], "heim": sp["heim"], "gast": sp["gast"], "liga": sp["liga"], "land": sp.get("land"), "top5": sp.get("top5"),
                     "anpfiff": sp["anpfiff"], "live": sp.get("live"), "markt": "alle Märkte", "zuflussEur": d,
                     "marktEur": sp["eur"], "xnorm": sp.get("xnorm"), "meistesGeldAuf": seite, "quote": quote,
                     "quoteVorher": vor, "quoteRichtung": richtung, "duenn": sp["eur"] < 3000,
                     "verteilung": [{"name": v["name"], "quote": v.get("quote"), "eur": v["eur"]} for v in vt] or None,
                     "pinnacle": pin})
     out.sort(key=lambda x: -x["zuflussEur"])
-    return out[:10]
+    return out[:20]
+
+
+def live_zufluss(radar):
+    """Lucas 17.10.: „vor allem in den restlichen Ligen, wenn da inplay viel kommt". Live-Spiele,
+    in die in den letzten 15 Min Geld floss — ohne entschiedene (ab 70' / Quote unter 1,10)."""
+    out = []
+    for sp in radar.get("spiele") or []:
+        d = sp.get("d15")
+        if not sp.get("live") or sp.get("entschieden") or not d or d < 1500:
+            continue
+        out.append({k: sp.get(k) for k in ("id", "heim", "gast", "liga", "land", "anpfiff", "live", "eur", "xnorm",
+                                            "quoten", "verteilung", "marktZufluss", "top5", "rang")} | {"zuflussEur": d})
+    out.sort(key=lambda x: -x["zuflussEur"])
+    return out[:20]
 
 
 def betfair_pushes(ledger, record):
@@ -761,6 +794,7 @@ def main() -> int:
         "betfair": betfair(prices, overview, consensus),
         "radar": (radar := betfair_radar(prices, bf_hist, bf_norm, bf_norm_state)),
         "zufluss30": zufluss_liste(radar, consensus),
+        "liveZufluss": live_zufluss(radar),
         "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"],
         "bfPushes": betfair_pushes(bf_led, bf_rec),
         "halbzeit": halbzeit(prices),

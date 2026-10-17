@@ -49,7 +49,7 @@ main{padding:22px 28px 60px;min-width:0}
 
 .seite{display:none}.seite.an{display:block}
 
-.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;align-items:start}
 .c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0}
 .panel h3{margin:0;font-size:15px;font-weight:700;white-space:nowrap}
@@ -149,6 +149,12 @@ main{padding:22px 28px 60px;min-width:0}
 .mehr:hover{color:var(--text)}
 .hinweis{font-size:12.5px;color:var(--text-3);margin-top:12px}
 
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{background:none;border:0;border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:700;color:var(--text-2);white-space:nowrap}
+.seg button.an{background:var(--text);color:var(--bg)}
+#ligaschalter{margin-left:auto}
+#ligaschalter + .rechts{margin-left:10px}
+.live-k{border-left:3px solid var(--down)}
 .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .kk{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0;transition:border-color .15s}
 .kk:hover{border-color:rgba(255,255,255,.18)}
@@ -243,6 +249,10 @@ main{padding:22px 28px 60px;min-width:0}
   .kopf .rechts{padding:5px 10px;font-size:12px}
   .kopf h1{font-size:19px}
   .kopf .sub{display:none}
+  .kopf{flex-wrap:wrap}
+  #ligaschalter{order:3;margin-left:0;width:100%}
+  .seg{width:100%;justify-content:space-between}
+  .seg button{flex:1;padding:6px 4px}
 }
 @media (max-width:420px){ .vbar{min-width:70px} .ringe{grid-template-columns:1fr 1fr 1fr;gap:4px} }
 </style>
@@ -255,7 +265,7 @@ main{padding:22px 28px 60px;min-width:0}
   <div class="aside-fuss"><div style="margin-bottom:6px">Datenstand</div><div id="quellen"></div></div>
 </aside>
 <main>
-  <div class="kopf"><div><h1 id="titel">Übersicht</h1><div class="sub" id="untertitel"></div></div><div class="rechts"><span class="puls" id="puls"></span><span id="stand">lädt</span></div></div>
+  <div class="kopf"><div><h1 id="titel">Übersicht</h1><div class="sub" id="untertitel"></div></div><div id="ligaschalter"></div><div class="rechts"><span class="puls" id="puls"></span><span id="stand">lädt</span></div></div>
   <section class="seite an" id="s-start"></section>
   <section class="seite" id="s-betfair"></section>
   <section class="seite" id="s-pinnacle"></section>
@@ -553,6 +563,17 @@ function setzenKarten(liste){
       <div class="unten"><span>Einstieg <b style="color:var(--text)">${o.preis!=null?Math.round(o.preis*100)+" ¢":"–"}</b>${o.jetzt!=null?`, jetzt <b style="color:var(--text)">${Math.round(o.jetzt*100)} ¢</b>${diff?` <span style="color:${diff>0?"var(--up)":"var(--down)"}">${diff>0?"+":""}${diff}</span>`:""}`:""}</span></div>
       <div class="unten"><a href="https://polymarket.com/profile/${encodeURIComponent(o.wallet)}" target="_blank" rel="noopener">Wallet ${esc(String(o.wallet).slice(2,6))}</a><span style="color:var(--poly);font-weight:700">+${dez(o.clv)} pp auf Schlusskurs</span></div></div>`;}).join("")}</div>`;
 }
+// ── Liga-Filter (Lucas 17.10.: Top-5 sollen raus, aber per Knopf noch da sein) ──
+const TOP5_RE = /^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|epl|bundesliga|la-liga|sea|ligue-1)$/i;
+const istTop5 = liga => TOP5_RE.test(String(liga||"").trim());
+let ligaModus = "ohne";
+try{ ligaModus = localStorage.getItem("radar-liga") || "ohne"; }catch(_){}
+const ligaOk = liga => ligaModus==="alle" || (ligaModus==="ohne" ? !istTop5(liga) : istTop5(liga));
+const lf = (arr, f=x=>x.liga) => (arr||[]).filter(x=>ligaOk(f(x)));
+function ligaSchalter(){
+  return `<div class="seg" role="group" aria-label="Ligen">${[["ohne","Ohne Top-5"],["alle","Alle Ligen"],["nur","Nur Top-5"]].map(([k,n])=>`<button class="${k===ligaModus?"an":""}" data-liga="${k}">${n}</button>`).join("")}</div>`;
+}
+
 // ══ v3 (17.10. Lucas: „kilometerlange Zeilen, wirkt wie Excel") ═════════════════
 // Grundsatz: Karten und Diagramme vorne, Tabellen nur noch eingeklappt hinter „als Liste".
 // Details öffnen sich in einer Seitenleiste (Handy: von unten), nicht mehr als Tabellenzeile.
@@ -572,8 +593,8 @@ const live = s => s.live ? `<span class="live">${s.live.ht?"HZ":s.live.min!=null
 const spielInfo = s => D.radar.spiele.find(x=>x.id===s.id);
 
 function zuflussKarten(D, max){
-  const z = (D.zufluss30 && D.zufluss30.length ? D.zufluss30 : D.betfair.zufluss).slice(0, max);
-  if(!z.length) return `<div class="leer">In den letzten 30 Minuten kam vor Anpfiff kein nennenswertes Geld dazu.</div>`;
+  const z = lf(D.zufluss30 && D.zufluss30.length ? D.zufluss30 : D.betfair.zufluss).slice(0, max);
+  if(!z.length) return `<div class="leer">In den letzten 30 Minuten kam vor Anpfiff kein nennenswertes Geld dazu${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
   return `<div class="kgrid">${z.map(x=>{
     const vt = x.verteilung ? x.verteilung.map(v=>({name:v.name,wert:v.eur,quote:v.quote})) : null;
     const pf = x.quoteRichtung==="faellt" ? `<span class="hoch">↓ von ${q2(x.quoteVorher)}</span>` : x.quoteRichtung==="steigt" ? `<span class="runter">↑ von ${q2(x.quoteVorher)}</span>` : "";
@@ -586,6 +607,23 @@ function zuflussKarten(D, max){
       <div class="kk-auf">auf <b>${esc(nm(x.meistesGeldAuf))}</b> @ <b>${q2(x.quote)}</b> ${pf}</div>
       ${vt?vbar(vt):""}
       ${x.pinnacle?`<div class="kk-fuss">${x.pinnacle.einig?`<span class="tag t-won">Pinnacle einig</span>`:`<span class="tag t-lost">Pinnacle anders</span>`}</div>`:""}
+    </div>`;}).join("")}</div>`;
+}
+function liveKarten(D, max){
+  const z = lf(D.liveZufluss||[]).slice(0, max);
+  if(!z.length) return `<div class="leer">Gerade fließt live kein nennenswertes Geld${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
+  const MN = {"Match Odds":"Sieg-Markt","Over/Under 2.5 Goals":"Über/Unter 2,5","Over/Under 3.5 Goals":"Über/Unter 3,5","Both teams to Score?":"Beide treffen","Half Time":"HZ-Sieger","First Half Goals 0.5":"HZ-Tore 0,5","First Half Goals 1.5":"HZ-Tore 1,5"};
+  return `<div class="kgrid">${z.map(x=>{
+    const vt = x.verteilung ? x.verteilung.map(v=>({name:v.name,wert:v.eur,quote:v.quote})) : null;
+    const mz = (x.marktZufluss||[])[0];
+    const sp = spielInfo(x);
+    return `<div class="kk live-k" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
+      <div class="kk-oben">${flagge(x.land)}<span>${esc(x.liga)}</span><span class="rechts">${live(x)}</span></div>
+      <div class="kk-titel">${esc(x.heim)} – ${esc(x.gast)}</div>
+      <div class="kk-zahl gruen">+${eur(x.zuflussEur)}</div>
+      <div class="kk-klein">in 15 Min, ${eur(x.eur)} gematcht${x.xnorm!=null?`, ×${dez(x.xnorm)} der Liga`:""}</div>
+      ${mz?`<div class="kk-auf">zuletzt vor allem in <b>${esc(MN[mz.name]||mz.name)}</b> (+${eur(mz.eur)})</div>`:""}
+      ${vt?vbar(vt):""}
     </div>`;}).join("")}</div>`;
 }
 function normChart(liste){
@@ -668,37 +706,40 @@ function bilanzRinge(D){
 }
 
 function seiteStart(D){
-  const r = D.radar, top = r.spiele.filter(s=>s.xnorm!=null&&!s.entschieden).slice(0,8);
-  const pm = D.poly.maerkte.slice().sort((a,b)=>(b.nBelegt-a.nBelegt)||(b.usd-a.usd)).slice(0,6);
+  const r = D.radar, top = lf(r.spiele).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,8);
+  const pm = lf(D.poly.maerkte).slice().sort((a,b)=>(b.nBelegt-a.nBelegt)||(b.usd-a.usd)).slice(0,6);
   return `<div class="grid">
     <div class="panel c8"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">neues Geld vor Anpfiff, letzte 30 Min</span><button class="chip rechts" data-geh="betfair">Alle</button></div>${zuflussKarten(D,4)}</div>
     <div class="panel c4 feedpanel" style="grid-row:span 2"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span></div><div class="feed">${feedListe(D,12)}</div></div>
+    <div class="panel c8"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">letzte 15 Min, ohne entschiedene Spiele</span></div>${liveKarten(D,4)}</div>
     <div class="panel c8"><div class="ph"><h3>Ungewöhnlich viel Geld</h3><span class="hint">Geld im Verhältnis zur eigenen Liga</span><button class="chip rechts" data-geh="betfair">Alle ${r.spiele.length}</button></div>${normChart(top)}</div>
     <div class="panel c12"><div class="ph"><h3>Polymarket</h3><span class="hint">belegte Wale zuerst</span><button class="chip rechts" data-geh="poly">Alle Märkte</button></div>${polyKarten(pm)}</div>
-    <div class="panel c8"><div class="ph"><h3>Pinnacle bewegt sich</h3><span class="hint">faire Quote vorher und jetzt</span><button class="chip rechts" data-geh="pinnacle">Alle</button></div>${pinKarten(D.sharp.slice(0,6))}</div>
+    <div class="panel c8"><div class="ph"><h3>Pinnacle bewegt sich</h3><span class="hint">faire Quote vorher und jetzt</span><button class="chip rechts" data-geh="pinnacle">Alle</button></div>${pinKarten(lf(D.sharp).slice(0,6))}</div>
     <div class="panel c4"><div class="ph"><h3>Bilanz der Signale</h3></div>${bilanzRinge(D)}<div class="hinweis">Mitte: Rendite pro Tipp. Ring: Trefferquote. Tippen auf „Pushes“ unten zeigt die einzelnen Ergebnisse.</div></div>
     <div class="panel c12" id="pushpanel">${pushPanel(D)}</div>
   </div>`;
 }
 function seiteBetfair(D){
-  const alle = D.radar.spiele, liste_ = BF_SETS[filterBf][1](alle);
-  const norm = alle.filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
+  const alle = lf(D.radar.spiele), liste_ = BF_SETS[filterBf][1](alle);
+  const norm = lf(alle).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
+  const hzl = lf(D.halbzeit||[]);
   return `<div class="grid">
     <div class="panel c12"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">neues Geld vor Anpfiff, letzte 30 Min, alle Ligen</span></div>${zuflussKarten(D,8)}</div>
+    <div class="panel c12"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">letzte 15 Min, ohne entschiedene Spiele (ab 70' oder Quote unter 1,10)</span></div>${liveKarten(D,8)}</div>
     <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">×2 = doppelt so viel Geld wie in dieser Liga üblich</span></div>${normChart(norm)}</div>
-    <div class="panel c5"><div class="ph"><h3>Halbzeit-Geld</h3><span class="hint">Geld auf die 1. Halbzeit</span></div>${hzKarten((D.halbzeit||[]).slice(0,4))}${(D.halbzeit||[]).length>4?liste("Alle Halbzeit-Spiele als Liste",(D.halbzeit||[]).length,hzTabelle(D.halbzeit,"hz-bf")):""}</div>
+    <div class="panel c5"><div class="ph"><h3>Halbzeit-Geld</h3><span class="hint">Geld auf die 1. Halbzeit</span></div>${hzKarten(hzl.slice(0,4))}${hzl.length>4?liste("Alle Halbzeit-Spiele als Liste",hzl.length,hzTabelle(hzl,"hz-bf")):""}</div>
     <div class="panel c12">${liste(`Alle ${alle.length} Spiele aus ${D.radar.ligen} Ligen als Liste`, "", `<div class="chips" style="margin:12px 0">${Object.entries(BF_SETS).map(([k,[n,fn]])=>`<button class="chip${k===filterBf?" an":""}" data-filter="${k}">${n} <span style="opacity:.6">${fn(alle).length}</span></button>`).join("")}</div>${spielTabelle(liste_,"t-bf",25)}`)}</div>
   </div>`;
 }
 function seitePinnacle(D){
   return `<div class="grid">
-    <div class="panel c12"><div class="ph"><h3>Deutliche Bewegungen</h3><span class="hint">faire Quote ohne Marge, vom ersten Abruf bis jetzt, mit Geld auf Betfair (BF) und Polymarket (PM)</span></div>${pinKarten(D.sharp)}</div>
-    <div class="panel c12">${liste(`Alle ${D.pinnAlle.length} Spiele mit Pinnacle-Quote als Liste`, "", pinTabelle(D.pinnAlle,"pin-alle"))}</div>
+    <div class="panel c12"><div class="ph"><h3>Deutliche Bewegungen</h3><span class="hint">faire Quote ohne Marge, vom ersten Abruf bis jetzt, mit Geld auf Betfair (BF) und Polymarket (PM)</span></div>${pinKarten(lf(D.sharp))}</div>
+    <div class="panel c12">${liste(`Alle ${lf(D.pinnAlle).length} Spiele mit Pinnacle-Quote als Liste`, "", pinTabelle(lf(D.pinnAlle),"pin-alle"))}</div>
   </div>`;
 }
 function seitePoly(D){
   const p = D.poly, sports = ["alle","Fußball","E-Sport","Tennis"];
-  const sortiert = p.maerkte.slice().sort((a,b)=>(b.nBelegt-a.nBelegt)||(b.usd-a.usd));
+  const sortiert = lf(p.maerkte).sort((a,b)=>(b.nBelegt-a.nBelegt)||(b.usd-a.usd));
   const auswahl = filterSport==="alle" ? sortiert : sortiert.filter(m=>(m.sport||"Fußball")===filterSport);
   const tb = p.tradesBilanz || {};
   return `<div class="grid">
@@ -744,6 +785,7 @@ function gehe(k){
 }
 function render(){
   drZaehler = 0; for(const k in DR) delete DR[k];
+  $("#ligaschalter").innerHTML = ligaSchalter();
   $("#s-start").innerHTML = seiteStart(D);
   $("#s-betfair").innerHTML = seiteBetfair(D);
   $("#s-pinnacle").innerHTML = seitePinnacle(D);
@@ -785,6 +827,7 @@ function aufklappen(tr){
 }
 document.addEventListener("click", e=>{
   if(e.target.closest("[data-zu]")){ drZu(); return; }
+  const lg = e.target.closest("[data-liga]"); if(lg){ ligaModus = lg.dataset.liga; try{ localStorage.setItem("radar-liga", ligaModus); }catch(_){} render(); return; }
   const dk = e.target.closest("[data-dr]"); if(dk && !e.target.closest("a")){ drOeffnen(dk.dataset.dr); return; }
   const g = e.target.closest("[data-geh]"); if(g){ gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
   const sp = e.target.closest("[data-sport]"); if(sp){ filterSport = sp.dataset.sport; $("#s-poly").innerHTML = seitePoly(D); return; }
