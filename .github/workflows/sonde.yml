@@ -3,12 +3,17 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: write
 jobs:
   sonde:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - run: python3 probe/sonde.py
+      - run: python3 probe/sonde.py | tee sonde.txt
         env:
           BETWATCH_KEY: ${{ secrets.BETWATCH_KEY }}
+      # Ergebnis als Issue, damit es ohne Log-Zugriff lesbar ist (enthält keine Schlüssel/Rohdaten)
+      - run: gh issue create --title "Sonde $(date -u +%FT%H:%MZ)" --body-file sonde.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
