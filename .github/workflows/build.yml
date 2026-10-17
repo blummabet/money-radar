@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false   # ein abgebrochener Lauf würde sein Push-Gedächtnis verlieren → Doppel-Pushes
 
 jobs:
   bauen:
@@ -30,6 +30,25 @@ jobs:
       - uses: actions/checkout@v4
       - name: Daten verdichten
         run: python3 build.py
+      # Push-Gedächtnis (was schon im Test-Channel war) lebt im Actions-Cache, nicht im Repo.
+      - name: Push-Gedächtnis laden
+        uses: actions/cache/restore@v4
+        with:
+          path: .push_state
+          key: radar-push-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: radar-push-
+      - name: Pushes in den Test-Channel
+        if: github.event_name != 'push'
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_TEST_CHAT_ID: ${{ secrets.TELEGRAM_TEST_CHAT_ID }}
+        run: python3 push.py
+      - name: Push-Gedächtnis sichern
+        if: always() && github.event_name != 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: .push_state
+          key: radar-push-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

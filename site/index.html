@@ -365,7 +365,7 @@ function zuflussListe(D, gross){
 let D = null, filterBf = "norm";
 const belegt = m => (m.wale||[]).some(w=>w.bewiesen);
 function seiteStart(D){
-  const r = D.radar, top = r.spiele.filter(s=>s.xnorm!=null).slice(0,8);
+  const r = D.radar, top = r.spiele.filter(s=>s.xnorm!=null&&!s.entschieden).slice(0,8);
   const pb = D.bfPushes.bilanz, burst = D.stake.bilanz?.Burst, hz = (D.hz.bericht||[]).find(b=>/Heim/.test(b.wette)) || (D.hz.bericht||[])[0];
   return `<div class="grid">
     <div class="panel c8"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">wo seit dem letzten Abruf dick Geld reinkam</span><button class="chip rechts" data-geh="betfair">Betfair</button></div>${zuflussListe(D,true)}</div>
@@ -381,11 +381,12 @@ function seiteStart(D){
     <div class="panel c12" id="pushpanel">${pushPanel(D)}</div>
   </div>`;
 }
+const offen = s => !s.entschieden;
 const BF_SETS = {
-  norm: ["Über Norm", a=>a.filter(s=>s.xnorm>=1)],
-  live: ["Live", a=>a.filter(s=>s.live).sort((x,y)=>y.eur-x.eur)],
-  zufluss: ["Zufluss 1 h", a=>a.filter(s=>s.d60>0).sort((x,y)=>y.d60-x.d60)],
-  klein: ["Kleine Ligen", a=>a.filter(s=>(s.normEur||0) < 60000 && s.xnorm!=null)],
+  norm: ["Über Norm", a=>a.filter(s=>s.xnorm>=1&&offen(s))],
+  live: ["Live", a=>a.filter(s=>s.live&&offen(s)).sort((x,y)=>y.eur-x.eur)],
+  zufluss: ["Zufluss 1 h", a=>a.filter(s=>s.d60>0&&offen(s)).sort((x,y)=>y.d60-x.d60)],
+  klein: ["Kleine Ligen", a=>a.filter(s=>(s.normEur||0) < 60000 && s.xnorm!=null&&offen(s))],
   alle: ["Alle", a=>a.slice().sort((x,y)=>y.eur-x.eur)],
 };
 const HZNAME = {"Half Time":"HZ-Sieger","First Half Goals 0.5":"HZ Tore 0,5","First Half Goals 1.5":"HZ Tore 1,5","First Half Goals 2.5":"HZ Tore 2,5","Half Time Score":"HZ-Ergebnis"};
@@ -415,7 +416,7 @@ function seiteBetfair(D){
     <div class="panel c12"><div class="ph"><h3>Alle Spiele auf Betfair</h3><span class="hint">${alle.length} Spiele aus ${D.radar.ligen} Ligen, live und nächste 30 Stunden</span>
       <div class="chips rechts">${Object.entries(BF_SETS).map(([k,[n,fn]])=>`<button class="chip${k===filterBf?" an":""}" data-filter="${k}">${n} <span style="opacity:.6">${fn(alle).length}</span></button>`).join("")}</div></div>
       ${spielTabelle(liste,"t-bf",25)}
-      <div class="hinweis">Norm ist das gematchte Geld jetzt, geteilt durch das, was in dieser Liga in derselben Spielphase üblich ist (Median der letzten 60 Tage). ×2 heißt doppelt so viel wie sonst. Zeile antippen für Verlauf, Märkte und Quoten.</div></div>
+      <div class="hinweis">Norm ist das gematchte Geld jetzt, geteilt durch das, was in dieser Liga in derselben Spielphase üblich ist (Median der letzten 60 Tage). ×2 heißt doppelt so viel wie sonst. Spiele, die praktisch entschieden sind (ab Minute 70, oder ab Minute 30 mit einer Quote unter 1,10), stehen nur unter „Alle“: das Geld dort ist Abrechnungs-Rauschen, kein Signal. Zeile antippen für Verlauf, Märkte und Quoten.</div></div>
   </div>`;
 }
 function pinKarten(liste){
@@ -606,7 +607,7 @@ async function laden(){
   }catch(e){ console.error(e); $("#stand").textContent = "Daten nicht erreichbar"; $("#puls").style.background="var(--down)"; }
 }
 function listeFuer(id){
-  if(id==="t-start") return D.radar.spiele.filter(s=>s.xnorm!=null).slice(0,8);
+  if(id==="t-start") return D.radar.spiele.filter(s=>s.xnorm!=null&&!s.entschieden).slice(0,8);
   return BF_SETS[filterBf][1](D.radar.spiele);
 }
 function aufklappen(tr){

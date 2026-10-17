@@ -569,6 +569,10 @@ def betfair_radar(prices, bf_hist, norm):
             "liga": m.get("league"), "land": m.get("country"), "anpfiff": m.get("kickoff"),
             "live": ({"min": li.get("time"), "stand": [li.get("goal_v1"), li.get("goal_v2")],
                       "ht": bool(li.get("is_ht"))} if dt_h < 0 else None),
+            # Lucas 17.10. (Everton–Chelsea 90' 0:2, €1,6 Mio „Zufluss"): Geld auf ein entschiedenes
+            # Spiel ist Abrechnungs-/Trading-Rauschen bei Quote 1,01–1,05, kein Signal.
+            "entschieden": bool(dt_h < 0 and isinstance(li.get("time"), (int, float)) and (li.get("time") >= 70 or (
+                li.get("time") >= 30 and min([q for q in (mo.get("hw"), mo.get("dr"), mo.get("aw")) if q] or [9]) <= 1.10))),
             "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "phase": ph,
             "d60": round(vol - vor60) if vor60 is not None else None,
             "kurve": kurve,
