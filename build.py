@@ -194,7 +194,7 @@ def sharp(consensus, history):
             "vonQuote": round(1 / erst[i], 2) if erst[i] else None,
             "betfairGeld": {"auf": g.get("moneyName"), "anteil": g.get("moneySharePct"),
                             "quote": g.get("moneyOdd")} if g.get("moneyName") else None,
-            "poly": {"anteil": po.get("sharePct"), "quote": po.get("odd"), "usd": po.get("vol")} if po else None,
+            "poly": {"anteil": po.get("sharePct"), "quote": po.get("odd"), "usd": po.get("vol"), "auf": po.get("sideKey")} if po.get("sharePct") is not None else None,
             "verlauf": [round(p["pinn"][i] * 100, 1) for p in h][-24:],
         })
     out.sort(key=lambda r: (-int(r["laeuftNoch"] or r["frisch"]), -r["pp"]))
@@ -226,6 +226,8 @@ def pinn_alle(consensus, history):
             "geld": ({"auf": g.get("moneyName"), "anteil": g.get("moneySharePct"), "eur": g.get("totVol"),
                       "betfair": g.get("moneyOdd"), "pinnacle": g.get("pinnOdd"), "buchmacher": g.get("softOdd"),
                       "nBuecher": g.get("softN"), "poly": po.get("odd")} if g.get("moneyName") else None),
+            "polyGeld": ({"auf": po.get("sideKey"), "anteil": po.get("sharePct"), "usd": po.get("vol"),
+                          "quelle": po.get("shareSrc")} if po.get("sharePct") is not None else None),
             "einig": g.get("agree"),
         })
     out.sort(key=lambda r: (r["live"], -r["bewegung"]))
@@ -238,7 +240,7 @@ MIN_SCHNITT_USD = 500
 MIN_FENSTER = 8     # Aufloesungen im Messfenster, ab denen eine Untergrenze etwas sagt
 
 
-def poly(track, upcoming, whale_ledger, offen_maerkte=None):
+def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, trades_record=None):
     scores = (track or {}).get("scores") or {}
     offen = (track or {}).get("open") or {}
 
@@ -327,6 +329,58 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None):
                                   "bewiesen": wh.get("wallet") in bewiesen}
                                  for wh in (m.get("whales") or [])[:5] if isinstance(wh, dict)]})
     maerkte.sort(key=lambda r: -r["usd"])
+    # Lucas 17.10.: nicht nur Fußball — E-Sport und Tennis bekommen eigene Plätze, sonst verdrängt
+    # das Fußball-Volumen sie komplett. Je Sport die größten Märkte, Kleckermärkte raus.
+    je_sport = {"Fußball": 18, "E-Sport": 12, "Tennis": 10}
+    zaehl, auswahl = {}, []
+    for mk in maerkte:
+        sp = mk["sport"] or "Fußball"
+        if mk["usd"] < 1000 or zaehl.get(sp, 0) >= je_sport.get(sp, 0):
+            continue
+        zaehl[sp] = zaehl.get(sp, 0) + 1
+        auswahl.append(mk)
+    for mk in auswahl:
+        mk["nWale"] = len(mk["wale"])
+        mk["nBelegt"] = sum(1 for w in mk["wale"] if w["bewiesen"])
+    titel = {mk["key"]: mk["spiel"] for mk in maerkte}
+
+    def name_fuer(key):
+        key = str(key or "")
+        for suf, zusatz in (("-more-markets", ", Tore/Handicap"), ("-exact-score", ", Ergebnis")):
+            if key.endswith(suf):
+                return name_fuer(key[: -len(suf)]) + zusatz
+        if key in titel:
+            return titel[key]
+        q = quelle.get(key) or quelle.get(str(key).replace("-more-markets", "")) or {}
+        tn = [n for n in (q.get("prices") or {}) if not str(n).lower().startswith("draw")]
+        return " vs ".join(tn[:2]) if tn else str(key)
+
+    # Was die belegten Wallets JETZT halten — das Kernstück: gutes Timing, nachgewiesen, mit Geld drin.
+    setzen = []
+    for w in wallets:
+        if not w["bewiesen"]:
+            continue
+        for o in w["offen"]:
+            if float(o.get("usd") or 0) < 500 or not zukunft(o.get("anpfiff"), nach_h=0, bis_h=72) or not sport_ok(o.get("sport")):
+                continue
+            setzen.append({**o, "wallet": w["wallet"], "clv": w["fensterClv"], "clvUg": w["clvUg"],
+                           "spiel": name_fuer(o["markt"]), "jetzt": ((quelle.get(o["markt"]) or {}).get("prices") or {}).get(o.get("seite"))})
+    setzen.sort(key=lambda x: -float(x.get("usd") or 0))
+
+    # Wal-Pushes aus dem Trades-Channel (eigene Abrechnung im alten Projekt), letzte 36 h
+    tp = []
+    for z in trades_ledger or []:
+        t = ts(z.get("sentAt"))
+        if not t or t < JETZT - timedelta(hours=36) or not sport_ok(z.get("cat")):
+            continue
+        tp.append({"wallet": z.get("wallet"), "markt": z.get("key"), "spiel": name_fuer(z.get("key")), "seite": z.get("side"),
+                   "usd": z.get("usd"), "preis": z.get("pushPrice"), "sport": z.get("cat"), "zeit": z.get("sentAt"),
+                   "status": {"win": "won", "loss": "lost"}.get(z.get("result"), "pending" if z.get("status") == "pending" else None)})
+    tp.sort(key=lambda x: x["zeit"] or "", reverse=True)
+    rec = (trades_record or {}).get("byCat") or {}
+    bil = {sp: {"n": b.get("n"), "treffer": round((b.get("hit") or 0) * 100, 1), "roi": round((b.get("roi") or 0) * 100, 1),
+                "roiUg": round((b.get("roiUg") or 0) * 100, 1) if b.get("roiUg") is not None else None, "belegt": b.get("belegt")}
+           for sp, b in rec.items() if sp in SPORTARTEN}
 
     grenze = JETZT - timedelta(hours=24)
     wale = []
@@ -338,7 +392,8 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None):
                      "usd": z.get("usd"), "preis": z.get("whaleEntry"), "anteilSeite": z.get("seitenAnteil"),
                      "liga": z.get("league"), "zeit": z.get("sentAt"), "status": z.get("status")})
     wale.sort(key=lambda r: r["zeit"] or "", reverse=True)
-    return {"wallets": wallets, "maerkte": maerkte[:25], "walPushes": wale[:20],
+    return {"wallets": wallets, "maerkte": auswahl, "walPushes": wale[:20], "setzen": setzen[:20],
+            "tradesPushes": tp[:40], "tradesBilanz": bil, "tradesSeit": (trades_record or {}).get("startAb"),
             "regel": {"minN": MIN_N, "minSchnittUsd": MIN_SCHNITT_USD, "minFenster": MIN_FENSTER}}
 
 
@@ -607,6 +662,8 @@ def main() -> int:
     upcoming = laden("poly_money_upcoming.json", {})
     wale = laden("poly_whale_public_ledger.json", [])
     offen_m = laden("poly_money_broad_offen.json", {})
+    tr_led = laden("poly_whale_trades_ledger.json", [])
+    tr_rec = laden("poly_whale_trades_record.json", {})
     burst = laden("stake_burst_ledger.json", [])
     finder = laden("hz_finder.json", {})
 
@@ -626,7 +683,7 @@ def main() -> int:
         "halbzeit": halbzeit(prices),
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
-        "poly": poly(track, upcoming, wale, offen_m),
+        "poly": poly(track, upcoming, wale, offen_m, tr_led, tr_rec),
         "stake": stake(burst),
         "hz": hz(finder),
         "fehler": FEHLER,
