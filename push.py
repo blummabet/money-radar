@@ -166,7 +166,7 @@ def zufluss(d):
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 30 Min auf <b>{e(_auswahl_de(fl.get('auswahl')))}</b> @ <b>{q2(q)}</b>{richtung}\n"
-                f"📊 {fl.get('anteil')} % des neuen Geldes in {e(_markt_de(fl.get('markt')))}\n"
+                + _anteil_balken(remis(_auswahl_de(fl.get("auswahl"))), fl.get("anteil"), f" des neuen Geldes · {e(_markt_de(fl.get('markt')))}")
                 + pinnacle_zeile(d, z, fl))
         yield key, text, ZUFLUSS_PAUSE_H, _beleg("zufluss", z, fl)
 
@@ -188,7 +188,7 @@ def live(d):
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {minute} · <b>{st[0]}:{st[1]}</b>\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(_auswahl_de(fl.get('auswahl')))}</b> @ <b>{q2(q)}</b>{richtung}\n"
-                f"📊 {fl.get('anteil')} % des neuen Geldes in {e(_markt_de(fl.get('markt')))}\n")
+                + _anteil_balken(remis(_auswahl_de(fl.get("auswahl"))), fl.get("anteil"), f" des neuen Geldes · {e(_markt_de(fl.get('markt')))}"))
         yield key, text, 12, _beleg("live", z, fl, live=True)
 
 
@@ -298,12 +298,12 @@ def bf_halbzeit(d):
             text = (f"⚫ <b>Betfair · Fix-Verdacht</b>\nmehr Geld auf die Halbzeit als aufs Spiel\n" + kopf
                     + f"💷 {e(_markt_de(a.get('markt')))}: <b>{geld(a.get('eur'))}</b>  vs  {e(_markt_de(a.get('ftMarkt')))}: {geld(a.get('ftEur'))}"
                       f" · <b>{str(a.get('faktor')).replace('.', ',')}×</b>\n"
-                    + f"📊 <b>{a.get('anteil')} %</b> auf <b>{e(auf)}</b>{quote}" + (" · sehr einseitig" if (a.get("anteil") or 0) >= 90 else "") + "\n")
+                    + _anteil_balken(auf, a.get("anteil"), quote.replace("<b>", "").replace("</b>", "") + (" · sehr einseitig" if (a.get("anteil") or 0) >= 90 else "")))
         else:
             seiten = " · ".join(f"{e(remis(_auswahl_de(x['name'])))} {x['anteil']} %" for x in a.get("seiten") or [])
             text = (f"🔵 <b>Betfair · Halbzeit-Geld (einseitig)</b>\n" + kopf
                     + f"💷 {e(_markt_de(a.get('markt')))}: <b>{geld(a.get('eur'))}</b> gematcht\n"
-                    + f"📊 <b>{a.get('anteil')} %</b> auf <b>{e(auf)}</b>{quote}\n"
+                    + _anteil_balken(auf, a.get("anteil"), quote.replace("<b>", "").replace("</b>", ""))
                     + (f"<i>{seiten}</i>\n" if seiten else ""))
         yield key, text, None, {"art": a.get("art"), "id": str(a.get("id")), "heim": a.get("heim"), "gast": a.get("gast"),
                                 "liga": a.get("liga"), "anpfiff": a.get("anpfiff"), "top5": bool(a.get("top")), "live": bool(lv),
@@ -344,6 +344,14 @@ def stake(d):
                 + (f"📏 {q2(g.get('faktor'))}-mal so viel wie in dieser Liga üblich\n" if g.get("faktor") else "")
                 + (f"🗂 {e(g.get('markt'))}\n" if g.get("markt") else ""))
         yield key, text, None
+
+
+def _anteil_balken(name, pct, zusatz=""):
+    """Lucas 18.10.: „📊 Over 3.5 Goals ▓▓▓▓▓▓▓░░░ 71 %" — der Balken aus dem alten Push, in allen Pushes."""
+    if pct is None:
+        return ""
+    n = max(0, min(10, round(pct / 10)))
+    return f"📊 {e(name)}  <code>{'▓' * n}{'░' * (10 - n)}</code> <b>{round(pct)} %</b>{zusatz}\n"
 
 
 def _pm_label(t):
@@ -391,8 +399,8 @@ def serie(d):
         text = (f"🔁 <b>Dauerzufluss</b> · Betfair · <b>{x['n']}× in Folge</b>\n"
                 f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n{e(x.get('liga'))} · {st}\n\n"
                 f"💶 <b>{geld(x['eur'])}</b> in {x['dauerMin']} Min auf <b>{e(remis(_auswahl_de(x['auswahl'])))}</b> @ <b>{q2(q)}</b>{richtung}\n"
-                f"🗂 {e(_markt_de(x['markt']))}\n"
-                f"<code>{_balken(x['saeulen'][-24:])}</code> <i>letzte 2 h, je Säule 5 Min</i>\n")
+                + _anteil_balken(remis(_auswahl_de(x['auswahl'])), x.get("anteil"), f" des neuen Geldes · {e(_markt_de(x['markt']))}")
+                + f"<code>{_balken(x['saeulen'][-24:])}</code> <i>letzte 2 h, je Säule 5 Min</i>\n")
         yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"]}
@@ -406,7 +414,8 @@ def serie(d):
                 f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n\n"
                 f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min auf <b>{e(lab)}</b>"
                 f" @ {round(x['preis'] * 100)} ¢ = Quote <b>{q2(x['quote'])}</b>\n"
-                f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
+                + _anteil_balken(lab, x.get("anteil"), " der Käufe")
+                + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
         yield key, text, None
     for x in d.get("stakeSerien") or []:
@@ -417,8 +426,8 @@ def serie(d):
                 f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{e(x.get('liga'))} · {'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n\n"
                 f"💵 <b>{geld(x['usd'], '$')}</b> in {x['wetten']} Wetten über {x['dauerMin']} Min auf <b>{e(x['auswahl'])}</b>"
                 + (f" @ {q2(x.get('quote'))}" if x.get("quote") else "") + "\n"
-                f"🗂 {e(x.get('markt'))}\n"
-                f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n")
+                + _anteil_balken(x['auswahl'], x.get("anteil"), f" der großen Wetten · {e(x.get('markt'))}")
+                + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n")
         yield key, text, None
 
 

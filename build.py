@@ -1047,6 +1047,7 @@ def serien(takt, radar):
             out.append({"id": str(mid), "heim": sp["heim"], "gast": sp["gast"], "liga": sp["liga"], "land": sp.get("land"),
                         "anpfiff": sp["anpfiff"], "live": sp.get("live"), "top5": top5, "quelle": "betfair",
                         "markt": markt, "auswahl": auswahl, "n": len(kette), "eur": round(summe),
+                        "anteil": round(sum(k[2] for k in kette) / len(kette)),
                         "quote": kette[-1][3], "quoteStart": kette[0][3],
                         "seit": iso(kette[0][0]), "dauerMin": round((kette[-1][0] - kette[0][0]).total_seconds() / 60) + 5,
                         "letzteVorMin": round((JETZT - kette[-1][0]).total_seconds() / 60), "saeulen": saeulen})
@@ -1088,6 +1089,7 @@ def poly_serien(pf):
             out.append({"preis": preis, "quote": round(1 / preis, 2) if preis else None, "id": m.get("key"), "titel": m.get("titel"), "liga": m.get("liga"), "sport": m.get("sport"),
                         "anpfiff": m.get("anpfiff"), "live": m.get("live"), "top5": m.get("top5"), "quelle": "poly",
                         "auswahl": lab, "n": len(kette), "usd": round(summe),
+                        "anteil": round(100 * summe / max(1, sum(summe_b[i] for i in kette))),
                         "dauerMin": (max(kette) - min(kette) + 1) * 10, "saeulen": werte})
     best = {}
     for x in sorted(out, key=lambda x: -x["usd"]):
@@ -1145,6 +1147,7 @@ def stake_serien(hr):
             out.append({"id": eid, "titel": w0.get("event"), "liga": w0.get("liga"), "sport": w0.get("kat"),
                         "anpfiff": w0.get("anpfiff"), "live": w0.get("phase") == "live", "top5": top5, "quelle": "stake",
                         "markt": markt, "auswahl": auswahl, "quote": sel["quote"], "n": len(kette), "usd": round(summe),
+                        "anteil": round(100 * summe / max(1, sum(g["summe"][i] for i in kette))),
                         "wetten": sel["n"], "dauerMin": (max(kette) - min(kette) + 1) * 10, "saeulen": [round(x) for x in v],
                         "zeit": iso(asof)})
     best = {}
