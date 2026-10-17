@@ -535,8 +535,8 @@ function feedEintraege(D){
   for(const x of (D.stakeSerien||[]).filter(top5Ok)) f.push({q:"stake", k:"serie", live:!!x.live, t:`🔁 ${x.n}× in Folge: ${usd(x.usd)} auf ${x.auswahl}${x.quote?" @ "+q2(x.quote):""}`, s:`${x.titel}, ${x.markt}, ${x.wetten} Wetten in ${x.dauerMin} Min`, b:usd(x.usd), zeit:x.zeit, wert:x.usd*3});
   for(const x of lf(D.zufluss30||[])){ const fl = (x.fluss||[])[0]; if(!fl) continue;
     f.push({q:"betfair", k:"zufluss", t:`+${eur(fl.eur)} auf ${auswahlDe(fl.auswahl)} @ ${q2(fl.quote)}`, s:`${x.heim} – ${x.gast}, ${wann(x.anpfiff)}, ${marktDe(fl.markt)} (${fl.anteil} %)`, b:eur(fl.eur), zeit:bfZeit, sp:x, wert:fl.eur}); }
-  for(const m of (D.polyFluss?.maerkte||[]).filter(top5Ok)){ const fw = m.fenster?.["30"]; if(!fw || fw.usd<1000 || fw.anteil<55) continue;
-    const nt = (pmNetto(fw.seiten)||[])[0];
+  for(const m of (D.polyFluss?.maerkte||[]).filter(top5Ok)){ const fw = m.fenster?.["30"]; if(!pmFlussOk(m)) continue;
+    const nt = (pmNetto(fw.seiten, m.key)||[])[0];
     f.push({q:"poly", k:"pfluss", live:m.live, t: nt ? `netto ${usd(Math.abs(nt.netto))} ${nt.netto>=0?"für":"gegen"} ${pmLabel(nt.team)}` : `+${usd(fw.usd)} auf ${pmLabel(fw.auf)}`,
       s: nt ? `${pmTitel(m.titel)}, Ja und Nein verrechnet` : `${pmTitel(m.titel)}, ${fw.anteil} % der Käufe`, b:usd(nt?Math.abs(nt.netto):fw.usd), zeit:pfZeit, wert:nt?Math.abs(nt.netto):fw.usd}); }
   for(const s of lf(D.sharp).filter(s=>s.frisch||s.laeuftNoch)) f.push({q:"pinnacle", k:"pinnacle", t:`${s.auf}: Quote ${q2(s.vonQuote)} → ${q2(s.fairQuote)}`, s:`${s.heim} – ${s.gast}`, b:q2(s.fairQuote), zeit:D.quellen.pinnacle});
@@ -814,7 +814,13 @@ function preisBalken(m){
   return `<div class="pbar">${pr.map(p=>`<span style="flex:${p.wert} 1 0;background:${f(p)}"></span>`).join("")}</div>
     <div class="pleg">${pr.map(p=>`<span><i style="background:${f(p)}"></i>${esc(p.name)} <b>${Math.round(p.wert*100)} ¢</b></span>`).join("")}</div>`;
 }
-const pmLabel = l => String(l||"").replace(/^gegen Draw.*$/i,"gegen Remis").replace(/^Draw.*$/i,"Remis").replace(/\(O\/U (\d)\.5\)/,"Über/Unter $1,5").replace(/^Over /,"Über ").replace(/^Under /,"Unter ").replace(/Both Teams to Score/,"Beide treffen");
+const pmLabel = l => { let t = String(l||"");
+  let m = t.match(/^(Over|Under) \(O\/U (\d+)\.5\)$/); if(m) return `${m[1]==="Over"?"Über":"Unter"} ${m[2]},5`;
+  m = t.match(/^(.+?) \((.+?) \((-?\d+(?:\.\d+)?)\)\)$/);                    // Handicap: „Charlotte FC (Philadelphia Union (-1.5))"
+  if(m){ const h = parseFloat(m[3]), eig = m[1]===m[2] ? h : -h; return `${m[1]} ${eig>0?"+":"−"}${String(Math.abs(eig)).replace(".",",")}`; }
+  if(/^gegen Both Teams to Score/i.test(t)) return "Beide treffen: Nein";
+  if(/^Both Teams to Score/i.test(t)) return "Beide treffen: Ja";
+  return t.replace(/^gegen Draw.*$/i,"gegen Remis").replace(/^Draw.*$/i,"Remis").replace(/^Over /,"Über ").replace(/^Under /,"Unter "); };
 const pmTitel = t => String(t||"").replace(/^(Counter-Strike|League of Legends|Dota 2|Valorant): /,"").replace(/ - More Markets$/," (Tore)").replace(/ \(BO\d\).*$/,"");
 const top5Ok = x => ligaModus==="alle" || (ligaModus==="ohne" ? !x.top5 : !!x.top5);
 // Lucas 17.10. (NEOM: „+19k auf NEOM, unten 9,9k auf NEOM"): bei 1X2 sind es drei Ja/Nein-Märkte —
@@ -824,7 +830,7 @@ const top5Ok = x => ligaModus==="alle" || (ligaModus==="ohne" ? !x.top5 : !!x.to
 // hatten keinen Klick. Jetzt: Netto je Team, Käufe je Seite (30/10 Min), Takt der letzten Stunden, größte
 // Käufe mit Wallet, dazu Preise und Halter aus dem Markt-Datensatz, falls vorhanden.
 function polyFlussDetail(m){
-  const f = m.fenster?.["30"] || {}, f10 = m.fenster?.["10"] || {}, net = pmNetto(f.seiten);
+  const f = m.fenster?.["30"] || {}, f10 = m.fenster?.["10"] || {}, net = pmNetto(f.seiten, m.key);
   const mk = (D.poly.maerkte||[]).find(x=>x.key===m.key);
   const PAL = ["#a183ff","#5b9dff","#ffb547","#2fd38a"];
   const maxS = Math.max(1, ...Object.values(f.seiten||{}));
@@ -848,7 +854,11 @@ function polyFlussDetail(m){
     <div><a href="https://polymarket.com/event/${encodeURIComponent(m.key)}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;display:inline-block">Markt auf Polymarket öffnen</a></div>
   </div></td></tr>`;
 }
-function pmNetto(seiten){
+// Lucas 17.10. („1200 schon sehr low"): Fluss-Karte erst ab $5k auf eine Seite (Top-5 $20k), ≥60 % der Käufe
+const pmFlussOk = m => { const f = m.fenster?.["30"]; return !!f && f.usd >= (m.top5?20000:5000) && f.anteil >= 60; };
+function pmNetto(seiten, key){
+  // nur bei 1X2 (drei Ja/Nein-Märkte je Ausgang) — bei „Tore"-Ereignissen sind Ja/Nein Märkte wie Beide treffen, keine Teams
+  if(/-more-markets$/.test(key||"")) return null;
   const s = seiten||{};
   const alle = new Set([...Object.keys(s).filter(k=>!/^gegen /.test(k) && !/\(/.test(k)), ...Object.keys(s).filter(k=>/^gegen /.test(k)).map(k=>k.slice(6))]);
   const zeilen = [...alle].map(t=>({team:t, fuer:s[t]||0, gegen:s["gegen "+t]||0})).map(z=>({...z, netto:z.fuer-z.gegen}));
@@ -856,10 +866,10 @@ function pmNetto(seiten){
 }
 function polyFlussKarten(D, max){
   const pf = D.polyFluss || {};
-  const z = (pf.maerkte||[]).filter(top5Ok).filter(m=>{ const f=m.fenster["30"]; return f && f.usd>=1000 && f.anteil>=55; }).slice(0,max);
+  const z = (pf.maerkte||[]).filter(top5Ok).filter(pmFlussOk).slice(0,max);
   if(!z.length) return `<div class="leer">${pf.alt?"Der Polymarket-Abruf vom Mac ist gerade veraltet.":`In den letzten 30 Minuten floss auf Polymarket kein Geld einseitig auf eine Seite${ligaModus==="ohne"?" (ohne Top-5)":""}.`}</div>`;
   return `<div class="kgrid">${z.map(m=>{ const f = m.fenster["30"], f10 = m.fenster["10"];
-    const g = (m.gross||[])[0], net = pmNetto(f.seiten);
+    const g = (m.gross||[])[0], net = pmNetto(f.seiten, m.key);
     let kopf, zeilen;
     if(net){
       const t = net[0], max_ = Math.max(...net.map(n=>Math.max(n.fuer,n.gegen)),1);

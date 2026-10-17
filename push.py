@@ -346,6 +346,24 @@ def stake(d):
         yield key, text, None
 
 
+def _pm_label(t):
+    """Polymarket-Etikett lesbar machen — dieselben Regeln wie pmLabel auf der Seite."""
+    import re as _re
+    t = str(t or "")
+    m = _re.match(r"^(Over|Under) \(O/U (\d+)\.5\)$", t)
+    if m:
+        return f"{'Über' if m.group(1) == 'Over' else 'Unter'} {m.group(2)},5"
+    m = _re.match(r"^(.+?) \((.+?) \((-?\d+(?:\.\d+)?)\)\)$", t)
+    if m:
+        h = float(m.group(3)) * (1 if m.group(1) == m.group(2) else -1)
+        return f"{m.group(1)} {'+' if h > 0 else '−'}{str(abs(h)).replace('.', ',')}"
+    if t.lower().startswith("gegen both teams to score"):
+        return "Beide treffen: Nein"
+    if t.lower().startswith("both teams to score"):
+        return "Beide treffen: Ja"
+    return _re.sub(r"^gegen Draw.*$", "gegen Remis", _re.sub(r"^Draw.*$", "Remis", t))
+
+
 def _balken(werte):
     """▁▂▃▅▇ — die Säulen als Text für Telegram."""
     zeichen, mx = "·▁▂▃▄▅▆▇█", max(werte or [0])
@@ -383,7 +401,7 @@ def serie(d):
         if not x.get("quote") or x["quote"] < SERIE_PUSH_MIN_QUOTE:
             continue
         key = f"ps|{x['id']}|{x['auswahl']}|{_stufe(x['n'])}"
-        lab = str(x["auswahl"]).replace("Draw", "Remis")
+        lab = _pm_label(x["auswahl"])
         text = (f"🔁 <b>Dauerzufluss</b> · Polymarket · <b>{x['n']}× in Folge</b>\n"
                 f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n\n"
                 f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min auf <b>{e(lab)}</b>"
