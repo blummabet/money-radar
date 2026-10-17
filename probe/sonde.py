@@ -13,11 +13,37 @@ def limit_kopf(h):
     return {k: v for k, v in h.items() if any(s in k.lower() for s in ("limit", "retry", "quota", "remaining", "throttle"))}
 
 
+MODUS = {"m": None}
+
+
+def _req(pfad, m):
+    url, h = f"https://betwatch.fr/api/v1{pfad}", {"User-Agent": UA, "Accept": "application/json"}
+    if m == "query":
+        url += f"{'&' if '?' in pfad else '?'}key={KEY}"
+    elif m == "token":
+        h["Authorization"] = f"Token {KEY}"
+    elif m == "apikey":
+        h["X-API-Key"] = KEY
+    elif m == "bearer":
+        h["Authorization"] = f"Bearer {KEY}"
+    return urllib.request.Request(url, headers=h)
+
+
 def betwatch(pfad):
-    url = f"https://betwatch.fr/api/v1{pfad}{'&' if '?' in pfad else '?'}key={KEY}"
+    if not MODUS["m"]:
+        for m in ("query", "token", "apikey", "bearer"):
+            try:
+                with urllib.request.urlopen(_req(pfad, m), timeout=30) as r:
+                    MODUS["m"] = m
+                    print("Betwatch akzeptiert Anmeldung:", m)
+                    break
+            except urllib.error.HTTPError as e:
+                print(f"  Anmeldung {m}: HTTP {e.code}")
+        if not MODUS["m"]:
+            return None
     t = time.time()
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"}), timeout=30) as r:
+        with urllib.request.urlopen(_req(pfad, MODUS["m"]), timeout=30) as r:
             d = json.loads(r.read().decode())
             n = len(d) if isinstance(d, list) else len(d.get("results") or d.get("markets") or []) if isinstance(d, dict) else "?"
             print(f"Betwatch {pfad.split('?')[0]:28s} HTTP {r.status}  {time.time()-t:5.1f}s  n={n}  Limits={limit_kopf(r.headers)}")
@@ -48,7 +74,7 @@ def stake():
 
 
 if __name__ == "__main__":
-    print("Schlüssel vorhanden:", bool(KEY))
+    print("Schlüssel vorhanden:", bool(KEY), "Länge:", len(KEY))
     ev = betwatch("/football/events")
     betwatch("/football/live")
     if isinstance(ev, list) and ev:
@@ -57,4 +83,3 @@ if __name__ == "__main__":
         for i, e in enumerate(ev[:10]):
             betwatch(f"/football/event/{e.get('match_id')}")
         print(f"10 Detail-Abrufe in {time.time()-t:.1f}s")
-    stake()
