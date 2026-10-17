@@ -379,11 +379,15 @@ def serie(d):
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"]}
     for x in d.get("polySerien") or []:
+        # wie bei Betfair/Stake: Favoriten-Geld (Quote < 1,40 ≙ Preis > 71 ¢) wird nicht gepusht; ohne Preis auch nicht
+        if not x.get("quote") or x["quote"] < SERIE_PUSH_MIN_QUOTE:
+            continue
         key = f"ps|{x['id']}|{x['auswahl']}|{_stufe(x['n'])}"
         lab = str(x["auswahl"]).replace("Draw", "Remis")
         text = (f"🔁 <b>Dauerzufluss</b> · Polymarket · <b>{x['n']}× in Folge</b>\n"
                 f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n\n"
-                f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min auf <b>{e(lab)}</b>\n"
+                f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min auf <b>{e(lab)}</b>"
+                f" @ {round(x['preis'] * 100)} ¢ = Quote <b>{q2(x['quote'])}</b>\n"
                 f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
         yield key, text, None

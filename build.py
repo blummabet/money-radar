@@ -1065,7 +1065,14 @@ def poly_serien(pf):
             summe = sum(werte[i] for i in kette)
             if summe < (25000 if m.get("top5") else 6000):
                 continue
-            out.append({"id": m.get("key"), "titel": m.get("titel"), "liga": m.get("liga"), "sport": m.get("sport"),
+            preis = (m.get("preise") or {}).get(lab)
+            ko = ts(m.get("anpfiff"))
+            # Lucas 17.10. (Betis–Barça 5:2, Push 10 Min nach Abpfiff): gut 2 h nach Anpfiff ist das Spiel aus
+            if ko and (m.get("sport") or "Fußball") == "Fußball" and JETZT - ko > timedelta(minutes=115):
+                continue
+            if preis and preis >= 0.90:
+                continue
+            out.append({"preis": preis, "quote": round(1 / preis, 2) if preis else None, "id": m.get("key"), "titel": m.get("titel"), "liga": m.get("liga"), "sport": m.get("sport"),
                         "anpfiff": m.get("anpfiff"), "live": m.get("live"), "top5": m.get("top5"), "quelle": "poly",
                         "auswahl": lab, "n": len(kette), "usd": round(summe),
                         "dauerMin": (max(kette) - min(kette) + 1) * 10, "saeulen": werte})

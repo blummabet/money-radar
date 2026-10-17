@@ -33,6 +33,7 @@ TRADES = "https://data-api.polymarket.com/trades?market={cond}&limit=500&takerOn
 OUT = Path(__file__).resolve().parent / ".pf" / "poly_fluss.json"
 JETZT = datetime.now(timezone.utc)
 FENSTER_MIN = (30, 10)
+PREIS_ENTSCHIEDEN = 0.92
 TAKT_MIN, TAKT_N = 10, 24          # Säulen für die Serien: 24 × 10 Min = 4 h (Lucas 17.10.)
 MAX_EVENTS = int(os.environ.get("POLY_FLUSS_MAX") or 60)
 SPORTARTEN = {"Fußball", "E-Sport", "Tennis"}
@@ -80,7 +81,9 @@ def kandidaten():
             if (m.get("sport") or "Fußball") not in SPORTARTEN:
                 continue
             k = ts(m.get("koTs"))
-            if not k or not (-2.5 <= (k - JETZT).total_seconds() / 3600 <= 30):
+            # Fußball ist nach ~2 h aus; Tennis/E-Sport (BO5) können länger laufen — dort greift der Preis-Filter
+            frueh = -2.0 if (m.get("sport") or "Fußball") == "Fußball" else -4.0
+            if not k or not (frueh <= (k - JETZT).total_seconds() / 3600 <= 30):
                 continue
             pool[key] = {"key": key, "sport": m.get("sport") or "Fußball", "liga": m.get("league"),
                          "anpfiff": m.get("koTs"), "usd": float(m.get("totalUsd") or 0),
@@ -120,6 +123,7 @@ def fluss_fuer(m):
     je_markt = {f: {} for f in FENSTER_MIN}     # cond -> {Etikett: usd}
     gross = []
     takt, takt_summe, aeltester = {}, [0.0] * TAKT_N, 0.0
+    preis_summe = {}                             # Etikett -> [usd*preis, usd] der letzten 60 Min
     for cond, lab, frage in seiten(event):
         tr = get(TRADES.format(cond=cond))
         if not isinstance(tr, list):
@@ -135,8 +139,17 @@ def fluss_fuer(m):
                 usd = float(t.get("size") or 0) * float(t.get("price") or 0)
             except (TypeError, ValueError):
                 continue
+            preis = float(t.get("price") or 0)
+            # Lucas 17.10. (Betis–Barça, Push 10 Min nach Abpfiff): Käufe zu 92 ¢ und mehr sind Geld auf
+            # das praktisch Entschiedene (oder Einsammeln nach Spielende) — kein Fluss, zählt nirgends.
+            if preis >= PREIS_ENTSCHIEDEN:
+                continue
             etikett = lab.get(t.get("outcome")) or t.get("outcome") or "?"
             aeltester = max(aeltester, alter)
+            if alter <= 60:
+                ps = preis_summe.setdefault(etikett, [0.0, 0.0])
+                ps[0] += usd * preis
+                ps[1] += usd
             b = int(alter // TAKT_MIN)
             if 0 <= b < TAKT_N:
                 i = TAKT_N - 1 - b                       # links alt, rechts neu
@@ -178,6 +191,8 @@ def fluss_fuer(m):
     top = sorted(takt.items(), key=lambda kv: -sum(kv[1]))[:4]
     return {**m, "titel": titel, "fenster": fenster, "gross": gross[:5],
             "takt": {k: [round(x) for x in v] for k, v in top}, "taktSumme": [round(x) for x in takt_summe],
+            # mittlerer Kaufpreis je Seite (geldgewichtet, letzte 60 Min) → Quote im Push
+            "preise": {k: round(v[0] / v[1], 3) for k, v in preis_summe.items() if v[1] > 0},
             # die Trade-Abfrage holt höchstens 500 je Markt — so weit zurück reichen die Säulen wirklich
             "taktReichweiteMin": round(aeltester)}
 
