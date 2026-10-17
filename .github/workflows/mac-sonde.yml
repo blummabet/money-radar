@@ -1,0 +1,29 @@
+name: Mac-Sonde (radar-Runner)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  sonde:
+    runs-on: [self-hosted, radar]
+    timeout-minutes: 5
+    steps:
+      - name: Umgebung prüfen
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          {
+            echo "Runner: $RUNNER_NAME  Ordner: $PWD  Nutzer: $(whoami)"
+            echo "python3: $(command -v python3) $(python3 --version 2>&1)"
+            for p in /opt/homebrew/bin/python3.13 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.11; do [ -x $p ] && echo "da: $p"; done
+            echo "gh: $(command -v gh)"
+            env -u GH_TOKEN -u GITHUB_TOKEN gh auth status 2>&1 | sed 's/Token: .*/Token: ***/' | head -8
+            echo "--- Workflows im alten Repo (über die Mac-Anmeldung):"
+            env -u GH_TOKEN -u GITHUB_TOKEN gh workflow list -R blummabet/betting-dashboard 2>&1 | grep -iE "betfair|poly-live|poly-global" | head -5
+            echo "--- Stake von hier:"
+            curl -s -o /dev/null -w "stake.com HTTP %{http_code}\n" -X POST https://stake.com/_api/graphql -H 'content-type: application/json' -H 'origin: https://stake.com' -H 'user-agent: Mozilla/5.0 (Macintosh)' --data '{"query":"{__typename}"}'
+          } > sonde.txt 2>&1
+          cat sonde.txt
+      - run: gh issue create -R ${{ github.repository }} --title "Mac-Sonde $(date -u +%FT%H:%MZ)" --body-file sonde.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
