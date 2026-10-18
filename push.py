@@ -320,6 +320,37 @@ def bf_halbzeit(d):
 SPORT = {"Fußball": "⚽", "E-Sport": "🎮", "Tennis": "🎾"}
 
 
+PINN_PUSH_MIN_QUOTE = 1.40
+PINN_PAUSE_H = 3
+
+
+def pinnacle(d):
+    """Lucas 18.10.: Pinnacle-Drops aus dem eigenen Scan über alle Spiele — live (Team, das nicht führt,
+    gewinnt ohne Tor) und frische Drops vor Anpfiff. Dasselbe Spiel + dieselbe Seite höchstens alle 3 h."""
+    pd = d.get("pinnDrops") or {}
+    for x, live in [(x, True) for x in pd.get("live") or []] + [(x, False) for x in pd.get("vor") or [] if x.get("frisch")]:
+        if not x.get("quote") or x["quote"] < PINN_PUSH_MIN_QUOTE:
+            continue
+        key = f"pd|{x['id']}|{x['ausgang']}|{'l' if live else 'v'}"
+        kopf = (f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n<i>{e(x.get('liga'))}</i> · "
+                + (f"🔴 {x.get('min')}' · {x['stand'][0]}:{x['stand'][1]}" if live else f"⏰ {anpfiff(x.get('anpfiff'))}") + "\n\n")
+        v = x.get("verlauf") or []
+        lo, hi = (min(v), max(v)) if v else (0, 0)
+        kurve = "".join("▁▂▃▄▅▆▇█"[round((w - lo) / (hi - lo) * 7)] for w in v) if hi > lo else ""
+        if live:
+            text = (f"📉 <b>Pinnacle · Live-Drop</b>\n" + kopf
+                    + f"🎯 <b>{e(x['auf'])}</b>: {q2(x['vonQuote'])} → <b>{q2(x['quote'])}</b>\n"
+                    + f"<i>Chance {str(x['vonPct']).replace('.', ',')} → {str(x['nachPct']).replace('.', ',')} % in {x['fensterMin']} Min, ohne Tor — "
+                      f"{'bei Gleichstand' if x['stand'][0] == x['stand'][1] else 'obwohl hinten'}. Die Zeit allein würde die Chance senken.</i>\n"
+                    + (f"<code>{kurve}</code> <i>Pinnacle-Chance{' je 5 Min' if live else ''}</i>\n" if len(kurve) >= 3 else ""))
+        else:
+            text = (f"📉 <b>Pinnacle · Drop vor Anpfiff</b>\n" + kopf
+                    + f"🎯 <b>{e(x['auf'])}</b>: {q2(x['vonQuote'])} → <b>{q2(x['quote'])}</b>\n"
+                    + f"<i>Chance {str(x['vonPct']).replace('.', ',')} → {str(x['nachPct']).replace('.', ',')} %, davon +{str(x['pp60']).replace('.', ',')} pp in der letzten Stunde</i>\n"
+                    + (f"<code>{kurve}</code> <i>Pinnacle-Chance{' je 5 Min' if live else ''}</i>\n" if len(kurve) >= 3 else ""))
+        yield key, text, PINN_PAUSE_H
+
+
 def _poly_topf(d, markt):
     """Das Spiel aus „Wo am meisten liegt", in dem dieser Polymarket-Markt steckt (Betfair/Pinnacle/Stake daneben)."""
     basis = str(markt or "").replace("-more-markets", "").replace("-exact-score", "")
@@ -612,7 +643,7 @@ def serie(d):
         yield key, text, None
 
 
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, wale, stake)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────
