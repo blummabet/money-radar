@@ -154,6 +154,14 @@ def _beleg(art, z, fl, live=False):
             "markt": fl.get("markt"), "auswahl": fl.get("auswahl"), "quote": fl.get("quote"), "eur": fl.get("eur")}
 
 
+def _in_serie(d, sid, markt, auswahl):
+    """Lucas 18.10. (Avaí: Dauerzufluss UND Frischer Zufluss gleichzeitig, dieselben €11k): läuft auf dieselbe
+    Auswahl schon eine Serie, meldet nur die Serie — sie zeigt mehr (Verlauf, wie oft in Folge)."""
+    return any(str(x.get("id")) == str(sid) and x.get("markt") == markt and x.get("auswahl") == auswahl
+               and not (isinstance(x.get("quote"), (int, float)) and x["quote"] < SERIE_PUSH_MIN_QUOTE)
+               for x in d.get("serien") or [])
+
+
 def zufluss(d):
     """Lucas 17.10.: nicht das Geld aufs ganze Spiel, sondern auf WELCHE Auswahl es einseitig floss."""
     for z in d.get("zufluss30") or []:
@@ -162,6 +170,8 @@ def zufluss(d):
             continue
         if isinstance(fl.get("quote"), (int, float)) and fl["quote"] < SERIE_PUSH_MIN_QUOTE:
             continue                    # Lucas 18.10.: Pushes erst ab Quote 1,40 (Favoriten-Geld ist Normalfall)
+        if _in_serie(d, z.get("id"), fl.get("markt"), fl.get("auswahl")):
+            continue
         key = f"zf|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
         q, qv = fl.get("quote"), fl.get("quoteVorher")
         richtung = (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
@@ -183,6 +193,8 @@ def live(d):
         if not fl or fl.get("eur", 0) < SCHWELLE[bool(z.get("top5"))][1]:
             continue
         if isinstance(fl.get("quote"), (int, float)) and fl["quote"] < SERIE_PUSH_MIN_QUOTE:
+            continue
+        if _in_serie(d, z.get("id"), fl.get("markt"), fl.get("auswahl")):
             continue
         lv = z.get("live") or {}
         st = lv.get("stand") or [0, 0]
