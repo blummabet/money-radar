@@ -52,6 +52,12 @@ jobs:
           path: .pf
           key: polyfluss-none
           restore-keys: polyfluss-
+      - name: Stake vom Mac-Runner laden
+        uses: actions/cache/restore@v4
+        with:
+          path: .st
+          key: stake-none
+          restore-keys: stake-
       - name: Betfair-Historie beim ersten Mal aus dem alten Projekt übernehmen
         run: |
           mkdir -p .bf
@@ -78,6 +84,12 @@ jobs:
           [ $((m % 10)) -lt 5 ] && stoss betfair.yml
           [ $((m % 15)) -lt 5 ] && stoss poly-global-scan.yml
           true
+      - name: Stake auf dem Mac anstoßen (jeder Lauf)
+        if: github.event_name != 'push' && !inputs.push_test
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X POST "repos/${{ github.repository }}/actions/workflows/stake.yml/dispatches" -f ref=main && echo angestoßen || echo "nicht angestoßen"
       - name: Polymarket-Fluss auf dem Mac anstoßen (alle 10 Min)
         if: github.event_name != 'push' && !inputs.push_test
         env:

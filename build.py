@@ -64,7 +64,7 @@ def laden(name: str, default=None):
 
 
 FEHLER: list[str] = []
-BF_EIGEN = {"an": False, "pin": False}
+BF_EIGEN = {"an": False, "pin": False, "st": False}
 
 
 def laden_bf(name: str, ordner: str = ".bf"):
@@ -76,7 +76,7 @@ def laden_bf(name: str, ordner: str = ".bf"):
             # Ein Pinnacle-Lauf ohne einen einzigen Anker (Schlüssel fehlt, API weg) ist kein Ergebnis.
             if name == "betfair_consensus.json" and not (d or {}).get("covered"):
                 raise ValueError("eigener Pinnacle-Lauf ohne Anker — nehme das alte Projekt")
-            BF_EIGEN["an" if ordner == ".bf" else "pin"] = True
+            BF_EIGEN[{".bf": "an", ".pin": "pin"}.get(ordner, ordner.strip("."))] = True
             return d
     except Exception as exc:  # noqa: BLE001
         FEHLER.append(f".bf/{name}: {str(exc)[:120]}")
@@ -1723,8 +1723,9 @@ def main() -> int:
     offen_m = laden("poly_money_broad_offen.json", {})
     tr_led = laden("poly_whale_trades_ledger.json", [])
     tr_rec = laden("poly_whale_trades_record.json", {})
-    burst = laden("stake_burst_ledger.json", [])
-    hr = laden("stake_highroller.json", {})      # einzelne Highroller-Wetten mit Zeitstempel (für die Serien)
+    # 18.10.: Stake kommt aus dem eigenen Mac-Lauf (.st/, stake.yml); ist der älter als 40 Min, aus dem alten Projekt
+    burst = laden_bf("stake_burst_ledger.json", ".st") or []
+    hr = laden_bf("stake_highroller.json", ".st")      # einzelne Highroller-Wetten mit Zeitstempel (für die Serien)
     finder = laden("hz_finder.json", {})
 
     daten = {
@@ -1746,7 +1747,7 @@ def main() -> int:
         "serien": serien(takt_fortschreiben(bf_hist), radar),
         "polySerien": poly_serien(pfl),
         "stakeSerien": stake_serien(hr),
-        "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"],
+        "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"], "stakeEigen": BF_EIGEN["st"],
         "bfPushes": betfair_pushes(bf_led, bf_rec),
         "halbzeit": halbzeit(prices),
         "bfHtPushes": bf_ht_pushes(prices),

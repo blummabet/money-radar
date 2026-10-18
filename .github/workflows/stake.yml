@@ -1,0 +1,59 @@
+name: Stake (Mac)
+
+# 18.10.2026 (Lucas: „Ich dachte, Stake-Sachen sind schon am neuen Projekt — zieh Stake bitte um"). Bisher kam
+# Stake aus dem großen Betfair-Lauf des alten Projekts, der seine Dateien erst ganz am Ende hochlädt — die Bursts
+# kamen dadurch 10–30 Min zu spät an. Jetzt ein eigener kleiner Lauf auf dem Mac-Runner „radar" (Stake blockt
+# Rechenzentren), angestoßen vom Seitenbau alle 5 Min. Dieselben Skripte wie im alten Projekt (Ordner stake/),
+# nur: sie senden NICHTS an Telegram (stake/telegram_trades.py ist ein Ersatz) — gepusht wird vom Geldradar.
+# Gedächtnis (Wett-Buch, Liga-Norm, Burst-Buch) reist über den Actions-Cache (stake-…), kein Commit.
+# Das alte Projekt läuft unverändert weiter (Lucas: „das alte nicht sofort abdrehen").
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stake
+  cancel-in-progress: false
+
+jobs:
+  stake:
+    runs-on: [self-hosted, radar]
+    timeout-minutes: 8
+    env:
+      STAKE_DATEN: ${{ github.workspace }}/.st
+      STAKE_MIN_USD: '1000'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gedächtnis laden
+        uses: actions/cache/restore@v4
+        with:
+          path: .st
+          key: stake-${{ github.run_id }}
+          restore-keys: stake-
+      - name: Beim ersten Mal Stand aus dem alten Projekt übernehmen
+        run: |
+          mkdir -p .st
+          RAW=https://raw.githubusercontent.com/blummabet/betting-dashboard/main
+          for f in stake_highroller stake_bet_ledger stake_query stake_kurse stake_league_norm stake_league_norm_state \
+                   stake_burst_ledger stake_burst_seen stake_burst_verworfen stake_auswertung stake_vorregistrierung freigabe_stand; do
+            [ -s ".st/$f.json" ] || curl -sf "$RAW/$f.json" -o ".st/$f.json" || true
+          done
+      - name: Stake abrufen, abrechnen, Norm, Auswertung, Bursts erkennen
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          PY=python3
+          for p in /opt/homebrew/bin/python3.11 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.13; do [ -x "$p" ] && { PY="$p"; break; }; done
+          cd stake
+          "$PY" stake_highroller_fetch.py || echo "⚠️ Stake-Abruf fehlgeschlagen"
+          "$PY" stake_settle.py          || echo "⚠️ Abrechnung fehlgeschlagen"
+          "$PY" stake_league_norm.py     || echo "⚠️ Liga-Norm fehlgeschlagen"
+          "$PY" stake_analyse.py         || echo "⚠️ Auswertung fehlgeschlagen"
+          "$PY" stake_burst_push.py      || echo "⚠️ Burst-Erkennung fehlgeschlagen"
+      - name: Gedächtnis sichern
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .st
+          key: stake-${{ github.run_id }}-${{ github.run_attempt }}

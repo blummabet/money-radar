@@ -5,3 +5,4 @@ __pycache__/
 .pin/
 site/push_status.json
 site/stand.json
+.st/
