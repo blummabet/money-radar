@@ -1772,6 +1772,7 @@ def main() -> int:
                      "live": len(pdz.get("live") or []),
                      "beispiele": [f"{x['liga']}: {x['auf']} +{x['pp']} pp" for x in (pdz.get("live") or []) + (pdz.get("vor") or [])][:6]},
         "pinnRadar": len(daten.get("pinnAlle") or []), "serien": len(daten.get("serien") or []),
+        "eigen": {"betfair": daten.get("bfEigen"), "pinnacle": daten.get("pinEigen"), "stake": daten.get("stakeEigen")},
         "fehler": daten.get("fehler"),
     }, ensure_ascii=False), encoding="utf-8")
     print(f"data.json: {OUT.stat().st_size // 1024} KB · Fehler: {len(FEHLER)}")
