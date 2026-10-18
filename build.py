@@ -339,8 +339,19 @@ def pinn_drops(prices):
         ref = next((x for x in fein if timedelta(minutes=10) <= JETZT - ts(x[0]) <= timedelta(minutes=20)), None)
         if not ref:
             continue
-        # Tor im Fenster? (letzte Stand-Änderung nach dem Vergleichspunkt)
+        # Lucas 18.10. (Racing – Independiente 89' 1:1: „Live-Drop 12,8 → 6,5" war der Ausgleich selbst): drei Sperren.
+        # 1) Ab der 75. Minute nichts mehr — da ist jeder Schritt Spielstand-Mechanik, keine Information.
+        if not isinstance(li.get("time"), (int, float)) or li["time"] > 75:
+            continue
+        # 2) Der Stand muss schon VOR dem Vergleichspunkt bekannt gewesen sein (sonst sehen wir ein Tor im Fenster nicht),
+        #    und er darf sich seitdem nicht geändert haben.
+        if not sh or not ts(sh[0][0]) or ts(sh[0][0]) > ts(ref[0]):
+            continue
         if len(sh) >= 2 and ts(sh[-1][0]) and ts(sh[-1][0]) >= ts(ref[0]) - timedelta(minutes=3):
+            continue
+        # 3) Pinnacles eigenes Remis verrät ein Tor, auch wenn der Betfair-Stand hinterherhinkt: springt die
+        #    Remis-Chance im Fenster um mehr als 12 pp, war es ein Tor (eine Rote Karte bewegt sie viel weniger).
+        if abs(jetzt_p[2] - ref[2]) * 100 > 12:
             continue
         for i in (0, 2):
             eigen, gegner = (sc[0], sc[1]) if i == 0 else (sc[1], sc[0])

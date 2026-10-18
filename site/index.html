@@ -1230,7 +1230,7 @@ function seiteBetfair(D){
 function seitePinnacle(D){
   const pd = D.pinnDrops||{vor:[],live:[]};
   return `<div class="grid">
-    <div class="panel c12"><div class="ph"><h3>🔴 Live-Drops</h3><span class="hint">Team, das nicht führt, gewinnt bei Pinnacle in ~15 Min ab 4 pp (Top-5 ab 3 pp), ohne Tor. Die Zeit allein würde seine Chance senken, also steckt Information dahinter: Rote Karte, Druck, Verletzung</span></div>${pinDropKarten(lf(pd.live), true)}</div>
+    <div class="panel c12"><div class="ph"><h3>🔴 Live-Drops</h3><span class="hint">Team, das nicht führt, gewinnt bei Pinnacle in ~15 Min ab 4 pp (Top-5 ab 3 pp), ohne Tor, bis zur 75. Minute. Die Zeit allein würde seine Chance senken, also steckt Information dahinter: Rote Karte, Druck, Verletzung</span></div>${pinDropKarten(lf(pd.live), true)}</div>
     <div class="panel c12"><div class="ph"><h3>Drops vor Anpfiff</h3><span class="hint">aus allen ${pd.n||0} Spielen mit Pinnacle-Quote. Ab 2,5 pp seit dem ersten Stand (Top-5 ab 1,5 pp); frisch = ≥ 1,5 pp (Top-5 1 pp) in der letzten Stunde</span></div>${pinDropKarten(lf(pd.vor), false)}</div>
     <div class="panel c12">${liste(`Spiele mit großem Betfair-Geld: Pinnacle gegen Betfair und Polymarket (${lf(D.sharp).length})`, "", pinKarten(lf(D.sharp)))}</div>
     <div class="panel c12">${liste(`Alle ${lf(D.pinnAlle).length} Spiele mit Pinnacle-Quote als Liste`, "", pinTabelle(lf(D.pinnAlle),"pin-alle"))}</div>
