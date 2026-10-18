@@ -585,9 +585,16 @@ def maerkte_detail(m, snaps, minuten):
     dl = sel_delta(snaps, minuten)
     out = []
     for name, mk in sorted(((k, v) for k, v in (m.get("markets") or {}).items() if isinstance(v, dict)),
-                           key=lambda kv: -float(kv[1].get("vol") or 0))[:6]:
+                           key=lambda kv: -float(kv[1].get("vol") or 0)):
+        if len(out) >= 6:
+            break
         vol = float(mk.get("vol") or 0)
         if vol < 200:
+            continue
+        # Lucas 18.10.: „Über/Unter 7,5 @1,01 — wertlos, brauch ich nicht". Ein Markt, dessen meistgesetzte
+        # Auswahl unter 1,10 steht (oder schon entschieden ist), sagt nichts mehr → nicht zeigen.
+        quoten = [r.get("odd") for r in mk.get("runners") or [] if isinstance(r, dict) and isinstance(r.get("odd"), (int, float)) and r.get("odd") > 1]
+        if quoten and min(quoten) < 1.10:
             continue
         rs = sorted((r for r in mk.get("runners") or [] if isinstance(r, dict) and (r.get("vol") or 0) > 0),
                     key=lambda r: -(r.get("vol") or 0))
