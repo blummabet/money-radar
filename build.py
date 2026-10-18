@@ -513,7 +513,17 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
             continue
         tp.append({"wallet": z.get("wallet"), "markt": z.get("key"), "spiel": name_fuer(z.get("key")), "seite": z.get("side"),
                    "usd": z.get("usd"), "preis": z.get("pushPrice"), "sport": z.get("cat"), "zeit": z.get("sentAt"),
-                   "status": {"win": "won", "loss": "lost"}.get(z.get("result"), "pending" if z.get("status") == "pending" else None)})
+                   "status": {"win": "won", "loss": "lost"}.get(z.get("result"), "pending" if z.get("status") == "pending" else None),
+                   # für den Trade-Push im neuen Format (Lucas 18.10.: „im Trades-Channel wesentlich mehr Polymarket")
+                   "k": z.get("k"), "rang": z.get("walletRank"), "einstieg": z.get("whaleEntry"), "marktUsd": z.get("totalUsd"),
+                   "seitenAnteil": z.get("seitenAnteil"),
+                   "jetzt": ((quelle.get(z.get("key")) or {}).get("prices") or {}).get(z.get("side")),
+                   "anpfiff": (quelle.get(z.get("key")) or {}).get("koTs"),
+                   "n": int((scores.get(z.get("wallet")) or {}).get("n") or 0) or None,
+                   "clv": (round(float((scores.get(z.get("wallet")) or {}).get("clvSumPP") or 0) / int((scores.get(z.get("wallet")) or {}).get("n")), 2)
+                           if (scores.get(z.get("wallet")) or {}).get("n") else None),
+                   "pnl": (scores.get(z.get("wallet")) or {}).get("pnl"),
+                   "belegt": z.get("wallet") in bewiesen})
     tp.sort(key=lambda x: x["zeit"] or "", reverse=True)
     rec = (trades_record or {}).get("byCat") or {}
     bil = {sp: {"n": b.get("n"), "treffer": round((b.get("hit") or 0) * 100, 1), "roi": round((b.get("roi") or 0) * 100, 1),

@@ -396,11 +396,23 @@ def wale(d):
     WER setzt (Bilanz in Worten, wie überzeugt: Einsatz vs. sein Schnitt), WAS sagt der Markt (alle Preise als
     Balken, Betfair/Pinnacle-Quote daneben) und SIND ANDERE dabei (Geld der anderen Plattformen, weitere Wale)."""
     wallets = {w.get("wallet"): w for w in (d.get("poly") or {}).get("wallets") or []}
-    for o in (d.get("poly") or {}).get("setzen") or []:
+    # Lucas 18.10. („im Trades-Channel kriege ich wesentlich mehr Polymarket"): der alte Trades-Channel meldet jeden
+    # Einstieg aus seinem Wal-Ranking (heute 37 in 12 h, 27 Wallets) — hier kamen nur Positionen der ~20 BELEGTEN
+    # Wallets (3 davon). Jetzt beides: frische Trades (≤ 45 Min) im selben Format, belegte Wallets markiert.
+    liste = [(o, "belegt") for o in (d.get("poly") or {}).get("setzen") or []]
+    for t in (d.get("poly") or {}).get("tradesPushes") or []:
+        tt = ts(t.get("zeit"))
+        if tt and (JETZT - tt).total_seconds() <= FRISCH_MIN * 60:
+            liste.append((t, "trade"))
+    gesendet_hier = set()
+    for o, herkunft in liste:
         top5 = str(o.get("markt") or "").split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1"}
-        if (o.get("usd") or 0) < (WAL_MIN_USD_TOP5 if top5 else WAL_MIN_USD):
+        if herkunft == "belegt" and (o.get("usd") or 0) < (WAL_MIN_USD_TOP5 if top5 else WAL_MIN_USD):
             continue
         key = f"wal|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}"
+        if key in gesendet_hier:
+            continue
+        gesendet_hier.add(key)
         w = wallets.get(o.get("wallet")) or {}
         g = _poly_topf(d, o.get("markt"))
         k = _seite_von(g, o) if g else None
@@ -418,9 +430,13 @@ def wale(d):
             titel = f"{e(g.get('heim'))} – {e(g.get('gast'))}"
         liga = str((g or {}).get("liga") or "")
         liga = "" if liga.isupper() else e(liga)          # „ESPORTS"/„SOCCER" aus Polymarket sagt nichts
-        zeilen = [f"🐋 <b>Wal-Einstieg · {geld(usd, '$')} auf {e(seite)}</b>",
-                  f"{SPORT.get(o.get('sport'), '')} <b>{titel}</b>" + (f"\n<i>{flagge((g or {}).get('land'))}{liga}</i>" if liga else ""),
-                  f"🕒 {anpfiff(o.get('anpfiff'))}", ""]
+        belegt = herkunft == "belegt" or o.get("belegt")
+        zeilen = [f"🐋 <b>Wal-Einstieg · {geld(usd, '$')} auf {e(seite)}</b>" + (" · 🧠 belegt" if belegt else ""),
+                  f"{SPORT.get(o.get('sport'), '')} <b>{titel}</b>" + (f"\n<i>{flagge((g or {}).get('land'))}{liga}</i>" if liga else "")]
+        ko_txt = anpfiff(o.get("anpfiff") or (g or {}).get("anpfiff"))
+        if ko_txt:
+            zeilen.append(f"🕒 {ko_txt}")
+        zeilen.append("")
 
         # Was der Markt sagt: alle Poly-Preise als Balken, die Wal-Seite markiert, Quote daneben
         pp = ((g or {}).get("q") or {}).get("poly", {}).get("preise") or {} if not nebenmarkt else {}
@@ -463,13 +479,21 @@ def wale(d):
         wer = f"🧠 <b>Wallet {e(str(o.get('wallet'))[2:6])}</b>"
         if o.get("rang") and o.get("rangVon"):
             wer += f" · Nr. {o['rang']} von {o['rangVon']} belegten"
+        elif o.get("rang"):
+            wer += f" · Nr. {o['rang']} im Wal-Ranking"
         zeilen.append(wer)
         bil = []
         if n:
             bil.append(f"{n} Wetten")
         if pnl is not None:
             bil.append(("+" if pnl >= 0 else "−") + geld(abs(pnl), "$"))
-        bil.append(f"schlägt den Schlusskurs um Ø {q2(o.get('clv'))} pp (sicher ≥ {q2(o.get('clvUg'))})")
+        clv = o.get("clv") if o.get("clv") is not None else w.get("fensterClv")
+        clv_ug = o.get("clvUg") if o.get("clvUg") is not None else w.get("clvUg")
+        if clv is not None:
+            bil.append((f"schlägt den Schlusskurs um Ø {q2(clv)} pp" if clv > 0 else f"liegt im Schnitt {q2(abs(clv))} pp hinter dem Schlusskurs")
+                       + (f" (sicher ≥ {q2(clv_ug)})" if clv_ug is not None and clv > 0 else ""))
+        else:
+            bil.append("noch keine Schlusskurs-Bilanz")
         zeilen.append("   " + " · ".join(bil))
         if schnitt and usd:
             f = usd / float(schnitt)
