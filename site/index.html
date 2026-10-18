@@ -1040,7 +1040,7 @@ function topfDetail(t){
     const teile = Object.entries(q.seiten||{}).map(([k,v])=>({name:seitenName(t,k), wert:v}));
     const ges = teile.reduce((a,x)=>a+x.wert,0);
     const zeilen = teile.sort((a,b)=>b.wert-a.wert).map(x=>`<div class="dz"><div class="dz-l"><b>${esc(nm(x.name))}</b></div><div class="dz-bar"><i style="width:${(x.wert/Math.max(1,ges)*100).toFixed(1)}%;background:${QUELLE[qn].f}"></i></div><div class="dz-r">${geldIn(qn,x.wert)}<small>${Math.round(x.wert/Math.max(1,ges)*100)} %</small></div></div>`).join("");
-    const was = qn==="betfair" ? "gematcht über alle Märkte; Seiten aus dem Sieg-Markt" : qn==="poly" ? "Volumen gesamt; Seiten aus dem Geld in offenen Positionen" : `${q.wetten} Einzelwetten ab $1000 in den letzten 12 h; Seiten aus Sieg-Märkten`;
+    const was = qn==="betfair" ? "gematcht über alle Märkte; Seiten aus dem Sieg-Markt" : qn==="poly" ? `Volumen gesamt; Seiten aus ${q.seitenAus==="Käufe 4 h"?"den Käufen der letzten 4 Stunden":"dem Geld in offenen Positionen"}` : `${q.wetten} Einzelwetten ab $1000 in den letzten 12 h; Seiten aus Sieg-Märkten`;
     const link = qn==="poly" && q.key ? `<a href="https://polymarket.com/event/${encodeURIComponent(q.key)}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;display:inline-block;margin-top:8px">Auf Polymarket öffnen</a>` : "";
     return `<div><h4 style="color:${QUELLE[qn].f}">${QUELLE[qn].n}: ${geldIn(qn,q.betrag)}</h4><div class="kk-klein" style="margin-bottom:6px">${was}</div>${zeilen||`<div class="kk-klein">keine Aufteilung nach Seiten</div>`}${link}</div>`;
   }).join("");

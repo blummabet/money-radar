@@ -1226,7 +1226,7 @@ def _seite(name, heim, gast):
     return None
 
 
-def geld_toepfe(radar, poly_alle, hr):
+def geld_toepfe(radar, poly_alle, hr, pf=None):
     spiele = []
     # 1) Betfair als Grundgerüst (hat Land, Liga-Namen, Live-Stand)
     for sp in (radar or {}).get("spiele") or []:
@@ -1259,6 +1259,7 @@ def geld_toepfe(radar, poly_alle, hr):
     # 2) Polymarket — ALLE Märkte (upcoming + laufend), nicht nur die ausgewählten der Poly-Seite.
     #    Die Schlüssel tragen nur Kürzel („mls-nyr-tor-…"); die Teamnamen stehen in den Preis-Schlüsseln.
     #    „…-more-markets" (Tore, BTTS, Handicap) zählt zum Volumen desselben Spiels.
+    pf_takt = {m.get("key"): m.get("takt") or {} for m in (pf or {}).get("maerkte") or [] if m.get("takt")}
     mm_vol = {}
     for key, m in (poly_alle or {}).items():
         if isinstance(m, dict) and key.endswith("-more-markets"):
@@ -1281,12 +1282,23 @@ def geld_toepfe(radar, poly_alle, hr):
         betrag = float(m.get("totalUsd") or 0) + mm_vol.get(key, 0)
         if (g["q"].get("poly") or {}).get("betrag", -1) >= betrag:
             continue                    # dasselbe Spiel unter zwei Schlüsseln (alter Schlüssel neu terminiert) → der größere zählt
-        seiten = {}
+        seiten, herkunft = {}, "Positionen"
         for n, v in (m.get("shares") or {}).items():
             k = _seite(n, g["heim"], g["gast"])
             if k:
                 seiten[k] = seiten.get(k, 0) + float(v or 0)
-        g["q"]["poly"] = {"betrag": round(betrag), "seiten": seiten, "key": key,
+        if not seiten and key in pf_takt:
+            # Lucas 18.10. (Aurora – Falcons $173k, „keine Aufteilung"): das alte Projekt holt die Positionen nicht
+            # für jeden Markt. Dann die Käufe der letzten 4 h je Seite vom Mac-Runner (poly_fluss) — nur Ja-Käufe,
+            # „gegen X" lässt sich keiner einzelnen Seite zuordnen.
+            for n, werte in pf_takt[key].items():
+                if str(n).startswith("gegen "):
+                    continue
+                k = _seite(n, g["heim"], g["gast"])
+                if k:
+                    seiten[k] = seiten.get(k, 0) + sum(werte or [])
+            herkunft = "Käufe 4 h"
+        g["q"]["poly"] = {"betrag": round(betrag), "seiten": seiten, "key": key, "seitenAus": herkunft if seiten else None,
                           "preise": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("prices") or {}).items()}}
 
     # 3) Stake: große Einzelwetten der letzten Stunden (Highroller ab $1000)
@@ -1303,7 +1315,8 @@ def geld_toepfe(radar, poly_alle, hr):
         mk = str(w.get("markt") or "").lower()
         # Seite aus Sieg-Märkten, aber auch aus Handicap / Draw No Bet (Auswahl = Teamname, ggf. mit Linie)
         if mk in ("1x2", "match result", "winner", "match winner", "moneyline", "winner - twoway") \
-                or ("handicap" in mk and "half" not in mk and "1st" not in mk) or "draw no bet" in mk:
+                or ("handicap" in mk and "half" not in mk and "1st" not in mk) or "draw no bet" in mk \
+                or ("winner" in mk and "set" not in mk and "game" not in mk):
             e["seiten"].setdefault(w.get("auswahl"), 0.0)
             e["seiten"][w.get("auswahl")] += w.get("einsatzUsd") or 0
     for e in je_event.values():
@@ -1447,7 +1460,7 @@ def main() -> int:
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
-        "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(laden("poly_money_broad_live.json", {}) or {})}, hr),
+        "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(laden("poly_money_broad_live.json", {}) or {})}, hr, pfl),
         "stake": stake(burst),
         "hz": hz(finder),
         "fehler": FEHLER,
