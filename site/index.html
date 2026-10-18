@@ -516,6 +516,7 @@ function serienKarten(D, max, quelle){
       <div class="serie-kopf"><span class="serie-n">🔁 ${x.n}× in Folge</span><span class="tag" style="background:${tint(farbe,16)};color:${farbe}">${istBf?"Betfair":istSt?"Stake":"Polymarket"}</span></div>
       <div class="kk-zahl" style="color:${farbe}">${istBf?eur(x.eur):usd(x.usd)} <small style="font-size:13px;color:var(--text-2);font-weight:600">in ${x.dauerMin} Min</small></div>
       <div class="kk-auf">auf <b>${esc(istBf?auswahlDe(x.auswahl):istSt?x.auswahl:pmLabel(x.auswahl))}</b>${x.quote?` @ ${q2(x.quote)}`:""}${x.preis?` <small style="color:var(--text-3)">(${Math.round(x.preis*100)} ¢)</small>`:""}${x.quoteStart&&x.quote&&Math.abs(x.quote-x.quoteStart)>=0.02?` <span class="${x.quote<x.quoteStart?"hoch":"runter"}">${x.quote<x.quoteStart?"↓":"↑"} von ${q2(x.quoteStart)}</span>`:""}</div>
+      ${istBf&&x.tor?`<div class="kk-klein" style="color:var(--bf)">⚽ Tor während der Serie (${x.tor.von.join(":")} → ${x.tor.nach.join(":")}): ${eur(x.tor.vorTor)} vorher, ${eur(x.tor.nachTor)} danach</div>`:""}
       ${istBf?`<div class="kk-klein">${esc(marktDe(x.markt))}${x.letzteVorMin!=null?`, zuletzt vor ${x.letzteVorMin} Min`:""}</div>`:istSt?`<div class="kk-klein">${esc(x.markt)}, ${x.wetten} Wetten ab $1000</div>`:""}
       ${saeulenSvg(istBf ? x.saeulen.slice(-24) : x.saeulen, farbe, 260, 38, istBf?5:10)}
     </div>`;}).join("")}</div>`;

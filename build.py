@@ -1010,7 +1010,10 @@ def takt_fortschreiben(bf_hist):
             name, dv = max(d.items(), key=lambda kv: kv[1])
             h[f"{markt}|{name}"] = [round(dv), round(100 * dv / ges), sel[name][1]]
         if h:
-            liste.append({"t": b["ts"], "h": h})
+            e_ = {"t": b["ts"], "h": h}
+            if isinstance(b.get("sc"), list):
+                e_["sc"] = b["sc"]          # Spielstand zum Abruf → ob in einer Serie ein Tor fiel
+            liste.append(e_)
     takt = {mid: [x for x in liste if (ts(x.get("t")) or grenze) > grenze] for mid, liste in takt.items()}
     takt = {mid: liste for mid, liste in takt.items() if liste}
     try:
@@ -1033,7 +1036,7 @@ def serien(takt, radar):
         if not letzte_t or JETZT - letzte_t > timedelta(minutes=25):
             continue
         for key in {k for x in liste for k in x["h"]}:
-            treffer = [(ts(x["t"]), *x["h"][key]) for x in liste if key in x["h"]
+            treffer = [(ts(x["t"]), *x["h"][key], tuple(x.get("sc") or ())) for x in liste if key in x["h"]
                        and x["h"][key][0] >= SERIE_BODEN[top5] and x["h"][key][1] >= 60]
             if len(treffer) < SERIE_MIN_N:
                 continue
@@ -1049,6 +1052,14 @@ def serien(takt, radar):
             summe = sum(k[1] for k in kette)
             if summe < max(SERIE_SUMME[top5], SERIE_NORM_ANTEIL * (sp.get("normEur") or 0)):
                 continue
+            # Lucas 18.10.: fiel während der Serie ein Tor, muss das dabeistehen — Geld nach einem Tor ist
+            # oft Nachlegen auf den Führenden, nicht das frühe Urteil
+            tor = None
+            st0, st1 = kette[0][4], kette[-1][4]
+            if st0 and st1 and st0 != st1:
+                tor = {"von": list(st0), "nach": list(st1),
+                       "vorTor": round(sum(k[1] for k in kette if k[4] == st0)),
+                       "nachTor": round(sum(k[1] for k in kette if k[4] != st0))}
             markt, auswahl = key.split("|", 1)
             if isinstance(kette[-1][3], (int, float)) and kette[-1][3] < 1.20:
                 continue                               # wie beim Zufluss: praktisch entschieden
@@ -1070,6 +1081,7 @@ def serien(takt, radar):
                         "quote": kette[-1][3], "quoteStart": kette[0][3],
                         "seit": iso(kette[0][0]), "dauerMin": round((kette[-1][0] - kette[0][0]).total_seconds() / 60) + 5,
                         "letzteVorMin": round((JETZT - kette[-1][0]).total_seconds() / 60), "saeulen": saeulen,
+                        "tor": tor,
                         # für den Push: wie der Markt jetzt insgesamt liegt (Lucas 18.10.)
                         "marktVerteilung": next(([[a["name"], a["eur"], a.get("quote"), round(summe) if a["name"] == auswahl else 0]
                                                   for a in m["auswahl"]] for m in sp.get("maerkteDetail") or [] if m["name"] == markt), None)})
