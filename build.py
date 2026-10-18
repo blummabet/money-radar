@@ -1531,12 +1531,36 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
                 seiten[k] = seiten.get(k, 0) + v
         g["q"]["stake"] = {"betrag": round(e["summe"]), "seiten": seiten, "wetten": e["n"]}
 
+    # Lucas 18.10. (Kasimpasa 55' 2:1 mit „79 % auf Kasimpasa" oben in der Liste): live verstopfen führende Teams die
+    # Liste, und ihr Betfair-Anteil wächst nur, weil nach dem Tor zu Mini-Quoten auf den Führenden gehandelt wird.
+    # Darum: führt ein Team und steht es bei Betfair unter 1,40 → raus. Alle anderen laufenden Spiele kommen zugeklappt
+    # ans Ende, mit der Aufteilung ZUM ANPFIFF (vor dem Spiel gespeichert), nicht der verzerrten Live-Summe.
+    split_datei = BASIS / ".bf" / "anpfiff_split.json"
+    try:
+        splits = json.loads(split_datei.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        splits = {}
     out = []
     for g in spiele:
         k = ts(g["anpfiff"])
         # entschiedene Spiele dienten nur als Anker, damit Polymarket/Stake sich nicht als eigenes Spiel listen
         if g.get("entschieden") or not k or not (-2.2 <= (k - JETZT).total_seconds() / 3600 <= 30):
             continue
+        bfq = (g["q"].get("betfair") or {})
+        if k > JETZT:
+            if bfq.get("seiten"):
+                splits[g["id"]] = {"seiten": {kk: round(v) for kk, v in bfq["seiten"].items()}, "t": iso(JETZT)}
+        else:
+            g["laeuft"] = True
+            st = (g.get("live") or {}).get("stand") or []
+            if len(st) == 2 and None not in st and st[0] != st[1]:
+                fuehrt = "heim" if st[0] > st[1] else "gast"
+                qf = (bfq.get("quoten") or {}).get(fuehrt)
+                if isinstance(qf, (int, float)) and qf < 1.40:
+                    continue
+            sp0 = (splits.get(g["id"]) or {}).get("seiten")
+            if sp0:
+                g["splitAnpfiff"] = sp0
         ges, seiten_ges, meinungen = 0.0, {}, {}
         for qn, q in g["q"].items():
             f = 1.0 if qn == "betfair" else USD_EUR
@@ -1558,7 +1582,14 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
             einig = len(set(meinungen.values())) == 1
         out.append({**g, "gesamt": round(ges), "seiten": {k: round(v) for k, v in seiten_ges.items()},
                     "einig": einig, "meinungen": meinungen})
-    out.sort(key=lambda x: -x["gesamt"])
+    try:
+        grenze = JETZT - timedelta(hours=6)
+        splits = {kk: v for kk, v in splits.items() if (ts(v.get("t")) or JETZT) >= grenze - timedelta(hours=24)}
+        split_datei.parent.mkdir(parents=True, exist_ok=True)
+        split_datei.write_text(json.dumps(splits), encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+    out.sort(key=lambda x: (bool(x.get("laeuft")), -x["gesamt"]))
     return out[:40]
 
 
