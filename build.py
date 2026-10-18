@@ -1658,8 +1658,11 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
         split_datei.write_text(json.dumps(splits), encoding="utf-8")
     except Exception:  # noqa: BLE001
         pass
-    out.sort(key=lambda x: (bool(x.get("laeuft")), -x["gesamt"]))
-    return out[:40]
+    # Lucas 18.10. (Lyon, Real, Juve liefen und fehlten): erst sortieren, dann kappen schnitt die laufenden Spiele
+    # ab, sobald 40 Spiele vor Anpfiff da waren. Jetzt getrennte Deckel.
+    vor = sorted((x for x in out if not x.get("laeuft")), key=lambda x: -x["gesamt"])[:40]
+    lauf = sorted((x for x in out if x.get("laeuft")), key=lambda x: -x["gesamt"])[:25]
+    return vor + lauf
 
 
 def push_bilanz():
