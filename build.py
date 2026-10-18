@@ -1332,9 +1332,11 @@ def stake_serien(hr):
         ev = (w.get("eventId"), w.get("markt"))
         g = gruppen.setdefault(ev, {"summe": [0.0] * 24, "sel": {}, "w": w})
         g["summe"][i] += w.get("einsatzUsd") or 0
-        sel = g["sel"].setdefault(w.get("auswahl"), {"werte": [0.0] * 24, "quote": None, "n": 0})
+        sel = g["sel"].setdefault(w.get("auswahl"), {"werte": [0.0] * 24, "quote": None, "n": 0, "letzte": None})
         sel["werte"][i] += w.get("einsatzUsd") or 0
-        sel["quote"] = w.get("beinQuote") or w.get("quote") or sel["quote"]
+        if not sel["letzte"] or t >= sel["letzte"]:
+            sel["letzte"] = t
+            sel["quote"] = w.get("beinQuote") or w.get("quote") or sel["quote"]
         sel["n"] += 1
     out = []
     for (eid, markt), g in gruppen.items():
@@ -1356,7 +1358,15 @@ def stake_serien(hr):
             summe = sum(v[i] for i in kette)
             if summe < (50000 if top5 else 15000):
                 continue
-            out.append({"id": eid, "titel": w0.get("event"), "liga": w0.get("liga"), "sport": w0.get("kat"),
+            # Lucas 18.10. (Forest–Arsenal „Over 0,5 Halbzeit @1,55" kam in der Pause): die Abschnitte zählten ab dem
+            # Stand der Stake-Datei, nicht ab jetzt — eine Serie konnte bis ~1 h nach der letzten Wette noch melden.
+            # Jetzt: letzte Wette höchstens 15 Min her, und Märkte der 1. Halbzeit nur bis zur 45. Minute.
+            if not sel["letzte"] or JETZT - sel["letzte"] > timedelta(minutes=15):
+                continue
+            ko = ts(w0.get("anpfiff"))
+            if re.search(r"half.?time|1st half|first half|halbzeit", str(markt or ""), re.I) and ko and JETZT - ko > timedelta(minutes=45):
+                continue
+            out.append({"letzteVorMin": round((JETZT - sel["letzte"]).total_seconds() / 60), "id": eid, "titel": w0.get("event"), "liga": w0.get("liga"), "sport": w0.get("kat"),
                         "anpfiff": w0.get("anpfiff"), "live": w0.get("phase") == "live", "top5": top5, "quelle": "stake",
                         "markt": markt, "auswahl": auswahl, "quote": sel["quote"], "n": len(kette), "usd": round(summe),
                         "anteil": round(100 * summe / max(1, sum(g["summe"][i] for i in kette))),

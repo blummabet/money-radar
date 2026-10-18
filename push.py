@@ -711,8 +711,9 @@ def serie(d):
         text = (f"🔁 <b>Dauerzufluss</b> · Stake · <b>{x['n']}× in Folge</b>\n"
                 f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{e(x.get('liga'))} · {'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n\n"
                 f"💵 <b>{geld(x['usd'], '$')}</b> in {x['wetten']} Wetten über {x['dauerMin']} Min auf <b>{e(x['auswahl'])}</b>"
-                + (f" @ {q2(x.get('quote'))}" if x.get("quote") else "") + "\n"
-                + _anteil_balken(x['auswahl'], x.get("anteil"), f" der großen Wetten · {e(x.get('markt'))}")
+                + (f" · letzte @ {q2(x.get('quote'))}" if x.get("quote") else "") + "\n"
+                + f"🗂 {e(x.get('markt'))}" + (f" · letzte Wette vor {x['letzteVorMin']} Min" if x.get("letzteVorMin") is not None else "") + "\n"
+                + _anteil_balken(x['auswahl'], x.get("anteil"), " der großen Wetten")
                 + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n")
         yield key, text, None
 
