@@ -1663,6 +1663,16 @@ def main() -> int:
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(daten, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    # kleine Kennzahlen-Datei: zum schnellen Prüfen von außen, ohne die ganze data.json zu laden
+    pdz = daten.get("pinnDrops") or {}
+    (OUT.parent / "stand.json").write_text(json.dumps({
+        "generatedAt": daten["generatedAt"], "quellen": daten["quellen"],
+        "pinnScan": {"stand": pdz.get("stand"), "spiele": pdz.get("n"), "vor": len(pdz.get("vor") or []),
+                     "live": len(pdz.get("live") or []),
+                     "beispiele": [f"{x['liga']}: {x['auf']} +{x['pp']} pp" for x in (pdz.get("live") or []) + (pdz.get("vor") or [])][:6]},
+        "pinnRadar": len(daten.get("pinnAlle") or []), "serien": len(daten.get("serien") or []),
+        "fehler": daten.get("fehler"),
+    }, ensure_ascii=False), encoding="utf-8")
     print(f"data.json: {OUT.stat().st_size // 1024} KB · Fehler: {len(FEHLER)}")
     for f in FEHLER:
         print("  ⚠️ ", f)
