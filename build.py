@@ -818,6 +818,12 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             # Spiel ist Abrechnungs-/Trading-Rauschen bei Quote 1,01–1,05, kein Signal.
             "entschieden": bool(dt_h < 0 and isinstance(li.get("time"), (int, float)) and (li.get("time") >= 70 or (
                 li.get("time") >= 30 and min([q for q in (mo.get("hw"), mo.get("dr"), mo.get("aw")) if q] or [9]) <= 1.10))),
+            # Lucas 18.10. (Salzburg 14' 1:0 @1,21 im Live-Zufluss): führt ein Team und steht es unter 1,40, ist das
+            # Spiel für alle Live-Listen und -Pushes durch — dieselbe Grenze wie „Wo am meisten liegt".
+            "klarVorn": bool(dt_h < 0 and li.get("goal_v1") is not None and li.get("goal_v2") is not None
+                             and li.get("goal_v1") != li.get("goal_v2")
+                             and isinstance(mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw"), (int, float))
+                             and mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw") < 1.40),
             "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "phase": ph, "rang": rang,
             "d60": round(vol - vor60) if vor60 is not None else None,
             # nur wenn der Vergleichspunkt nicht uralt ist (sonst wäre es kein 30-Min-Zufluss)
@@ -1070,7 +1076,7 @@ def live_zufluss(radar):
               and not (f.get("quote") and f.get("quoteVorher")
                        and not (1 / 1.4 <= f["quote"] / f["quoteVorher"] <= 1.4))]
         d = fl[0]["eur"] if fl else None
-        if not sp.get("live") or sp.get("entschieden") or not d:
+        if not sp.get("live") or sp.get("entschieden") or sp.get("klarVorn") or not d:
             continue
         out.append({k: sp.get(k) for k in ("id", "heim", "gast", "liga", "land", "anpfiff", "live", "eur", "xnorm",
                                             "quoten", "verteilung", "marktZufluss", "top5", "rang")} | {"zuflussEur": d, "fluss": fl})
@@ -1140,7 +1146,7 @@ def serien(takt, radar):
     out = []
     for mid, liste in takt.items():
         sp = spiele.get(str(mid))
-        if not sp or sp.get("entschieden"):
+        if not sp or sp.get("entschieden") or sp.get("klarVorn"):
             continue
         top5 = bool(sp.get("top5"))
         letzte_t = ts(liste[-1]["t"])
