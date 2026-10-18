@@ -1233,7 +1233,42 @@ def _seite(name, heim, gast):
     return None
 
 
-def geld_toepfe(radar, poly_alle, hr, pf=None):
+def belegte_positionen(wallets, track, *quellen):
+    """Polymarket-Schlüssel -> offene Positionen BELEGTER Wallets (Untergrenze des CLV > 0) (Lucas 18.10.).
+
+    Quellen: die offenen Positionen aus dem Wallet-Track (alle, nicht nur die Top 5 je Wallet) und die
+    Großhalter-Listen der Markt-Scans (upcoming / live / offen). Je Wallet + Markt + Seite nur einmal."""
+    bew = {w["wallet"]: w for w in wallets or [] if w.get("bewiesen")}
+    out = {}
+
+    def add(key, wallet, seite, usd, preis=None):
+        if wallet not in bew or not key or not usd or float(usd) < 1000:
+            return                      # Kleinstpositionen ($118) sagen nichts
+        liste = out.setdefault(key, [])
+        for x in liste:
+            if x["wallet"] == wallet and x["seite"] == seite:
+                x["usd"] = max(x["usd"], round(float(usd)))
+                return
+        w = bew[wallet]
+        liste.append({"wallet": wallet, "seite": seite, "usd": round(float(usd)), "preis": preis,
+                      "clv": w.get("fensterClv"), "clvUg": w.get("clvUg"), "n": w.get("fensterN")})
+
+    for p in ((track or {}).get("open") or {}).values():
+        if isinstance(p, dict) and zukunft(p.get("koTs"), nach_h=2.2, bis_h=72):
+            add(p.get("key"), p.get("wallet"), p.get("side"), p.get("usd"), p.get("lastPrice") or p.get("firstPrice"))
+    for q in quellen:
+        for key, m in (q or {}).items():
+            if not isinstance(m, dict):
+                continue
+            for wh in m.get("whales") or []:
+                if isinstance(wh, dict):
+                    add(key, wh.get("wallet"), wh.get("side"), wh.get("usd"), wh.get("avgPrice"))
+    for liste in out.values():
+        liste.sort(key=lambda x: -x["usd"])
+    return out
+
+
+def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
     spiele = []
     # 1) Betfair als Grundgerüst (hat Land, Liga-Namen, Live-Stand)
     for sp in (radar or {}).get("spiele") or []:
@@ -1305,6 +1340,10 @@ def geld_toepfe(radar, poly_alle, hr, pf=None):
                 if k:
                     seiten[k] = seiten.get(k, 0) + sum(werte or [])
             herkunft = "Käufe 4 h"
+        wl = [dict(x, k=_seite(x["seite"], g["heim"], g["gast"])) for x in
+              ((belegt or {}).get(key) or []) + ((belegt or {}).get(key + "-more-markets") or [])]
+        if wl:
+            g["wale"] = wl[:6]
         g["q"]["poly"] = {"betrag": round(betrag), "seiten": seiten, "key": key, "seitenAus": herkunft if seiten else None,
                           "preise": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("prices") or {}).items()}}
 
@@ -1467,7 +1506,8 @@ def main() -> int:
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
-        "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(laden("poly_money_broad_live.json", {}) or {})}, hr, pfl),
+        "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, laden("poly_money_broad_live.json", {}), offen_m)),
+        "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(laden("poly_money_broad_live.json", {}) or {})}, hr, pfl, pbel),
         "stake": stake(burst),
         "hz": hz(finder),
         "fehler": FEHLER,
