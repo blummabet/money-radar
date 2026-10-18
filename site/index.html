@@ -1156,27 +1156,30 @@ function topfDetail(t){
 // Lucas 18.10.: laufende Spiele zugeklappt ans Ende — eine Zeile, Aufteilung ZUM ANPFIFF (live verzerrt der
 // Handel auf den Führenden den Anteil). Führt ein Team unter Quote 1,40, ist das Spiel schon raus (build.py).
 function topfZeile(t){
-  const live = t.live ? `<span class="live">${t.live.min!=null?t.live.min+"'":"live"}</span> ${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}` : `<span class="live">läuft</span>`;
+  const live = !t.laeuft ? wann(t.anpfiff) : t.live ? `<span class="live">${t.live.min!=null?t.live.min+"'":"live"}</span> ${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}` : `<span class="live">läuft</span>`;
   const sp = t.splitAnpfiff, keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
-  let vor = `<span class="tz-leer">Aufteilung zum Anpfiff nicht gespeichert</span>`;
+  let vor = `<span class="tz-leer">${t.laeuft?"Aufteilung zum Anpfiff nicht gespeichert":`nur Volumen bekannt (${Object.keys(t.q||{}).map(q=>QUELLE[q]?.n||q).join(", ")}), keine Seiten`}</span>`;
   if(sp){ const ges = keys.reduce((a,k)=>a+(sp[k]||0),0);
     if(ges){ const top = keys.reduce((a,k)=>(sp[k]||0)>(sp[a]||0)?k:a, keys[0]);
       vor = `<span class="tz-bar">${keys.filter(k=>sp[k]>0).map(k=>`<i style="flex:${sp[k]} 1 0;background:${k===top?"var(--text-2)":"var(--panel-3)"}"></i>`).join("")}</span><span class="tz-vor">vor Anpfiff ${esc(k2n(t,top))} <b>${Math.round(sp[top]/ges*100)} %</b></span>`; } }
   return `<div class="tz" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
     <div class="tz-1"><b>${esc(t.heim)} – ${esc(t.gast)}</b><span class="tz-r">${live}</span><span class="tz-g">≈ ${eur(t.gesamt)}</span></div>
-    <div class="tz-2">${vor}</div></div>`;
+    ${t.laeuft?`<div class="tz-2">${vor}</div>`:""}</div>`;
 }
 const k2n = (t,k) => k==="remis" ? "Remis" : seitenName(t,k);
 function toepfeListe(D, n){
   const alle = lf(D.toepfe||[]).filter(top5Ok);
   if(!alle.length) return `<div class="leer">Gerade keine Spiele mit nennenswertem Geld${ligaModus==="ohne"?" außerhalb der Top-5":""}.</div>`;
-  const vor = alle.filter(t=>!t.laeuft), lauf = alle.filter(t=>t.laeuft);
+  const hatSeiten = t => Object.values(t.seiten||{}).some(v=>v>0);
+  const vor = alle.filter(t=>!t.laeuft && hatSeiten(t)), ohne = alle.filter(t=>!t.laeuft && !hatSeiten(t)), lauf = alle.filter(t=>t.laeuft);
   const max = Math.max(1, ...alle.map(t=>t.gesamt));
   const laufBlock = lauf.length ? `<div class="tz-kopf">Läuft gerade <span>${lauf.length}</span></div><div class="tz-liste">${lauf.slice(0,8).map(topfZeile).join("")}</div>
     ${lauf.length>8?liste(`Weitere ${lauf.length-8} laufende Spiele`, "", `<div class="tz-liste" style="margin-top:10px">${lauf.slice(8).map(topfZeile).join("")}</div>`):""}` : "";
+  const ohneBlock = ohne.length ? `<div class="tz-kopf">Nur Volumen bekannt, keine Seitenaufteilung <span>${ohne.length}</span></div><div class="tz-liste">${ohne.slice(0,3).map(topfZeile).join("")}</div>
+    ${ohne.length>3?liste(`Weitere ${ohne.length-3}`, "", `<div class="tz-liste" style="margin-top:10px">${ohne.slice(3).map(topfZeile).join("")}</div>`):""}` : "";
   return `<div class="toepfe">${vor.slice(0,n).map((t,i)=>topfKarte(t,i,max)).join("")}</div>
     ${vor.length>n?liste(`Weitere ${vor.length-n} Spiele vor Anpfiff`, "", `<div class="toepfe" style="margin-top:12px">${vor.slice(n).map((t,i)=>topfKarte(t,i+n,max)).join("")}</div>`):""}
-    ${laufBlock}`;
+    ${ohneBlock}${laufBlock}`;
 }
 function kompaktZufluss(D, n){
   const z = lf(D.zufluss30||[]).slice(0,n);
@@ -1190,11 +1193,16 @@ function kompaktPinnacle(D, n){
   return `<div class="feed">${z.map(x=>`<div class="fe" ${x.bfId?klickSpiel({id:x.bfId,heim:x.heim,gast:x.gast}):""}>${icon("pinnacle")}<div style="min-width:0"><div class="t">${esc(x.auf)} ${x.istLive?`<span class="live">${x.min!=null?x.min+"'":"live"} ${x.stand[0]}:${x.stand[1]}</span>`:x.frisch?`<span class="tag t-lost">frisch</span>`:""}</div><div class="s">${esc(x.heim)} – ${esc(x.gast)}, ${x.istLive?`+${dez(x.pp)} pp in ${x.fensterMin} Min`:wann(x.anpfiff)}</div></div><div class="b"><span style="color:var(--text-3);font-weight:600;text-decoration:line-through">${q2(x.vonQuote)}</span> <span style="color:var(--up)">${q2(x.quote)}</span><small>+${dez(x.pp)} pp</small></div></div>`).join("")}</div>`;
 }
 function seiteStart(D){
+  // Lucas 18.10.: Dauerzufluss ist sein wichtigster KPI → läuft eine Serie, steht sie direkt unter „Gerade passiert"
+  const serienDa = lf(D.serien||[]).length + (D.polySerien||[]).filter(top5Ok).length + (D.stakeSerien||[]).filter(top5Ok).length > 0;
+  const serienPanel = `<div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Abruf für Abruf Geld auf dieselbe Auswahl</span></div>${serienKarten(D,4)}</div>`;
+  const mobil = window.innerWidth < 860;
   return `<div class="grid">
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div><div class="feed">${feedListe(D,5,1)}</div></div>
-    <div class="panel c8 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3><span class="hint">Betfair, Polymarket und Stake zusammen · Kürzel = wo die Quelle ihr meistes Geld hat</span></div>${toepfeListe(D,8)}</div>
+    ${serienDa?serienPanel:""}
+    <div class="panel c8 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3><span class="hint">Betfair, Polymarket und Stake zusammen · Kürzel = wo die Quelle ihr meistes Geld hat</span></div>${toepfeListe(D,mobil?5:8)}</div>
     <div class="panel c4 feedpanel"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span><button class="chip rechts" data-geh="feed">Alle</button></div><div class="feed">${feedListe(D,14)}</div></div>
-    <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Abruf für Abruf Geld auf dieselbe Auswahl</span></div>${serienKarten(D,4)}</div>
+    ${serienDa?"":serienPanel}
     <div class="panel c6"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">vor Anpfiff, 30 Min</span><button class="chip rechts" data-geh="betfair">Alle</button></div>${kompaktZufluss(D,4)}</div>
     <div class="panel c6"><div class="ph"><h3>Pinnacle bewegt sich</h3><span class="hint">faire Quote vorher und jetzt</span><button class="chip rechts" data-geh="pinnacle">Alle</button></div>${kompaktPinnacle(D,4)}</div>
     <div class="panel c12"><div class="ph"><h3>Bilanz der Signale</h3><button class="chip rechts" data-geh="feed">Push-Auswertung</button></div>${bilanzRinge(D)}<div class="hinweis">Mitte: Rendite pro Tipp. Ring: Trefferquote.</div></div>
@@ -1228,13 +1236,13 @@ function seitePoly(D){
   const auswahl = filterSport==="alle" ? sortiert : sortiert.filter(m=>(m.sport||"Fußball")===filterSport);
   const tb = p.tradesBilanz || {};
   return `<div class="grid">
-    ${["Fußball","E-Sport","Tennis"].filter(s=>tb[s]).map(s=>{ const b = tb[s]; return `<div class="panel kpi c4"><div class="lab"><span class="ico" style="background:${tint("var(--poly)",16)};font-size:15px">${SPORT_ICO[s]}</span>Wal-Pushes ${s}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Tipps, ${dez(b.treffer,0)} % Treffer${b.belegt?`, <b style="color:var(--up)">belegt</b>`:""}</div></div>`;}).join("")}
     ${(p.setzen||[]).length?`<div class="panel c12"><div class="ph"><h3>Belegte Wale setzen gerade</h3><span class="hint">Wallets, die nachweislich den Schlusskurs schlagen</span></div>${setzenKarten(p.setzen)}</div>`:""}
     <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">mind. 3 Zehn-Minuten-Abschnitte in Folge mit derselben Seite vorn</span></div>${serienKarten(D,8,"poly")}</div>
     <div class="panel c12"><div class="ph"><h3>Wohin das Geld fließt</h3><span class="hint">Käufe der letzten 30 Min je Seite (vom Mac, alle 10 Min); gezeigt, wenn eine Seite den Großteil bekam</span></div>${polyFlussKarten(D,12)}</div>
     <div class="panel c12"><div class="ph"><h3>Märkte, nächste 30 Stunden</h3>
       <div class="chips rechts">${sports.map(s=>`<button class="chip${s===filterSport?" an":""}" data-sport="${s}">${s==="alle"?"Alle":SPORT_ICO[s]+" "+s} <span style="opacity:.6">${s==="alle"?p.maerkte.length:p.maerkte.filter(m=>(m.sport||"Fußball")===s).length}</span></button>`).join("")}</div></div>
       ${polyKarten(auswahl.slice(0,12))}${auswahl.length>12?liste("Alle Märkte als Liste",auswahl.length,polyTabelle(auswahl,"p-alle")):""}</div>
+    ${["Fußball","E-Sport","Tennis"].filter(s=>tb[s]).map(s=>{ const b = tb[s]; return `<div class="panel kpi c4"><div class="lab"><span class="ico" style="background:${tint("var(--poly)",16)};font-size:15px">${SPORT_ICO[s]}</span>Wal-Pushes ${s}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Tipps, ${dez(b.treffer,0)} % Treffer${b.belegt?`, <b style="color:var(--up)">belegt</b>`:""}</div></div>`;}).join("")}
     <div class="panel c6"><div class="ph"><h3>Rangliste</h3><span class="hint">Vorsprung auf den Schlusskurs</span></div>${rangliste(p.wallets)}</div>
     <div class="panel c6"><div class="ph"><h3>Wal-Pushes</h3><span class="hint">Trades-Channel, 36 h</span></div><div class="feed">${(p.tradesPushes||[]).slice(0,10).map(t=>`<div class="fe"><span class="ico" style="background:${tint("var(--poly)",16)};font-size:15px;width:34px;height:34px;border-radius:10px">${SPORT_ICO[t.sport]||"⚽"}</span><div style="min-width:0"><div class="t">${esc(seiteName(t.seite))} @ ${Math.round((t.preis||0)*100)} ¢${tagFuer(t.status)}</div><div class="s">${esc(t.spiel)}</div></div><div class="b">${usd(t.usd)}<small>${vor(t.zeit)}</small></div></div>`).join("") || `<div class="leer">Keine Wal-Pushes.</div>`}</div></div>
   </div>`;
@@ -1243,15 +1251,15 @@ function seiteStake(D){
   const st = D.stake;
   return `<div class="grid">
     <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Einzelwetten ab $1000: mind. 3 Zehn-Minuten-Abschnitte in Folge mit derselben Auswahl vorn</span></div>${serienKarten(D,8,"stake")}</div>
-    ${Object.entries(st.bilanz||{}).map(([a,b])=>`<div class="panel kpi c3"><div class="lab">${icon("stake")}${esc(a)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Tipps, ${b.treffer} % Treffer</div></div>`).join("")}
     <div class="panel c12"><div class="ph"><h3>Große Wetten, letzte 24 Stunden</h3><span class="hint">je Spiel und Auswahl zusammengefasst</span></div>${stakeKarten((st.gruppen||[]).slice(0,16))}</div>
+    ${Object.entries(st.bilanz||{}).map(([a,b])=>`<div class="panel kpi c3"><div class="lab">${icon("stake")}${esc(a)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Tipps, ${b.treffer} % Treffer</div></div>`).join("")}
   </div>`;
 }
 function seiteHz(D){
   const z = D.hz;
   return `<div class="grid">
-    ${(z.bericht||[]).map(b=>`<div class="panel kpi c4"><div class="lab">${icon("hz")}${esc(b.wette)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Spiele · ${dez(b.treffer,0)} % getroffen, Quote sagte ${dez(b.erwartet,0)} %</div></div>`).join("")}
     <div class="panel c12"><div class="ph"><h3>Zur Pause 0:0</h3><span class="hint">letzte 24 Stunden, Quoten zur Pause · ✓/✗ nach Abpfiff · Strich unten = vom Signal gespielt</span></div>${hzSpielKarten(z.heute||[])}</div>
+    ${(z.bericht||[]).map(b=>`<div class="panel kpi c4"><div class="lab">${icon("hz")}${esc(b.wette)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Spiele · ${dez(b.treffer,0)} % getroffen, Quote sagte ${dez(b.erwartet,0)} %</div></div>`).join("")}
   </div>`;
 }
 
