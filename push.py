@@ -161,13 +161,13 @@ def zufluss(d):
             continue
         key = f"zf|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
         q, qv = fl.get("quote"), fl.get("quoteVorher")
-        richtung = (f", Quote fällt ↓ (von {q2(qv)})" if q < qv else f", Quote steigt ↑ (von {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
+        richtung = (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
         text = (f"🟡 <b>Frischer Zufluss</b> · Betfair\n"
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}\n\n"
-                f"💶 <b>+{geld(fl.get('eur'))}</b> in 30 Min auf <b>{e(_auswahl_de(fl.get('auswahl')))}</b> @ <b>{q2(q)}</b>{richtung}\n"
-                + _anteil_balken(remis(_auswahl_de(fl.get("auswahl"))), fl.get("anteil"), f" des neuen Geldes · {e(_markt_de(fl.get('markt')))}")
-                + _markt_gesamt(fl)
+                f"💶 <b>+{geld(fl.get('eur'))}</b> in 30 Min auf <b>{e(remis(_auswahl_de(fl.get('auswahl'))))}</b> @ <b>{q2(q)}</b>{richtung}\n"
+                f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n\n"
+                + _geld_block(fl, 30)
                 + pinnacle_zeile(d, z, fl))
         yield key, text, ZUFLUSS_PAUSE_H, _beleg("zufluss", z, fl)
 
@@ -183,14 +183,14 @@ def live(d):
         st = lv.get("stand") or [0, 0]
         key = f"lz|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
         q, qv = fl.get("quote"), fl.get("quoteVorher")
-        richtung = (f", Quote fällt ↓ (von {q2(qv)})" if q < qv else f", Quote steigt ↑ (von {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
+        richtung = (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
         minute = f"{lv.get('min')}'" if lv.get("min") is not None else "live"
         text = (f"🔴 <b>Live-Zufluss</b> · Betfair\n"
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {minute} · <b>{st[0]}:{st[1]}</b>\n\n"
-                f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(_auswahl_de(fl.get('auswahl')))}</b> @ <b>{q2(q)}</b>{richtung}\n"
-                + _anteil_balken(remis(_auswahl_de(fl.get("auswahl"))), fl.get("anteil"), f" des neuen Geldes · {e(_markt_de(fl.get('markt')))}")
-                + _markt_gesamt(fl))
+                f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(remis(_auswahl_de(fl.get('auswahl'))))}</b> @ <b>{q2(q)}</b>{richtung}\n"
+                f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n\n"
+                + _geld_block(fl, 15))
         yield key, text, 12, _beleg("live", z, fl, live=True)
 
 
@@ -346,6 +346,30 @@ def stake(d):
                 + (f"📏 {q2(g.get('faktor'))}-mal so viel wie in dieser Liga üblich\n" if g.get("faktor") else "")
                 + (f"🗂 {e(g.get('markt'))}\n" if g.get("markt") else ""))
         yield key, text, None
+
+
+def _geld_block(fl, minuten):
+    """Lucas 18.10. („immer noch verwirrend"): statt drei Prozentzahlen EIN Bild — der ganze Markt je Auswahl
+    als Balken mit Betrag, das neue Geld dahinter. Die Auswahl mit dem Zufluss ist fett."""
+    vt = fl.get("marktVerteilung") or []
+    if not vt:
+        return _anteil_balken(remis(_auswahl_de(fl.get("auswahl"))), fl.get("anteil"), " des neuen Geldes")
+    mg = sum(x[1] for x in vt) or 1
+    breite = max(len(remis(_auswahl_de(x[0]))[:14]) for x in vt)
+    zeilen = []
+    for name, vol, quote, neu in vt:
+        n = max(0, min(10, round(10 * vol / mg)))
+        lab = remis(_auswahl_de(name))[:14].ljust(breite)
+        z = f"{lab} {'▓' * n}{'░' * (10 - n)} {geld(vol):>6}" + (f" +{geld(neu)}" if neu >= 500 else "")
+        zeilen.append(z)
+    kopf = f"🏦 So liegt der <b>{e(_markt_de(fl.get('markt')))}</b> jetzt ({geld(mg)} gesamt):\n"
+    return kopf + "<code>" + e("\n".join(zeilen)) + "</code>\n"
+
+
+def _wie_einseitig(pct):
+    p = pct or 0
+    return (f"praktisch das ganze ({p} %)" if p >= 95 else f"fast das ganze ({p} %)" if p >= 85
+            else f"der Großteil ({p} %)")
 
 
 def _markt_gesamt(fl):

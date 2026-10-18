@@ -566,7 +566,9 @@ def auswahl_zufluss(snaps, minuten, min_eur, min_anteil=0.65):
                         "quote": sel[name][1], "quoteVorher": (alt.get(name) or [None, None])[1],
                         "marktNeu": round(ges),
                         # Lucas 18.10.: „wie viel gesamt oben liegt, damit die 87 % greifbar sind"
-                        "marktGesamt": round(sum(v[0] for v in sel.values())), "auswahlGesamt": round(sel[name][0])})
+                        "marktGesamt": round(sum(v[0] for v in sel.values())), "auswahlGesamt": round(sel[name][0]),
+                        "marktVerteilung": [[n, round(v[0]), v[1], round(d.get(n) or 0)] for n, v in
+                                            sorted(sel.items(), key=lambda kv: -kv[1][0])][:4]})
     out.sort(key=lambda x: -x["eur"])
     return out[:4]
 
