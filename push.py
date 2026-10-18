@@ -159,6 +159,8 @@ def zufluss(d):
         fl = (z.get("fluss") or [None])[0]
         if not fl or fl.get("eur", 0) < SCHWELLE[bool(z.get("top5"))][0]:
             continue
+        if isinstance(fl.get("quote"), (int, float)) and fl["quote"] < SERIE_PUSH_MIN_QUOTE:
+            continue                    # Lucas 18.10.: Pushes erst ab Quote 1,40 (Favoriten-Geld ist Normalfall)
         key = f"zf|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
         q, qv = fl.get("quote"), fl.get("quoteVorher")
         richtung = (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
@@ -178,6 +180,8 @@ def live(d):
     for z in d.get("liveZufluss") or []:
         fl = (z.get("fluss") or [None])[0]
         if not fl or fl.get("eur", 0) < SCHWELLE[bool(z.get("top5"))][1]:
+            continue
+        if isinstance(fl.get("quote"), (int, float)) and fl["quote"] < SERIE_PUSH_MIN_QUOTE:
             continue
         lv = z.get("live") or {}
         st = lv.get("stand") or [0, 0]
