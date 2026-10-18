@@ -263,6 +263,9 @@ MIN_SCHNITT_USD = 500
 MIN_FENSTER = 8     # Aufloesungen im Messfenster, ab denen eine Untergrenze etwas sagt
 
 
+POLY_TOP5 = {"epl", "bun", "lal", "sea", "fl1", "lig1"}     # Polymarket-Schlüssel-Präfixe der Top-5-Ligen
+
+
 def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, trades_record=None):
     scores = (track or {}).get("scores") or {}
     offen = (track or {}).get("open") or {}
@@ -341,6 +344,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
         preise = m.get("prices") or {}
         teams = [n for n in preise if not str(n).lower().startswith("draw")]
         maerkte.append({"key": key, "liga": m.get("league"), "sport": m.get("sport"),
+                        "top5": key.split("-")[0] in POLY_TOP5,
                         "spiel": " vs ".join(teams[:2]) if teams else key,
                         "usd": round(float(m.get("totalUsd") or 0)), "anpfiff": m.get("koTs"),
                         "preise": {n: p for n, p in preise.items()},

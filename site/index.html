@@ -754,12 +754,15 @@ function setzenKarten(liste){
       <div class="unten"><a href="https://polymarket.com/profile/${encodeURIComponent(o.wallet)}" target="_blank" rel="noopener">Wallet ${esc(String(o.wallet).slice(2,6))}</a><span style="color:var(--poly);font-weight:700">+${dez(o.clv)} pp auf Schlusskurs</span></div></div>`;}).join("")}</div>`;
 }
 // ── Liga-Filter (Lucas 17.10.: Top-5 sollen raus, aber per Knopf noch da sein) ──
-const TOP5_RE = /^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|epl|bundesliga|la-liga|sea|ligue-1)$/i;
+// Namen je Quelle: Betfair („Spanish La Liga"), Polymarket-Kürzel („LALIGA", „SEA", „FL1"), Stake („La Liga", „Premier League")
+const TOP5_RE = /^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|epl|bundesliga|la-?liga|la liga|laliga|sea|serie a|ligue-?1|ligue 1|fl1|premier league)$/i;
 const istTop5 = liga => TOP5_RE.test(String(liga||"").trim());
 let ligaModus = "ohne";
 try{ ligaModus = localStorage.getItem("radar-liga") || "ohne"; }catch(_){}
 const ligaOk = liga => ligaModus==="alle" || (ligaModus==="ohne" ? !istTop5(liga) : istTop5(liga));
-const lf = (arr, f=x=>x.liga) => (arr||[]).filter(x=>ligaOk(f(x)));
+// Lucas 18.10. („ohne Top-5 und trotzdem Real und Serie A"): Polymarket nennt Liga oft nur „SOCCER" —
+// darum zählt zuerst das Top-5-Kennzeichen, das der Build aus dem Markt-Schlüssel setzt, erst dann der Name.
+const lf = (arr, f=x=>x.liga) => (arr||[]).filter(x=>typeof x.top5==="boolean" ? (ligaModus==="alle" || (ligaModus==="ohne" ? !x.top5 : x.top5)) : ligaOk(f(x)));
 function ligaSchalter(){
   return `<div class="seg" role="group" aria-label="Ligen">${[["ohne","Ohne Top-5"],["alle","Alle Ligen"],["nur","Nur Top-5"]].map(([k,n])=>`<button class="${k===ligaModus?"an":""}" data-liga="${k}">${n}</button>`).join("")}</div>`;
 }
