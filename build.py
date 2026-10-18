@@ -619,6 +619,7 @@ def hz(finder):
                       "heim": e.get("home"), "gast": e.get("away"), "vor": e.get("vor"), "phase": e.get("phase"),
                       "minute": e.get("minute"), "zufluss": e.get("zufluss"),
                       "statistik": (e.get("apif") or {}).get("statistik"),
+                      "chancen": hz_chancen((e.get("apif") or {}).get("statistik")),
                       "serie": {**(e.get("serie") or {}), **((e.get("apif") or {}).get("serie") or {})}})
     heute.sort(key=lambda r: r["zeit"] or "", reverse=True)
     bericht = []
@@ -627,7 +628,47 @@ def hz(finder):
             bericht.append({"wette": b.get("text") or k, "n": b.get("n"), "treffer": b.get("trefferPct"),
                             "erwartet": b.get("erwartetPct"), "roi": b.get("roi"), "ug": b.get("ug"),
                             "urteil": b.get("urteil")})
-    return {"heute": heute[:30], "bericht": bericht, "regel": f.get("regel")}
+    return {"heute": heute[:30], "bericht": bericht, "regel": f.get("regel"), "chancenBuch": hz_chancen_buch(f)}
+
+
+HZ_XG_HOCH = 1.0          # Summe xG beider Teams in der 1. HZ
+HZ_SOT_HOCH = 5           # Ersatz ohne xG: Schüsse aufs Tor beider Teams
+
+
+def hz_chancen(st):
+    """Lucas 18.10.: „in der 1. HZ hohe xG → Tore erwartet, aber nicht geschossen". 'hoch' / 'niedrig' / None."""
+    h, g = (st or {}).get("heim") or {}, (st or {}).get("gast") or {}
+    if not h or not g:
+        return None
+    if h.get("xg") is not None and g.get("xg") is not None:
+        return "hoch" if (h["xg"] + g["xg"]) >= HZ_XG_HOCH else "niedrig"
+    if h.get("aufsTor") is not None and g.get("aufsTor") is not None:
+        return "hoch" if (h["aufsTor"] + g["aufsTor"]) >= HZ_SOT_HOCH else "niedrig"
+    return None
+
+
+def hz_chancen_buch(f):
+    """Wie oft fiel nach einem HZ-0:0 noch ein Tor (und was brachten die Wetten), getrennt nach Chancen in der
+    1. HZ. Rechnet über ALLE abgerechneten Funde im Buch des alten HZ-Finders — wächst mit jedem Spieltag."""
+    out = {}
+    for e in (f or {}).get("eintraege") or []:
+        k = hz_chancen((e.get("apif") or {}).get("statistik"))
+        if not k or not e.get("ft"):
+            continue
+        b = out.setdefault(k, {"n": 0, "tor": 0, "o05": [], "o15": []})
+        b["n"] += 1
+        b["tor"] += int(sum(e["ft"]) > 0)
+        for w, feld in (("over05", "o05"), ("over15", "o15")):
+            r = ((e.get("wetten") or {}).get(w) or {}).get("r")
+            if isinstance(r, (int, float)):
+                b[feld].append(r)
+    for b in out.values():
+        b["torPct"] = round(100 * b["tor"] / b["n"]) if b["n"] else None
+        for feld in ("o05", "o15"):
+            v = b.pop(feld)
+            b[feld + "Roi"] = round(100 * sum(v) / len(v), 1) if v else None
+            b[feld + "N"] = len(v)
+    return out
 
 
 # ── Betfair über ALLE Ligen: Geld gegen die Liga-Norm ────────────────────────────

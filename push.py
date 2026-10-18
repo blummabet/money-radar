@@ -276,6 +276,21 @@ def halbzeit(d):
         st = _hz_stat(h.get("statistik") or {}) if h.get("statistik") else None
         if st:
             z.append(f"📊 <b>1. HZ:</b> {st}\n")
+        # Lucas 18.10.: Chancen da, Tore nicht → eigenes Urteil, mit der bisherigen Bilanz genau dieser Gruppe
+        ch = h.get("chancen")
+        if ch:
+            cb = ((d.get("hz") or {}).get("chancenBuch") or {}).get(ch) or {}
+            sx = h.get("statistik") or {}
+            mit_xg = (sx.get("heim") or {}).get("xg") is not None
+            if ch == "hoch":
+                z.append("🔥 <b>Chancen da, Tore nicht</b> — " + ("xG ≥ 1,0 in der 1. HZ" if mit_xg else "≥ 5 Schüsse aufs Tor") + "\n")
+            else:
+                z.append("🧊 <b>Wenig Chancen</b> — " + ("xG unter 1,0 in der 1. HZ" if mit_xg else "unter 5 Schüssen aufs Tor") + "\n")
+            if cb.get("n"):
+                roi = lambda v: ("+" if v > 0 else "") + str(v).replace(".", ",") + " %"
+                z.append(f"   <i>bisher in dieser Gruppe: {cb['n']} Spiele, {cb['torPct']} % noch ein Tor"
+                         + (f" · 2+ Tore ROI {roi(cb['o15Roi'])}" if cb.get("o15Roi") is not None else "")
+                         + (" — noch wenige Spiele, nur ein Hinweis" if cb["n"] < 50 else "") + "</i>\n")
         s = h.get("serie") or {}
         if s.get("heim") or s.get("gast"):
             z.append(f"📈 <b>Form</b> (neueste zuerst)\n   {e(h.get('heim') or 'Heim')}: {_hz_serie(s.get('heim'))}\n"
