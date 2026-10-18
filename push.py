@@ -499,20 +499,52 @@ def wale(d):
 
 
 def stake(d):
-    for g in (d.get("stake") or {}).get("gruppen") or []:
-        t = ts(g.get("zeit"))
-        if not t or (JETZT - t).total_seconds() > FRISCH_MIN * 60:
+    """Lucas 18.10. (Brighton 3:0: Push „$127k @ 1,48, live" — die $127k und 1,48 waren der Burst von VOR dem Spiel,
+    ausgelöst hat ein neuer $17k-Spiel-Burst bei 3:0): je Push nur die Signale, die zusammen kamen (≤ 5 Min), mit
+    IHREN Zahlen. Führt ein Team bei Betfair unter 1,40, oder liegt die Quote des Bursts unter 1,40 → kein Push."""
+    sig = []
+    for z in (d.get("stake") or {}).get("heute") or []:
+        t = ts(z.get("zeit"))
+        if t and (JETZT - t).total_seconds() <= FRISCH_MIN * 60:
+            sig.append((t, z))
+    sig.sort(key=lambda x: x[0], reverse=True)
+    radar = (d.get("radar") or {}).get("spiele") or []
+
+    def klar_vorn(spiel):
+        teile = [x.strip().lower() for x in str(spiel or "").split(" - ")]
+        if len(teile) != 2:
+            return False
+        for sp in radar:
+            h, g = str(sp.get("heim") or "").lower(), str(sp.get("gast") or "").lower()
+            if h[:5] and g[:5] and h[:5] in teile[0] and g[:5] in teile[1]:
+                return bool(sp.get("klarVorn") or sp.get("entschieden"))
+        return False
+
+    benutzt = set()
+    for t0, z0 in sig:
+        if id(z0) in benutzt:
             continue
-        # Lucas 18.10. („beim alten Projekt kommen laufend Stake-Bursts, beim neuen gefühlt gar nichts"): der Schlüssel
-        # war Spiel + Auswahl + TAG — ein zweiter Burst aufs selbe Spiel (Udinese 12:31 und 13:15) kam nie. Jetzt je Burst-
-        # Zeitpunkt; dasselbe Spiel frühestens nach 30 Min wieder (Burst + Spiel-Burst derselben Minute = eine Meldung).
-        key = f"st|{g.get('spiel')}|{t:%Y-%m-%dT%H:%M}"
-        text = (f"🟢 <b>Stake · {e(' + '.join(g.get('arten') or []))}</b>\n"
-                f"<b>{e(g.get('spiel'))}</b>\n{e(g.get('liga'))} · {'live' if g.get('phase') == 'live' else 'vor Anpfiff'}\n\n"
-                f"💵 <b>{geld(g.get('usd'), '$')}</b> in {g.get('wetten')} Wetten" + (f" auf <b>{e(g.get('auswahl'))}</b>" if g.get("auswahl") else "")
-                + (f" @ {q2(g.get('quote'))}" if g.get("quote") else "") + "\n"
+        gruppe = [z for t, z in sig if z.get("spiel") == z0.get("spiel") and abs((t - t0).total_seconds()) <= 300]
+        for z in gruppe:
+            benutzt.add(id(z))
+        g = max(gruppe, key=lambda z: z.get("usd") or 0)
+        mit_auswahl = next((z for z in sorted(gruppe, key=lambda z: -(z.get("usd") or 0)) if z.get("auswahl")), None)
+        auswahl = (mit_auswahl or {}).get("auswahl")
+        quote = (mit_auswahl or {}).get("quote") or g.get("quote")
+        if (isinstance(quote, (int, float)) and quote < 1.40) or (g.get("phase") == "live" and klar_vorn(g.get("spiel"))):
+            continue
+        arten = []
+        for z in gruppe:
+            if z.get("art") and z["art"] not in arten:
+                arten.append(z["art"])
+        key = f"st|{g.get('spiel')}|{t0:%Y-%m-%dT%H:%M}"
+        phase = ("live" + (f" {g['minute']}'" if g.get("minute") else "")) if g.get("phase") == "live" else "vor Anpfiff"
+        text = (f"🟢 <b>Stake · {e(' + '.join(arten))}</b>\n"
+                f"<b>{e(g.get('spiel'))}</b>\n{e(g.get('liga'))} · {phase}\n\n"
+                f"💵 <b>{geld(g.get('usd'), '$')}</b> in {g.get('wetten')} Wetten" + (f" auf <b>{e(auswahl)}</b>" if auswahl else "")
+                + (f" @ {q2(quote)}" if quote else "") + "\n"
                 + (f"📏 {q2(g.get('faktor'))}-mal so viel wie in dieser Liga üblich\n" if g.get("faktor") else "")
-                + (f"🗂 {e(g.get('markt'))}\n" if g.get("markt") else ""))
+                + (f"🗂 {e((mit_auswahl or g).get('markt'))}\n" if (mit_auswahl or g).get("markt") else ""))
         yield key, text, None
 
 
