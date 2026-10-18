@@ -676,11 +676,20 @@ def serie(d):
             continue
         key = f"ps|{x['id']}|{x['auswahl']}|{_stufe(x['n'])}"
         lab = _pm_label(x["auswahl"])
+        # Lucas 18.10.: „gegen Cruzeiro" ausschreiben
+        import re as _re
+        mg = _re.match(r"^gegen (.+)$", str(x.get("auswahl") or ""))
+        if mg and not _re.match(r"^(Draw|Remis|Both)", mg.group(1), _re.I):
+            teams = [t.strip() for t in _re.split(r"\s+vs\.?\s+", str(x.get("titel") or ""), flags=_re.I)]
+            ander = next((t for t in teams if t and t != mg.group(1) and mg.group(1) not in t and t not in mg.group(1)), None)
+            lab = (ander if (x.get("sport") or "Fußball") != "Fußball" and ander
+                   else f"{mg.group(1)} gewinnt nicht" + (f" ({ander} oder Remis)" if ander else ""))
         text = (f"🔁 <b>Dauerzufluss</b> · Polymarket · <b>{x['n']}× in Folge</b>\n"
                 f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n\n"
                 f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min auf <b>{e(lab)}</b>"
                 f" @ {round(x['preis'] * 100)} ¢ = Quote <b>{q2(x['quote'])}</b>\n"
                 + _anteil_balken(lab, x.get("anteil"), " der Käufe")
+                + "<i>alle Polymarket-Käufe in diesem Markt, nicht nur Wale</i>\n"
                 + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
         yield key, text, None
