@@ -438,7 +438,9 @@ def serie(d):
         text = (f"🔁 <b>Dauerzufluss</b> · Betfair · <b>{x['n']}× in Folge</b>\n"
                 f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n{e(x.get('liga'))} · {st}\n\n"
                 f"💶 <b>{geld(x['eur'])}</b> in {x['dauerMin']} Min auf <b>{e(remis(_auswahl_de(x['auswahl'])))}</b> @ <b>{q2(q)}</b>{richtung}\n"
-                + _anteil_balken(remis(_auswahl_de(x['auswahl'])), x.get("anteil"), f" des neuen Geldes · {e(_markt_de(x['markt']))}")
+                f"<i>= im Schnitt {x.get('anteil')} % von allem, was je Abruf in diesem Markt neu kam</i>\n\n"
+                + (_geld_block({"markt": x["markt"], "auswahl": x["auswahl"], "marktVerteilung": x["marktVerteilung"]}, 0)
+                   if x.get("marktVerteilung") else "")
                 + f"<code>{_balken(x['saeulen'][-24:])}</code> <i>letzte 2 h, je Säule 5 Min</i>\n")
         yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),

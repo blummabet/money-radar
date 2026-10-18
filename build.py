@@ -1069,7 +1069,10 @@ def serien(takt, radar):
                         "anteil": round(sum(k[2] for k in kette) / len(kette)),
                         "quote": kette[-1][3], "quoteStart": kette[0][3],
                         "seit": iso(kette[0][0]), "dauerMin": round((kette[-1][0] - kette[0][0]).total_seconds() / 60) + 5,
-                        "letzteVorMin": round((JETZT - kette[-1][0]).total_seconds() / 60), "saeulen": saeulen})
+                        "letzteVorMin": round((JETZT - kette[-1][0]).total_seconds() / 60), "saeulen": saeulen,
+                        # für den Push: wie der Markt jetzt insgesamt liegt (Lucas 18.10.)
+                        "marktVerteilung": next(([[a["name"], a["eur"], a.get("quote"), round(summe) if a["name"] == auswahl else 0]
+                                                  for a in m["auswahl"]] for m in sp.get("maerkteDetail") or [] if m["name"] == markt), None)})
     # je Spiel nur die stärkste Serie (sonst steht ein Spiel mit drei Märkten dreimal da)
     best = {}
     for x in sorted(out, key=lambda x: -x["eur"]):
