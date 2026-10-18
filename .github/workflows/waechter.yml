@@ -1,0 +1,44 @@
+name: Ketten-Wächter
+
+# 18.10.2026 (Lucas: „wieso brauchen wir dafür das alte Projekt — das wollen wir abdrehen"). Der Wächter lebt
+# in DIESEM Repo: alle 10 Min (GitHub-Zeitplan, darf auch mal verspätet sein) prüft er, wann der letzte
+# Baulauf gestartet ist. Mehr als 15 Min her → Kette neu anstoßen und einmal in den Test-Channel melden.
+# Läuft gerade ein Baulauf, tut er nichts. Er braucht kein Secret außer den Telegram-Daten, die es schon gibt.
+on:
+  schedule:
+    - cron: '3-59/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: waechter
+  cancel-in-progress: true
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Kette prüfen und notfalls neu anstoßen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_TEST_CHAT_ID: ${{ secrets.TELEGRAM_TEST_CHAT_ID }}
+        run: |
+          R="repos/${{ github.repository }}/actions/workflows/build.yml/runs?per_page=10"
+          laeuft=$(gh api "$R" --jq '[.workflow_runs[] | select(.status=="in_progress" or .status=="queued" or .status=="pending" or .status=="waiting")] | length')
+          letzt=$(gh api "$R" --jq '[.workflow_runs[] | select(.conclusion=="success" or .status=="in_progress")][0].run_started_at // ""')
+          alter=99999
+          [ -n "$letzt" ] && alter=$(( ( $(date +%s) - $(date -d "$letzt" +%s) ) / 60 ))
+          echo "laufend/wartend: $laeuft · letzter Start vor $alter Min"
+          if [ "$laeuft" != "0" ] || [ "$alter" -le 15 ]; then echo "Kette lebt"; exit 0; fi
+          gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main
+          echo "Kette neu angestoßen"
+          if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_TEST_CHAT_ID" ]; then
+            curl -s -o /dev/null "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+              --data-urlencode chat_id="$TELEGRAM_TEST_CHAT_ID" \
+              --data-urlencode text="⚠️ Geldradar: Der 5-Minuten-Takt stand seit ${alter} Min. Neu angestoßen — Pushes aus dieser Zeit kommen nicht nach."
+          fi

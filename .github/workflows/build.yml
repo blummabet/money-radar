@@ -13,8 +13,8 @@ on:
         description: 'Nur eine Testnachricht in den Test-Channel schicken'
         type: boolean
         default: false
-  push:
-    branches: [main]
+  # 18.10.: KEIN push-Auslöser mehr. Commit-Läufe haben wartende Kettenläufe verdrängt (13:03–14:03 keine Pushes).
+  # Neuer Code kommt mit dem nächsten Kettenlauf (≤ 5 Min) von selbst auf die Seite.
 
 permissions:
   contents: read
