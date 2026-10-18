@@ -808,7 +808,7 @@ function flussKopf(f){
   const q = f.quoteVorher && f.quote && Math.abs(f.quote-f.quoteVorher)>=0.02 ? (f.quote<f.quoteVorher?`<span class="hoch">↓ von ${q2(f.quoteVorher)}</span>`:`<span class="runter">↑ von ${q2(f.quoteVorher)}</span>`) : "";
   return `<div class="kk-zahl gruen">+${eur(f.eur)}</div>
     <div class="kk-auf">auf <b>${esc(auswahlDe(f.auswahl))}</b> @ <b>${q2(f.quote)}</b> ${q}</div>
-    <div class="kk-klein">${f.anteil} % des neuen Geldes in ${esc(marktDe(f.markt))}</div>`;
+    <div class="kk-klein">${f.anteil} % des neuen Geldes in ${esc(marktDe(f.markt))}${f.marktGesamt?` · Markt gesamt ${eur(f.marktGesamt)}${f.auswahlGesamt?`, davon ${Math.round(f.auswahlGesamt/f.marktGesamt*100)} % auf ${esc(auswahlDe(f.auswahl))}`:""}`:""}</div>`;
 }
 function zuflussKarten(D, max){
   const z = lf(D.zufluss30 && D.zufluss30.length ? D.zufluss30 : D.betfair.zufluss).slice(0, max);

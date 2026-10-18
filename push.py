@@ -167,6 +167,7 @@ def zufluss(d):
                 f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 30 Min auf <b>{e(_auswahl_de(fl.get('auswahl')))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 + _anteil_balken(remis(_auswahl_de(fl.get("auswahl"))), fl.get("anteil"), f" des neuen Geldes · {e(_markt_de(fl.get('markt')))}")
+                + _markt_gesamt(fl)
                 + pinnacle_zeile(d, z, fl))
         yield key, text, ZUFLUSS_PAUSE_H, _beleg("zufluss", z, fl)
 
@@ -188,7 +189,8 @@ def live(d):
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {minute} · <b>{st[0]}:{st[1]}</b>\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(_auswahl_de(fl.get('auswahl')))}</b> @ <b>{q2(q)}</b>{richtung}\n"
-                + _anteil_balken(remis(_auswahl_de(fl.get("auswahl"))), fl.get("anteil"), f" des neuen Geldes · {e(_markt_de(fl.get('markt')))}"))
+                + _anteil_balken(remis(_auswahl_de(fl.get("auswahl"))), fl.get("anteil"), f" des neuen Geldes · {e(_markt_de(fl.get('markt')))}")
+                + _markt_gesamt(fl))
         yield key, text, 12, _beleg("live", z, fl, live=True)
 
 
@@ -344,6 +346,15 @@ def stake(d):
                 + (f"📏 {q2(g.get('faktor'))}-mal so viel wie in dieser Liga üblich\n" if g.get("faktor") else "")
                 + (f"🗂 {e(g.get('markt'))}\n" if g.get("markt") else ""))
         yield key, text, None
+
+
+def _markt_gesamt(fl):
+    """„🏦 Sieg-Markt gesamt €48k · davon auf RKC Waalwijk €31k (65 %)"."""
+    mg, ag = fl.get("marktGesamt"), fl.get("auswahlGesamt")
+    if not mg:
+        return ""
+    return (f"🏦 {e(_markt_de(fl.get('markt')))} gesamt <b>{geld(mg)}</b>"
+            + (f" · davon {e(remis(_auswahl_de(fl.get('auswahl'))))} {geld(ag)} ({round(100 * ag / mg)} %)" if ag else "") + "\n")
 
 
 def _anteil_balken(name, pct, zusatz=""):

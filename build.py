@@ -564,7 +564,9 @@ def auswahl_zufluss(snaps, minuten, min_eur, min_anteil=0.65):
         if dv >= min_eur and dv / ges >= min_anteil and not (isinstance(q, (int, float)) and q < 1.20):
             out.append({"markt": markt, "auswahl": name, "eur": round(dv), "anteil": round(100 * dv / ges),
                         "quote": sel[name][1], "quoteVorher": (alt.get(name) or [None, None])[1],
-                        "marktNeu": round(ges)})
+                        "marktNeu": round(ges),
+                        # Lucas 18.10.: „wie viel gesamt oben liegt, damit die 87 % greifbar sind"
+                        "marktGesamt": round(sum(v[0] for v in sel.values())), "auswahlGesamt": round(sel[name][0])})
     out.sort(key=lambda x: -x["eur"])
     return out[:4]
 
