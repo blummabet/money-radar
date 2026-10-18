@@ -503,10 +503,13 @@ def stake(d):
         t = ts(g.get("zeit"))
         if not t or (JETZT - t).total_seconds() > FRISCH_MIN * 60:
             continue
-        key = f"st|{g.get('spiel')}|{g.get('auswahl')}|{t:%Y-%m-%d}"
+        # Lucas 18.10. („beim alten Projekt kommen laufend Stake-Bursts, beim neuen gefühlt gar nichts"): der Schlüssel
+        # war Spiel + Auswahl + TAG — ein zweiter Burst aufs selbe Spiel (Udinese 12:31 und 13:15) kam nie. Jetzt je Burst-
+        # Zeitpunkt; dasselbe Spiel frühestens nach 30 Min wieder (Burst + Spiel-Burst derselben Minute = eine Meldung).
+        key = f"st|{g.get('spiel')}|{t:%Y-%m-%dT%H:%M}"
         text = (f"🟢 <b>Stake · {e(' + '.join(g.get('arten') or []))}</b>\n"
                 f"<b>{e(g.get('spiel'))}</b>\n{e(g.get('liga'))} · {'live' if g.get('phase') == 'live' else 'vor Anpfiff'}\n\n"
-                f"💵 <b>{geld(g.get('usd'), '$')}</b> in {g.get('wetten')} Wetten auf <b>{e(g.get('auswahl'))}</b>"
+                f"💵 <b>{geld(g.get('usd'), '$')}</b> in {g.get('wetten')} Wetten" + (f" auf <b>{e(g.get('auswahl'))}</b>" if g.get("auswahl") else "")
                 + (f" @ {q2(g.get('quote'))}" if g.get("quote") else "") + "\n"
                 + (f"📏 {q2(g.get('faktor'))}-mal so viel wie in dieser Liga üblich\n" if g.get("faktor") else "")
                 + (f"🗂 {e(g.get('markt'))}\n" if g.get("markt") else ""))
@@ -725,6 +728,10 @@ def main() -> int:
             alt = gesehen.get(key)
             if alt and (pause_h is None or (JETZT - ts(alt)).total_seconds() < pause_h * 3600):
                 continue
+            if key.startswith("st|"):
+                basis = key.rsplit("|", 1)[0] + "|"
+                if any(k.startswith(basis) and (JETZT - ts(v)).total_seconds() < 30 * 60 for k, v in gesehen.items()):
+                    continue
             if key.startswith(("se|", "ps|", "ss|")):
                 basis = key.rsplit("|", 1)[0] + "|"
                 if any(k.startswith(basis) and (JETZT - ts(v)).total_seconds() < SERIE_ABSTAND_MIN * 60
@@ -755,7 +762,14 @@ def main() -> int:
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
     print(f"push: {'erster Lauf, ' + str(len(gesehen)) + ' als gesehen markiert' if erster_lauf else str(gesendet) + ' gesendet'}")
     if not trocken:
-        status_schreiben({"ersterLauf": erster_lauf, "gesendet": gesendet, "gesehen": len(gesehen), "fehler": STATUS["fehler"][:5]})
+        heute = JETZT.astimezone(ZoneInfo("Europe/Vienna")).strftime("%Y-%m-%d")
+        je_art = {}
+        for k, v in gesehen.items():
+            t = ts(v)
+            if t and t.astimezone(ZoneInfo("Europe/Vienna")).strftime("%Y-%m-%d") == heute:
+                je_art[k.split("|")[0]] = je_art.get(k.split("|")[0], 0) + 1
+        status_schreiben({"ersterLauf": erster_lauf, "gesendet": gesendet, "gesehen": len(gesehen),
+                          "heuteJeArt": je_art, "fehler": STATUS["fehler"][:5]})
     return 0
 
 
