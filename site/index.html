@@ -148,6 +148,7 @@ main{padding:22px 28px 60px;min-width:0}
 .tp-banner.nein{background:color-mix(in srgb, var(--bf) 14%, transparent);color:var(--text)}
 @media (min-width:1300px){ .toepfe{grid-template-columns:1fr 1fr} }
 
+.sankey-k{display:flex;align-items:baseline;gap:8px;margin:2px 0 8px;color:var(--text-2);font-size:12px}.sankey-k b{color:var(--text);font-size:18px;font-weight:800}
 .saeulen{display:block;width:100%;height:50px;margin-top:10px}
 .serie-k{box-shadow:inset 3px 0 0 var(--bf)}
 .serie-kopf{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
@@ -525,6 +526,36 @@ function serienKarten(D, max, quelle){
       ${saeulenSvg(istBf ? x.saeulen.slice(-24) : x.saeulen, farbe, 260, 38, istBf?5:10, istBf ? (x.tore||[]).map(t=>({...t, i:t.i-(x.saeulen.length-24)})) : [])}
     </div>`;}).join("")}</div>`;
 }
+function flussSankey(fl, PAL){
+  const ges = fl.reduce((x,f)=>x+f.neu,0) || 1;
+  let teile = fl.filter(f=>f.neu/ges>=0.03).slice(0,7);
+  const rest = ges - teile.reduce((x,f)=>x+f.neu,0);
+  // nach Markt gruppieren, damit gleiche Farben nebeneinander liegen; innerhalb nach Betrag
+  const mOrd = [...new Set(teile.map(f=>f.markt))];
+  const farbe = m => m==="_rest" ? "var(--text-3)" : PAL[mOrd.indexOf(m)%PAL.length];
+  teile.sort((a,b)=>(mOrd.indexOf(a.markt)-mOrd.indexOf(b.markt))||(b.neu-a.neu));
+  if(rest/ges>=0.01) teile.push({markt:"_rest", name:"Übrige", neu:rest});
+  const W = 340, xL = 0, bL = 10, xR = 150, bR = 7, SLOT = 34, GAP = 6;
+  const hoch = 200;                                       // Höhe des linken Topfs
+  const slots = teile.map(f=>Math.max(SLOT, f.neu/ges*hoch));
+  const H = Math.max(slots.reduce((x,v)=>x+v+GAP,0), hoch + 8);
+  const yOff = (H - slots.reduce((x,v)=>x+v+GAP,0) + GAP)/2;
+  let yL = (H-hoch)/2, yS = Math.max(0,yOff), out = "", lab = "";
+  teile.forEach(f=>{
+    const h = Math.max(2, f.neu/ges*hoch);
+    const sl = Math.max(SLOT, h) ; const r0 = yS + (sl - Math.min(h, sl))/2, r1 = r0 + Math.min(h, sl);
+    const l0 = yL, l1 = yL + f.neu/ges*hoch, xm = (xL+bL+xR)/2, c = farbe(f.markt);
+    out += `<path d="M${xL+bL},${l0.toFixed(1)} C${xm},${l0.toFixed(1)} ${xm},${r0.toFixed(1)} ${xR},${r0.toFixed(1)} L${xR},${r1.toFixed(1)} C${xm},${r1.toFixed(1)} ${xm},${l1.toFixed(1)} ${xL+bL},${l1.toFixed(1)} Z" fill="${c}" opacity="${f.quote&&f.quote<1.2?.28:.55}"><title>${esc(auswahlDe(f.name))}: +${eur(f.neu)}</title></path>`;
+    out += `<rect x="${xR}" y="${r0.toFixed(1)}" width="${bR}" height="${(r1-r0).toFixed(1)}" rx="2" fill="${c}"/>`;
+    const ym = (r0+r1)/2, pct = Math.round(f.neu/ges*100);
+    lab += `<text x="${xR+bR+8}" y="${(ym-3).toFixed(1)}" font-size="12" font-weight="700" fill="var(--text)">${esc((f.markt==="_rest"?"Übrige Märkte":auswahlDe(f.name)).slice(0,22))}${f.quote?` <tspan font-weight="500" fill="var(--text-3)">${q2(f.quote)}</tspan>`:""}</text>`
+         + `<text x="${xR+bR+8}" y="${(ym+11).toFixed(1)}" font-size="10.5" fill="var(--text-2)"><tspan fill="${c}" font-weight="700">+${eur(f.neu)}</tspan> · ${pct} %${f.markt!=="_rest"?` · ${esc(marktDe(f.markt).slice(0,16))}`:""}</text>`;
+    yL = l1; yS += sl + GAP;
+  });
+  const topf = `<rect x="${xL}" y="${(H-hoch)/2}" width="${bL}" height="${hoch}" rx="3" fill="var(--text-2)"/>`;
+  return `<div class="sankey-k"><span>Neues Geld</span><b>+${eur(ges)}</b></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-width:520px" role="img" aria-label="Wohin das neue Geld floss">${topf}${out}${lab}</svg>`;
+}
 function spielDetail(s){
   const md = s.maerkteDetail || [], fm = s.fensterMin || 30;
   const PAL = ["#ffb547","#5b9dff","#7d8aa3","#a183ff","#2fd38a","#ff77a8"];
@@ -532,9 +563,9 @@ function spielDetail(s){
   const fl = [];
   for(const m of md) for(const a of m.auswahl) if(a.neu>0) fl.push({markt:m.name, name:a.name, neu:a.neu, quote:a.quote, anteil: m.neu? Math.round(a.neu/m.neu*100):null});
   fl.sort((x,y)=>y.neu-x.neu);
-  const maxF = Math.max(1, ...fl.map(f=>f.neu));
-  const flussBlock = fl.length ? fl.slice(0,6).map(f=>`<div class="dz"><div class="dz-l"><b>${esc(auswahlDe(f.name))}</b> <small>${esc(marktDe(f.markt))}${f.quote?` @ ${q2(f.quote)}`:""}</small></div>
-      <div class="dz-bar"><i style="width:${(f.neu/maxF*100).toFixed(1)}%"></i></div><div class="dz-r">+${eur(f.neu)}${f.anteil!=null?`<small>${f.anteil} % des neuen Geldes</small>`:""}</div></div>`).join("")
+  // Lucas 18.10. („wie ein Flow-Diagramm, damit man sieht, wo das Geld reinfließt"): links der ganze neue Topf,
+  // Bänder je Auswahl nach rechts, Breite = Euro, Farbe = Markt. Kleinkram (< 3 %) wandert in „Übrige".
+  const flussBlock = fl.length ? flussSankey(fl, PAL)
     : `<div class="kk-klein">In den letzten ${fm} Minuten kam kein neues Geld dazu, oder die Historie reicht noch nicht.</div>`;
   // 2) jeder Markt als Kreis (Lucas 17.10.: „spart Höhe") — Kacheln, zwei nebeneinander
   const donut = (teile, mitte) => {
