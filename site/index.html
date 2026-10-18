@@ -650,7 +650,7 @@ function feedEintraege(D){
     f.push({q:"betfair", k:"zufluss", t:`+${eur(fl.eur)} auf ${auswahlDe(fl.auswahl)} @ ${q2(fl.quote)}`, s:`${x.heim} – ${x.gast}, ${wann(x.anpfiff)}, ${marktDe(fl.markt)} (${fl.anteil} %)`, b:eur(fl.eur), zeit:bfZeit, sp:x, wert:fl.eur}); }
   for(const m of (D.polyFluss?.maerkte||[]).filter(top5Ok)){ const fw = m.fenster?.["30"]; if(!pmFlussOk(m)) continue;
     const nt = (pmNetto(fw.seiten, m.key)||[])[0];
-    f.push({q:"poly", k:"pfluss", live:m.live, t: nt ? `netto ${usd(Math.abs(nt.netto))} ${nt.netto>=0?"für":"gegen"} ${pmLabel(nt.team)}` : `+${usd(fw.usd)} auf ${pmLabel(fw.auf)}`,
+    f.push({q:"poly", k:"pfluss", live:m.live, t: nt ? `netto ${usd(Math.abs(nt.netto))} ${nt.netto>=0?"für":"gegen"} ${pmLabel(nt.team, m.titel, m.sport)}` : `+${usd(fw.usd)} auf ${pmLabel(fw.auf, m.titel, m.sport)}`,
       s: nt ? `${pmTitel(m.titel)}, Ja und Nein verrechnet` : `${pmTitel(m.titel)}, ${fw.anteil} % der Käufe`, b:usd(nt?Math.abs(nt.netto):fw.usd), zeit:pfZeit, wert:nt?Math.abs(nt.netto):fw.usd}); }
   const pdF = D.pinnDrops||{vor:[],live:[]};
   for(const s of lf(pdF.live)) f.push({q:"pinnacle", k:"pinnacle", t:`🔴 ${s.auf}: Pinnacle ${q2(s.vonQuote)} → ${q2(s.quote)} (+${dez(s.pp)} pp in ${s.fensterMin} Min)`, s:`${s.heim} – ${s.gast}, ${s.min}' ${s.stand[0]}:${s.stand[1]}`, b:q2(s.quote), zeit:pdF.stand});
@@ -974,14 +974,14 @@ function polyFlussDetail(m){
   const mk = (D.poly.maerkte||[]).find(x=>x.key===m.key);
   const PAL = ["#a183ff","#5b9dff","#ffb547","#2fd38a"];
   const maxS = Math.max(1, ...Object.values(f.seiten||{}));
-  const seiten = Object.entries(f.seiten||{}).map(([k,v])=>`<div class="dz"><div class="dz-l"><b>${esc(pmLabel(k))}</b>${f10.seiten?.[k]?` <small>davon ${usd(f10.seiten[k])} in 10 Min</small>`:""}</div>
+  const seiten = Object.entries(f.seiten||{}).map(([k,v])=>`<div class="dz"><div class="dz-l"><b>${esc(pmLabel(k, m.titel, m.sport))}</b>${f10.seiten?.[k]?` <small>davon ${usd(f10.seiten[k])} in 10 Min</small>`:""}</div>
       <div class="dz-bar"><i style="width:${(v/maxS*100).toFixed(1)}%;background:var(--poly)"></i></div><div class="dz-r">${usd(v)}</div></div>`).join("");
-  const netBlock = net ? net.map(n=>`<div class="pm-net"><span>${esc(pmLabel(n.team))}</span>
+  const netBlock = net ? net.map(n=>`<div class="pm-net"><span>${esc(pmLabel(n.team, m.titel, m.sport))}</span>
       <div class="pm-bar"><i class="pm-g" style="width:${(n.gegen/Math.max(...net.map(x=>Math.max(x.fuer,x.gegen)),1)*50).toFixed(1)}%"></i><i class="pm-f" style="width:${(n.fuer/Math.max(...net.map(x=>Math.max(x.fuer,x.gegen)),1)*50).toFixed(1)}%"></i></div>
       <b style="color:${n.netto>=0?"var(--up)":"var(--down)"}">${n.netto>=0?"+":"−"}${usd(Math.abs(n.netto))}</b></div>`).join("") + `<div class="kk-klein" style="margin-top:4px">links Geld dagegen (Nein), rechts dafür (Ja)</div>` : "";
-  const takt = Object.entries(m.takt||{}).slice(0,3).map(([k,v],i)=>`<div style="margin-top:8px"><div class="kk-klein"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${PAL[i]};margin-right:6px"></i>${esc(pmLabel(k))}: ${usd(v.reduce((a,b)=>a+b,0))}</div>${saeulenSvg(v,PAL[i],320,34,10)}</div>`).join("");
+  const takt = Object.entries(m.takt||{}).slice(0,3).map(([k,v],i)=>`<div style="margin-top:8px"><div class="kk-klein"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${PAL[i]};margin-right:6px"></i>${esc(pmLabel(k, m.titel, m.sport))}: ${usd(v.reduce((a,b)=>a+b,0))}</div>${saeulenSvg(v,PAL[i],320,34,10)}</div>`).join("");
   const reichweite = m.taktReichweiteMin && m.taktReichweiteMin < 230 ? `<div class="kk-klein">Die Abfrage reicht nur ${m.taktReichweiteMin} Min zurück (500 Trades je Markt), links davon fehlen Daten.</div>` : "";
-  const gross = (m.gross||[]).map(g=>`<div><span><b>${esc(pmLabel(g.auf))}</b> @ ${Math.round(g.preis*100)} ¢ <span style="color:var(--text-3)">= Quote ${g.preis>0?q2(1/g.preis):"–"}, vor ${g.vor} Min</span>${g.wallet?`<br><a href="https://polymarket.com/profile/${encodeURIComponent(g.wallet)}" target="_blank" rel="noopener" style="font-size:12px">Wallet ${esc(g.wallet.slice(2,6))}</a>`:""}</span><b>${usd(g.usd)}</b></div>`).join("");
+  const gross = (m.gross||[]).map(g=>`<div><span><b>${esc(pmLabel(g.auf, m.titel, m.sport))}</b> @ ${Math.round(g.preis*100)} ¢ <span style="color:var(--text-3)">= Quote ${g.preis>0?q2(1/g.preis):"–"}, vor ${g.vor} Min</span>${g.wallet?`<br><a href="https://polymarket.com/profile/${encodeURIComponent(g.wallet)}" target="_blank" rel="noopener" style="font-size:12px">Wallet ${esc(g.wallet.slice(2,6))}</a>`:""}</span><b>${usd(g.usd)}</b></div>`).join("");
   const preise = mk ? Object.entries(mk.preise||{}).map(([n,v])=>({name:seiteName(n), wert:v*100})) : [];
   return `<tr class="detail"><td colspan="5"><div class="det">
     <div class="d-kopf">${sportIco(m.sport)} ${esc(ligaName(m.liga)||m.sport||"")} · ${m.live?`<span class="live">live</span>`:wann(m.anpfiff)} · ${usd(f.neu)} gekauft in 30 Min</div>
@@ -1015,23 +1015,23 @@ function polyFlussKarten(D, max){
     if(net){
       const t = net[0], max_ = Math.max(...net.map(n=>Math.max(n.fuer,n.gegen)),1);
       kopf = `<div class="kk-zahl" style="color:var(--poly)">${usd(Math.abs(t.netto))}</div>
-        <div class="kk-auf">netto <b>${t.netto>=0?"für":"gegen"} ${esc(pmLabel(t.team))}</b></div>
+        <div class="kk-auf">netto <b>${t.netto>=0?"für":"gegen"} ${esc(pmLabel(t.team, m.titel, m.sport))}</b></div>
         <div class="kk-klein">Käufe der letzten 30 Min, Ja und Nein verrechnet (${usd(f.neu)} insgesamt)</div>`;
-      zeilen = net.slice(0,3).map(n=>`<div class="pm-net"><span>${esc(pmLabel(n.team))}</span>
+      zeilen = net.slice(0,3).map(n=>`<div class="pm-net"><span>${esc(pmLabel(n.team, m.titel, m.sport))}</span>
         <div class="pm-bar"><i class="pm-g" style="width:${(n.gegen/max_*50).toFixed(1)}%"></i><i class="pm-f" style="width:${(n.fuer/max_*50).toFixed(1)}%"></i></div>
         <b style="color:${n.netto>=0?"var(--up)":"var(--down)"}">${n.netto>=0?"+":"−"}${usd(Math.abs(n.netto))}</b></div>`).join("")
         + `<div class="kk-klein" style="margin-top:4px">links gegen, rechts für</div>`;
     } else {
       kopf = `<div class="kk-zahl" style="color:var(--poly)">+${usd(f.usd)}</div>
-        <div class="kk-auf">auf <b>${esc(pmLabel(f.auf))}</b></div>
-        <div class="kk-klein">${f.anteil} % der Käufe in 30 Min${f10&&f10.usd>=500?`, davon ${usd(f10.usd)} in den letzten 10 Min auf ${esc(pmLabel(f10.auf))}`:""}</div>`;
-      zeilen = Object.entries(f.seiten||{}).slice(1,3).map(([k,v])=>`<div class="fl"><span>${esc(pmLabel(k))}</span><b style="color:var(--text-2)">${usd(v)}</b></div>`).join("");
+        <div class="kk-auf">auf <b>${esc(pmLabel(f.auf, m.titel, m.sport))}</b></div>
+        <div class="kk-klein">${f.anteil} % der Käufe in 30 Min${f10&&f10.usd>=500?`, davon ${usd(f10.usd)} in den letzten 10 Min auf ${esc(pmLabel(f10.auf, m.titel, m.sport))}`:""}</div>`;
+      zeilen = Object.entries(f.seiten||{}).slice(1,3).map(([k,v])=>`<div class="fl"><span>${esc(pmLabel(k, m.titel, m.sport))}</span><b style="color:var(--text-2)">${usd(v)}</b></div>`).join("");
     }
     return `<div class="kk ${m.live?"live-k":"kk-poly"}" ${klick(esc(pmTitel(m.titel)), ohneHuelle(polyFlussDetail(m)))}>
       <div class="kk-oben">${sportIco(m.sport)}<span>${esc(ligaName(m.liga)||m.sport||"")}</span><span class="rechts">${m.live?`<span class="live">live</span>`:wann(m.anpfiff)}</span></div>
       <div class="kk-titel">${esc(pmTitel(m.titel))} ${waleTag(waleVon(m.key).concat(waleVon(m.key+"-more-markets")))}</div>
       ${kopf}${zeilen}
-      ${g?`<div class="kk-fuss"><span class="tag t-open" style="white-space:normal">größter Kauf ${usd(g.usd)} ${/^gegen /.test(g.auf||"")?"":"auf "}${esc(pmLabel(g.auf))} @ ${Math.round(g.preis*100)} ¢, vor ${g.vor} Min</span></div>`:""}
+      ${g?`<div class="kk-fuss"><span class="tag t-open" style="white-space:normal">größter Kauf ${usd(g.usd)} auf ${esc(pmLabel(g.auf, m.titel, m.sport))} @ ${Math.round(g.preis*100)} ¢, vor ${g.vor} Min</span></div>`:""}
     </div>`;}).join("")}</div>`;
 }
 function polyKarten(liste){
