@@ -444,7 +444,7 @@ def serie(d):
                 + "\n"
                 + (_geld_block({"markt": x["markt"], "auswahl": x["auswahl"], "marktVerteilung": x["marktVerteilung"]}, 0)
                    if x.get("marktVerteilung") else "")
-                + f"<code>{_balken(x['saeulen'][-24:])}</code> <i>letzte 2 h, je Säule 5 Min</i>\n")
+                + (f"<code>{_balken(x['saeulen'][-24:])}</code> <i>letzte 2 h, je Säule 5 Min</i>\n" if any(x['saeulen'][-24:]) else ""))
         yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"]}
