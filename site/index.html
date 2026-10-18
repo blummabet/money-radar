@@ -623,7 +623,9 @@ function feedEintraege(D){
     const nt = (pmNetto(fw.seiten, m.key)||[])[0];
     f.push({q:"poly", k:"pfluss", live:m.live, t: nt ? `netto ${usd(Math.abs(nt.netto))} ${nt.netto>=0?"für":"gegen"} ${pmLabel(nt.team)}` : `+${usd(fw.usd)} auf ${pmLabel(fw.auf)}`,
       s: nt ? `${pmTitel(m.titel)}, Ja und Nein verrechnet` : `${pmTitel(m.titel)}, ${fw.anteil} % der Käufe`, b:usd(nt?Math.abs(nt.netto):fw.usd), zeit:pfZeit, wert:nt?Math.abs(nt.netto):fw.usd}); }
-  for(const s of lf(D.sharp).filter(s=>s.frisch||s.laeuftNoch)) f.push({q:"pinnacle", k:"pinnacle", t:`${s.auf}: Quote ${q2(s.vonQuote)} → ${q2(s.fairQuote)}`, s:`${s.heim} – ${s.gast}`, b:q2(s.fairQuote), zeit:D.quellen.pinnacle});
+  const pdF = D.pinnDrops||{vor:[],live:[]};
+  for(const s of lf(pdF.live)) f.push({q:"pinnacle", k:"pinnacle", t:`🔴 ${s.auf}: Pinnacle ${q2(s.vonQuote)} → ${q2(s.quote)} (+${dez(s.pp)} pp in ${s.fensterMin} Min)`, s:`${s.heim} – ${s.gast}, ${s.min}' ${s.stand[0]}:${s.stand[1]}`, b:q2(s.quote), zeit:pdF.stand});
+  for(const s of lf(pdF.vor).filter(s=>s.frisch)) f.push({q:"pinnacle", k:"pinnacle", t:`${s.auf}: Pinnacle ${q2(s.vonQuote)} → ${q2(s.quote)}`, s:`${s.heim} – ${s.gast}`, b:q2(s.quote), zeit:pdF.stand});
   // gleiche Zeit (eine Abrufrunde) → größere Beträge zuerst
   return f.sort((a,b)=>(new Date(b.zeit||0)-new Date(a.zeit||0)) || ((b.wert||0)-(a.wert||0)));
 }
@@ -709,6 +711,19 @@ function pinKarten(liste){
       ${spark(s.verlauf,"#5b9dff",200,34)}
       <div class="unten"><span>Wahrscheinlichkeit ${dez(s.vonPct)} → ${dez(s.nachPct)} %</span></div>
       <div style="margin-top:8px">${geldKonsens({geld:s.betfairGeld, polyGeld:s.poly})}</div></div>`;}).join("")}</div>`;
+}
+// Lucas 18.10.: eigener Pinnacle-Scan über alle Spiele der Odds API — vor Anpfiff und live
+function pinDropKarten(liste, live){
+  if(!liste.length) return `<div class="leer">${live?"Gerade traut Pinnacle live keinem Team, das nicht führt, plötzlich deutlich mehr zu":"Gerade bewegt sich vor Anpfiff keine Pinnacle-Quote deutlich"}${ligaModus==="ohne"?" (ohne Top-5)":ligaModus==="nur"?" (nur Top-5)":""}.</div>`;
+  return `<div class="karten">${liste.map(s=>{
+    const bf = s.bfId ? klickSpiel({id:s.bfId, heim:s.heim, gast:s.gast}) : "";
+    const rechts = live ? `<span class="live">${s.min!=null?s.min+"'":"live"}</span> ${s.stand[0]}:${s.stand[1]}` : wann(s.anpfiff);
+    const tag = live ? [`+${dez(s.pp)} pp in ${s.fensterMin} Min`,"t-lost"] : s.frisch ? [`frisch: +${dez(s.pp60)} pp in 1 h`,"t-lost"] : [`+${dez(s.pp)} pp`,"t-open"];
+    return `<div class="karte" ${bf}><div class="kk-oben" style="margin-bottom:6px">${flagge(s.land)}<span>${esc(s.liga||"")}</span><span class="rechts">${rechts}</span></div>
+      <div class="k1"><div style="min-width:0"><div class="auf">${esc(s.auf)}</div><div class="sp">${esc(s.heim)} – ${esc(s.gast)}</div></div><span class="tag ${tag[1]}">${tag[0]}</span></div>
+      <div class="quoten-zug"><span class="alt">${q2(s.vonQuote)}</span><span class="pfeil">→</span><span class="neu">${q2(s.quote)}</span></div>
+      ${spark(s.verlauf,"#5b9dff",200,34)}
+      <div class="unten"><span>Wahrscheinlichkeit ${dez(s.vonPct)} → ${dez(s.nachPct)} %${live?"":` · seit ${uhr(s.seit)}`}</span></div></div>`;}).join("")}</div>`;
 }
 function quoteZelle(a){
   const d = a.vorher && a.quote ? a.quote - a.vorher : 0;
@@ -1117,9 +1132,10 @@ function kompaktZufluss(D, n){
   return `<div class="feed">${z.map(x=>{ const fl=(x.fluss||[])[0]||{}; return `<div class="fe" ${klickSpiel(x)}>${icon("betfair")}<div style="min-width:0"><div class="t">${esc(auswahlDe(fl.auswahl||""))} @ ${q2(fl.quote)} ${serieTag(serieVon(D,x.id))}</div><div class="s">${esc(x.heim)} – ${esc(x.gast)}, ${wann(x.anpfiff)}, ${esc(marktDe(fl.markt||""))}</div></div><div class="b" style="color:var(--up)">+${eur(fl.eur)}<small>${fl.anteil} % des neuen Geldes</small></div></div>`; }).join("")}</div>`;
 }
 function kompaktPinnacle(D, n){
-  const z = lf(D.sharp||[]).slice(0,n);
+  const pd = D.pinnDrops||{vor:[],live:[]};
+  const z = [...lf(pd.live).map(x=>({...x,istLive:true})), ...lf(pd.vor).filter(x=>x.frisch), ...lf(pd.vor).filter(x=>!x.frisch)].slice(0,n);
   if(!z.length) return `<div class="leer">Gerade bewegt sich keine Pinnacle-Quote deutlich.</div>`;
-  return `<div class="feed">${z.map(x=>`<div class="fe">${icon("pinnacle")}<div style="min-width:0"><div class="t">${esc(x.auf)}</div><div class="s">${esc(x.heim)} – ${esc(x.gast)}, ${wann(x.anpfiff)}</div></div><div class="b"><span style="color:var(--text-3);font-weight:600;text-decoration:line-through">${q2(x.vonQuote)}</span> <span style="color:${x.fairQuote<x.vonQuote?"var(--up)":"var(--down)"}">${q2(x.fairQuote)}</span><small>faire Quote</small></div></div>`).join("")}</div>`;
+  return `<div class="feed">${z.map(x=>`<div class="fe" ${x.bfId?klickSpiel({id:x.bfId,heim:x.heim,gast:x.gast}):""}>${icon("pinnacle")}<div style="min-width:0"><div class="t">${esc(x.auf)} ${x.istLive?`<span class="live">${x.min!=null?x.min+"'":"live"} ${x.stand[0]}:${x.stand[1]}</span>`:x.frisch?`<span class="tag t-lost">frisch</span>`:""}</div><div class="s">${esc(x.heim)} – ${esc(x.gast)}, ${x.istLive?`+${dez(x.pp)} pp in ${x.fensterMin} Min`:wann(x.anpfiff)}</div></div><div class="b"><span style="color:var(--text-3);font-weight:600;text-decoration:line-through">${q2(x.vonQuote)}</span> <span style="color:var(--up)">${q2(x.quote)}</span><small>+${dez(x.pp)} pp</small></div></div>`).join("")}</div>`;
 }
 function seiteStart(D){
   return `<div class="grid">
@@ -1146,8 +1162,11 @@ function seiteBetfair(D){
   </div>`;
 }
 function seitePinnacle(D){
+  const pd = D.pinnDrops||{vor:[],live:[]};
   return `<div class="grid">
-    <div class="panel c12"><div class="ph"><h3>Deutliche Bewegungen</h3><span class="hint">faire Quote ohne Marge, vom ersten Abruf bis jetzt, mit Geld auf Betfair (BF) und Polymarket (PM)</span></div>${pinKarten(lf(D.sharp))}</div>
+    <div class="panel c12"><div class="ph"><h3>🔴 Live-Drops</h3><span class="hint">Team, das nicht führt, gewinnt bei Pinnacle in ~15 Min ab 4 pp (Top-5 ab 3 pp), ohne Tor. Die Zeit allein würde seine Chance senken, also steckt Information dahinter: Rote Karte, Druck, Verletzung</span></div>${pinDropKarten(lf(pd.live), true)}</div>
+    <div class="panel c12"><div class="ph"><h3>Drops vor Anpfiff</h3><span class="hint">aus allen ${pd.n||0} Spielen mit Pinnacle-Quote. Ab 2,5 pp seit dem ersten Stand (Top-5 ab 1,5 pp); frisch = ≥ 1,5 pp (Top-5 1 pp) in der letzten Stunde</span></div>${pinDropKarten(lf(pd.vor), false)}</div>
+    <div class="panel c12">${liste(`Spiele mit großem Betfair-Geld: Pinnacle gegen Betfair und Polymarket (${lf(D.sharp).length})`, "", pinKarten(lf(D.sharp)))}</div>
     <div class="panel c12">${liste(`Alle ${lf(D.pinnAlle).length} Spiele mit Pinnacle-Quote als Liste`, "", pinTabelle(lf(D.pinnAlle),"pin-alle"))}</div>
   </div>`;
 }
@@ -1213,7 +1232,7 @@ function render(){
   sicher("#s-poly", ()=>seitePoly(D));
   sicher("#s-stake", ()=>seiteStake(D));
   sicher("#s-hz", ()=>seiteHz(D));
-  try{ navAufbauen({betfair:D.radar.spiele.filter(s=>s.xnorm>=1.5).length, pinnacle:D.sharp.filter(s=>s.frisch||s.laeuftNoch).length,
+  try{ navAufbauen({betfair:D.radar.spiele.filter(s=>s.xnorm>=1.5).length, pinnacle:((D.pinnDrops||{}).live||[]).length+((D.pinnDrops||{}).vor||[]).filter(s=>s.frisch).length,
     poly:D.poly.maerkte.filter(belegt).length, stake:(D.stake.gruppen||D.stake.heute).length, hz:D.hz.heute.length, feed:lf(D.liveZufluss||[]).length||null}); }
   catch(e){ console.error(e); navAufbauen({}); }
   gehe(aktiv);

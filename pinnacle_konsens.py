@@ -1681,6 +1681,13 @@ def main():
     if _abbruch:
         print("odds: Zeitbudget %.0fs erschoepft -> %d entdeckte Wettbewerbe diesmal ausgelassen "
               "(kuratierte sind vollstaendig)" % (ODDS_BUDGET_S, _abbruch))
+    # money-radar 18.10.2026: eigener Pinnacle-Scan über ALLE abgerufenen Spiele (nicht nur die Radar-Liste),
+    # vor Anpfiff und live — gleich hier, damit ein späterer Timeout ihn nicht mitreißt.
+    try:
+        import pinnacle_scan
+        pinnacle_scan.fortschreiben(events_by_key, _sports)
+    except Exception as _e:  # noqa: BLE001
+        print("pinnacle_scan: nicht gelaufen (%s)" % str(_e)[:100])
     # Totals nur fuer die kuratierten Keys: die O/U-Leiter wird ausschliesslich im Poly-Terminal
     # verbraucht, und jeder weitere Call kostet Laufzeit auf einem Runner mit 12-Minuten-Deckel.
     # Totals ebenfalls an die Wanduhr: 30 kuratierte Keys mit je 8s Timeout waeren allein schon

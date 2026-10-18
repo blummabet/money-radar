@@ -25,7 +25,8 @@ from pathlib import Path
 
 RAW = "https://raw.githubusercontent.com/blummabet/betting-dashboard/main/"
 SRC = os.environ.get("RADAR_SRC", "").strip()
-OUT = Path(__file__).resolve().parent / "site" / "data.json"
+BASIS = Path(__file__).resolve().parent
+OUT = BASIS / "site" / "data.json"
 
 JETZT = datetime.now(timezone.utc)
 
@@ -255,6 +256,113 @@ def pinn_alle(consensus, history):
         })
     out.sort(key=lambda r: (r["live"], -r["bewegung"]))
     return out
+
+
+# ── Pinnacle-Scan über alle Spiele (Lucas 18.10.) ───────────────────────────────────
+PINN_TOP5_KEYS = {"soccer_epl", "soccer_germany_bundesliga", "soccer_spain_la_liga", "soccer_italy_serie_a",
+                  "soccer_france_ligue_one"}
+PINN_VOR_MIN_PP = {True: 1.5, False: 2.5}     # vor Anpfiff, seit Eröffnung (Top-5 ist effizienter: kleiner Ausschlag zählt)
+PINN_FRISCH_PP = {True: 1.0, False: 1.5}      # davon in der letzten Stunde → „frisch"
+PINN_LIVE_MIN_PP = {True: 3.0, False: 4.0}    # live in ~15 Min, nur für ein Team, das NICHT führt
+PINN_STAND = BASIS / ".pin" / "pinn_stand.json"
+
+
+def pinn_drops(prices):
+    """Pinnacle-Drops aus .pin/pinnacle_alle.json — unabhängig davon, ob Betfair das Spiel groß handelt.
+
+    Vor Anpfiff: Wahrscheinlichkeit jetzt gegen den ersten Stand (bis ~12 h zurück).
+    Live: 15-Min-Fenster, und NUR für ein Team, das nicht führt. Die Zeit allein senkt dessen Chance;
+    steigt sie trotzdem deutlich, hat Pinnacle eine Information (Rote Karte, Druckphase, Verletzung).
+    Remis und Führende fallen raus — bei ihnen steigt die Chance schon durch den Zeitablauf.
+    Tor im Fenster (Stand aus dem Betfair-Feed) → raus. Ohne Stand → live gar nicht gezeigt."""
+    try:
+        roh = json.loads((BASIS / ".pin" / "pinnacle_alle.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {"stand": None, "n": 0, "vor": [], "live": []}
+    try:
+        stand_hist = json.loads(PINN_STAND.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        stand_hist = {}
+    bf = [m for m in (prices or {}).get("matches") or [] if isinstance(m, dict)]
+
+    def bf_spiel(e):
+        ko = ts(e["anpfiff"])
+        for m in bf:
+            k2 = ts(m.get("kickoff"))
+            if not ko or not k2 or abs((ko - k2).total_seconds()) > 20 * 60:
+                continue
+            if (_gleich(e["heim"], m.get("home")) and _gleich(e["gast"], m.get("away"), locker=True)) or \
+               (_gleich(e["heim"], m.get("home"), locker=True) and _gleich(e["gast"], m.get("away"))):
+                return m
+        return None
+
+    vor, live, neu_stand = [], [], {}
+    for sid, e in (roh.get("spiele") or {}).items():
+        jetzt_p = e.get("jetzt")
+        ko = ts(e.get("anpfiff"))
+        if not jetzt_p or not ko or JETZT - (ts(jetzt_p[0]) or JETZT) > timedelta(minutes=20):
+            continue                                   # kein frischer Stand → nichts behaupten
+        top5 = e.get("key") in PINN_TOP5_KEYS
+        m = bf_spiel(e)
+        li = (m or {}).get("liveInfo") or {}
+        namen = [e["heim"], "Remis", e["gast"]]
+        basis = {"id": sid, "heim": e["heim"], "gast": e["gast"], "liga": (m or {}).get("league") or e.get("liga"),
+                 "land": (m or {}).get("country"), "anpfiff": e["anpfiff"], "top5": top5,
+                 "bfId": str(m.get("matchId")) if m else None}
+        if ko > JETZT:
+            grob = e.get("grob") or []
+            if len(grob) < 2:
+                continue
+            erst = grob[0]
+            d = [(jetzt_p[1 + i] - erst[1 + i]) * 100 for i in range(3)]
+            i = max(range(3), key=lambda j: d[j])
+            if d[i] < PINN_VOR_MIN_PP[top5]:
+                continue
+            fein = e.get("fein") or []
+            vor60 = next((x for x in fein if JETZT - ts(x[0]) <= timedelta(minutes=65)), None)
+            pp60 = round((jetzt_p[1 + i] - vor60[1 + i]) * 100, 1) if vor60 else None
+            vor.append({**basis, "auf": namen[i], "ausgang": ("heim", "remis", "gast")[i],
+                        "vonPct": round(erst[1 + i] * 100, 1), "nachPct": round(jetzt_p[1 + i] * 100, 1), "pp": round(d[i], 1),
+                        "vonQuote": erst[4 + i], "quote": jetzt_p[4 + i], "seit": erst[0], "pp60": pp60,
+                        "frisch": bool(pp60 is not None and pp60 >= PINN_FRISCH_PP[top5]),
+                        "verlauf": [round(x[1 + i] * 100, 1) for x in grob] + [round(jetzt_p[1 + i] * 100, 1)]})
+            continue
+        # live
+        if not m or li.get("goal_v1") is None or li.get("finished"):
+            continue
+        sc = [int(li.get("goal_v1") or 0), int(li.get("goal_v2") or 0)]
+        sh = (stand_hist.get(sid) or [])
+        if not sh or sh[-1][1:] != sc:
+            sh = sh + [[JETZT.isoformat(), *sc]]
+        neu_stand[sid] = sh[-10:]
+        fein = e.get("fein") or []
+        ref = next((x for x in fein if timedelta(minutes=10) <= JETZT - ts(x[0]) <= timedelta(minutes=20)), None)
+        if not ref:
+            continue
+        # Tor im Fenster? (letzte Stand-Änderung nach dem Vergleichspunkt)
+        if len(sh) >= 2 and ts(sh[-1][0]) and ts(sh[-1][0]) >= ts(ref[0]) - timedelta(minutes=3):
+            continue
+        for i in (0, 2):
+            eigen, gegner = (sc[0], sc[1]) if i == 0 else (sc[1], sc[0])
+            if eigen > gegner:
+                continue                               # führt → Chance steigt schon durch die Zeit
+            d = (jetzt_p[1 + i] - ref[1 + i]) * 100
+            if d < PINN_LIVE_MIN_PP[top5]:
+                continue
+            fmin = round((JETZT - ts(ref[0])).total_seconds() / 60)
+            live.append({**basis, "auf": namen[i], "ausgang": ("heim", "remis", "gast")[i],
+                         "vonPct": round(ref[1 + i] * 100, 1), "nachPct": round(jetzt_p[1 + i] * 100, 1), "pp": round(d, 1),
+                         "vonQuote": ref[4 + i], "quote": jetzt_p[4 + i], "fensterMin": fmin,
+                         "min": li.get("time"), "stand": sc,
+                         "verlauf": [round(x[1 + i] * 100, 1) for x in fein][-36:]})
+    try:
+        PINN_STAND.parent.mkdir(parents=True, exist_ok=True)
+        PINN_STAND.write_text(json.dumps(neu_stand), encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+    vor.sort(key=lambda x: (-int(x["frisch"]), -x["pp"]))
+    live.sort(key=lambda x: -x["pp"])
+    return {"stand": roh.get("stand"), "n": len(roh.get("spiele") or {}), "vor": vor[:40], "live": live[:20]}
 
 
 # ── Polymarket ───────────────────────────────────────────────────────────────────
@@ -1545,6 +1653,7 @@ def main() -> int:
         "pushBilanz": push_bilanz(),
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
+        "pinnDrops": pinn_drops(prices),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
         "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, laden("poly_money_broad_live.json", {}), offen_m)),
         "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(laden("poly_money_broad_live.json", {}) or {})}, hr, pfl, pbel),
