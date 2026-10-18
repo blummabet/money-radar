@@ -302,7 +302,8 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
             "sport": haupt,
             "offen": [{"markt": p.get("key"), "seite": p.get("side"), "usd": p.get("usd"),
                        "preis": p.get("lastPrice") or p.get("firstPrice"), "anpfiff": p.get("koTs"),
-                       "sport": p.get("sport")} for p in offen_jetzt[:5]],
+                       "einstieg": p.get("entryPrice") or p.get("firstPrice"), "einTs": p.get("firstTs"),
+                       "marktUsd": p.get("marktUsd"), "sport": p.get("sport")} for p in offen_jetzt[:5]],
         })
     # Sortiert nach der UNTERGRENZE: wer oben steht, ist nicht nur im Schnitt gut, sondern belegt.
     wallets.sort(key=lambda r: -r["clvUg"])
@@ -391,6 +392,8 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
             if float(o.get("usd") or 0) < 500 or not poly_key_ok(o.get("markt")) or not zukunft(o.get("anpfiff"), nach_h=0, bis_h=72) or not sport_ok(o.get("sport")):
                 continue
             setzen.append({**o, "wallet": w["wallet"], "clv": w["fensterClv"], "clvUg": w["clvUg"],
+                           "n": w["fensterN"], "pnl": w.get("pnl"), "schnittUsd": w.get("schnittUsd"),
+                           "rang": wallets.index(w) + 1, "rangVon": sum(1 for x in wallets if x["bewiesen"]),
                            "spiel": name_fuer(o["markt"]), "jetzt": ((quelle.get(o["markt"]) or {}).get("prices") or {}).get(o.get("seite"))})
     setzen.sort(key=lambda x: -float(x.get("usd") or 0))
 
@@ -1074,8 +1077,18 @@ def serien(takt, radar):
                 i = SAEULEN - 1 - int((JETZT - ts(x["t"])).total_seconds() // 300)
                 if 0 <= i < SAEULEN:
                     saeulen[i] = max(saeulen[i], v[0])
+            # Lucas 18.10.: Tore auch im Säulenbild markieren — an welcher Säule sich der Stand änderte
+            tore, vor_sc = [], None
+            for x in liste:
+                sc = tuple(x.get("sc") or ())
+                if sc and vor_sc and sc != vor_sc:
+                    i = SAEULEN - 1 - int((JETZT - ts(x["t"])).total_seconds() // 300)
+                    if 0 <= i < SAEULEN:
+                        tore.append({"i": i, "stand": list(sc)})
+                if sc:
+                    vor_sc = sc
             out.append({"id": str(mid), "heim": sp["heim"], "gast": sp["gast"], "liga": sp["liga"], "land": sp.get("land"),
-                        "anpfiff": sp["anpfiff"], "live": sp.get("live"), "top5": top5, "quelle": "betfair",
+                        "anpfiff": sp["anpfiff"], "live": sp.get("live"), "top5": top5, "quelle": "betfair", "tore": tore,
                         "markt": markt, "auswahl": auswahl, "n": len(kette), "eur": round(summe),
                         "anteil": round(sum(k[2] for k in kette) / len(kette)),
                         "quote": kette[-1][3], "quoteStart": kette[0][3],

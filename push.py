@@ -319,22 +319,151 @@ def bf_halbzeit(d):
 SPORT = {"Fußball": "⚽", "E-Sport": "🎮", "Tennis": "🎾"}
 
 
+def _poly_topf(d, markt):
+    """Das Spiel aus „Wo am meisten liegt", in dem dieser Polymarket-Markt steckt (Betfair/Pinnacle/Stake daneben)."""
+    basis = str(markt or "").replace("-more-markets", "").replace("-exact-score", "")
+    return next((g for g in d.get("toepfe") or [] if ((g.get("q") or {}).get("poly") or {}).get("key") == basis), None)
+
+
+def _seite_von(g, o):
+    for w in g.get("wale") or []:
+        if w.get("wallet") == o.get("wallet") and w.get("seite") == o.get("seite"):
+            return w.get("k")
+    n = str(o.get("seite") or "").lower()
+    if n.startswith("draw"):
+        return "remis"
+    for k in ("heim", "gast"):
+        t = str(g.get(k) or "").lower()
+        if t and (t in n or n in t):
+            return k
+    return None
+
+
+def _preis_balken(p, breite=12):
+    n = max(0, min(breite, round(p * breite)))
+    return "█" * n + "░" * (breite - n)
+
+
 def wale(d):
+    """Lucas 18.10. („Geht poly auch cooler?"): nicht nur Betrag + CLV-Zahl, sondern die drei Fragen, die zählen —
+    WER setzt (Bilanz in Worten, wie überzeugt: Einsatz vs. sein Schnitt), WAS sagt der Markt (alle Preise als
+    Balken, Betfair/Pinnacle-Quote daneben) und SIND ANDERE dabei (Geld der anderen Plattformen, weitere Wale)."""
+    wallets = {w.get("wallet"): w for w in (d.get("poly") or {}).get("wallets") or []}
     for o in (d.get("poly") or {}).get("setzen") or []:
         top5 = str(o.get("markt") or "").split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1"}
         if (o.get("usd") or 0) < (WAL_MIN_USD_TOP5 if top5 else WAL_MIN_USD):
             continue
         key = f"wal|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}"
-        preis, jetzt = o.get("preis"), o.get("jetzt")
-        text = (f"🟣 <b>Belegter Wal steigt ein</b> · Polymarket\n"
-                f"{SPORT.get(o.get('sport'), '')} <b>{e(o.get('spiel'))}</b>\n{anpfiff(o.get('anpfiff'))}\n\n"
-                f"💵 <b>{geld(o.get('usd'), '$')}</b> auf <b>{e(remis(o.get('seite')))}</b>"
-                + (f" @ {round(preis * 100)} ¢ (Quote {q2(1 / preis)})" if preis else "") + "\n"
-                + (f"📈 jetzt {round(jetzt * 100)} ¢\n" if jetzt is not None else "")
-                + f"🧠 Wallet {e(str(o.get('wallet'))[2:6])} schlägt den Schlusskurs im Schnitt um "
-                  f"{q2(o.get('clv'))} pp (vorsichtig mind. {q2(o.get('clvUg'))})\n"
-                f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(o.get("markt") or ""))}">Markt öffnen</a>\n')
-        yield key, text, None
+        w = wallets.get(o.get("wallet")) or {}
+        g = _poly_topf(d, o.get("markt"))
+        k = _seite_von(g, o) if g else None
+        nebenmarkt = str(o.get("markt") or "").endswith(("-more-markets", "-exact-score"))
+        seite = remis(_pm_label(o.get("seite")) if nebenmarkt else o.get("seite"))
+        if nebenmarkt and seite in ("Over", "Under"):
+            seite = "Über" if seite == "Over" else "Unter"      # Linie liefert der Track nicht mit
+        preis = o.get("jetzt") if o.get("jetzt") is not None else o.get("preis")
+        ein = o.get("einstieg") or o.get("preis")
+        usd = float(o.get("usd") or 0)
+
+        # Kopf
+        titel = e(o.get("spiel"))
+        if g and not nebenmarkt:
+            titel = f"{e(g.get('heim'))} – {e(g.get('gast'))}"
+        liga = str((g or {}).get("liga") or "")
+        liga = "" if liga.isupper() else e(liga)          # „ESPORTS"/„SOCCER" aus Polymarket sagt nichts
+        zeilen = [f"🐋 <b>Wal-Einstieg · {geld(usd, '$')} auf {e(seite)}</b>",
+                  f"{SPORT.get(o.get('sport'), '')} <b>{titel}</b>" + (f"\n<i>{flagge((g or {}).get('land'))}{liga}</i>" if liga else ""),
+                  f"🕒 {anpfiff(o.get('anpfiff'))}", ""]
+
+        # Was der Markt sagt: alle Poly-Preise als Balken, die Wal-Seite markiert, Quote daneben
+        pp = ((g or {}).get("q") or {}).get("poly", {}).get("preise") or {} if not nebenmarkt else {}
+        namen = {"heim": (g or {}).get("heim"), "remis": "Remis", "gast": (g or {}).get("gast")}
+        reihe = [(sk, pp[sk]) for sk in ("heim", "remis", "gast") if isinstance(pp.get(sk), (int, float))]
+        if k and reihe and any(sk == k for sk, _ in reihe):
+            zeilen.append("<b>Polymarket-Preise</b>")
+            for sk, p in reihe:
+                nm = str(namen[sk] or "")[:12].ljust(12)
+                z = f"{e(nm)} {_preis_balken(p)} {round(p * 100):>2}¢"
+                zeilen.append(f"<b><code>{z} ◀</code></b>" if sk == k else f"<code>{z}</code>")
+            zeilen.append("")
+        if preis:
+            bew = ""
+            if ein and abs(preis - ein) >= 0.01:
+                bew = f" · seit Einstieg {round(ein * 100)}→{round(preis * 100)}¢ {'↑' if preis > ein else '↓'}"
+            zeilen.append(f"💵 <b>{round(preis * 100)}¢</b> = Quote <b>{q2(1 / preis)}</b>{bew}")
+        # Gegencheck an den anderen Börsen (nur Sieg-Markt)
+        if g and k and not nebenmarkt:
+            vgl = []
+            bq = (((g.get("q") or {}).get("betfair") or {}).get("quoten") or {}).get(k)
+            if bq:
+                vgl.append(f"Betfair {q2(bq)}")
+            pin = next((x for x in d.get("pinnAlle") or [] if str(x.get("id")) == str(g.get("id"))), None)
+            po = next((a for a in (pin or {}).get("ausgaenge") or [] if a.get("name") == namen[k]), None)
+            if po and po.get("quote"):
+                vgl.append(f"Pinnacle {q2(po['quote'])}")
+            if vgl:
+                besser = bq and preis and 1 / preis > bq * 1.01
+                zeilen.append("⚖️ " + " · ".join(vgl) + (" → Poly zahlt mehr" if besser else ""))
+        mgr = (((g or {}).get("q") or {}).get("poly") or {}).get("betrag") if not nebenmarkt else None
+        if mgr and usd and float(mgr) > 0:              # heutige Marktgröße, nicht die beim Einstieg
+            ant = round(100 * min(usd, float(mgr)) / float(mgr))
+            if ant >= 10:
+                zeilen.append(f"🏋️ das sind <b>{ant} %</b> des ganzen Marktes")
+        zeilen.append("")
+
+        # Wer setzt
+        n, pnl, schnitt = o.get("n") or w.get("fensterN"), o.get("pnl") or w.get("pnl"), o.get("schnittUsd") or w.get("schnittUsd")
+        wer = f"🧠 <b>Wallet {e(str(o.get('wallet'))[2:6])}</b>"
+        if o.get("rang") and o.get("rangVon"):
+            wer += f" · Nr. {o['rang']} von {o['rangVon']} belegten"
+        zeilen.append(wer)
+        bil = []
+        if n:
+            bil.append(f"{n} Wetten")
+        if pnl is not None:
+            bil.append(("+" if pnl >= 0 else "−") + geld(abs(pnl), "$"))
+        bil.append(f"schlägt den Schlusskurs um Ø {q2(o.get('clv'))} pp (sicher ≥ {q2(o.get('clvUg'))})")
+        zeilen.append("   " + " · ".join(bil))
+        if schnitt and usd:
+            f = usd / float(schnitt)
+            if f >= 1.5:
+                zeilen.append(f"   🔥 setzt sonst Ø {geld(schnitt, '$')} — diesmal <b>{q2(f)}×</b> so viel")
+            elif f <= 0.5:
+                zeilen.append(f"   setzt sonst Ø {geld(schnitt, '$')} — diesmal eher klein")
+
+        # Sind andere dabei
+        if g and k:
+            mit, gegen = [], []
+            for x in g.get("wale") or []:
+                if x.get("wallet") == o.get("wallet") or not x.get("k"):
+                    continue
+                (mit if x["k"] == k else gegen).append(x)
+            andere = []
+            for qn, label, z in (("betfair", "Betfair", "€"), ("stake", "Stake", "$")):
+                q = (g.get("q") or {}).get(qn) or {}
+                sv = q.get("seiten") or {}
+                summe = sum(sv.values())
+                if summe >= 3000:
+                    pc = round(100 * (sv.get(k) or 0) / summe)
+                    andere.append(f"{label} {pc} % " + ("✅" if pc >= 55 else "⚠️ dagegen" if pc <= 35 else "≈ geteilt"))
+            if andere or mit or gegen:
+                zeilen.append("")
+                zeilen.append(f"🤝 <b>Geld auf {e(namen.get(k) or seite)} anderswo</b>")
+                if andere:
+                    zeilen.append("   " + " · ".join(andere))
+                if mit or gegen:
+                    t = []
+                    if mit:
+                        t.append(f"+{len(mit)} belegte{'r' if len(mit) == 1 else ''} Wal{'e' if len(mit) > 1 else ''} mit ({geld(sum(x['usd'] for x in mit), '$')})")
+                    if gegen:
+                        t.append(f"⚠️ {len(gegen)} dagegen ({geld(sum(x['usd'] for x in gegen), '$')})")
+                    zeilen.append("   " + " · ".join(t))
+
+        mk = urllib.parse.quote(str(o.get("markt") or "").replace("-more-markets", "").replace("-exact-score", ""))
+        zeilen.append("")
+        zeilen.append(f'<a href="https://polymarket.com/event/{mk}">Markt öffnen</a> · '
+                      f'<a href="https://polymarket.com/profile/{e(o.get("wallet"))}">Wallet ansehen</a>')
+        yield key, "\n".join(zeilen) + "\n", None
 
 
 def stake(d):
