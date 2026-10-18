@@ -9,9 +9,15 @@ name: Stake (Mac)
 # Das alte Projekt läuft unverändert weiter (Lucas: „das alte nicht sofort abdrehen").
 on:
   workflow_dispatch:
+    inputs:
+      bericht:
+        description: 'Ergebnis zusätzlich als Issue (zum Prüfen)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: stake
@@ -46,7 +52,7 @@ jobs:
           PY=python3
           for p in /opt/homebrew/bin/python3.11 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.13; do [ -x "$p" ] && { PY="$p"; break; }; done
           cd stake
-          "$PY" stake_highroller_fetch.py || echo "⚠️ Stake-Abruf fehlgeschlagen"
+          "$PY" stake_highroller_fetch.py 2>&1 | tail -15 | tee ../st.log || echo "⚠️ Stake-Abruf fehlgeschlagen"
           "$PY" stake_settle.py          || echo "⚠️ Abrechnung fehlgeschlagen"
           "$PY" stake_league_norm.py     || echo "⚠️ Liga-Norm fehlgeschlagen"
           "$PY" stake_analyse.py         || echo "⚠️ Auswertung fehlgeschlagen"
@@ -57,3 +63,15 @@ jobs:
         with:
           path: .st
           key: stake-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Bericht als Issue
+        if: always() && inputs.bericht
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          { cat st.log; echo; echo '```'; python3 -c "
+          import json
+          h=json.load(open('.st/stake_highroller.json')); print('asof', h.get('asof'), 'wetten', len(h.get('wetten') or []))
+          b=json.load(open('.st/stake_burst_ledger.json')); print('burst-buch', len(b), 'letzte', b[-1].get('sentAt') if b else None)
+          " 2>&1; echo '```'; } > bericht.txt
+          gh issue create -R ${{ github.repository }} --title "Stake $(date -u +%FT%H:%MZ)" --body-file bericht.txt
