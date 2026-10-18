@@ -548,6 +548,10 @@ def stake(d):
         quote = (mit_auswahl or {}).get("quote") or g.get("quote")
         if (isinstance(quote, (int, float)) and quote < 1.40) or (g.get("phase") == "live" and klar_vorn(g.get("spiel"))):
             continue
+        # Lucas 18.10. (Málaga – Sociedad: Torlinien-Burst von 20:01 kam um 20:30, Spiel schon aus): live ist ein
+        # Burst nach 10 Min Geschichte — die Stake-Datei des alten Projekts kommt manchmal 20–30 Min verspätet an.
+        if g.get("phase") == "live" and (JETZT - t0).total_seconds() > 10 * 60:
+            continue
         arten = []
         for z in gruppe:
             if z.get("art") and z["art"] not in arten:
