@@ -905,8 +905,9 @@ def zufluss_liste(radar, consensus):
     out = []
     for sp in radar.get("spiele") or []:
         # wie live: steigt die Quote der Auswahl, auf die das Geld „floss", ist es meist Lay-Geld → nicht zählen
+        # vor Anpfiff gibt es keinen Zeiteffekt: steigt die Quote der Auswahl überhaupt (>1 %), war es Lay-Geld
         fl = [f for f in sp.get("flussVorher") or []
-              if not (f.get("quote") and f.get("quoteVorher") and f["quote"] > f["quoteVorher"] * 1.03)]
+              if not (f.get("quote") and f.get("quoteVorher") and f["quote"] > f["quoteVorher"] * 1.01)]
         d = fl[0]["eur"] if fl else None
         # Live-Spiele raus: dort fließt laufend Geld, weil sich mit jedem Angriff die Quote dreht —
         # das ist Handel, kein frisches Urteil. Wie im alten Projekt nur vor Anpfiff.
@@ -952,8 +953,11 @@ def live_zufluss(radar):
         # Auswahl, deren Quote dabei STEIGT, ist auf Betfair meist Lay-Geld (gematcht wird beidseitig) oder
         # schlicht der Zeitablauf — kein Urteil für diese Seite. Nur fallende oder ruhige Quoten zählen.
         boden = LIVE_ANZEIGE_MIN[bool(sp.get("top5"))]
+        # Lucas 18.10.: live steigt eine Quote oft schlicht mit der Zeit (Über ohne Tor, Außenseiter) —
+        # darum KEIN Steigt-Filter live, nur Sprünge durch ein Spielereignis (Tor/Rot, ±40 %) fallen raus.
         fl = [f for f in sp.get("flussLive") or [] if f["eur"] >= boden
-              and not (f.get("quote") and f.get("quoteVorher") and f["quote"] > f["quoteVorher"] * 1.03)]
+              and not (f.get("quote") and f.get("quoteVorher")
+                       and not (1 / 1.4 <= f["quote"] / f["quoteVorher"] <= 1.4))]
         d = fl[0]["eur"] if fl else None
         if not sp.get("live") or sp.get("entschieden") or not d:
             continue
@@ -1049,8 +1053,8 @@ def serien(takt, radar):
             if isinstance(kette[-1][3], (int, float)) and kette[-1][3] < 1.20:
                 continue                               # wie beim Zufluss: praktisch entschieden
             q0, q1 = kette[0][3], kette[-1][3]
-            if isinstance(q0, (int, float)) and isinstance(q1, (int, float)) and q1 > q0 * 1.03:
-                continue                               # Quote stieg während der Serie → eher Lay-Geld
+            if not sp.get("live") and isinstance(q0, (int, float)) and isinstance(q1, (int, float)) and q1 > q0 * 1.01:
+                continue                               # vor Anpfiff: Quote stieg während der Serie → eher Lay-Geld
             saeulen = [0] * SAEULEN
             for x in liste:
                 v = x["h"].get(key)
