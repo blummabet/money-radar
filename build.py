@@ -777,6 +777,11 @@ def markt_zufluss(snaps):
     return [{"name": k, "eur": round(v)} for k, v in d[:3] if v > 0] or None
 
 
+def _ist_hz_markt(name) -> bool:
+    n = str(name or "")
+    return n in ("Half Time", "Half Time Score") or n.startswith("First Half Goals")
+
+
 def betfair_radar(prices, bf_hist, norm, norm_state=None):
     """Jedes Spiel im Betfair-Abruf (auch Slowakei 2, Finnland, China …), gemessen an seiner Liga.
 
@@ -850,6 +855,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             vert = None
         maerkte = sorted(((k, float(v.get("vol") or 0)) for k, v in (m.get("markets") or {}).items()
                           if isinstance(v, dict)), key=lambda x: -x[1])
+        hz_vorbei = bool(dt_h < 0 and not li.get("is_ht") and isinstance(li.get("time"), (int, float)) and li.get("time") > 45)
         spiele.append({
             "id": str(m.get("matchId")), "heim": m.get("home"), "gast": m.get("away"),
             "liga": m.get("league"), "land": m.get("country"), "anpfiff": m.get("kickoff"),
@@ -872,10 +878,13 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             "d15": round(vol - vor15) if vor15 is not None and t15 and t15 >= JETZT - timedelta(minutes=30) else None,
             # In welchen Markt floss das Geld zuletzt? (die Historie führt das Markt-Volumen der letzten 2 Abrufe)
             "marktZufluss": markt_zufluss(snaps),
-            "maerkteDetail": maerkte_detail(m, snaps, 30 if dt_h > 0 else 15),
+            "maerkteDetail": [x for x in maerkte_detail(m, snaps, 30 if dt_h > 0 else 15)
+                              if not (hz_vorbei and _ist_hz_markt(x.get("name")))],
             "fensterMin": 30 if dt_h > 0 else 15,
             "flussVorher": auswahl_zufluss(snaps, 30, 3000) if dt_h > 0 else [],
-            "flussLive": auswahl_zufluss(snaps, 15, 1500) if dt_h <= 0 else [],
+            # Lucas 18.10. (Valladolid 54' 1:2: „+€21k auf Über 0,5 HZ-Tore @ 2,02"): ein Halbzeit-Markt ist nach der
+            # Pause abgerechnet — was dort noch „neu" erscheint, ist Abrechnung, kein Geld. Ab der 46. Minute raus.
+            "flussLive": [f for f in auswahl_zufluss(snaps, 15, 1500) if not (hz_vorbei and _ist_hz_markt(f.get("markt")))] if dt_h <= 0 else [],
             "top5": bool(TOP5_RX.search(str(m.get("league") or ""))),
             "quoten30": ({"heim": mo30.get("hw"), "remis": mo30.get("dr"), "gast": mo30.get("aw")} if mo30 else None),
             "kurve": kurve,
@@ -1219,6 +1228,9 @@ def serien(takt, radar):
                        "vorTor": round(sum(k[1] for k in kette if k[4] == st0)),
                        "nachTor": round(sum(k[1] for k in kette if k[4] != st0))}
             markt, auswahl = key.split("|", 1)
+            lv = sp.get("live") or {}
+            if _ist_hz_markt(markt) and not lv.get("ht") and isinstance(lv.get("min"), (int, float)) and lv["min"] > 45:
+                continue                               # Halbzeit-Markt nach der Pause: abgerechnet
             if isinstance(kette[-1][3], (int, float)) and kette[-1][3] < 1.20:
                 continue                               # wie beim Zufluss: praktisch entschieden
             q0, q1 = kette[0][3], kette[-1][3]
