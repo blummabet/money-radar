@@ -46,6 +46,7 @@ FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als v
 WAL_MIN_USD = 1000
 WAL_MIN_USD_TOP5 = 3000      # in den Top-5 sind $1000 Alltag
 MAX_JE_LAUF = 12             # Notbremse gegen Spam
+SERIE_ABSTAND_MIN = 30       # Lucas 18.10. (Igdir 7× und 8× im 5-Min-Abstand): dieselbe Serie frühestens nach 30 Min wieder
 
 
 def ts(s):
@@ -562,12 +563,19 @@ def serie(d):
         key = f"se|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}"
         q, q0 = x.get("quote"), x.get("quoteStart")
         richtung = f" (Start {q2(q0)})" if q and q0 and abs(q - q0) >= 0.02 else ""
+        # Live steigt die Quote des Führenden/Favoriten mit der Zeit — aber nicht um ein Viertel in einer Dreiviertelstunde.
+        # Steigt sie stärker, wurde das gematchte Geld eher von Lay-Seite in den Markt gedrückt (Volumen hat keine Richtung).
+        lay_hinweis = ""
+        if x.get("live") and q and q0 and q > q0 * 1.15 and not x.get("tor"):
+            lay_hinweis = (f"⚠️ <i>Quote stieg um {round(100 * (q / q0 - 1))} % ohne Tor — mehr als die Spielzeit erklärt. "
+                           f"Gematchtes Geld kann auch Lay sein: der Markt glaubt eher weniger an diese Seite.</i>\n")
         lv = next((sp.get("live") for sp in (d.get("radar") or {}).get("spiele") or [] if sp.get("id") == x["id"]), None)
         st = (f"🔴 {lv.get('min')}' · {(lv.get('stand') or [0, 0])[0]}:{(lv.get('stand') or [0, 0])[1]}" if lv else f"⏰ {anpfiff(x.get('anpfiff'))}")
         text = (f"🔁 <b>Dauerzufluss</b> · Betfair · <b>{x['n']}× in Folge</b>\n"
                 f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n{e(x.get('liga'))} · {st}\n\n"
                 f"💶 <b>{geld(x['eur'])}</b> in {x['dauerMin']} Min auf <b>{e(remis(_auswahl_de(x['auswahl'])))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"<i>= im Schnitt {x.get('anteil')} % von allem, was je Abruf in diesem Markt neu kam</i>\n"
+                + lay_hinweis
                 + (f"⚽ <b>Tor während der Serie</b> ({x['tor']['von'][0]}:{x['tor']['von'][1]} → {x['tor']['nach'][0]}:{x['tor']['nach'][1]}): "
                    f"{geld(x['tor']['vorTor'])} kamen vorher, {geld(x['tor']['nachTor'])} danach\n" if x.get("tor") else "")
                 + "\n"
@@ -686,6 +694,11 @@ def main() -> int:
             alt = gesehen.get(key)
             if alt and (pause_h is None or (JETZT - ts(alt)).total_seconds() < pause_h * 3600):
                 continue
+            if key.startswith(("se|", "ps|", "ss|")):
+                basis = key.rsplit("|", 1)[0] + "|"
+                if any(k.startswith(basis) and (JETZT - ts(v)).total_seconds() < SERIE_ABSTAND_MIN * 60
+                       for k, v in gesehen.items()):
+                    continue        # nicht als gesehen markieren: die Stufe kommt nach der Pause mit frischen Zahlen
             if erster_lauf:
                 gesehen[key] = JETZT.isoformat()
                 continue
