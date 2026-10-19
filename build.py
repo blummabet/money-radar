@@ -915,7 +915,14 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
     spiele.sort(key=lambda s: -(s["xnorm"] or 0))
     std = [{"h": iso(h), "eur": round(v)} for h, v in sorted(stunden.items())][-12:]
     ligen = len({s["liga"] for s in spiele})
-    return {"spiele": spiele[:120], "stunden": std, "ligen": ligen,
+    # Lucas 19.10. (PAOK B – Apollon: Dauerzufluss-Push, Karte da, beim Anpfiff weg): die Liste war auf die 120 Spiele
+    # mit der höchsten ×Norm gekappt. Beim Anpfiff misst ×Norm gegen die Live-Norm (viel mehr Geld üblich) → das
+    # Spiel rutschte unter die 120 und verschwand mit Karte, Serie und Detail. Spiele mit frischem Geld bleiben immer.
+    aktiv = lambda s: bool(s.get("flussVorher") or s.get("flussLive") or (s.get("d30") or 0) >= 1500 or (s.get("d15") or 0) >= 1000)
+    oben = spiele[:120]
+    drin = {id(s) for s in oben}
+    spiele = oben + [s for s in spiele[120:] if aktiv(s)][:80]
+    return {"spiele": spiele, "stunden": std, "ligen": ligen,
             "summeEur": round(sum(s["eur"] for s in spiele))}
 
 
