@@ -718,6 +718,35 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .pd-leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;color:var(--text-3)} .pd-leg span{display:inline-flex;align-items:center;gap:6px}
 .pd-leg i{width:10px;height:10px;border-radius:3px;background:color-mix(in srgb, var(--poly) 30%, var(--panel-3))} .pd-leg i.bel{background:var(--poly)}
 .pd-bf{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:13px;margin-bottom:6px} .pd-bf span{display:inline-flex;align-items:center;gap:6px} .pd-bf i{width:10px;height:10px;border-radius:3px}
+
+.is{display:flex;flex-direction:column;gap:12px}
+.is-z{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.4fr) 86px 62px;gap:14px;align-items:center}
+.is-l{font-weight:700;font-size:13.5px;min-width:0} .is-l small{display:block;font-weight:500;font-size:11.5px;color:var(--text-3)}
+.is-t{position:relative;height:14px;background:var(--flaeche-2);border-radius:7px}
+.is-t i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;opacity:.85}
+.is-t b{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1.5px;background:var(--text);border-radius:2px}
+.is-r{text-align:right} .is-r b{display:block;font-size:15px} .is-r small{font-size:11.5px;color:var(--text-3)}
+.is-roi{font-weight:800;text-align:right;font-size:14px}
+.is-leg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:11.5px;color:var(--text-3)} .is-leg span{display:inline-flex;align-items:center;gap:6px}
+.is-leg i{width:14px;height:8px;border-radius:4px;background:var(--up);opacity:.85} .is-leg b{width:3px;height:12px;background:var(--text);border-radius:2px}
+.pdk-m{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:8px}
+.pdk-auf{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--pin);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pdk-q{text-align:right;display:flex;flex-direction:column;align-items:flex-end} .pdk-q span{font-size:12px;color:var(--text-3);text-decoration:line-through} .pdk-q b{font-size:22px;font-weight:800} .pdk-q small{font-size:11.5px;font-weight:700;color:var(--pin)}
+.pdk .lc{margin-top:6px} .pdk .lc-y{display:none} .pdk .lc{grid-template-columns:0 1fr;column-gap:0}
+.pz{display:flex;flex-direction:column;gap:2px}
+.pz-z{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,.9fr);gap:16px;align-items:center;padding:8px;border-radius:10px;cursor:pointer}
+.pz-z:hover{background:var(--hover)}
+.pz-l{display:flex;gap:10px;align-items:center;min-width:0} .pz-l b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .pz-l small{display:block;font-size:11.5px;color:var(--text-3)}
+.pz-t{position:relative;height:12px;background:var(--flaeche-2);border-radius:6px} .pz-t i{position:absolute;top:0;bottom:0;border-radius:6px}
+.pz-r{text-align:right;min-width:0} .pz-r b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .pz-r small{font-size:11.5px;color:var(--text-3)}
+.st-ph{font-size:11px;font-weight:800;padding:2px 7px;border-radius:999px;background:var(--flaeche-2);color:var(--text-2);flex:none}
+.st-ph.live{background:color-mix(in srgb, var(--down) 15%, transparent);color:var(--down)}
+.st-q{font-weight:600;color:var(--text-3)}
+.st-z .jf-r small .tag{margin:0}
+@media (max-width:700px){
+  .is-z{grid-template-columns:minmax(0,1fr) 70px 54px;row-gap:6px} .is-t{grid-column:1/-1;grid-row:2}
+  .pz-z{grid-template-columns:minmax(0,1fr) auto;row-gap:6px} .pz-t{grid-column:1/-1;grid-row:2}
+}
 </style>
 </head>
 <body>
@@ -1796,6 +1825,30 @@ function ligaKaestchen(lb){
 function bfAlleInhalt(alle){
   return `<div class="chips" style="margin:12px 0">${Object.entries(BF_SETS).map(([k,[n,fn]])=>`<button class="chip${k===filterBf?" an":""}" data-filter="${k}">${n} <span style="opacity:.6">${fn(alle).length}</span></button>`).join("")}</div>${spielTabelle(BF_SETS[filterBf][1](alle),"t-bf",25)}`;
 }
+// ── gemeinsame Bausteine der Unterseiten (19.10.) ──
+const kzReihe = kacheln => `<div class="kz-reihe">${kacheln.map(([n,w,u,extra=""])=>`<div class="kz"><span class="kz-n">${n}</span><span class="kz-w">${w}</span><span class="kz-u">${u}</span>${extra}</div>`).join("")}</div>`;
+function kzSpark(werte){ if(werte.length<3) return ""; let c=0; const k = werte.map(v=>c+=v); const lo=Math.min(0,...k), hi=Math.max(0,...k), sp=(hi-lo)||1;
+  return `<svg class="kz-sp" viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${k.map((y,i)=>`${i?"L":"M"}${(i/(k.length-1)*100).toFixed(1)},${(30-(y-lo)/sp*30).toFixed(1)}`).join("")}" style="stroke:${c>=0?"var(--up)":"var(--down)"}"/></svg>`; }
+function bilanzKachel(D, q, titel){
+  const v = (D.verlauf||[]).filter(x=>x[1]===q && x[2]!=null && new Date(x[0]+"Z")>=Date.now()-30*864e5);
+  const roi = v.length ? 100*v.reduce((a,x)=>a+x[2],0)/v.length : null;
+  return [titel, roi==null?"–":`<span style="color:${roi>=0?"var(--up)":"var(--down)"}">${roi>0?"+":""}${dez(roi)} %</span>`, `${v.length} Tipps · ${v.length?Math.round(100*v.filter(x=>x[3]===1).length/v.length):0} % Treffer`, kzSpark(v.map(x=>x[2]))];
+}
+// Balken links/rechts von null (ROI je Gruppe)
+function nullBalken(zeilen){
+  const m = Math.max(5, ...zeilen.map(z=>Math.abs(z.wert||0)));
+  return `<div class="wb">${zeilen.map(z=>`<div class="wb-z"><span class="wb-l">${z.name}</span>
+      <div class="wb-t"><span class="wb-0"></span><i style="${z.wert>=0?`left:50%;width:${(z.wert/m*50).toFixed(1)}%;background:var(--up)`:`right:50%;width:${(-z.wert/m*50).toFixed(1)}%;background:var(--down)`}"></i></div>
+      <span class="wb-r" style="color:${z.wert>=0?"var(--up)":"var(--down)"}">${z.wert>0?"+":""}${dez(z.wert)} %</span>
+      <span class="wb-u">${z.unter||""}</span></div>`).join("")}</div>`;
+}
+// Ist gegen Erwartung: Balken = wie oft es eintrat, Strich = was die Quote sagte
+function istSoll(zeilen){
+  return `<div class="is">${zeilen.map(z=>`<div class="is-z"><span class="is-l">${z.name}<small>${z.unter||""}</small></span>
+      <div class="is-t"><i style="width:${Math.min(100,z.ist||0)}%;background:${(z.ist||0)>=(z.soll||0)?"var(--up)":"var(--down)"}"></i><b style="left:${Math.min(100,z.soll||0)}%"></b></div>
+      <span class="is-r"><b>${z.ist??"–"} %</b><small>Quote ${z.soll??"–"} %</small></span>${z.roi!=null?`<span class="is-roi" style="color:${z.roi>=0?"var(--up)":"var(--down)"}">${z.roi>0?"+":""}${dez(z.roi)} %</span>`:"<span></span>"}</div>`).join("")}
+    <div class="is-leg"><span><i></i>so oft trat es ein</span><span><b></b>so oft sagte es die Quote</span><span>rechts: Rendite je Tipp</span></div></div>`;
+}
 function seiteBetfair(D){
   const alle = lf(D.radar.spiele), liste_ = BF_SETS[filterBf][1](alle);
   const norm = lf(alle).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
@@ -1815,17 +1868,47 @@ function seiteBetfair(D){
     <div class="panel c12">${liste(`Wo das Geld trägt: hohes Geld je Liga, letzte ${(D.ligaBilanz||{}).fensterTage||90} Tage`, "", `<div class="kk-klein" style="margin:10px 0 12px">Ein Kästchen je Markt mit hohem Einsatz · „trägt" erst ab 99 % Sicherheit</div>${ligaKaestchen(D.ligaBilanz)}`)}</div>
   </div>`;
 }
-function seitePinnacle(D){
-  const pd = D.pinnDrops||{vor:[],live:[]};
-  return `<div class="grid">
-    <div class="panel c12"><div class="ph"><h3>🔴 Live-Drops</h3><span class="hint">Team, das nicht führt, gewinnt bei Pinnacle in ~15 Min ab 4 pp (Top-5 ab 3 pp), ohne Tor, bis zur 75. Minute. Die Zeit allein würde seine Chance senken, also steckt Information dahinter: Rote Karte, Druck, Verletzung</span></div>${pinDropKarten(lf(pd.live), true)}</div>
-    <div class="panel c12"><div class="ph"><h3>Drops vor Anpfiff</h3><span class="hint">aus allen ${pd.n||0} Spielen mit Pinnacle-Quote. Ab 2,5 pp seit dem ersten Stand (Top-5 ab 1,5 pp); frisch = ≥ 1,5 pp (Top-5 1 pp) in der letzten Stunde</span></div>${pinDropKarten(lf(pd.vor), false)}</div>
-    <div class="panel c12">${liste(`Spiele mit großem Betfair-Geld: Pinnacle gegen Betfair und Polymarket (${lf(D.sharp).length})`, "", pinKarten(lf(D.sharp)))}</div>
-    <div class="panel c12">${liste(`Alle ${lf(D.pinnAlle).length} Spiele mit Pinnacle-Quote als Liste`, "", pinTabelle(lf(D.pinnAlle),"pin-alle"))}</div>
+function pinDropKarte(s, live){
+  const bf = s.bfId ? klickSpiel({id:s.bfId, heim:s.heim, gast:s.gast}) : "";
+  const rechts = live ? `<span class="mk-live">● ${s.min!=null?s.min+"'":"live"} · ${s.stand[0]}:${s.stand[1]}</span>` : `<span class="mk-zeit">${wann(s.anpfiff)}</span>`;
+  const n = (s.verlauf||[]).length;
+  return `<div class="topf mk pdk" ${bf}>
+    <div class="mk-kopf"><span class="mk-liga">${flagge(s.land)} ${esc(ligaName(s.liga)||"")}</span>${rechts}</div>
+    <div class="pdk-m"><div style="min-width:0"><div class="mk-name">${esc(s.heim)} – ${esc(s.gast)}</div><div class="pdk-auf">${esc(s.auf)}</div></div>
+      <div class="pdk-q"><span>${q2(s.vonQuote)}</span><b>${q2(s.quote)}</b><small>+${dez(live?s.pp:(s.frisch?s.pp60:s.pp))} pp${live?` in ${s.fensterMin} Min`:s.frisch?" in 1 h":""}</small></div></div>
+    ${n>=2?linien({reihen:[{werte:s.verlauf, farbe:"var(--pin)", flaeche:true}], x:s.verlauf.map((_,i)=>i===0?(live?"vorher":uhr(s.seit)):i===n-1?"jetzt":""), hoehe:80, fmt:v=>Math.round(v)+" %"}):""}
   </div>`;
 }
-// Lucas 19.10. („Poly-Seite hat sehr viel Text"): Kennzahlen oben, Märkte als Spielkarten (Preis = Wahrscheinlichkeit
-// groß unter jedem Team), Wal-Bilanz als Balken je Sport + Strichcode, leere Bereiche nur als eine Zeile.
+function pinZug(D){
+  // je Spiel der Ausgang, den Pinnacle am stärksten bewegt: rechts = wird wahrscheinlicher, links = fällt ab
+  const Z = lf(D.pinnAlle||[]).map(g=>{ const a = (g.ausgaenge||[]).slice().sort((x,y)=>Math.abs(y.pp)-Math.abs(x.pp))[0]; return a && Math.abs(a.pp)>=0.5 ? {g,a} : null; }).filter(Boolean).sort((x,y)=>Math.abs(y.a.pp)-Math.abs(x.a.pp)).slice(0,12);
+  if(!Z.length) return `<div class="leer">Gerade bewegt sich keine Pinnacle-Quote nennenswert.</div>`;
+  const m = Math.max(3, ...Z.map(z=>Math.abs(z.a.pp)));
+  return `<div class="pz">${Z.map(({g,a})=>`<div class="pz-z" ${klick(esc(g.heim)+" – "+esc(g.gast), ohneHuelle(pinDetail(g)))}>
+      <div class="pz-l">${flagge(g.land)}<div style="min-width:0"><b>${esc(g.heim)} – ${esc(g.gast)}</b><small>${wann(g.anpfiff)} · ${esc(ligaName(g.liga))}</small></div></div>
+      <div class="pz-t"><span class="wb-0"></span><i style="${a.pp>=0?`left:50%;width:${(a.pp/m*50).toFixed(1)}%;background:var(--pin)`:`right:50%;width:${(-a.pp/m*50).toFixed(1)}%;background:var(--text-3)`}"></i></div>
+      <div class="pz-r"><b>${esc(a.name)}</b><small>${q2(a.vorher)} → ${q2(a.quote)} · ${a.pp>0?"+":""}${dez(a.pp)} pp</small></div></div>`).join("")}
+    <div class="np-leg">rechts: Pinnacle traut dem Ausgang mehr zu · links: weniger · seit dem ersten Stand</div></div>`;
+}
+function seitePinnacle(D){
+  const pd = D.pinnDrops||{vor:[],live:[]}, vor = lf(pd.vor), liveD = lf(pd.live), alle = lf(D.pinnAlle||[]);
+  const top = alle.map(g=>({g, b:g.bewegung||0})).sort((x,y)=>y.b-x.b)[0];
+  const leer = [], voll = [];
+  (liveD.length?voll:leer).push(["🔴 Live-Drops", "Team, das nicht führt, gewinnt in ~15 Min deutlich ohne Tor, bis 75'", liveD.map(x=>pinDropKarte(x,true))]);
+  (vor.length?voll:leer).push(["Drops vor Anpfiff", "seit dem ersten Stand · frisch = in der letzten Stunde", vor.map(x=>pinDropKarte(x,false))]);
+  return `<div class="grid">
+    <div class="panel c12 kz-panel">${kzReihe([
+      ["Spiele mit Pinnacle-Quote", pd.n||0, "alle Ligen, vor Anpfiff und live"],
+      ["Drops vor Anpfiff", vor.length, `${vor.filter(x=>x.frisch).length} davon frisch`],
+      ["Live-Drops", liveD.length, "ohne Tor, Team liegt nicht vorn"],
+      ["Größte Bewegung", top?`${dez(top.b)} pp`:"–", top?`${esc(top.g.heim)} – ${esc(top.g.gast)}`:""]])}</div>
+    ${voll.map(([t,h,k])=>`<div class="panel c12"><div class="ph"><h3>${t}</h3><span class="hint">${h}</span></div><div class="toepfe p3">${k.join("")}</div></div>`).join("")}
+    ${leer.length?`<div class="c12 ruhig">Gerade ruhig: ${leer.map(t=>t[0].replace("🔴 ","")).join(" · ")}</div>`:""}
+    <div class="panel c12"><div class="ph"><h3>Wohin Pinnacle zieht</h3><span class="hint">Spiele mit großem Betfair-Geld · je Spiel der Ausgang mit der größten Bewegung</span></div>${pinZug(D)}</div>
+    <div class="panel c12">${liste(`Pinnacle gegen Betfair und Polymarket (${lf(D.sharp).length})`, "", pinKarten(lf(D.sharp)))}</div>
+    <div class="panel c12">${liste(`Alle ${alle.length} Spiele mit Pinnacle-Quote als Liste`, "", pinTabelle(alle,"pin-alle"))}</div>
+  </div>`;
+}
 function polyKarte(m){
   const pr = Object.entries(m.preise||{}), remis = pr.find(([k])=>/^(draw|remis|unentschieden)\b/i.test(k));
   const teams = pr.filter(x=>x!==remis);
@@ -1890,12 +1973,29 @@ function seitePoly(D){
     <div class="panel c6"><div class="ph"><h3>Rangliste</h3><span class="hint">Vorsprung auf den Schlusskurs</span></div>${rangliste(p.wallets)}</div>
   </div>`;
 }
+function stakeZeilen(gr){
+  if(!gr.length) return `<div class="leer">In den letzten 24 Stunden keine große Wette.</div>`;
+  const max = Math.max(1,...gr.map(x=>x.usd||0));
+  return `<div class="jf">${gr.map(x=>`<div class="jf-z st-z">
+      <div class="jf-l"><span class="st-ph ${x.phase==="live"?"live":""}">${x.phase==="live"?"live":"vor"}</span><div style="min-width:0"><b>${esc(/^(over|under)$/i.test(x.auswahl||"") && x.markt ? `${x.auswahl==="Over"||x.auswahl==="over"?"Über":"Unter"} · ${x.markt.split(",")[0]}` : x.auswahl)}${x.quote?` <span class="st-q">@ ${q2(x.quote)}</span>`:""}</b><small>${esc(x.spiel)} · ${uhr(x.zeit)}</small></div></div>
+      <div class="jf-b"><i style="width:${Math.max(4,(x.usd||0)/max*100).toFixed(1)}%;background:var(--stake)"></i><span>${usd(x.usd)}</span></div>
+      <div class="jf-r"><b>${x.wetten} Wetten${x.faktor?` · ×${dez(x.faktor)}`:""}</b><small>${tagFuer(stakeStatus(x))||x.arten.join(" + ")}</small></div></div>`).join("")}</div>`;
+}
 function seiteStake(D){
-  const st = D.stake;
+  const st = D.stake, gr = (st.gruppen||[]);
+  const ser = serienKarten(D,8,"stake"), serLeer = ser.startsWith('<div class="leer">');
+  const zs = (D.verlauf||[]).filter(x=>x[1]==="stake").slice(-160);
   return `<div class="grid">
-    <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Einzelwetten ab $1000: mind. 3 Zehn-Minuten-Abschnitte in Folge mit derselben Auswahl vorn</span></div>${serienKarten(D,8,"stake")}</div>
-    <div class="panel c12"><div class="ph"><h3>Große Wetten, letzte 24 Stunden</h3><span class="hint">je Spiel und Auswahl zusammengefasst</span></div>${stakeKarten((st.gruppen||[]).slice(0,16))}</div>
-    ${Object.entries(st.bilanz||{}).map(([a,b])=>`<div class="panel kpi c3"><div class="lab">${icon("stake")}${esc(a)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Tipps, ${b.treffer} % Treffer</div></div>`).join("")}
+    <div class="panel c12 kz-panel">${kzReihe([
+      ["Große Wetten, 24 h", usd(gr.reduce((a,x)=>a+(x.usd||0),0)), `${gr.length} Auswahlen · ${gr.reduce((a,x)=>a+(x.wetten||0),0)} Einzelwetten`],
+      ["Davon live", gr.filter(x=>x.phase==="live").length, "während das Spiel läuft"],
+      ["Offen", gr.filter(x=>stakeStatus(x)==="pending").length, "noch nicht abgerechnet"],
+      bilanzKachel(D, "stake", "Stake-Bursts 30 T")])}</div>
+    ${serLeer?`<div class="c12 ruhig">Gerade ruhig: Dauerzufluss</div>`:`<div class="panel c12"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Einzelwetten ab $1000, 3 Abschnitte à 10 Min in Folge dieselbe Auswahl</span></div>${ser}</div>`}
+    <div class="panel c7"><div class="ph"><h3>Große Wetten, letzte 24 Stunden</h3><span class="hint">je Spiel und Auswahl zusammengefasst</span></div>${stakeZeilen(gr.slice(0,14))}${gr.length>14?liste(`Weitere ${gr.length-14}`, "", stakeZeilen(gr.slice(14))):""}</div>
+    <div class="panel c5"><div class="ph"><h3>Bilanz je Art</h3><span class="hint">alle abgerechneten Meldungen</span></div>
+      ${nullBalken(Object.entries(st.bilanz||{}).map(([a,b])=>({name:esc(a), wert:b.roi, unter:`${b.n} Tipps · ${b.treffer} % Treffer${b.ug!=null&&b.ug>0?` · <b style="color:var(--up)">belegt</b>`:""}`})))}
+      ${zs.length?`<div class="strich" style="height:30px;margin-top:16px">${zs.map(x=>`<i class="${x[3]===1?"w":x[3]===0?"l":"o"}"></i>`).join("")}</div><div class="strich-leg"><span><i class="w"></i>gewonnen</span><span><i class="l"></i>verloren</span><span><i class="o"></i>offen</span><span class="r">letzte ${zs.length}</span></div>`:""}</div>
   </div>`;
 }
 function hzChancenZeile(e){
@@ -1937,13 +2037,21 @@ function hzSegmente(cb){
   return `<div class="hzseg">${sg.map((g,i)=>`<div class="hzseg-z${i===0?" basis":""}"><span>${esc(g.name)}</span><span>${g.n} Spiele</span><span>${g.o05Pct} % Tor <small>(Quote sagte ${g.o05Erw} %)</small></span><span>${roi(g.o05Roi)}</span><span>${roi(g.o15Roi)}</span></div>`).join("")}</div>`;
 }
 function seiteHz(D){
-  const z = D.hz;
+  const z = D.hz, cb = z.chancenBuch||{}, heute = z.heute||[];
+  const ber = z.bericht||[];
+  const k = ber.slice(0,3).map(b=>[esc(b.wette), `<span style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</span>`, `${b.n} Spiele · ${dez(b.treffer,0)} % statt ${dez(b.erwartet,0)} %`]);
+  const gruppe = (key, name, unter) => { const g = cb[key]||{}; return {name, unter:`${g.n||0} Spiele · ${unter}`, ist:g.o05Pct, soll:g.o05Erw, roi:g.o05Roi}; };
+  const gruppe15 = (key, name) => { const g = cb[key]||{}; return {name, unter:`${g.o15N||0} Spiele`, ist:g.o15Pct, soll:g.o15Erw, roi:g.o15Roi}; };
   return `<div class="grid">
-    <div class="panel c12"><div class="ph"><h3>Zur Pause 0:0</h3><span class="hint">letzte 24 Stunden, Quoten zur Pause · ✓/✗ nach Abpfiff · Strich unten = vom Signal gespielt</span></div>${hzSpielKarten(z.heute||[])}</div>
-    <div class="panel c12"><div class="ph"><h3>Bringt die Statistik was?</h3><span class="hint">Chancen in der 1. HZ und was danach passierte, alle abgerechneten Spiele seit ${tagKurz(z.chancenBuch?.seit)}</span></div>${hzVergleich(z.chancenBuch||{})}</div>
-    <div class="panel c12"><div class="ph"><h3>Spiele mit Statistik</h3><span class="hint">die letzten 60 · ✓/✗ = Wette zur Pausen-Quote</span></div><div id="hz-stats">${hzStatsListe(z.chancenBuch||{})}</div></div>
-    <div class="panel c12"><div class="ph"><h3>Auswahl schärfer?</h3><span class="hint">Tor-Gruppe in Teilen · nur beobachtet, filtert nichts · Spalten: Tor 2. HZ ROI, 2+ Tore ROI</span></div>${hzSegmente(z.chancenBuch||{})}</div>
-    ${(z.bericht||[]).map(b=>`<div class="panel kpi c4"><div class="lab">${icon("hz")}${esc(b.wette)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Spiele · ${dez(b.treffer,0)} % getroffen, Quote sagte ${dez(b.erwartet,0)} %</div></div>`).join("")}
+    <div class="panel c12 kz-panel">${kzReihe([["Heute zur Pause 0:0", heute.length, `${heute.filter(e=>e.chancen==="hoch").length} mit vielen Chancen`], ...k])}</div>
+    <div class="panel c12"><div class="ph"><h3>Zur Pause 0:0</h3><span class="hint">letzte 24 h · ✓/✗ nach Abpfiff · Strich unten = vom Signal gespielt</span></div>${hzSpielKarten(heute.slice(0,8))}${heute.length>8?liste(`Weitere ${heute.length-8} Spiele`, "", `<div style="margin-top:12px">${hzSpielKarten(heute.slice(8))}</div>`):""}</div>
+    <div class="panel c6"><div class="ph"><h3>Tor in der 2. HZ: bringt die Statistik was?</h3><span class="hint">seit ${tagKurz(cb.seit)}</span></div>
+      ${istSoll([gruppe("hoch","🔥 Chancen da","xG ≥ 1 oder ≥ 5 aufs Tor"), gruppe("niedrig","🧊 Wenig Chancen","darunter"), gruppe("ohne","Ohne Statistik","gleicher Zeitraum")])}</div>
+    <div class="panel c6"><div class="ph"><h3>2+ Tore in der 2. HZ</h3><span class="hint">dieselben Gruppen</span></div>
+      ${istSoll([gruppe15("hoch","🔥 Chancen da"), gruppe15("niedrig","🧊 Wenig Chancen"), gruppe15("ohne","Ohne Statistik")])}</div>
+    <div class="panel c12"><div class="ph"><h3>Auswahl schärfer?</h3><span class="hint">Tor-Gruppe in Teilen · nur beobachtet, filtert nichts</span></div>
+      ${istSoll((cb.segmente||[]).map(g=>({name:esc(g.name), unter:`${g.n} Spiele · 2+ Tore ${g.o15Roi>0?"+":""}${dez(g.o15Roi)} %`, ist:g.o05Pct, soll:g.o05Erw, roi:g.o05Roi})))}</div>
+    <div class="panel c12">${liste(`Spiele mit Statistik (${(cb.spiele||[]).length})`, "", `<div id="hz-stats" style="margin-top:12px">${hzStatsListe(cb)}</div>`)}</div>
   </div>`;
 }
 
