@@ -749,7 +749,7 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 }
 
 .mb{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.mb-z{display:grid;grid-template-columns:minmax(0,1fr) 56px 34px auto;gap:8px;align-items:center;font-size:12.5px}
+.mb-z{display:grid;grid-template-columns:minmax(64px,1fr) minmax(40px,56px) 34px auto;gap:8px;align-items:center;font-size:12.5px}
 .mb-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-2)} .mb-n small{color:var(--text-3)}
 .mb-t{height:8px;background:var(--flaeche-2);border-radius:4px;overflow:hidden} .mb-t i{display:block;height:100%;border-radius:4px;background:color-mix(in srgb, var(--text-3) 45%, transparent)}
 .mb-z.top .mb-n{color:var(--text);font-weight:700} .mb-z.top .mb-t i{background:var(--bf)}
@@ -766,6 +766,8 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 
 /* Lucas 19.10.: am Handy darf nichts seitlich wackeln — was breiter wäre, wird abgeschnitten statt die Seite zu verschieben */
 html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow-x:clip}
+
+@media (max-width:700px){ .drawer .mgrid{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -1006,8 +1008,14 @@ function spielDetail(s, ohneVerlauf){
   // Lucas 19.10.: Märkte als Balken je Auswahl statt Kreise — die führende Auswahl in Betfair-Farbe
   const marktBlock = `<div class="mgrid">${md.map(m=>{
     const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1, topE = Math.max(...m.auswahl.map(a=>a.eur));
+    // Lucas 19.10.: feste Reihenfolge, damit man nicht lesen muss — Über oben, Unter unten; Ja vor Nein; Heim, Remis, Gast
+    const rang = a => { const n = String(a.name||""); if(/^over/i.test(n)) return 0; if(/^under/i.test(n)) return 1; if(/^yes$/i.test(n)) return 0; if(/^no$/i.test(n)) return 1;
+      if(n===s.heim) return 0; if(/^the draw$|^draw$/i.test(n)) return 1; if(n===s.gast) return 2; return null; };
+    const fest = m.auswahl.every(a=>rang(a)!=null);
+    const liste = (fest ? m.auswahl.slice().sort((a,b)=>rang(a)-rang(b)) : m.auswahl).slice(0,4);
+    const kurz = a => /^(over|under) [\d.]+/i.test(a.name||"") ? (/^over/i.test(a.name)?"Über":"Unter") : auswahlDe(a.name);
     return `<div class="mk"><div class="mk-k"><b>${esc(marktDe(m.name))}</b><span>${eur(m.eur)}${m.neu>0?` <em>+${eur(m.neu)}</em>`:""}</span></div>
-      <div class="mb">${m.auswahl.slice(0,4).map(a=>`<div class="mb-z${a.eur===topE?" top":""}"><span class="mb-n">${esc(auswahlDe(a.name))}${a.quote?` <small>${q2(a.quote)}</small>`:""}</span><div class="mb-t"><i style="width:${(a.eur/ges*100).toFixed(1)}%"></i></div><b>${Math.round(a.eur/ges*100)} %</b>${a.neu>0?`<em>+${eur(a.neu)}</em>`:"<em></em>"}</div>`).join("")}</div></div>`;
+      <div class="mb">${liste.map(a=>`<div class="mb-z${a.eur===topE?" top":""}"><span class="mb-n">${esc(kurz(a))}${a.quote?` <small>${q2(a.quote)}</small>`:""}</span><div class="mb-t"><i style="width:${(a.eur/ges*100).toFixed(1)}%"></i></div><b>${Math.round(a.eur/ges*100)} %</b>${a.neu>0?`<em>+${eur(a.neu)}</em>`:"<em></em>"}</div>`).join("")}</div></div>`;
   }).join("")}</div>`;
   return `<tr class="detail"><td colspan="6"><div class="det">${s.live?liveStat(s.id,true):""}${ohneVerlauf?"":spielVerlauf(s)}
     <div class="d-kopf">${flagge(s.land)} ${esc(s.liga)} · ${s.live?`<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}`:wann(s.anpfiff)} · ${eur(s.eur)} gematcht über alle Märkte${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}</div>
