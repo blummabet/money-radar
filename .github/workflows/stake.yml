@@ -73,5 +73,6 @@ jobs:
           import json
           h=json.load(open('.st/stake_highroller.json')); print('asof', h.get('asof'), 'wetten', len(h.get('wetten') or []))
           b=json.load(open('.st/stake_burst_ledger.json')); print('burst-buch', len(b), 'letzte', b[-1].get('sentAt') if b else None)
+          for z in b[-15:]: print(z.get('sentAt','')[:16], z.get('art'), z.get('event'), '|', z.get('auswahl') or z.get('seite') or z.get('richtung'), '| push', z.get('push'), z.get('pushGrund') or '', '| \$', round(z.get('summeUsd') or 0), z.get('phase'))
           " 2>&1; echo '```'; } > bericht.txt
           gh issue create -R ${{ github.repository }} --title "Stake $(date -u +%FT%H:%MZ)" --body-file bericht.txt
