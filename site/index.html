@@ -102,6 +102,12 @@ main{padding:22px 28px 60px;min-width:0}
 .feed{display:flex;flex-direction:column}
 /* Wo am meisten liegt */
 .toepfe{display:grid;gap:10px}
+.tp-fazit{font-size:13px;color:var(--text-2);margin:2px 0 6px}
+.tp-fazit b{color:var(--text)}
+.tp-fazit.ok{color:var(--up)}.tp-fazit.ok b{color:var(--up)}
+.tp-fazit.nein{color:var(--bf)}
+.tp-fazit.leise{color:var(--text-3)}
+.tp-fazit.wal{color:var(--poly)}
 .lt-liste{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
 .lt{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .lt-1{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
@@ -143,7 +149,7 @@ main{padding:22px 28px 60px;min-width:0}
 .tp-sl span.top{color:var(--text);font-weight:700}
 .tp-sl b{font-variant-numeric:tabular-nums}
 .tp-raster.zwei{grid-template-columns:1fr 1fr}
-.tp-quellen{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--text-2)}
+.tp-quellen{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;color:var(--text-3)}
 .tp-quellen span{display:inline-flex;align-items:center;gap:6px}
 .tp-quellen i{width:8px;height:8px;border-radius:2px}
 .tp-quellen b{color:var(--text);font-variant-numeric:tabular-nums}
@@ -1128,30 +1134,32 @@ function seitenBalken(t, mitLabels=true){
   return `<div class="tp-balken">${w.filter(x=>x.v>0).map(x=>`<i style="flex:${x.v} 1 0;background:${farbe(x)}" title="${esc(seitenName(t,x.k))}: ${Math.round(x.v/ges*100)} %"></i>`).join("")}</div>
     ${mitLabels?"":"<!--"}<div class="tp-sl">${w.map(x=>`<span class="${x===top?"top":""}">${esc(x.k==="remis"?"Remis":seitenName(t,x.k))} <b>${Math.round(x.v/ges*100)} %</b></span>`).join("")}</div>${mitLabels?"":"-->"}`;
 }
+// Lucas 19.10. („schwer zu lesen, keinen Plan, was da was anzeigt"): eine Karte beantwortet jetzt genau zwei Fragen —
+// wie viel liegt auf dem Spiel, und auf welche Seite? Ein Balken mit EINER Prozentzahl je Seite (alle Quellen zusammen),
+// darunter ein Satz, der sagt, ob die Quellen sich einig sind. Quellen-Kürzel und zweite Prozentzahlen sind raus.
+function topfFazit(t){
+  const m = Object.entries(t.meinungen||{});            // nur Quellen mit klarer Meinung (≥ 55 % und genug Geld)
+  const nm = k => `<b>${esc(k==="remis"?"Remis":seitenName(t,k))}</b>`;
+  if(!m.length) return `<div class="tp-fazit leise">Keine Quelle mit klarer Meinung</div>`;
+  if(m.length===1) return `<div class="tp-fazit">${QUELLE[m[0][0]].n} setzt auf ${nm(m[0][1])}</div>`;
+  const namen = m.map(([q])=>QUELLE[q].n), liste = namen.length>2 ? namen.slice(0,-1).join(", ")+" und "+namen.at(-1) : namen.join(" und ");
+  if(t.einig) return `<div class="tp-fazit ok">✓ ${liste} setzen ${m.length>2?"alle":"beide"} auf ${nm(m[0][1])}</div>`;
+  return `<div class="tp-fazit nein">⚠️ Uneinig: ${m.map(([q,k])=>`${QUELLE[q].n} → ${nm(k)}`).join(" · ")}</div>`;
+}
 function topfKarte(t, i, maxGes){
   const qs = Object.entries(t.q||{}).filter(([,q])=>q.betrag>0);
-  const ges = t.gesamt || 1, breite = Math.max(8, t.gesamt/maxGes*100);
   const live = t.live ? `<span class="live">${t.live.min!=null?t.live.min+"'":"live"}</span> ${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}` : wann(t.anpfiff);
-  const urteil = (t.einig===true ? `<span class="tp-urteil ok">einig</span>` : t.einig===false ? `<span class="tp-urteil nein">uneinig</span>` : "") + waleTag(t.wale);
-  // Meinungsraster: je Ausgang eine Spalte, darin die Quellen, die dort das meiste Geld haben
-  const spalten = (t.sport==="Fußball"?["heim","remis","gast"]:["heim","gast"]).map(k=>{
-    const pills = qs.filter(([,q])=>q.auf===k).map(([qn,q])=>`<span class="tp-pill${q.meinung?"":" schwach"}" style="--f:${QUELLE[qn].f}" title="${QUELLE[qn].n}: ${q.anteil} % des Seiten-Geldes (${geldIn(qn,q.seitenBetrag||0)}) auf ${esc(seitenName(t,k))}${q.meinung?"":" — zu wenig für eine klare Meinung"}">${QUELLE[qn].k} <b>${q.anteil}%</b></span>`).join("");
-    const wk = (t.wale||[]).filter(x=>x.k===k), wSum = wk.reduce((a,x)=>a+x.usd,0);
-    const walPill = wk.length ? `<span class="tp-pill wal" title="${wk.length} belegte Wallet${wk.length>1?"s":""} auf ${esc(seitenName(t,k))}">🧠 <b>${usd(wSum)}</b></span>` : "";
-    const lead = Object.entries(t.seiten||{}).sort((a,b)=>b[1]-a[1])[0]?.[0]===k;
-    const gesS = Object.values(t.seiten||{}).reduce((a,v)=>a+v,0), pct = gesS ? Math.round(((t.seiten||{})[k]||0)/gesS*100) : null;
-    // Lucas 18.10. (mobil-Check): Balken-Beschriftung und Meinungsraster waren zwei Zeilen mit denselben Namen — jetzt eine
-    return `<div class="tp-sp${lead?" lead":""}${(pills+walPill)?"":" leer"}"><div class="tp-sn"><span>${esc(k==="remis"?"Remis":seitenName(t,k))}</span>${pct!=null?`<b>${pct} %</b>`:""}</div><div class="tp-pills">${pills+walPill}</div></div>`;
-  }).join("");
+  const wk = (t.wale||[]).filter(x=>x.k), wSum = wk.reduce((a,x)=>a+x.usd,0);
+  const wal = wk.length ? `<div class="tp-fazit wal">🧠 Belegter Wal: ${usd(wSum)} auf <b>${esc(wk[0].k==="remis"?"Remis":seitenName(t,wk[0].k))}</b></div>` : "";
   return `<div class="topf" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
     <div class="tp-kopf">
       <span class="tp-rang">${i+1}</span>
       <div class="tp-titel"><b>${esc(t.heim)} – ${esc(t.gast)}</b><span>${t.land?flagge(t.land):sportIco(t.sport)} ${esc(ligaName(t.liga)||t.sport||"")} · ${live}</span></div>
-      <div class="tp-summe"><b>≈ ${eur(t.gesamt)}</b>${urteil}</div>
+      <div class="tp-summe"><b>≈ ${eur(t.gesamt)}</b></div>
     </div>
-    ${seitenBalken(t, !(qs.some(([,q])=>q.auf) || (t.wale||[]).some(x=>x.k)))}
-    <div class="tp-quellen">${qs.map(([qn,q])=>`<span><i style="background:${QUELLE[qn].f}"></i>${QUELLE[qn].n} <b>${geldIn(qn,q.betrag)}</b>${qn==="stake"?` <small>${q.wetten} große Wetten</small>`:""}</span>`).join("")}</div>
-    ${qs.some(([,q])=>q.auf) || (t.wale||[]).some(x=>x.k) ? `<div class="tp-raster${t.sport==="Fußball"?"":" zwei"}">${spalten}</div>` : `<div class="tp-hinweis">Keine Quelle zeigt hier, auf welche Seite das Geld geht.</div>`}
+    ${seitenBalken(t, true)}
+    ${topfFazit(t)}${wal}
+    <div class="tp-quellen">${qs.map(([qn,q])=>`<span><i style="background:${QUELLE[qn].f}"></i>${QUELLE[qn].n} ${geldIn(qn,q.betrag)}</span>`).join("")}</div>
   </div>`;
 }
 function topfDetail(t){
@@ -1173,13 +1181,13 @@ function topfDetail(t){
 function topfZeile(t){
   const live = !t.laeuft ? wann(t.anpfiff) : t.live ? `<span class="live">${t.live.min!=null?t.live.min+"'":"live"}</span> ${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}` : `<span class="live">läuft</span>`;
   const sp = t.splitAnpfiff, keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
-  let vor = `<span class="tz-leer">${t.laeuft?"Aufteilung zum Anpfiff nicht gespeichert":`nur Volumen bekannt (${Object.keys(t.q||{}).map(q=>QUELLE[q]?.n||q).join(", ")}), keine Seiten`}</span>`;
+  let vor = "";
   if(sp){ const ges = keys.reduce((a,k)=>a+(sp[k]||0),0);
     if(ges){ const top = keys.reduce((a,k)=>(sp[k]||0)>(sp[a]||0)?k:a, keys[0]);
       vor = `<span class="tz-bar">${keys.filter(k=>sp[k]>0).map(k=>`<i style="flex:${sp[k]} 1 0;background:${k===top?"var(--text-2)":"var(--panel-3)"}"></i>`).join("")}</span><span class="tz-vor">vor Anpfiff ${esc(k2n(t,top))} <b>${Math.round(sp[top]/ges*100)} %</b></span>`; } }
   return `<div class="tz" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
     <div class="tz-1"><b>${esc(t.heim)} – ${esc(t.gast)}</b><span class="tz-r">${live}</span><span class="tz-g">≈ ${eur(t.gesamt)}</span></div>
-    ${t.laeuft?`<div class="tz-2">${vor}</div>`:""}</div>`;
+    ${t.laeuft&&vor?`<div class="tz-2">${vor}</div>`:""}</div>`;
 }
 const k2n = (t,k) => k==="remis" ? "Remis" : seitenName(t,k);
 function toepfeListe(D, n){
@@ -1194,7 +1202,7 @@ function toepfeListe(D, n){
     ${ohne.length>3?liste(`Weitere ${ohne.length-3}`, "", `<div class="tz-liste" style="margin-top:10px">${ohne.slice(3).map(topfZeile).join("")}</div>`):""}` : "";
   return `<div class="toepfe">${vor.slice(0,n).map((t,i)=>topfKarte(t,i,max)).join("")}</div>
     ${vor.length>n?liste(`Weitere ${vor.length-n} Spiele vor Anpfiff`, "", `<div class="toepfe" style="margin-top:12px">${vor.slice(n).map((t,i)=>topfKarte(t,i+n,max)).join("")}</div>`):""}
-    ${ohneBlock}${laufBlock}`;
+    ${laufBlock}`;
 }
 function kompaktZufluss(D, n){
   const z = lf(D.zufluss30||[]).slice(0,n);
@@ -1215,7 +1223,7 @@ function seiteStart(D){
   return `<div class="grid">
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div><div class="feed">${feedListe(D,5,1)}</div></div>
     ${serienDa?serienPanel:""}
-    <div class="panel c8 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3><span class="hint">Betfair, Polymarket und Stake zusammen · Kürzel = wo die Quelle ihr meistes Geld hat</span></div>${toepfeListe(D,mobil?5:8)}</div>
+    <div class="panel c8 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3><span class="hint">Wie viel Geld auf einem Spiel liegt und auf welcher Seite — Betfair, Polymarket und Stake zusammen</span></div>${toepfeListe(D,mobil?5:8)}</div>
     <div class="panel c4 feedpanel"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span><button class="chip rechts" data-geh="feed">Alle</button></div><div class="feed">${feedListe(D,14)}</div></div>
     ${serienDa?"":serienPanel}
     <div class="panel c6"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">vor Anpfiff, 30 Min</span><button class="chip rechts" data-geh="betfair">Alle</button></div>${kompaktZufluss(D,4)}</div>
