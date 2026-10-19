@@ -161,7 +161,9 @@ jobs:
           rest=$(( 300 - ($(date +%s) - START) ))
           [ $rest -gt 0 ] && sleep $rest
           andere=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?per_page=10" \
-            --jq "[.workflow_runs[] | select(.id != ${{ github.run_id }}) | select(.event != \"push\") | select(.status==\"in_progress\")] | length")
+            --jq "[.workflow_runs[] | select(.id != ${{ github.run_id }}) | select(.event != \"push\") | select(.status==\"in_progress\") | select((now - (.run_started_at | fromdateiso8601)) < 900)] | length")
+          # 19.10. (GitHub-Störung 15:49 UTC): ein Lauf, der seit über 15 Min „läuft", ist ein Geist (Schritte fertig, Status hängt)
+          # und darf die Kette nicht blockieren.
           # 18.10.: wartende Läufe zählen NICHT mehr. Ein wartender Lauf kann von einem späteren (z. B. einem Push-Lauf
           # nach einem Commit) verdrängt werden — dann riss die Kette (13:03–14:03 keine Pushes). Doppelt anstoßen ist
           # harmlos: die Gruppe „pages" hält höchstens EINEN wartenden Lauf, ein neuer ersetzt den alten.
