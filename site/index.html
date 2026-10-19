@@ -1898,6 +1898,7 @@ function seiteBetfair(D){
     <div class="panel c12 kz-panel">${bfKennzahlen(D, alle)}</div>
     ${voll.map(([t,h,html])=>`<div class="panel c12"><div class="ph"><h3>${t}</h3><span class="hint">${h}</span></div>${html}</div>`).join("")}
     ${leer.length?`<div class="c12 ruhig">Gerade ruhig: ${leer.map(t=>t[0].replace("🔁 ","")).join(" · ")}</div>`:""}
+    ${((D.pushBilanz||{}).teile||{}).serie?.length?`<div class="panel c12"><div class="ph"><h3>🔁 Dauerzufluss: wie die Pushes liefen</h3><span class="hint">seit ${tagKurz(D.pushBilanz.seit)} · zur Push-Quote abgerechnet, 2 % Kommission</span></div>${istSoll(D.pushBilanz.teile.serie.map(g=>({name:esc(g.name), unter:`${g.n} Tipps`, ist:g.treffer, soll:g.erwartet, roi:g.roi})))}</div>`:""}
     <div class="panel c12"><div class="ph"><h3>Neues Geld auf Betfair</h3><span class="hint">je halbe Stunde, alle Spiele im Abruf, letzte 10 h</span></div>${bfNeuesGeld(alle)}</div>
     <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">wie viel mehr Geld als in dieser Liga üblich</span></div>${normPunkte(norm)}</div>
     <div class="panel c5"><div class="ph"><h3>Halbzeit-Geld</h3><span class="hint">Geld auf die 1. Halbzeit</span></div>${hzKarten(hzl.slice(0,4))}${hzl.length>4?liste("Alle Halbzeit-Spiele als Liste",hzl.length,hzTabelle(hzl,"hz-bf")):""}</div>

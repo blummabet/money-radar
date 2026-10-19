@@ -172,10 +172,47 @@ def zusammenfassen(buch):
                     "erwartet": round(100 * sum(1 / b["quote"] for b in ab if b.get("quote")) / n) if n else None,
                     "roi": round(100 * sum(b["r"] for b in ab) / n, 1) if n else None,
                     "clvN": len(clv), "clv": round(100 * sum(clv) / len(clv), 1) if clv else None}
+    aus_teile = {"serie": teile([b for b in buch if b.get("art") == "serie"])}
     letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
               for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen")][:40]
-    return {"arten": aus, "letzte": letzte, "seit": buch[0]["ts"] if buch else None}
+    return {"arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None}
+
+
+def _kennz(ab):
+    n = len(ab)
+    if not n:
+        return None
+    return {"n": n, "treffer": round(100 * sum(1 for b in ab if b["win"]) / n),
+            "erwartet": round(100 * sum(1 / b["quote"] for b in ab if b.get("quote")) / n),
+            "roi": round(100 * sum(b["r"] for b in ab) / n, 1)}
+
+
+def teile(alle):
+    """Lucas 19.10. („kannst du die Dauerfluss-Spiele auswerten? Ich spiel die ur oft"): dieselbe Bilanz in Teilen.
+    Jede Stufe (3×, 5×, 8×, 12×) ist ein eigener Push — „je Spiel" zählt nur den ERSTEN Push je Spiel+Auswahl."""
+    ab = [b for b in alle if b.get("status") == "abgerechnet" and b.get("quote")]
+    erst, gesehen = [], set()
+    for b in sorted(ab, key=lambda b: b.get("ts") or ""):
+        k = (b.get("id"), b.get("markt"), b.get("auswahl"))
+        b["_folge"] = k in gesehen
+        if k not in gesehen:
+            gesehen.add(k)
+            erst.append(b)
+    tore = lambda b: "Goals" in str(b.get("markt") or "")
+    gruppen = [
+        ("Alle Pushes", ab), ("Je Spiel (nur der erste Push)", erst), ("Folge-Pushes (5×, 8×, 12×)", [b for b in ab if b["_folge"]]),
+        ("Vor Anpfiff", [b for b in ab if not b.get("live")]), ("Live", [b for b in ab if b.get("live")]),
+        ("Sieg-Markt", [b for b in ab if b.get("markt") == "Match Odds"]), ("Tore (Über/Unter)", [b for b in ab if tore(b)]),
+        ("Über", [b for b in ab if tore(b) and str(b.get("auswahl") or "").startswith("Over")]),
+        ("Unter", [b for b in ab if tore(b) and str(b.get("auswahl") or "").startswith("Under")]),
+        ("Quote unter 1,60", [b for b in ab if b["quote"] < 1.6]), ("Quote 1,60 bis 2,00", [b for b in ab if 1.6 <= b["quote"] <= 2.0]),
+        ("Quote über 2,00", [b for b in ab if b["quote"] > 2.0]),
+        ("Top-5-Ligen", [b for b in ab if b.get("top5")]), ("Andere Ligen", [b for b in ab if not b.get("top5")]),
+    ]
+    for b in ab:
+        b.pop("_folge", None)
+    return [{"name": n, **k} for n, g in gruppen if (k := _kennz(g))]
 
 
 def schreiben(buch, jetzt):
