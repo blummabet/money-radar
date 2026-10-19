@@ -587,7 +587,9 @@ def stake(d):
             continue
         # Lucas 18.10. (Málaga – Sociedad: Torlinien-Burst von 20:01 kam um 20:30, Spiel schon aus): live ist ein
         # Burst nach 10 Min Geschichte — die Stake-Datei des alten Projekts kommt manchmal 20–30 Min verspätet an.
-        if g.get("phase") == "live" and (JETZT - t0).total_seconds() > 10 * 60:
+        # 19.10.: 15 statt 10 Min — der Seitenbau sieht einen Burst erst mit dem nächsten Stake-Lauf (bis ~10 Min nach
+        # Erkennung); mit 10 Min fiel z. B. Al Fayha – Al Ahli (Über, $42k, 16:49) knapp durch und kam nie.
+        if g.get("phase") == "live" and (JETZT - t0).total_seconds() > 15 * 60:
             continue
         arten = []
         for z in gruppe:
