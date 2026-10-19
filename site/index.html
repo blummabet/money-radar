@@ -615,6 +615,59 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .lc-m{position:absolute;top:-2px;transform:translateX(-50%);font-size:10.5px;color:var(--text-3);background:var(--panel);padding:0 4px;border-radius:4px}
 .lc .bc-x{grid-column:2}
 .sv{margin-bottom:12px} .sv h4 small{font-weight:500;color:var(--text-3);margin-left:6px} .sv h4 small b{color:var(--text)}
+
+.sp-k{display:flex;flex-wrap:wrap;gap:10px 44px;margin-bottom:14px}
+.sp-k>div{display:flex;flex-direction:column;gap:2px}
+.sp-n{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text-2);font-weight:600}
+.sp-n i{width:10px;height:10px;border-radius:3px}
+.sp-k b{font-size:26px;font-weight:800;letter-spacing:-.02em}
+.sp-spur{display:grid;grid-template-columns:repeat(24,1fr);gap:3px;height:56px;background:var(--flaeche-2);border-radius:14px;padding:5px;align-items:center}
+.sp-slot{height:100%;display:flex;align-items:center;min-width:0}
+.sp-b{display:flex;gap:2px;width:100%}
+.sp-b i{display:block;border-radius:7px;min-width:3px}
+.sp-x{display:grid;grid-template-columns:repeat(24,1fr);gap:3px;padding:6px 5px 0}
+.sp-x span{font-size:11.5px;color:var(--text-3);white-space:nowrap}
+@media (max-width:700px){ .sp-k{gap:8px 22px} .sp-k b{font-size:20px} .sp-spur{gap:1px;padding:4px;height:46px;border-radius:12px} .sp-b i{border-radius:4px;min-width:2px} .sp-x span{font-size:10px} }
+
+.kz-panel{padding:0}
+.kz-reihe{display:grid;grid-template-columns:repeat(4,1fr)}
+.kz{padding:16px 18px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:3px;position:relative;min-width:0}
+.kz:last-child{border-right:0}
+.kz-n{font-size:13px;color:var(--text-2);font-weight:600}
+.kz-w{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.kz-u{font-size:12.5px;color:var(--text-3)}
+.kz-sp{position:absolute;right:16px;top:18px;width:90px;height:34px} .kz-sp path{fill:none;stroke-width:2;vector-effect:non-scaling-stroke}
+.ruhig{font-size:13px;color:var(--text-3);padding:2px 4px}
+.ng{display:grid;grid-template-columns:repeat(20,1fr);gap:6px;height:160px;align-items:end}
+.ng-s{height:100%;display:flex;align-items:flex-end;position:relative}
+.ng-s i{display:block;width:100%;border-radius:6px 6px 3px 3px;background:color-mix(in srgb, var(--bf) 55%, transparent)}
+.ng-s.jetzt i{background:var(--bf)}
+.ng-s span{position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);font-size:11px;font-weight:800;white-space:nowrap}
+.ng-s:hover i{background:var(--bf)}
+.ng-x{display:grid;grid-template-columns:repeat(20,1fr);gap:6px;margin-top:6px} .ng-x span{font-size:11px;color:var(--text-3);white-space:nowrap}
+.np{display:flex;flex-direction:column;gap:4px}
+.np-z{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 88px;gap:14px;align-items:center;padding:8px 6px;border-radius:10px;cursor:pointer}
+.np-z:hover{background:var(--hover)}
+.np-l{display:flex;gap:10px;align-items:center;min-width:0} .np-l b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .np-l small{display:block;font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-t{position:relative;height:22px;background:linear-gradient(var(--flaeche-2),var(--flaeche-2)) center/100% 4px no-repeat;border-radius:2px}
+.np-t i{position:absolute;left:0;top:9px;height:4px;border-radius:2px;opacity:.5}
+.np-t b{position:absolute;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:11px;font-weight:800;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.np-1{position:absolute;top:3px;bottom:3px;width:2px;background:var(--text-3);opacity:.5;border-radius:1px}
+.np-r{text-align:right} .np-r b{display:block;font-size:14px} .np-r small{font-size:11.5px;color:var(--up);font-weight:700;white-space:nowrap}
+.np-leg{font-size:11.5px;color:var(--text-3);margin-top:4px;padding-left:6px}
+.lk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.lk{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--panel)}
+.lk-1{display:flex;align-items:center;gap:8px} .lk-1 b{font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .lk-r{margin-left:auto;font-weight:800;font-size:14px;white-space:nowrap}
+.lk-2{font-size:12px;color:var(--text-3);margin:3px 0 9px}
+.lk-q{display:flex;flex-wrap:wrap;gap:3px}
+.lk-q i,.lk-leg i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.lk-q i.w,.lk-leg i.w{background:color-mix(in srgb, var(--up) 45%, var(--panel-3))} .lk-q i.plus,.lk-leg i.plus{background:var(--up)} .lk-q i.l,.lk-leg i.l{background:var(--panel-3)}
+.lk-leg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--text-2);margin-bottom:12px} .lk-leg span{display:inline-flex;align-items:center;gap:6px}
+@media (max-width:700px){
+  .kz-reihe{grid-template-columns:1fr 1fr} .kz:nth-child(2){border-right:0} .kz:nth-child(-n+2){border-bottom:1px solid var(--line)} .kz-w{font-size:22px} .kz-sp{display:none}
+  .ng{gap:2px;height:120px} .ng-x{gap:2px} .ng-x span{font-size:9.5px} .ng-s span{display:none}
+  .np-z{grid-template-columns:minmax(0,1fr) auto;row-gap:6px} .np-t{grid-column:1/-1;grid-row:2}
+}
 </style>
 </head>
 <body>
@@ -1544,23 +1597,27 @@ function bcZeigen(ev){
   tip.style.opacity = 1; const links = i/(n-1) > .6;
   tip.style.left = links ? "" : `calc(${i/(n-1)*100}% + 12px)`; tip.style.right = links ? `calc(${(1-i/(n-1))*100}% + 12px)` : "";
 }
-// Wann spielt heute das Geld? (Vorbild „Skypulse"-Zeitleiste) — Geld je Anpfiff-Stunde, gestapelt nach Quelle
+// Wann spielt heute das Geld — Vorbild „Skypulse": oben die Summen je Quelle, darunter eine Zeitspur. Jede Stunde mit
+// Geld ist ein Block, quer geteilt nach Quelle; die Höhe zeigt, wie viel es ist (Wurzel, damit kleine Stunden sichtbar bleiben).
 function geldZeitleiste(D){
   const jetzt = new Date(); jetzt.setMinutes(0,0,0);
-  const std = Array.from({length:24},(_,i)=>new Date(+jetzt + i*36e5));
+  const N = 24, std = Array.from({length:N},(_,i)=>new Date(+jetzt + i*36e5));
   const T = lf(D.toepfe||[]).filter(top5Ok).filter(t=>!t.laeuft && t.anpfiff);
-  const eimer = std.map(()=>({betfair:0,poly:0,stake:0,spiele:[]}));
-  for(const t of T){ const i = Math.floor((new Date(t.anpfiff)-jetzt)/36e5); if(i<0||i>=24) continue;
-    for(const [q,v] of Object.entries(t.q||{})) eimer[i][q] = (eimer[i][q]||0) + (q==="betfair" ? v.betrag : v.betrag*0.92);
-    eimer[i].spiele.push(t); }
-  const sum = e => e.betfair+e.poly+e.stake, max = Math.max(1,...eimer.map(sum));
+  const eimer = std.map(()=>({betfair:0,poly:0,stake:0,n:0,top:null}));
+  const ges = {betfair:0,poly:0,stake:0};
+  for(const t of T){ const i = Math.floor((new Date(t.anpfiff)-jetzt)/36e5); if(i<0||i>=N) continue;
+    for(const [q,v] of Object.entries(t.q||{})){ eimer[i][q] += v.betrag; ges[q] += v.betrag; }
+    eimer[i].n++; if(!eimer[i].top || t.gesamt>eimer[i].top.gesamt) eimer[i].top = t; }
+  const eu = (q,v) => q==="betfair" ? v : v*0.92, sum = e => eu("betfair",e.betfair)+eu("poly",e.poly)+eu("stake",e.stake);
+  const max = Math.max(1,...eimer.map(sum));
   if(!eimer.some(sum)) return `<div class="leer">In den nächsten 24 Stunden kein Spiel mit nennenswertem Geld.</div>`;
-  return `<div class="zl">${eimer.map((e,i)=>{ const g = sum(e);
-    const top = e.spiele.sort((a,b)=>b.gesamt-a.gesamt)[0];
-    return `<div class="zl-s" title="${uhr(std[i].toISOString())}: ${eur(g)}${top?` · größtes: ${esc(top.heim)} – ${esc(top.gast)}`:""}">
-      <div class="zl-b">${g?["stake","poly","betfair"].filter(q=>e[q]>0).map(q=>`<i style="height:${(e[q]/max*100).toFixed(1)}%;background:${QUELLE[q].f}"></i>`).join(""):""}</div>
-      ${g>=max*0.3?`<span class="zl-w" style="bottom:calc(${(g/max*100).toFixed(1)}% * (1 - 18/150) + 24px)">${eur(g)}</span>`:""}
-      <span class="zl-h">${i%3===0?uhr(std[i].toISOString()).slice(0,2):""}</span></div>`; }).join("")}</div>`;
+  const kopf = `<div class="sp-k">${["betfair","poly","stake"].map(q=>`<div><span class="sp-n"><i style="background:${QUELLE[q].f}"></i>${QUELLE[q].n}</span><b>${geldIn(q,ges[q])}</b></div>`).join("")}
+    <div><span class="sp-n">Spiele</span><b>${eimer.reduce((a,e)=>a+e.n,0)}</b></div></div>`;
+  const spur = `<div class="sp-spur">${eimer.map((e,i)=>{ const g = sum(e); if(g < max*0.01) return `<div class="sp-slot"></div>`;
+      const h = 30 + 70*Math.sqrt(g/max);
+      return `<div class="sp-slot" title="${uhr(std[i].toISOString())} Uhr · ${eur(g)} · ${e.n} Spiel${e.n>1?"e":""}${e.top?` · größtes: ${esc(e.top.heim)} – ${esc(e.top.gast)}`:""}"><div class="sp-b" style="height:${h.toFixed(0)}%">${["betfair","poly","stake"].filter(q=>e[q]>0).map(q=>`<i style="flex:${eu(q,e[q])} 1 0;background:${QUELLE[q].f}"></i>`).join("")}</div></div>`; }).join("")}</div>
+    <div class="sp-x">${std.map((d,i)=>`<span>${i%3===0?uhr(d.toISOString()):""}</span>`).join("")}</div>`;
+  return kopf + spur;
 }
 function seiteStart(D){
   // Lucas 18.10.: Dauerzufluss ist sein wichtigster KPI → läuft eine Serie, steht sie direkt unter „Gerade passiert"
@@ -1570,7 +1627,7 @@ function seiteStart(D){
   return `<div class="grid">
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div><div class="feed">${feedListe(D,5,1)}</div></div>
     ${serienDa?serienPanel:""}
-    <div class="panel c12"><div class="ph"><h3>Wann heute das Geld spielt</h3><span class="hint">Geld je Anpfiff-Stunde, nächste 24 h</span>${quellenLegende()}</div>${geldZeitleiste(D)}</div>
+    <div class="panel c12"><div class="ph"><h3>Wann heute das Geld spielt</h3><span class="hint">nach Anpfiff-Stunde, nächste 24 h · Höhe = Geld</span></div>${geldZeitleiste(D)}</div>
     <div class="panel c8 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3>${quellenLegende()}</div>${toepfeListe(D,mobil?5:8)}</div>
     <div class="panel c4 feedpanel"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span><button class="chip rechts" data-geh="feed">Alle</button></div><div class="feed">${feedListe(D,14)}</div></div>
     ${serienDa?"":serienPanel}
@@ -1593,18 +1650,81 @@ function ligaTraegt(lb){
   return `<div class="lt-liste">${klar.map(zeile).join("")||`<div class="leer">Noch keine Liga mit klarem Urteil.</div>`}</div>
     ${liste(`Alle ${L.length} Ligen (noch offen: ${rest.length})`, "", `<div class="lt-liste" style="margin-top:10px">${L.map(zeile).join("")}</div>`)}`;
 }
+// Lucas 19.10. („bei der Betfair-Seite passen gute Graphen rein, modern gestalten"): oben Kennzahlen, dann neues
+// Geld über Zeit, Zufluss jetzt (leere Bereiche nur als eine Zeile), Liga-Norm als Punktskala, Liga-Bilanz als Kästchen.
+function bfKennzahlen(D, alle){
+  const summe = alle.reduce((a,s)=>a+(s.eur||0),0), neu30 = alle.reduce((a,s)=>a+Math.max(0,s.d30||0),0);
+  const live = alle.filter(s=>s.live && !s.entschieden), liveEur = live.reduce((a,s)=>a+(s.eur||0),0);
+  const v = (D.verlauf||[]).filter(x=>x[1]==="betfair" && x[2]!=null && new Date(x[0]+"Z")>=Date.now()-30*864e5);
+  const roi = v.length ? 100*v.reduce((a,x)=>a+x[2],0)/v.length : null;
+  let c = 0; const kum = v.map(x=>c+=x[2]);
+  const spark = kum.length>2 ? (()=>{ const lo=Math.min(0,...kum), hi=Math.max(0,...kum), sp=(hi-lo)||1; return `<svg class="kz-sp" viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${kum.map((y,i)=>`${i?"L":"M"}${(i/(kum.length-1)*100).toFixed(1)},${(30-(y-lo)/sp*30).toFixed(1)}`).join("")}" style="stroke:${roi>=0?"var(--up)":"var(--down)"}"/></svg>`; })() : "";
+  const k = (n, w, u, extra="") => `<div class="kz"><span class="kz-n">${n}</span><span class="kz-w">${w}</span><span class="kz-u">${u}</span>${extra}</div>`;
+  return `<div class="kz-reihe">
+    ${k("Geld im Abruf", eur(summe), `${alle.length} Spiele aus ${new Set(alle.map(s=>s.liga)).size} Ligen`)}
+    ${k("Neu in 30 Min", (neu30>0?"+":"")+eur(neu30), summe?`${dez(neu30/summe*100)} % vom Ganzen`:"")}
+    ${k("Läuft gerade", eur(liveEur), `${live.length} Spiele live`)}
+    ${k("Betfair-Pushes 30 T", roi==null?"–":`<span style="color:${roi>=0?"var(--up)":"var(--down)"}">${roi>0?"+":""}${dez(roi)} %</span>`, `${v.length} Tipps · ${v.length?Math.round(100*v.filter(x=>x[3]===1).length/v.length):0} % Treffer`, spark)}
+  </div>`;
+}
+function bfNeuesGeld(alle){
+  // neues Geld je halbe Stunde, aus dem Verlauf jedes Spiels
+  const jetzt = Math.floor(Date.now()/6e4), N = 20, b0 = Math.floor(jetzt/30) - N + 1;
+  const eimer = Array.from({length:N},()=>({eur:0, spiele:{}}));
+  for(const s of alle){ const r = s.reihe||[];
+    for(let k=1;k<r.length;k++){ const d = r[k][1]-r[k-1][1]; if(d<=0) continue; const i = Math.floor(r[k][5]/30) - b0; if(i<0||i>=N) continue;
+      eimer[i].eur += d; eimer[i].spiele[s.heim+" – "+s.gast] = (eimer[i].spiele[s.heim+" – "+s.gast]||0) + d; } }
+  const max = Math.max(1,...eimer.map(e=>e.eur));
+  if(!eimer.some(e=>e.eur)) return `<div class="leer">Noch kein Verlauf gespeichert.</div>`;
+  const zeit = i => { const d = new Date((b0+i)*30*6e4); return d.toLocaleTimeString("de-AT",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}); };
+  return `<div class="ng">${eimer.map((e,i)=>{ const top = Object.entries(e.spiele).sort((a,b)=>b[1]-a[1])[0];
+      return `<div class="ng-s${i===N-1?" jetzt":""}" title="${zeit(i)}: +${eur(e.eur)}${top?` · am meisten: ${esc(top[0])} +${eur(top[1])}`:""}"><i style="height:${Math.max(2,e.eur/max*100).toFixed(1)}%"></i>${e.eur>=max*0.6?`<span>${eur(e.eur)}</span>`:""}</div>`; }).join("")}</div>
+    <div class="ng-x">${eimer.map((e,i)=>`<span>${i%4===0||i===N-1?zeit(i):""}</span>`).join("")}</div>`;
+}
+function normPunkte(liste){
+  if(!liste.length) return `<div class="leer">Gerade liegt nirgends ungewöhnlich viel Geld.</div>`;
+  const max = Math.max(3, ...liste.map(s=>s.xnorm||0)), pos = x => Math.min(100, Math.log(Math.max(x,0.5)/0.5)/Math.log(max/0.5)*100);
+  const st = x => x>=3 ? "var(--down)" : x>=1.5 ? "var(--bf)" : "var(--text-3)";
+  return `<div class="np">${liste.map(s=>{ const x = s.xnorm||0;
+    return `<div class="np-z" ${klick(esc(s.heim)+" – "+esc(s.gast), ohneHuelle(spielDetail(s)))}>
+      <div class="np-l">${flagge(s.land)}<div style="min-width:0"><b>${esc(s.heim)} – ${esc(s.gast)}</b><small>${live(s)} · ${esc(ligaName(s.liga))}</small></div></div>
+      <div class="np-t"><span class="np-1" style="left:${pos(1)}%"></span><i style="width:${pos(x)}%;background:${st(x)}"></i><b style="left:${pos(x)}%;background:${st(x)}">×${dez(x)}</b></div>
+      <div class="np-r"><b>${eur(s.eur)}</b>${s.d60>0?`<small>+${eur(s.d60)} in 1 h</small>`:""}</div></div>`; }).join("")}
+    <div class="np-leg"><span>Strich = übliches Geld in dieser Liga (×1)</span></div></div>`;
+}
+function ligaKaestchen(lb){
+  const L = Object.entries((lb||{}).ligen||{}).filter(([n])=>lf([{liga:n}]).length).map(([n,v])=>({n,...v}));
+  if(!L.length) return `<div class="leer">Noch keine Liga mit genug abgerechneten Märkten.</div>`;
+  const ord = {"trägt":0,"offen":1,"trägt nicht":2};
+  L.sort((a,b)=>(ord[a.urteil]-ord[b.urteil]) || (b.hoch.roi-a.hoch.roi));
+  const tag = u => u==="trägt" ? `<span class="tag t-won">trägt</span>` : u==="trägt nicht" ? `<span class="tag t-lost">trägt nicht</span>` : "";
+  const karte = x => { const h = x.hoch, je = h.n>120 ? Math.ceil(h.n/120) : 1, n = Math.round(h.n/je), gew = Math.round(n*h.treffer/100), erw = Math.round(n*h.erwartet/100);
+    return `<div class="lk"><div class="lk-1"><b>${esc(ligaName(x.n))}</b>${tag(x.urteil)}<span class="lk-r" style="color:${h.roi>0?"var(--up)":"var(--down)"}">${h.roi>0?"+":""}${dez(h.roi)} %</span></div>
+      <div class="lk-2">${h.treffer} % getroffen · Quote sagte ${h.erwartet} % · ${h.n} Märkte${je>1?` · je Kästchen ${je}`:""}</div>
+      <div class="lk-q">${Array.from({length:n},(_,i)=>`<i class="${i<gew?(i>=erw?"plus":"w"):"l"}"></i>`).join("")}</div></div>`; };
+  const gut = L.filter(x=>x.urteil!=="offen"), rest = L.filter(x=>x.urteil==="offen");
+  return `<div class="lk-leg"><span><i class="w"></i>gewonnen</span><span><i class="plus"></i>mehr gewonnen, als die Quote erwarten ließ</span><span><i class="l"></i>verloren</span></div>
+    <div class="lk-grid">${(gut.length?gut:rest.slice(0,6)).map(karte).join("")}</div>
+    ${rest.length&&gut.length?liste(`Weitere ${rest.length} Ligen ohne klares Urteil`, "", `<div class="lk-grid" style="margin-top:12px">${rest.map(karte).join("")}</div>`):""}
+    ${!gut.length&&rest.length>6?liste(`Weitere ${rest.length-6} Ligen`, "", `<div class="lk-grid" style="margin-top:12px">${rest.slice(6).map(karte).join("")}</div>`):""}`;
+}
 function seiteBetfair(D){
   const alle = lf(D.radar.spiele), liste_ = BF_SETS[filterBf][1](alle);
   const norm = lf(alle).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
   const hzl = lf(D.halbzeit||[]);
+  const teile = [["🔁 Dauerzufluss", "Abruf für Abruf dieselbe Auswahl vorn", serienKarten(D,8,"betfair")],
+    ["Frischer Zufluss", "vor Anpfiff, 30 Min", zuflussKarten(D,8)],
+    ["Live: Geld fließt rein", "15 Min, entschiedene Spiele raus", liveKarten(D,8)]];
+  const leer = teile.filter(t=>t[2].startsWith('<div class="leer">')), voll = teile.filter(t=>!t[2].startsWith('<div class="leer">'));
   return `<div class="grid">
-    <div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">ab 3 Abrufen in Folge dieselbe Auswahl vorn · ab €10k (Top-5 €75k)</span></div>${serienKarten(D,8,"betfair")}</div>
-    <div class="panel c12"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">vor Anpfiff, 30 Min · Auswahl mit dem Großteil des neuen Geldes</span></div>${zuflussKarten(D,8)}</div>
-    <div class="panel c12"><div class="ph"><h3>Live: Geld fließt rein</h3><span class="hint">Auswahl, die in 15 Min den Großteil des neuen Geldes in ihrem Markt bekam; entschiedene Spiele raus</span></div>${liveKarten(D,8)}</div>
-    <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">×2 = doppelt so viel Geld wie in dieser Liga üblich</span></div>${normChart(norm)}</div>
+    <div class="panel c12 kz-panel">${bfKennzahlen(D, alle)}</div>
+    ${voll.map(([t,h,html])=>`<div class="panel c12"><div class="ph"><h3>${t}</h3><span class="hint">${h}</span></div>${html}</div>`).join("")}
+    ${leer.length?`<div class="c12 ruhig">Gerade ruhig: ${leer.map(t=>t[0].replace("🔁 ","")).join(" · ")}</div>`:""}
+    <div class="panel c12"><div class="ph"><h3>Neues Geld auf Betfair</h3><span class="hint">je halbe Stunde, alle Spiele im Abruf, letzte 10 h</span></div>${bfNeuesGeld(alle)}</div>
+    <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">wie viel mehr Geld als in dieser Liga üblich</span></div>${normPunkte(norm)}</div>
     <div class="panel c5"><div class="ph"><h3>Halbzeit-Geld</h3><span class="hint">Geld auf die 1. Halbzeit</span></div>${hzKarten(hzl.slice(0,4))}${hzl.length>4?liste("Alle Halbzeit-Spiele als Liste",hzl.length,hzTabelle(hzl,"hz-bf")):""}</div>
+    <div class="panel c12"><div class="ph"><h3>Wo das Geld trägt</h3><span class="hint">je Liga: Märkte mit hohem Einsatz, letzte ${(D.ligaBilanz||{}).fensterTage||90} Tage · ein Kästchen je Markt · „trägt" erst ab 99 % Sicherheit</span></div>${ligaKaestchen(D.ligaBilanz)}</div>
     <div class="panel c12">${liste(`Alle ${alle.length} Spiele aus ${D.radar.ligen} Ligen als Liste`, "", `<div class="chips" style="margin:12px 0">${Object.entries(BF_SETS).map(([k,[n,fn]])=>`<button class="chip${k===filterBf?" an":""}" data-filter="${k}">${n} <span style="opacity:.6">${fn(alle).length}</span></button>`).join("")}</div>${spielTabelle(liste_,"t-bf",25)}`)}</div>
-    <div class="panel c12"><div class="ph"><h3>📚 Wo das Geld trägt</h3><span class="hint">je Liga: Märkte mit hohem Einsatz (oberes Drittel dieser Liga, ≥ 65 % auf einer Seite), letzte ${(D.ligaBilanz||{}).fensterTage||90} Tage. „trägt" erst, wenn es mit 99 % kein Zufall ist</span></div>${ligaTraegt(D.ligaBilanz)}</div>
   </div>`;
 }
 function seitePinnacle(D){
