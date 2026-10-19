@@ -102,6 +102,12 @@ main{padding:22px 28px 60px;min-width:0}
 .feed{display:flex;flex-direction:column}
 /* Wo am meisten liegt */
 .toepfe{display:grid;gap:10px}
+.lt-liste{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+.lt{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.lt-1{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+.lt-1 b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lt-2{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--text-2);margin-top:5px}
+.lt-3{font-size:11.5px;color:var(--text-3);margin-top:3px}
 .tz-kopf{margin:18px 0 8px;font-size:13px;font-weight:700;color:var(--text-2);display:flex;align-items:center;gap:8px}
 .tz-kopf span{font-size:11.5px;background:var(--panel-3);border-radius:999px;padding:1px 8px;color:var(--text-2)}
 .tz-liste{display:grid;gap:6px}
@@ -611,6 +617,8 @@ function spielDetail(s){
   }).join("")}</div>`;
   return `<tr class="detail"><td colspan="6"><div class="det">
     <div class="d-kopf">${flagge(s.land)} ${esc(s.liga)} · ${s.live?`<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}`:wann(s.anpfiff)} · ${eur(s.eur)} gematcht über alle Märkte${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}</div>
+    ${(()=>{ const lb = ((D.ligaBilanz||{}).ligen||{})[s.liga]; if(!lb) return ""; const h = lb.hoch;
+      return `<div class="kk-klein">📚 Liga-Bilanz hohes Geld: ${h.treffer} % getroffen, Quote sagte ${h.erwartet} % · ROI ${h.roi>0?"+":""}${dez(h.roi)} % · ${h.n} Märkte · <b style="color:${lb.urteil==="trägt"?"var(--up)":lb.urteil==="trägt nicht"?"var(--down)":"var(--text-2)"}">${lb.urteil==="offen"?"noch offen":lb.urteil}</b></div>`; })()}
     ${(()=>{ const se = serieVon(D, s.id); return se ? `<div><h4>🔁 Dauerzufluss: ${se.n}× in Folge auf ${esc(auswahlDe(se.auswahl))} (${esc(marktDe(se.markt))}), ${eur(se.eur)} in ${se.dauerMin} Min</h4>${saeulenSvg(se.saeulen,"var(--bf)",320,44,5,se.tore)}</div>` : ""; })()}
     <div><h4>Wohin das neue Geld floss, letzte ${fm} Min</h4>${flussBlock}</div>
     <div><h4>Märkte</h4>${marktBlock||"–"}</div>
@@ -1215,6 +1223,20 @@ function seiteStart(D){
     <div class="panel c12"><div class="ph"><h3>Bilanz der Signale</h3><button class="chip rechts" data-geh="feed">Push-Auswertung</button></div>${bilanzRinge(D)}<div class="hinweis">Mitte: Rendite pro Tipp. Ring: Trefferquote.</div></div>
   </div>`;
 }
+// Lucas 19.10.: „Bilanz nach Liga wäre ein Traum" — trägt hohes Geld in dieser Liga? (90 Tage, Tracking des alten Projekts)
+function ligaTraegt(lb){
+  const L = Object.entries((lb||{}).ligen||{}).filter(([n])=>lf([{liga:n}]).length).map(([n,v])=>({n,...v}));
+  if(!L.length) return `<div class="leer">Noch keine Liga mit genug abgerechneten Märkten.</div>`;
+  const ord = {"trägt":0,"offen":1,"trägt nicht":2};
+  L.sort((a,b)=>(ord[a.urteil]-ord[b.urteil]) || (b.hoch.ug-a.hoch.ug));
+  const tag = u => u==="trägt" ? `<span class="tag t-won">trägt</span>` : u==="trägt nicht" ? `<span class="tag t-lost">trägt nicht</span>` : `<span class="tag t-open">offen</span>`;
+  const zeile = x => `<div class="lt"><div class="lt-1"><b>${esc(x.n)}</b>${tag(x.urteil)}</div>
+    <div class="lt-2"><span><b>${x.hoch.treffer} %</b> getroffen, Quote sagte ${x.hoch.erwartet} %</span><span style="color:${x.hoch.roi>0?"var(--up)":"var(--down)"};font-weight:800">ROI ${x.hoch.roi>0?"+":""}${dez(x.hoch.roi)} %</span></div>
+    <div class="lt-3">${x.hoch.n} Märkte ab ${eur(x.abEur)} · alle: ${x.alle.treffer} % statt ${x.alle.erwartet} %</div></div>`;
+  const klar = L.filter(x=>x.urteil!=="offen"), rest = L.filter(x=>x.urteil==="offen");
+  return `<div class="lt-liste">${klar.map(zeile).join("")||`<div class="leer">Noch keine Liga mit klarem Urteil.</div>`}</div>
+    ${liste(`Alle ${L.length} Ligen (noch offen: ${rest.length})`, "", `<div class="lt-liste" style="margin-top:10px">${L.map(zeile).join("")}</div>`)}`;
+}
 function seiteBetfair(D){
   const alle = lf(D.radar.spiele), liste_ = BF_SETS[filterBf][1](alle);
   const norm = lf(alle).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
@@ -1226,6 +1248,7 @@ function seiteBetfair(D){
     <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">×2 = doppelt so viel Geld wie in dieser Liga üblich</span></div>${normChart(norm)}</div>
     <div class="panel c5"><div class="ph"><h3>Halbzeit-Geld</h3><span class="hint">Geld auf die 1. Halbzeit</span></div>${hzKarten(hzl.slice(0,4))}${hzl.length>4?liste("Alle Halbzeit-Spiele als Liste",hzl.length,hzTabelle(hzl,"hz-bf")):""}</div>
     <div class="panel c12">${liste(`Alle ${alle.length} Spiele aus ${D.radar.ligen} Ligen als Liste`, "", `<div class="chips" style="margin:12px 0">${Object.entries(BF_SETS).map(([k,[n,fn]])=>`<button class="chip${k===filterBf?" an":""}" data-filter="${k}">${n} <span style="opacity:.6">${fn(alle).length}</span></button>`).join("")}</div>${spielTabelle(liste_,"t-bf",25)}`)}</div>
+    <div class="panel c12"><div class="ph"><h3>📚 Wo das Geld trägt</h3><span class="hint">je Liga: Märkte mit hohem Einsatz (oberes Drittel dieser Liga, ≥ 65 % auf einer Seite), letzte ${(D.ligaBilanz||{}).fensterTage||90} Tage. „trägt" erst, wenn es mit 99 % kein Zufall ist</span></div>${ligaTraegt(D.ligaBilanz)}</div>
   </div>`;
 }
 function seitePinnacle(D){

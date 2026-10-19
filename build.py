@@ -1691,6 +1691,76 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
     return vor + lauf
 
 
+# ── Liga-Bilanz: trägt hohes Geld in dieser Liga? (Lucas 19.10.: „Bilanz nach Liga wäre ein Traum … es gibt Ligen,
+# wo man dem Geld einfacher nachspielt als in anderen, ändert sich auch immer wieder") ─────────────────────────────
+# Quelle: das Tracking des alten Projekts (betfair_track_results.json, rollierend 40.000 Märkte ≈ 1 Monat): je Spiel und
+# Markt die Seite, auf der das Geld lag, ihr Anteil, das Marktvolumen, die Quote beim Signal und das Ergebnis. Damit die
+# Historie über das rollierende Fenster hinaus wächst (und das alte Projekt einmal abgeschaltet werden kann), führt der
+# Geldradar ein eigenes Buch (.bf/liga_buch.json, Actions-Cache) und hängt jeden Lauf die neuen Zeilen an.
+LIGA_BUCH = BASIS / ".bf" / "liga_buch.json"
+LIGA_FENSTER_TAGE = 90           # ändert sich immer wieder → nur die letzten 90 Tage zählen
+LIGA_HOCH_ANTEIL = 65            # „Geld liegt klar auf einer Seite"
+LIGA_MIN_N = 25
+
+
+def _liga_stat(rr):
+    rr = [r for r in rr if isinstance(r.get("q"), (int, float)) and r["q"] > 1 and r.get("w") is not None]
+    n = len(rr)
+    if not n:
+        return None
+    gew = [((r["q"] - 1) * 0.98 if r["w"] else -1.0) for r in rr]
+    m = sum(gew) / n
+    sd = (sum((g - m) ** 2 for g in gew) / (n - 1)) ** 0.5 if n > 1 else 0
+    return {"n": n, "treffer": round(100 * sum(1 for r in rr if r["w"]) / n), "erwartet": round(100 * sum(1 / r["q"] for r in rr) / n),
+            # z = 2,33 statt 1,645: es werden ~140 Ligen gleichzeitig geprüft — bei 90 % wären allein durch Zufall
+            # ~7 Ligen „trägt"; bei 99 % ist es gut eine.
+            "roi": round(100 * m, 1), "ug": round(100 * (m - 2.33 * sd / n ** 0.5), 1), "og": round(100 * (m + 2.33 * sd / n ** 0.5), 1)}
+
+
+def liga_bilanz():
+    try:
+        buch = json.loads(LIGA_BUCH.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        buch = {}
+    try:
+        roh = laden("betfair_track_results.json", None)
+        if roh:
+            import betfair_track_store
+            for z in betfair_track_store.entpacken(roh):
+                if not isinstance(z, dict) or z.get("win") is None or not z.get("league"):
+                    continue
+                k = f"{z.get('matchId')}|{z.get('market')}"
+                buch[k] = {"l": z["league"], "t": (z.get("settledAt") or "")[:10], "q": z.get("entryOdd") or z.get("odd"),
+                           "w": bool(z["win"]), "v": z.get("mktVol") or 0, "a": z.get("sharePct") or 0, "m": z.get("market")}
+    except Exception as exc:  # noqa: BLE001
+        FEHLER.append(f"Liga-Bilanz: {str(exc)[:100]}")
+    grenze = (JETZT - timedelta(days=LIGA_FENSTER_TAGE)).strftime("%Y-%m-%d")
+    buch = {k: v for k, v in buch.items() if (v.get("t") or "9") >= grenze}
+    try:
+        LIGA_BUCH.parent.mkdir(parents=True, exist_ok=True)
+        LIGA_BUCH.write_text(json.dumps(buch, separators=(",", ":")), encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+    je = {}
+    for v in buch.values():
+        je.setdefault(v["l"], []).append(v)
+    out = {}
+    for liga, rr in je.items():
+        vols = sorted(r.get("v") or 0 for r in rr)
+        if len(vols) < 40:
+            continue
+        p67 = vols[int(len(vols) * 0.67)]          # „hohe Einsätze" = oberes Drittel DIESER Liga
+        hoch = [r for r in rr if (r.get("v") or 0) >= p67 and (r.get("a") or 0) >= LIGA_HOCH_ANTEIL]
+        sh = _liga_stat(hoch)
+        if not sh or sh["n"] < LIGA_MIN_N:
+            continue
+        urteil = "trägt" if sh["ug"] > 0 else "trägt nicht" if sh["og"] < 0 else "offen"
+        out[liga] = {"hoch": sh, "alle": _liga_stat(rr), "urteil": urteil, "abEur": round(p67),
+                     "seit": min(r["t"] for r in rr if r.get("t"))}
+    return {"stand": iso(JETZT), "fensterTage": LIGA_FENSTER_TAGE, "ligen": out,
+            "zeilen": len(buch)}
+
+
 def push_bilanz():
     """Auswertung der neuen Pushes (bilanz.py schreibt sie nach jedem Push-Lauf in den Cache)."""
     try:
@@ -1781,6 +1851,7 @@ def main() -> int:
         "halbzeit": halbzeit(prices),
         "bfHtPushes": bf_ht_pushes(prices),
         "pushBilanz": push_bilanz(),
+        "ligaBilanz": liga_bilanz(),
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
         "pinnDrops": pinn_drops(prices),

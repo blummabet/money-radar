@@ -154,6 +154,18 @@ def _beleg(art, z, fl, live=False):
             "markt": fl.get("markt"), "auswahl": fl.get("auswahl"), "quote": fl.get("quote"), "eur": fl.get("eur")}
 
 
+def liga_zeile(d, liga):
+    """Lucas 19.10.: Liga-Bilanz in den Pushes — trägt hohes Geld in DIESER Liga bisher?"""
+    lb = ((d.get("ligaBilanz") or {}).get("ligen") or {}).get(liga)
+    if not lb:
+        return ""
+    h = lb["hoch"]
+    marke = {"trägt": "✅ trägt", "trägt nicht": "⛔ trägt nicht"}.get(lb["urteil"], "noch offen")
+    roi = ("+" if h["roi"] > 0 else "") + str(h["roi"]).replace(".", ",")
+    return (f"📚 <i>Liga-Bilanz hohes Geld: {h['treffer']} % getroffen, Quote sagte {h['erwartet']} % · ROI {roi} % "
+            f"· {h['n']} Märkte · <b>{marke}</b></i>\n")
+
+
 def _in_serie(d, sid, markt, auswahl):
     """Lucas 18.10. (Avaí: Dauerzufluss UND Frischer Zufluss gleichzeitig, dieselben €11k): läuft auf dieselbe
     Auswahl schon eine Serie, meldet nur die Serie — sie zeigt mehr (Verlauf, wie oft in Folge)."""
@@ -181,7 +193,8 @@ def zufluss(d):
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 30 Min auf <b>{e(remis(_auswahl_de(fl.get('auswahl'))))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n\n"
                 + _geld_block(fl, 30)
-                + pinnacle_zeile(d, z, fl))
+                + pinnacle_zeile(d, z, fl)
+                + liga_zeile(d, z.get("liga")))
         yield key, text, ZUFLUSS_PAUSE_H, _beleg("zufluss", z, fl)
 
 
@@ -207,7 +220,8 @@ def live(d):
                 f"{e(z.get('liga'))} · {minute} · <b>{st[0]}:{st[1]}</b>\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(remis(_auswahl_de(fl.get('auswahl'))))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n\n"
-                + _geld_block(fl, 15))
+                + _geld_block(fl, 15)
+                + liga_zeile(d, z.get("liga")))
         yield key, text, 12, _beleg("live", z, fl, live=True)
 
 
@@ -678,7 +692,8 @@ def serie(d):
                 + "\n"
                 + (_geld_block({"markt": x["markt"], "auswahl": x["auswahl"], "marktVerteilung": x["marktVerteilung"]}, 0)
                    if x.get("marktVerteilung") else "")
-                + (f"<code>{_balken(x['saeulen'][-24:])}</code> <i>letzte 2 h, je Säule 5 Min</i>\n" if any(x['saeulen'][-24:]) else ""))
+                + (f"<code>{_balken(x['saeulen'][-24:])}</code> <i>letzte 2 h, je Säule 5 Min</i>\n" if any(x['saeulen'][-24:]) else "")
+                + liga_zeile(d, x.get("liga")))
         yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"]}
