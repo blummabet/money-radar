@@ -767,6 +767,13 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 /* Lucas 19.10.: am Handy darf nichts seitlich wackeln — was breiter wäre, wird abgeschnitten statt die Seite zu verschieben */
 html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow-x:clip}
 
+
+/* Lucas 19.10.: auch das Detail von unten darf am Handy nicht seitlich wackeln */
+.drawer{overflow-x:hidden;overscroll-behavior:contain} .drawer .mk,.drawer .mgrid>*{min-width:0}
+@media (max-width:700px){
+  .mb-z{grid-template-columns:minmax(0,1fr) auto auto;gap:6px} .mb-t{display:none} .mb-z b{white-space:nowrap}
+  .mb-z.top .mb-n{color:var(--bf)}
+}
 </style>
 </head>
 <body>
