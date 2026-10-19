@@ -690,6 +690,18 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .jf-b span{font-weight:800;font-size:14px;white-space:nowrap}
 .jf-r{text-align:right;min-width:0} .jf-r b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .jf-r small{display:block;font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:700px){ .jf-z{grid-template-columns:minmax(0,1fr) auto;row-gap:6px} .jf-b{grid-column:1/-1;grid-row:2} .jf-r{grid-column:2;grid-row:1} }
+
+.pf-seiten{display:flex;flex-direction:column;gap:5px;margin-top:10px}
+.pf-s{display:grid;grid-template-columns:minmax(0,1fr) 1.2fr 40px;gap:8px;align-items:center;font-size:12.5px}
+.pf-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-2)}
+.pf-t{height:8px;background:var(--flaeche-2);border-radius:4px;overflow:hidden} .pf-t i{display:block;height:100%;border-radius:4px;background:color-mix(in srgb, var(--text-3) 50%, transparent)}
+.pf-s.top .pf-n{color:var(--text);font-weight:700} .pf-s.top .pf-t i{background:var(--poly)}
+.pf-s b{text-align:right;font-variant-numeric:tabular-nums}
+.pf-takt{display:flex;gap:3px;height:44px;align-items:flex-end;margin-top:12px}
+.pf-c{flex:1 1 0;height:100%;display:flex;flex-direction:column-reverse;gap:1px}
+.pf-c i{display:block;border-radius:2px;min-height:2px}
+.pf-x{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-top:4px}
+.pf-x span{display:inline-flex;align-items:center;gap:5px} .pf-x i{width:8px;height:8px;border-radius:2px}
 </style>
 </head>
 <body>
@@ -1332,6 +1344,15 @@ function pmNetto(seiten, key){
   const zeilen = [...alle].map(t=>({team:t, fuer:s[t]||0, gegen:s["gegen "+t]||0})).map(z=>({...z, netto:z.fuer-z.gegen}));
   return zeilen.some(z=>z.gegen>0) ? zeilen.sort((x,y)=>Math.abs(y.netto)-Math.abs(x.netto)) : null;
 }
+// Käufe je 10 Min, letzte 2 h, gestapelt: führende Seite lila, die anderen grau (wie die Säulen beim Dauerzufluss)
+function pfTakt(m){
+  const T = Object.entries(m.takt||{}); if(!T.length) return "";
+  const N = 12, teile = T.map(([k,v])=>[k, v.slice(-N)]), sum = Array.from({length:N},(_,i)=>teile.reduce((a,[,v])=>a+(v[i]||0),0));
+  const max = Math.max(1,...sum); if(!sum.some(x=>x)) return "";
+  const top = teile[0][0];
+  return `<div class="pf-takt">${sum.map((g,i)=>`<div class="pf-c" title="vor ${(N-1-i)*10} Min: ${usd(g)}">${teile.map(([k,v])=>v[i]>0?`<i style="height:${(v[i]/max*100).toFixed(1)}%;background:${k===top?"var(--poly)":"color-mix(in srgb, var(--text-3) 45%, transparent)"}"></i>`:"").join("")}</div>`).join("")}</div>
+    <div class="pf-x"><span>vor 2 h</span><span><i style="background:var(--poly)"></i>${esc(pmLabel(top, m.titel, m.sport))}</span><span>jetzt</span></div>`;
+}
 function polyFlussKarten(D, max){
   const pf = D.polyFluss || {};
   const z = (pf.maerkte||[]).filter(top5Ok).filter(pmFlussOk).slice(0,max);
@@ -1351,13 +1372,16 @@ function polyFlussKarten(D, max){
     } else {
       kopf = `<div class="kk-zahl" style="color:var(--poly)">+${usd(f.usd)}</div>
         <div class="kk-auf">auf <b>${esc(pmLabel(f.auf, m.titel, m.sport))}</b></div>
-        <div class="kk-klein">${f.anteil} % der Käufe in 30 Min${f10&&f10.usd>=500?`, davon ${usd(f10.usd)} in den letzten 10 Min auf ${esc(pmLabel(f10.auf, m.titel, m.sport))}`:""}</div>`;
-      zeilen = Object.entries(f.seiten||{}).slice(1,3).map(([k,v])=>`<div class="fl"><span>${esc(pmLabel(k, m.titel, m.sport))}</span><b style="color:var(--text-2)">${usd(v)}</b></div>`).join("");
+        ${f10&&f10.usd>=500?`<div class="kk-klein">davon ${usd(f10.usd)} in den letzten 10 Min</div>`:""}`;
+      // Lucas 19.10.: „man sollte optisch sehen, wo mehr liegt, nicht nur Text" — ein Balken je Seite
+      const sw = Object.entries(f.seiten||{}), sg = sw.reduce((a,[,v])=>a+v,0)||1;
+      zeilen = `<div class="pf-seiten">${sw.slice(0,3).map(([k,v],i)=>`<div class="pf-s${i===0?" top":""}"><span class="pf-n">${esc(pmLabel(k, m.titel, m.sport))}</span><div class="pf-t"><i style="width:${(v/sg*100).toFixed(1)}%"></i></div><b>${Math.round(v/sg*100)} %</b></div>`).join("")}</div>`;
     }
     return `<div class="kk ${m.live?"live-k":"kk-poly"}" ${klick(esc(pmTitel(m.titel)), ohneHuelle(polyFlussDetail(m)))}>
       <div class="kk-oben">${sportIco(m.sport)}<span>${esc(ligaName(m.liga)||m.sport||"")}</span><span class="rechts">${m.live?`<span class="live">live</span>`:wann(m.anpfiff)}</span></div>
       <div class="kk-titel">${esc(pmTitel(m.titel))} ${waleTag(waleVon(m.key).concat(waleVon(m.key+"-more-markets")))}</div>
       ${kopf}${zeilen}
+      ${pfTakt(m)}
       ${g?`<div class="kk-fuss"><span class="tag t-open" style="white-space:normal">größter Kauf ${usd(g.usd)} auf ${esc(pmLabel(g.auf, m.titel, m.sport))} @ ${Math.round(g.preis*100)} ¢, vor ${g.vor} Min</span></div>`:""}
     </div>`;}).join("")}</div>`;
 }
