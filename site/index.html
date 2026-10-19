@@ -11,7 +11,7 @@
 <style>
 :root{
   --bg:#0d1320; --panel:#151d2d; --panel-2:#1b2538; --panel-3:#233049;
-  --text:#e9eef7; --text-2:#9aa7bd; --text-3:#64718a;
+  --text:#f1f4fa; --text-2:#b9c3d6; --text-3:#8a96ad;
   --line:rgba(255,255,255,.065);
   --bf:#ffb547; --pin:#5b9dff; --poly:#a183ff; --stake:#2fd38a; --hz:#ff77a8;
   --up:#2fd38a; --down:#ff6b6b;
@@ -120,7 +120,7 @@ main{padding:22px 28px 60px;min-width:0}
 .tz-kopf.lauf .puls{background:var(--down)}
 .tz-liste{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:6px}
 .tz{border:1px solid var(--line);border-radius:12px;padding:9px 12px;cursor:pointer;background:var(--panel-2)}
-.tz.lauf{box-shadow:inset 3px 0 0 var(--down)}
+.tz.lauf{background:color-mix(in srgb, var(--down) 7%, var(--panel-2))}
 .tz-1{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
 .tz-ico{display:flex;align-items:center}.tz-ico .flag{width:18px;height:12px}
 .tz-t{min-width:0;display:flex;flex-direction:column;gap:1px}
@@ -162,7 +162,7 @@ main{padding:22px 28px 60px;min-width:0}
 .tp-quellen{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;color:var(--text-3)}
 /* Lucas 19.10.: „sah besser aus mit den verschiedenen Sourcen" — je Quelle eine lesbare Zeile: Name, Geld, wohin */
 .tp-qz{display:grid;gap:5px;margin-top:4px}
-.tp-q{display:grid;grid-template-columns:minmax(92px,auto) auto 1fr;align-items:center;gap:10px;font-size:13.5px;padding:6px 10px;border-radius:9px;background:color-mix(in srgb, var(--f) 9%, var(--panel-2));border-left:3px solid var(--f)}
+.tp-q{display:grid;grid-template-columns:minmax(92px,auto) auto 1fr;align-items:center;gap:10px;font-size:13.5px;padding:6px 10px;border-radius:9px;background:color-mix(in srgb, var(--f) 9%, var(--panel-2));}
 .tp-q .qn{color:var(--f);font-weight:700}
 .tp-q .qg{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
 .tp-q .qa{color:var(--text-2);text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -194,11 +194,30 @@ main{padding:22px 28px 60px;min-width:0}
 .tp-banner{border-radius:10px;padding:10px 12px;font-size:13.5px}
 .tp-banner.ok{background:color-mix(in srgb, var(--up) 12%, transparent);color:var(--text)}
 .tp-banner.nein{background:color-mix(in srgb, var(--bf) 14%, transparent);color:var(--text)}
+/* Topf-Karte 19.10. (2. Anlauf) */
+.tp-gb{display:flex;gap:3px;height:6px;margin:12px 0 6px}
+.tp-gb i{display:block;border-radius:3px}
+.tp-gz{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums}
+.tp-gz small{font-weight:600;opacity:.75;font-size:12px}
+.tp-k{display:grid;grid-template-columns:1fr .75fr 1fr;gap:8px;margin-top:12px}
+.tp-k.zwei{grid-template-columns:1fr 1fr}
+.tp-kk{background:var(--panel);border-radius:12px;padding:9px 11px 10px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tp-kk .n{font-size:12.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.tp-kk>b{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--text-2);font-variant-numeric:tabular-nums;line-height:1.15}
+.tp-kk.lead{background:#f2f5fb}
+.tp-kk.lead .n{color:#3a4458} .tp-kk.lead>b{color:#0d1320}
+.tp-cs{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;min-height:0}
+.tp-c{font-size:12px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--f);color:#0d1320;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tp-c.schwach{opacity:.55}
+.tp-c.wal{--f:var(--poly)}
+.legende{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;font-weight:700;color:var(--text-2);margin-left:auto}
+.legende span{display:inline-flex;align-items:center;gap:6px}
+.legende i{width:10px;height:10px;border-radius:50%}
 @media (min-width:1300px){ .toepfe{grid-template-columns:1fr 1fr} }
 
 .sankey-k{display:flex;align-items:baseline;gap:8px;margin:2px 0 8px;color:var(--text-2);font-size:12px}.sankey-k b{color:var(--text);font-size:18px;font-weight:800}
 .saeulen{display:block;width:100%;height:50px;margin-top:10px}
-.serie-k{box-shadow:inset 3px 0 0 var(--bf)}
+.serie-k{}
 .serie-kopf{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
 .serie-n{font-weight:800;font-size:14px}
 .serie-tag{display:inline-block;font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:999px;background:color-mix(in srgb, var(--bf) 18%, transparent);color:var(--bf);vertical-align:2px;white-space:nowrap}
@@ -213,7 +232,7 @@ main{padding:22px 28px 60px;min-width:0}
 .feed-gross .fe{padding:12px 4px}
 .feed-gross .fe .t{font-size:14.5px}
 .fe[data-dr]{cursor:pointer}
-.fe-live{box-shadow:inset 3px 0 0 var(--down);padding-left:8px!important}
+.fe-live{}
 .feedchips{margin-bottom:6px;flex-wrap:wrap}
 .fe{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
 .fe:first-child{border-top:0}
@@ -248,7 +267,7 @@ main{padding:22px 28px 60px;min-width:0}
 .gk b{text-align:right}
 .gk-auf{color:var(--text-2);overflow:hidden;text-overflow:ellipsis}
 .zufluss{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-.zf{background:var(--panel-2);border:1px solid var(--line);border-radius:13px;padding:14px;border-left:3px solid var(--up)}
+.zf{background:var(--panel-2);border:1px solid var(--line);border-radius:13px;padding:14px}
 .zf-kopf{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .zf-betrag{font-weight:800;font-size:22px;color:var(--up);text-align:right;white-space:nowrap;line-height:1.1}
 .zf-betrag small{display:block;font-size:11.5px;color:var(--text-3);font-weight:600;margin-top:3px}
@@ -269,7 +288,7 @@ main{padding:22px 28px 60px;min-width:0}
 .seg button.an{background:var(--text);color:var(--bg)}
 #ligaschalter{margin-left:auto}
 #ligaschalter + .rechts{margin-left:10px}
-.live-k{border-left:3px solid var(--down)}
+.live-k{}
 .fl{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--text-2);border-top:1px solid var(--line);padding-top:5px;margin-top:5px}
 .fl small{color:var(--text-3)}
 .fl b{color:var(--up)}
@@ -277,7 +296,7 @@ main{padding:22px 28px 60px;min-width:0}
 .kk{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0;transition:border-color .15s}
 .kk:hover{border-color:rgba(255,255,255,.18)}
 .kk-poly{border-color:color-mix(in srgb,var(--poly) 45%,transparent)}
-.zf-k{border-left:3px solid var(--up)}
+.zf-k{}
 .kk-oben{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3);min-width:0}
 .kk-oben>span:not(.rechts){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kk-oben .rechts{margin-left:auto;white-space:nowrap}
@@ -307,9 +326,9 @@ main{padding:22px 28px 60px;min-width:0}
 .hzv-z b{font-size:26px;font-variant-numeric:tabular-nums} .hzv-z small{display:block;color:var(--text-3);font-size:12px}
 .hzv-r{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--text-2)}
 .hzs{display:grid;gap:4px}
-.hzs-z{display:grid;grid-template-columns:minmax(0,1fr) 48px 64px 48px 78px 78px;gap:8px;align-items:center;padding:7px 10px;border-radius:9px;background:var(--panel-2);font-size:13px;border-left:3px solid transparent}
+.hzs-z{display:grid;grid-template-columns:minmax(0,1fr) 48px 64px 48px 78px 78px;gap:8px;align-items:center;padding:7px 10px;border-radius:9px;background:var(--panel-2);font-size:13px}
 .hzs-z.hzs-kopf{background:none;color:var(--text-3);font-size:11.5px;padding-top:0;padding-bottom:0}
-.hzs-z.c-hoch{border-left-color:#ff9a5c} .hzs-z.c-niedrig{border-left-color:#7fb8ff}
+
 .hzs-s{display:flex;gap:8px;align-items:center;min-width:0} .hzs-s>span{min-width:0}
 .hzs-s b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .hzs-s small{display:block;color:var(--text-3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -607,7 +626,7 @@ function serienKarten(D, max, quelle){
     const istSt = x.quelle==="stake", farbe = istBf ? "var(--bf)" : istSt ? "var(--stake)" : "var(--poly)";
     const pmM = x.quelle==="poly" ? (D.polyFluss?.maerkte||[]).find(m=>m.key===x.id) : null;
     const kl = sp ? klick(titel, ohneHuelle(spielDetail(sp))) : pmM ? klick(titel, ohneHuelle(polyFlussDetail(pmM))) : "";
-    return `<div class="kk serie-k" style="box-shadow:inset 3px 0 0 ${farbe}" ${kl}>
+    return `<div class="kk serie-k" ${kl}>
       <div class="kk-oben">${istBf?flagge(x.land):sportIco(x.sport)}<span>${esc(ligaName(x.liga)||x.sport||"")}</span><span class="rechts">${rechts}</span></div>
       <div class="kk-titel">${titel} ${x.quelle==="poly"?waleTag(waleVon(x.id)):""}</div>
       <div class="serie-kopf"><span class="serie-n">🔁 ${x.n}× in Folge</span><span class="tag" style="background:${tint(farbe,16)};color:${farbe}">${istBf?"Betfair":istSt?"Stake":"Polymarket"}</span></div>
@@ -894,7 +913,7 @@ function setzenKarten(liste){
   if(!liste.length) return `<div class="leer">Gerade hält keine belegte Wallet eine Position in einem kommenden Spiel.</div>`;
   return `<div class="karten">${liste.map(o=>{
     const diff = o.jetzt!=null && o.preis!=null ? Math.round((o.jetzt-o.preis)*100) : null;
-    return `<div class="karte" style="border-left:3px solid var(--poly)"><div class="k1"><div style="min-width:0"><div class="auf">${sportIco(o.sport)} ${esc(nm(/^draw/i.test(o.seite)?"Draw":o.seite))}</div><div class="sp">${esc(o.spiel)}, ${wann(o.anpfiff)}</div></div><div class="pp" style="color:var(--poly)">${usd(o.usd)}</div></div>
+    return `<div class="karte"><div class="k1"><div style="min-width:0"><div class="auf">${sportIco(o.sport)} ${esc(nm(/^draw/i.test(o.seite)?"Draw":o.seite))}</div><div class="sp">${esc(o.spiel)}, ${wann(o.anpfiff)}</div></div><div class="pp" style="color:var(--poly)">${usd(o.usd)}</div></div>
       <div class="unten"><span>Einstieg <b style="color:var(--text)">${o.preis!=null?Math.round(o.preis*100)+" ¢":"–"}</b>${o.jetzt!=null?`, jetzt <b style="color:var(--text)">${Math.round(o.jetzt*100)} ¢</b>${diff?` <span style="color:${diff>0?"var(--up)":"var(--down)"}">${diff>0?"+":""}${diff}</span>`:""}`:""}</span></div>
       <div class="unten"><a href="https://polymarket.com/profile/${encodeURIComponent(o.wallet)}" target="_blank" rel="noopener">Wallet ${esc(String(o.wallet).slice(2,6))}</a><span style="color:var(--poly);font-weight:700">+${dez(o.clv)} pp auf Schlusskurs</span></div></div>`;}).join("")}</div>`;
 }
@@ -1197,23 +1216,35 @@ function topfFazit(t){
   if(t.einig) return `<div class="tp-fazit ok">✓ ${liste} setzen ${m.length>2?"alle":"beide"} auf ${nm(m[0][1])}</div>`;
   return `<div class="tp-fazit nein">⚠️ Uneinig: ${m.map(([q,k])=>`${QUELLE[q].n} → ${nm(k)}`).join(" · ")}</div>`;
 }
+// Lucas 19.10. (2. Anlauf, „100 mal Polymarket", „graue Schrift auf grau", „Klammern links"): Quellen über FARBE statt
+// Wörter — Legende einmal oben im Panel. Oben ein Geld-Balken nach Quelle, darunter je Ausgang eine Kachel mit großer
+// Prozentzahl; in der Kachel stehen die Quellen, die dort ihr meistes Geld haben, als kräftige Farb-Chips.
 function topfKarte(t, i, maxGes){
-  const qs = Object.entries(t.q||{}).filter(([,q])=>q.betrag>0);
+  const qs = Object.entries(t.q||{}).filter(([,q])=>q.betrag>0).sort((a,b)=>b[1].betrag-a[1].betrag);
   const live = t.live ? `<span class="live">${t.live.min!=null?t.live.min+"'":"live"}</span> ${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}` : wann(t.anpfiff);
-  const wk = (t.wale||[]).filter(x=>x.k), wSum = wk.reduce((a,x)=>a+x.usd,0);
-  const urteil = t.einig===true ? `<span class="tp-urteil ok">einig</span>` : t.einig===false ? `<span class="tp-urteil nein">uneinig</span>` : "";
-  const wal = wk.length ? `<div class="tp-fazit wal">🧠 Belegter Wal: ${usd(wSum)} auf <b>${esc(wk[0].k==="remis"?"Remis":seitenName(t,wk[0].k))}</b></div>` : "";
+  const urteil = t.einig===true ? `<span class="tp-urteil ok">✓ einig</span>` : t.einig===false ? `<span class="tp-urteil nein">uneinig</span>` : "";
+  const gesQ = qs.reduce((a,[,q])=>a+(q.eur||q.betrag),0) || 1;
+  const geldBalken = `<div class="tp-gb">${qs.map(([qn,q])=>`<i style="flex:${q.eur||q.betrag} 1 0;background:${QUELLE[qn].f}"></i>`).join("")}</div>
+    <div class="tp-gz">${qs.map(([qn,q])=>`<span style="color:${QUELLE[qn].f}">${geldIn(qn,q.betrag)}${qn==="stake"&&q.wetten?`<small> · ${q.wetten} Wetten</small>`:""}</span>`).join("")}</div>`;
+  const keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
+  const sw = t.seiten||{}, gesS = keys.reduce((a,k)=>a+(sw[k]||0),0);
+  const lead = gesS ? keys.reduce((a,k)=>(sw[k]||0)>(sw[a]||0)?k:a, keys[0]) : null;
+  const kacheln = gesS ? `<div class="tp-k${keys.length===2?" zwei":""}">${keys.map(k=>{
+    const chips = qs.filter(([,q])=>q.auf===k).map(([qn,q])=>`<span class="tp-c${q.meinung?"":" schwach"}" style="--f:${QUELLE[qn].f}" title="${QUELLE[qn].n}: ${q.anteil} % ihres Geldes auf ${esc(k2n(t,k))}">${q.anteil} %</span>`).join("");
+    const wk = (t.wale||[]).filter(x=>x.k===k), wS = wk.reduce((a,x)=>a+x.usd,0);
+    return `<div class="tp-kk${k===lead?" lead":""}"><span class="n">${esc(k2n(t,k))}</span><b>${Math.round((sw[k]||0)/gesS*100)} %</b><div class="tp-cs">${chips}${wk.length?`<span class="tp-c wal" title="belegte Wallets">🧠 ${usd(wS)}</span>`:""}</div></div>`;
+  }).join("")}</div>` : `<div class="tp-hinweis">Noch keine Aufteilung nach Seiten</div>`;
   return `<div class="topf" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
     <div class="tp-kopf">
       <span class="tp-rang">${i+1}</span>
       <div class="tp-titel"><b>${esc(t.heim)} – ${esc(t.gast)}</b><span>${t.land?flagge(t.land):sportIco(t.sport)} ${esc(ligaName(t.liga)||t.sport||"")} · ${live}</span></div>
       <div class="tp-summe"><b>≈ ${eur(t.gesamt)}</b>${urteil}</div>
     </div>
-    ${seitenBalken(t, true)}
-    <div class="tp-qz">${qs.map(([qn,q])=>`<div class="tp-q" style="--f:${QUELLE[qn].f}"><span class="qn">${QUELLE[qn].n}</span><span class="qg">${geldIn(qn,q.betrag)}${qn==="stake"&&q.wetten?` <small>${q.wetten} Wetten</small>`:""}</span><span class="qa${q.meinung?"":" schwach"}">${q.auf?`${q.anteil} % auf <b>${esc(k2n(t,q.auf))}</b>`:"keine Seite"}</span></div>`).join("")}</div>
-    ${wal}
+    ${geldBalken}
+    ${kacheln}
   </div>`;
 }
+const quellenLegende = () => `<span class="legende">${Object.values(QUELLE).map(q=>`<span><i style="background:${q.f}"></i>${q.n}</span>`).join("")}</span>`;
 function topfDetail(t){
   const sp = (D.radar.spiele||[]).find(x=>x.id===t.id);
   const bloecke = Object.entries(t.q||{}).map(([qn,q])=>{
@@ -1282,7 +1313,7 @@ function seiteStart(D){
   return `<div class="grid">
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div><div class="feed">${feedListe(D,5,1)}</div></div>
     ${serienDa?serienPanel:""}
-    <div class="panel c8 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3><span class="hint">Wie viel Geld auf einem Spiel liegt und auf welcher Seite — Betfair, Polymarket und Stake zusammen</span></div>${toepfeListe(D,mobil?5:8)}</div>
+    <div class="panel c8 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3>${quellenLegende()}</div>${toepfeListe(D,mobil?5:8)}</div>
     <div class="panel c4 feedpanel"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span><button class="chip rechts" data-geh="feed">Alle</button></div><div class="feed">${feedListe(D,14)}</div></div>
     ${serienDa?"":serienPanel}
     <div class="panel c6"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">vor Anpfiff, 30 Min</span><button class="chip rechts" data-geh="betfair">Alle</button></div>${kompaktZufluss(D,4)}</div>
