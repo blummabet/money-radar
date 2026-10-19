@@ -1677,17 +1677,29 @@ function bcZeigen(ev){
 // Lucas 19.10. („Wann heute das Geld spielt — was mach ich damit?"): stattdessen, wohin JETZT Geld fließt —
 // Spiele nach neuem Betfair-Geld der letzten 30 Min, mit der Auswahl, die davon am meisten bekam.
 function jetztFliesst(D, n=8){
-  const S = lf(D.radar.spiele||[]).filter(s=>(s.d30||0)>0 && !s.entschieden && !s.klarVorn).sort((a,b)=>b.d30-a.d30).slice(0,n);
+  // Lucas-Fall 19.10. (Al Nahdha 66' 3:0, „Über 2,5"): Geld auf schon entschiedene Linien oder Quoten unter 1,20 ist
+  // Abrechnung/Einsammeln, kein Signal → zählt nicht. Gewertet wird nur das übrige neue Geld.
+  const tote = (s, markt, name, quote) => {
+    if(quote && quote < 1.20) return true;
+    if(!s.live || !s.live.stand) return false;
+    const tore = (s.live.stand[0]||0) + (s.live.stand[1]||0);
+    const m = /Over\/Under (\d+\.5) Goals/.exec(markt||""); if(!m) return false;
+    return tore > parseFloat(m[1]);                       // Linie schon drüber: Über gewonnen, Unter verloren
+  };
+  const S = lf(D.radar.spiele||[]).filter(s=>(s.d30||0)>0 && !s.entschieden && !s.klarVorn).map(s=>{
+    let top = null, mk = null, eff = 0, mitSel = false;
+    for(const m of s.maerkteDetail||[]) for(const x of m.auswahl||[]){ if(x.neu==null) continue; mitSel = true;
+      if(x.neu<=0 || tote(s, m.name, x.name, x.quote)) continue; eff += x.neu; if(!top || x.neu>top.neu){ top = x; mk = m; } }
+    return {s, top, mk, eff: mitSel ? eff : s.d30};
+  }).filter(x=>x.eff >= 1000).sort((a,b)=>b.eff-a.eff).slice(0,n);
   if(!S.length) return `<div class="leer">In den letzten 30 Minuten floss nirgends nennenswert neues Geld.</div>`;
-  const max = S[0].d30;
-  return `<div class="jf">${S.map(s=>{
-    let top = null, mk = null;
-    for(const m of s.maerkteDetail||[]) for(const x of m.auswahl||[]) if(x.neu>0 && (!top || x.neu>top.neu)){ top = x; mk = m; }
+  const max = S[0].eff;
+  return `<div class="jf">${S.map(({s,top,mk,eff})=>{
     const anteil = top && mk && mk.neu ? Math.round(top.neu/mk.neu*100) : null;
     const zeit = s.live ? `<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}` : wann(s.anpfiff);
     return `<div class="jf-z" ${klick(esc(s.heim)+" – "+esc(s.gast), ohneHuelle(spielDetail(s)))}>
       <div class="jf-l">${flagge(s.land)}<div style="min-width:0"><b>${esc(s.heim)} – ${esc(s.gast)}</b><small>${zeit} · ${esc(ligaName(s.liga))}</small></div></div>
-      <div class="jf-b"><i style="width:${Math.max(4,s.d30/max*100).toFixed(1)}%"></i><span>+${eur(s.d30)}</span></div>
+      <div class="jf-b"><i style="width:${Math.max(4,eff/max*100).toFixed(1)}%"></i><span>+${eur(eff)}</span></div>
       <div class="jf-r">${top?`<b>${esc(auswahlDe(top.name))}</b><small>${anteil!=null?`${anteil} % von ${esc(marktDe(mk.name))}`:esc(marktDe(mk.name))}${top.quote?` · @ ${q2(top.quote)}`:""}</small>`:(s.marktZufluss||[])[0]?`<b>${esc(marktDe(s.marktZufluss[0].name))}</b><small>meistes neues Geld in diesem Markt</small>`:`<small>verteilt</small>`}</div>
     </div>`; }).join("")}</div>`;
 }
