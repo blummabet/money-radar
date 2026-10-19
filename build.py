@@ -1935,7 +1935,9 @@ def main() -> int:
             "zufluss": stand(overview, "generatedAt"),
             "pinnacle": stand(consensus, "generatedAt"),
             "polymarket": stand(track, "updatedAt"),
-            "stake": max((z.get("sentAt") or "" for z in burst or [] if isinstance(z, dict)), default=None) or None,
+            # Stand = letzter Abruf (asof), nicht letzte Meldung — sonst wirkt Stake in ruhigen Phasen „alt"
+            "stake": (laden_bf("stake_highroller.json", ".st") or {}).get("asof")
+                     or max((z.get("sentAt") or "" for z in burst or [] if isinstance(z, dict)), default=None) or None,
             "hz": stand(finder, "updatedAt"),
             "stakeAbruf": (hr or {}).get("asof"),
         },
