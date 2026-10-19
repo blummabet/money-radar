@@ -160,6 +160,15 @@ main{padding:22px 28px 60px;min-width:0}
 .tp-sl b{font-variant-numeric:tabular-nums}
 .tp-raster.zwei{grid-template-columns:1fr 1fr}
 .tp-quellen{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;color:var(--text-3)}
+/* Lucas 19.10.: „sah besser aus mit den verschiedenen Sourcen" — je Quelle eine lesbare Zeile: Name, Geld, wohin */
+.tp-qz{display:grid;gap:5px;margin-top:4px}
+.tp-q{display:grid;grid-template-columns:minmax(92px,auto) auto 1fr;align-items:center;gap:10px;font-size:13.5px;padding:6px 10px;border-radius:9px;background:color-mix(in srgb, var(--f) 9%, var(--panel-2));border-left:3px solid var(--f)}
+.tp-q .qn{color:var(--f);font-weight:700}
+.tp-q .qg{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
+.tp-q .qa{color:var(--text-2);text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tp-q .qa b{color:var(--text)}
+.tp-q .qa.schwach{color:var(--text-3)}
+.tp-q small{color:var(--text-3);font-size:11.5px;font-weight:500}
 .tp-quellen span{display:inline-flex;align-items:center;gap:6px}
 .tp-quellen i{width:8px;height:8px;border-radius:2px}
 .tp-quellen b{color:var(--text);font-variant-numeric:tabular-nums}
@@ -288,6 +297,36 @@ main{padding:22px 28px 60px;min-width:0}
 .pleg i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:4px}
 .pleg b{color:var(--text)}
 .qpills{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.hz-ch{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;font-size:12px;font-weight:700;margin-top:6px}
+.hz-ch span{font-weight:500;color:var(--text-2)} .hz-ch b{color:var(--text)}
+.hz-ch.c-hoch{color:#ff9a5c} .hz-ch.c-niedrig{color:#7fb8ff} .hz-ch.ohne{color:var(--text-3);font-weight:500}
+.hzv{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.hzv-k{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px}
+.hzv-k.c-hoch{border-color:rgba(255,154,92,.45)} .hzv-k.c-niedrig{border-color:rgba(127,184,255,.35)}
+.hzv-n{font-weight:700;font-size:14px} .hzv-n small{display:block;font-weight:500;color:var(--text-3);font-size:11.5px}
+.hzv-z b{font-size:26px;font-variant-numeric:tabular-nums} .hzv-z small{display:block;color:var(--text-3);font-size:12px}
+.hzv-r{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--text-2)}
+.hzs{display:grid;gap:4px}
+.hzs-z{display:grid;grid-template-columns:minmax(0,1fr) 48px 64px 48px 78px 78px;gap:8px;align-items:center;padding:7px 10px;border-radius:9px;background:var(--panel-2);font-size:13px;border-left:3px solid transparent}
+.hzs-z.hzs-kopf{background:none;color:var(--text-3);font-size:11.5px;padding-top:0;padding-bottom:0}
+.hzs-z.c-hoch{border-left-color:#ff9a5c} .hzs-z.c-niedrig{border-left-color:#7fb8ff}
+.hzs-s{display:flex;gap:8px;align-items:center;min-width:0} .hzs-s>span{min-width:0}
+.hzs-s b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.hzs-s small{display:block;color:var(--text-3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hzs-x,.hzs-e{font-variant-numeric:tabular-nums;color:var(--text-2)} .hzs-e{color:var(--text);font-weight:700}
+.hzs-w.ok{color:var(--up);font-weight:700} .hzs-w.no{color:var(--down);font-weight:700} .hzs-w small{color:var(--text-3);font-weight:500}
+.hzseg{display:grid;gap:4px}
+.hzseg-z{display:grid;grid-template-columns:minmax(0,1.6fr) 80px minmax(0,1.2fr) 70px 70px;gap:8px;align-items:center;padding:7px 10px;border-radius:9px;background:var(--panel-2);font-size:13px}
+.hzseg-z.basis{background:none;border:1px dashed var(--line)}
+.hzseg-z small{color:var(--text-3)}
+@media (max-width:700px){
+  .hzv{grid-template-columns:1fr}
+  .hzs-z{grid-template-columns:repeat(5,1fr);gap:4px 6px;font-size:12.5px;padding:8px 10px}
+  .hzs-s{grid-column:1/-1}
+  .hzs-z.hzs-kopf{font-size:10.5px} .hzs-z.hzs-kopf>span:first-child{display:none}
+  .hzseg-z{grid-template-columns:minmax(0,1fr) 66px 58px;font-size:12px} .hzseg-z>span{white-space:nowrap} .hzseg-z>span:first-child{white-space:normal} .hzseg-z>span:nth-child(2),.hzseg-z>span:nth-child(3){display:none}
+  .hzseg-z>span:nth-child(4)::before{content:"Tor ";color:var(--text-3)} .hzseg-z>span:nth-child(5)::before{content:"2+ ";color:var(--text-3)}
+}
 .qpills div{background:var(--panel-3);border-radius:9px;padding:6px 8px;text-align:center}
 .qpills small{display:block;font-size:11px;color:var(--text-3)}
 .qpills b{font-size:16px}
@@ -477,6 +516,7 @@ const kurz = (v, z) => { if(v==null) return "–"; const a=Math.abs(v), s=v<0?"-
   return s+z+(a>=1e6?(a/1e6).toFixed(a>=1e7?0:1).replace(".",",")+" Mio":a>=1e4?Math.round(a/1e3)+"k":a>=1e3?(a/1e3).toFixed(1).replace(".",",")+"k":Math.round(a)); };
 const eur = v => kurz(v,"€"), usd = v => kurz(v,"$");
 const dez = (v,n=1) => v==null ? "–" : Number(v).toFixed(n).replace(".",",");
+const tagKurz = iso => iso ? new Date(iso).toLocaleDateString("de-AT",{timeZone:TZ,day:"numeric",month:"numeric"}) : "–";
 const q2 = v => v==null ? "–" : Number(v).toFixed(2).replace(".",",");
 const istRemis = n => /^(the draw|draw|remis)/i.test(n||"");
 const nm = n => istRemis(n) ? "Remis" : n;
@@ -1093,6 +1133,7 @@ function hzSpielKarten(liste){
     return `<div class="kk">
       <div class="kk-oben">${flagge(e.land)}<span>${esc(e.liga)}</span><span class="rechts">${rechts}</span></div>
       <div class="kk-titel">${esc(e.spiel)}</div>
+      ${hzChancenZeile(e)}
       <div class="qpills">${Object.entries(nm2).map(([k,n])=>{ const r = ausw(k, ft);
         const kl = [r===true?"q-ok":r===false?"q-no":"", istTipp(k)?"q-tipp":""].join(" ");
         return `<div class="${kl}">${r===null?"":`<span class="q-z">${r?"✓":"✗"}</span>`}<small>${n}</small><b>${q2(e.quoten?.[k])}</b></div>`; }).join("")}</div>
@@ -1160,16 +1201,17 @@ function topfKarte(t, i, maxGes){
   const qs = Object.entries(t.q||{}).filter(([,q])=>q.betrag>0);
   const live = t.live ? `<span class="live">${t.live.min!=null?t.live.min+"'":"live"}</span> ${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}` : wann(t.anpfiff);
   const wk = (t.wale||[]).filter(x=>x.k), wSum = wk.reduce((a,x)=>a+x.usd,0);
+  const urteil = t.einig===true ? `<span class="tp-urteil ok">einig</span>` : t.einig===false ? `<span class="tp-urteil nein">uneinig</span>` : "";
   const wal = wk.length ? `<div class="tp-fazit wal">🧠 Belegter Wal: ${usd(wSum)} auf <b>${esc(wk[0].k==="remis"?"Remis":seitenName(t,wk[0].k))}</b></div>` : "";
   return `<div class="topf" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
     <div class="tp-kopf">
       <span class="tp-rang">${i+1}</span>
       <div class="tp-titel"><b>${esc(t.heim)} – ${esc(t.gast)}</b><span>${t.land?flagge(t.land):sportIco(t.sport)} ${esc(ligaName(t.liga)||t.sport||"")} · ${live}</span></div>
-      <div class="tp-summe"><b>≈ ${eur(t.gesamt)}</b></div>
+      <div class="tp-summe"><b>≈ ${eur(t.gesamt)}</b>${urteil}</div>
     </div>
     ${seitenBalken(t, true)}
-    ${topfFazit(t)}${wal}
-    <div class="tp-quellen">${qs.map(([qn,q])=>`<span><i style="background:${QUELLE[qn].f}"></i>${QUELLE[qn].n} ${geldIn(qn,q.betrag)}</span>`).join("")}</div>
+    <div class="tp-qz">${qs.map(([qn,q])=>`<div class="tp-q" style="--f:${QUELLE[qn].f}"><span class="qn">${QUELLE[qn].n}</span><span class="qg">${geldIn(qn,q.betrag)}${qn==="stake"&&q.wetten?` <small>${q.wetten} Wetten</small>`:""}</span><span class="qa${q.meinung?"":" schwach"}">${q.auf?`${q.anteil} % auf <b>${esc(k2n(t,q.auf))}</b>`:"keine Seite"}</span></div>`).join("")}</div>
+    ${wal}
   </div>`;
 }
 function topfDetail(t){
@@ -1310,10 +1352,51 @@ function seiteStake(D){
     ${Object.entries(st.bilanz||{}).map(([a,b])=>`<div class="panel kpi c3"><div class="lab">${icon("stake")}${esc(a)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Tipps, ${b.treffer} % Treffer</div></div>`).join("")}
   </div>`;
 }
+function hzChancenZeile(e){
+  if(!e.chancen) return `<div class="hz-ch ohne">keine Statistik zur 1. HZ</div>`;
+  const w = [e.xg!=null?`xG <b>${dez(e.xg)}</b>`:"", e.sot!=null?`aufs Tor <b>${e.sot}</b>`:""].filter(Boolean).join(" · ");
+  return `<div class="hz-ch c-${e.chancen}">${e.chancen==="hoch"?"🔥 Chancen da":"🧊 Wenig Chancen"}<span>${w}</span></div>`;
+}
+// Lucas 19.10.: „will die Spiele sehen, wo wir die xG-Daten haben, damit ich seh, ob die besser performen"
+let hzFilter = "alle";
+function hzVergleich(cb){
+  const sp = [["hoch","🔥 Chancen da","xG ≥ 1,0 oder ≥ 5 aufs Tor"],["niedrig","🧊 Wenig Chancen","darunter"],["ohne","Ohne Statistik","im selben Zeitraum"]];
+  const roi = v => v==null ? "–" : `<b style="color:${v>0?"var(--up)":"var(--down)"}">${v>0?"+":""}${dez(v)} %</b>`;
+  return `<div class="hzv">${sp.map(([k,n,u])=>{ const b = cb[k]||{}; return `<div class="hzv-k c-${k}">
+      <div class="hzv-n">${n}<small>${u}</small></div>
+      <div class="hzv-z"><b>${b.torPct??"–"} %</b><small>noch ein Tor · ${b.n||0} Spiele</small></div>
+      <div class="hzv-r"><span>Tor 2. HZ ${roi(b.o05Roi)}</span><span>2+ Tore ${roi(b.o15Roi)}</span></div>
+    </div>`; }).join("")}</div>
+    <div class="hint" style="margin-top:8px">ROI = Ergebnis pro 1 € Einsatz zur Pausen-Quote. ${(cb.hoch?.n||0)<50?"Unter 50 Spielen je Gruppe ist das noch ein Hinweis, kein Beweis.":""}</div>`;
+}
+function hzStatsListe(cb){
+  const l = (cb.spiele||[]).filter(e=>hzFilter==="alle"||e.chancen===hzFilter);
+  const zz = (w, q) => w==null ? `<span class="hzs-w">–</span>` : `<span class="hzs-w ${w?"ok":"no"}">${w?"✓":"✗"} <small>${q2(q)}</small></span>`;
+  return `<div class="chips" style="margin-bottom:10px">${[["alle","Alle"],["hoch","🔥 Chancen da"],["niedrig","🧊 Wenig Chancen"]].map(([k,n])=>`<button class="chip${k===hzFilter?" an":""}" data-hzf="${k}">${n} <span style="opacity:.6">${k==="alle"?(cb.spiele||[]).length:(cb.spiele||[]).filter(e=>e.chancen===k).length}</span></button>`).join("")}</div>
+    <div class="hzs">
+      <div class="hzs-z hzs-kopf"><span>Spiel</span><span>xG</span><span>aufs Tor</span><span>Ende</span><span>Tor 2. HZ</span><span>2+ Tore</span></div>
+      ${l.slice(0,15).map(hzsZeile).join("")}
+    </div>${l.length>15?liste(`Weitere ${l.length-15} Spiele`, "", `<div class="hzs" style="margin-top:8px">${l.slice(15).map(hzsZeile).join("")}</div>`):""}`;
+}
+function hzsZeile(e){
+  const zz = (w, q) => w==null ? `<span class="hzs-w">–</span>` : `<span class="hzs-w ${w?"ok":"no"}">${w?"✓":"✗"} <small>${q2(q)}</small></span>`;
+  return `<div class="hzs-z c-${e.chancen}"><span class="hzs-s">${flagge(e.land)}<span><b>${esc(e.spiel)}</b><small>${esc(ligaName(e.liga)||"")} · ${tagKurz(e.zeit)}</small></span></span>
+        <span class="hzs-x">${e.xg!=null?dez(e.xg):"–"}</span><span class="hzs-x">${e.sot??"–"}</span>
+        <span class="hzs-e">${Array.isArray(e.ft)?e.ft.join(":"):"–"}</span>
+        ${zz(e.gewonnen?.over05, e.quoten?.over05)}${zz(e.gewonnen?.over15, e.quoten?.over15)}</div>`;
+}
+function hzSegmente(cb){
+  const sg = cb.segmente||[]; if(!sg.length) return "";
+  const roi = v => v==null ? "–" : `<b style="color:${v>0?"var(--up)":"var(--down)"}">${v>0?"+":""}${dez(v)} %</b>`;
+  return `<div class="hzseg">${sg.map((g,i)=>`<div class="hzseg-z${i===0?" basis":""}"><span>${esc(g.name)}</span><span>${g.n} Spiele</span><span>${g.o05Pct} % Tor <small>(Quote sagte ${g.o05Erw} %)</small></span><span>${roi(g.o05Roi)}</span><span>${roi(g.o15Roi)}</span></div>`).join("")}</div>`;
+}
 function seiteHz(D){
   const z = D.hz;
   return `<div class="grid">
     <div class="panel c12"><div class="ph"><h3>Zur Pause 0:0</h3><span class="hint">letzte 24 Stunden, Quoten zur Pause · ✓/✗ nach Abpfiff · Strich unten = vom Signal gespielt</span></div>${hzSpielKarten(z.heute||[])}</div>
+    <div class="panel c12"><div class="ph"><h3>Bringt die Statistik was?</h3><span class="hint">Chancen in der 1. HZ und was danach passierte, alle abgerechneten Spiele seit ${tagKurz(z.chancenBuch?.seit)}</span></div>${hzVergleich(z.chancenBuch||{})}</div>
+    <div class="panel c12"><div class="ph"><h3>Spiele mit Statistik</h3><span class="hint">die letzten 60 · ✓/✗ = Wette zur Pausen-Quote</span></div><div id="hz-stats">${hzStatsListe(z.chancenBuch||{})}</div></div>
+    <div class="panel c12"><div class="ph"><h3>Auswahl schärfer?</h3><span class="hint">Tor-Gruppe in Teilen · nur beobachtet, filtert nichts · Spalten: Tor 2. HZ ROI, 2+ Tore ROI</span></div>${hzSegmente(z.chancenBuch||{})}</div>
     ${(z.bericht||[]).map(b=>`<div class="panel kpi c4"><div class="lab">${icon("hz")}${esc(b.wette)}</div><div class="wert" style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</div><div class="neben">${b.n} Spiele · ${dez(b.treffer,0)} % getroffen, Quote sagte ${dez(b.erwartet,0)} %</div></div>`).join("")}
   </div>`;
 }
@@ -1387,6 +1470,7 @@ document.addEventListener("click", e=>{
   const dk = e.target.closest("[data-dr]"); if(dk && !e.target.closest("a")){ drOeffnen(dk.dataset.dr); return; }
   const g = e.target.closest("[data-geh]"); if(g){ gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
   const sp = e.target.closest("[data-sport]"); if(sp){ filterSport = sp.dataset.sport; $("#s-poly").innerHTML = seitePoly(D); return; }
+  const hf = e.target.closest("[data-hzf]"); if(hf){ hzFilter = hf.dataset.hzf; $("#hz-stats").innerHTML = hzStatsListe(D.hz.chancenBuch||{}); return; }
   const fd = e.target.closest("[data-feed]"); if(fd){ filterFeed = fd.dataset.feed; $("#s-feed").innerHTML = seiteFeed(D); return; }
   const pu = e.target.closest("[data-push]"); if(pu){ filterPush = pu.dataset.push; $("#pushpanel").innerHTML = pushPanel(D); return; }
   const f = e.target.closest("[data-filter]"); if(f){ filterBf = f.dataset.filter; $("#s-betfair").innerHTML = seiteBetfair(D); return; }

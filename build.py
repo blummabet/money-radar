@@ -639,6 +639,8 @@ def hz(finder):
                       "minute": e.get("minute"), "zufluss": e.get("zufluss"),
                       "statistik": (e.get("apif") or {}).get("statistik"),
                       "chancen": hz_chancen((e.get("apif") or {}).get("statistik")),
+                      "xg": _hz_summe((e.get("apif") or {}).get("statistik"), "xg"),
+                      "sot": _hz_summe((e.get("apif") or {}).get("statistik"), "aufsTor"),
                       "serie": {**(e.get("serie") or {}), **((e.get("apif") or {}).get("serie") or {})}})
     heute.sort(key=lambda r: r["zeit"] or "", reverse=True)
     bericht = []
@@ -666,27 +668,59 @@ def hz_chancen(st):
     return None
 
 
+def _hz_gruppe(rows):
+    """n, Tor-%, Quote-erwartet-% und ROI für Over 0,5 / Over 1,5 (2. HZ) über abgerechnete Funde."""
+    b = {"n": len(rows), "tor": sum(int(sum(e["ft"]) > 0) for e in rows)}
+    b["torPct"] = round(100 * b["tor"] / b["n"]) if b["n"] else None
+    for w, feld in (("over05", "o05"), ("over15", "o15")):
+        v = [((e.get("wetten") or {}).get(w) or {}) for e in rows]
+        v = [x for x in v if isinstance(x.get("r"), (int, float)) and x.get("quote")]
+        b[feld + "N"] = len(v)
+        b[feld + "Roi"] = round(100 * sum(x["r"] for x in v) / len(v), 1) if v else None
+        b[feld + "Erw"] = round(100 * sum(1 / x["quote"] for x in v) / len(v)) if v else None
+        b[feld + "Pct"] = round(100 * sum(bool(x.get("win")) for x in v) / len(v)) if v else None
+    return b
+
+
+def _hz_summe(st, feld):
+    h, g = (st or {}).get("heim") or {}, (st or {}).get("gast") or {}
+    return round(h[feld] + g[feld], 2) if h.get(feld) is not None and g.get(feld) is not None else None
+
+
 def hz_chancen_buch(f):
-    """Wie oft fiel nach einem HZ-0:0 noch ein Tor (und was brachten die Wetten), getrennt nach Chancen in der
-    1. HZ. Rechnet über ALLE abgerechneten Funde im Buch des alten HZ-Finders — wächst mit jedem Spieltag."""
-    out = {}
-    for e in (f or {}).get("eintraege") or []:
-        k = hz_chancen((e.get("apif") or {}).get("statistik"))
-        if not k or not e.get("ft"):
-            continue
-        b = out.setdefault(k, {"n": 0, "tor": 0, "o05": [], "o15": []})
-        b["n"] += 1
-        b["tor"] += int(sum(e["ft"]) > 0)
-        for w, feld in (("over05", "o05"), ("over15", "o15")):
-            r = ((e.get("wetten") or {}).get(w) or {}).get("r")
-            if isinstance(r, (int, float)):
-                b[feld].append(r)
-    for b in out.values():
-        b["torPct"] = round(100 * b["tor"] / b["n"]) if b["n"] else None
-        for feld in ("o05", "o15"):
-            v = b.pop(feld)
-            b[feld + "Roi"] = round(100 * sum(v) / len(v), 1) if v else None
-            b[feld + "N"] = len(v)
+    """Lucas 19.10.: „will die Spiele sehen, wo wir die xG-Daten haben, damit ich seh, ob die besser performen".
+    Über ALLE abgerechneten Funde im Buch des alten HZ-Finders (wächst mit jedem Spieltag):
+      hoch / niedrig / ohne — Chancen in der 1. HZ; 'ohne' nur ab dem ersten Spiel mit Statistik, sonst
+      vergleicht man alte Wochen mit neuen.
+      segmente — Schatten-Auswahl für die Tor-Gruppe (nur beobachtet, filtert nichts)."""
+    fertig = [e for e in (f or {}).get("eintraege") or [] if e.get("ft") and len(e["ft"]) == 2]
+    mit = [e for e in fertig if (e.get("apif") or {}).get("statistik")]
+    ab = min((e.get("gebuchtAt") or "" for e in mit), default="")
+    ch = lambda e: hz_chancen((e.get("apif") or {}).get("statistik"))
+    out = {"hoch": _hz_gruppe([e for e in fertig if ch(e) == "hoch"]),
+           "niedrig": _hz_gruppe([e for e in fertig if ch(e) == "niedrig"]),
+           "ohne": _hz_gruppe([e for e in fertig if ch(e) is None and (e.get("gebuchtAt") or "") >= ab]),
+           "seit": ab or None}
+    tore = [e for e in fertig if "tore" in (e.get("gruppen") or [])]
+    vor = lambda e: ((e.get("vor") or {}).get("over25"))
+    q05 = lambda e: ((e.get("quoten") or {}).get("over05"))
+    seg = [("Alle Tor-Spiele", tore),
+           ("vor Anpfiff Über 2,5 bis 1,55", [e for e in tore if vor(e) and vor(e) <= 1.55]),
+           ("vor Anpfiff Über 2,5 über 1,55", [e for e in tore if vor(e) and vor(e) > 1.55]),
+           ("Pausen-Quote Tor unter 1,20", [e for e in tore if q05(e) and q05(e) < 1.20]),
+           ("Pausen-Quote Tor ab 1,20", [e for e in tore if q05(e) and q05(e) >= 1.20]),
+           ("Chancen da + vor Anpfiff bis 1,55", [e for e in tore if ch(e) == "hoch" and vor(e) and vor(e) <= 1.55])]
+    out["segmente"] = [{"name": n, **_hz_gruppe(r)} for n, r in seg if r]
+    spiele = []
+    for e in sorted(mit, key=lambda e: e.get("gebuchtAt") or "", reverse=True)[:60]:
+        st = (e.get("apif") or {}).get("statistik")
+        w = e.get("wetten") or {}
+        spiele.append({"spiel": f"{e.get('home')} – {e.get('away')}", "liga": e.get("league"), "land": e.get("country"),
+                       "zeit": e.get("gebuchtAt"), "ft": e.get("ft"), "chancen": ch(e),
+                       "xg": _hz_summe(st, "xg"), "sot": _hz_summe(st, "aufsTor"), "vor": vor(e),
+                       "quoten": {k: (e.get("quoten") or {}).get(k) for k in ("over05", "over15")},
+                       "gewonnen": {k: (w.get(k) or {}).get("win") for k in ("over05", "over15") if k in w}})
+    out["spiele"] = spiele
     return out
 
 
