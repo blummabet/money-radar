@@ -747,6 +747,13 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
   .is-z{grid-template-columns:minmax(0,1fr) 70px 54px;row-gap:6px} .is-t{grid-column:1/-1;grid-row:2}
   .pz-z{grid-template-columns:minmax(0,1fr) auto;row-gap:6px} .pz-t{grid-column:1/-1;grid-row:2}
 }
+
+.mb{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.mb-z{display:grid;grid-template-columns:minmax(0,1fr) 56px 34px auto;gap:8px;align-items:center;font-size:12.5px}
+.mb-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-2)} .mb-n small{color:var(--text-3)}
+.mb-t{height:8px;background:var(--flaeche-2);border-radius:4px;overflow:hidden} .mb-t i{display:block;height:100%;border-radius:4px;background:color-mix(in srgb, var(--text-3) 45%, transparent)}
+.mb-z.top .mb-n{color:var(--text);font-weight:700} .mb-z.top .mb-t i{background:var(--bf)}
+.mb-z b{text-align:right} .mb-z em:empty{display:none} .mb-z em{font-style:normal;font-size:11.5px;color:var(--up);font-weight:700;text-align:right;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -840,8 +847,8 @@ function legende(teile, zusatz){
 }
 function normPill(x){
   if(x==null) return `<span class="norm" style="background:var(--panel-3);color:var(--text-3)">–</span>`;
-  const f = x>=3 ? "#ff5d5d" : x>=1.5 ? "#ff9f43" : x>=1 ? "#ffd166" : "#7d8aa3";
-  return `<span class="norm" style="background:${tint(f,18)};color:${f}">×${dez(x)}</span>`;
+  const f = x>=3 ? "var(--down)" : x>=1.5 ? "var(--bf)" : x>=1 ? "var(--text-2)" : "var(--text-3)";
+  return `<span class="norm" style="background:${tint(f,14)};color:${f}">×${dez(x)}</span>`;
 }
 
 function statusZelle(s){
@@ -918,11 +925,11 @@ function flussSankey(fl, PAL){
     const h = Math.max(2, f.neu/ges*hoch);
     const sl = Math.max(SLOT, h) ; const r0 = yS + (sl - Math.min(h, sl))/2, r1 = r0 + Math.min(h, sl);
     const l0 = yL, l1 = yL + f.neu/ges*hoch, xm = (xL+bL+xR)/2, c = farbe(f.markt);
-    out += `<path d="M${xL+bL},${l0.toFixed(1)} C${xm},${l0.toFixed(1)} ${xm},${r0.toFixed(1)} ${xR},${r0.toFixed(1)} L${xR},${r1.toFixed(1)} C${xm},${r1.toFixed(1)} ${xm},${l1.toFixed(1)} ${xL+bL},${l1.toFixed(1)} Z" fill="${c}" opacity="${f.quote&&f.quote<1.2?.28:.55}"><title>${esc(auswahlDe(f.name))}: +${eur(f.neu)}</title></path>`;
-    out += `<rect x="${xR}" y="${r0.toFixed(1)}" width="${bR}" height="${(r1-r0).toFixed(1)}" rx="2" fill="${c}"/>`;
+    out += `<path d="M${xL+bL},${l0.toFixed(1)} C${xm},${l0.toFixed(1)} ${xm},${r0.toFixed(1)} ${xR},${r0.toFixed(1)} L${xR},${r1.toFixed(1)} C${xm},${r1.toFixed(1)} ${xm},${l1.toFixed(1)} ${xL+bL},${l1.toFixed(1)} Z" style="fill:${c}" opacity="${f.quote&&f.quote<1.2?.28:.55}"><title>${esc(auswahlDe(f.name))}: +${eur(f.neu)}</title></path>`;
+    out += `<rect x="${xR}" y="${r0.toFixed(1)}" width="${bR}" height="${(r1-r0).toFixed(1)}" rx="2" style="fill:${c}"/>`;
     const ym = (r0+r1)/2, pct = Math.round(f.neu/ges*100);
     lab += `<text x="${xR+bR+8}" y="${(ym-3).toFixed(1)}" font-size="12" font-weight="700" fill="var(--text)">${esc((f.markt==="_rest"?"Übrige Märkte":auswahlDe(f.name)).slice(0,22))}${f.quote?` <tspan font-weight="500" fill="var(--text-3)">${q2(f.quote)}</tspan>`:""}</text>`
-         + `<text x="${xR+bR+8}" y="${(ym+11).toFixed(1)}" font-size="10.5" fill="var(--text-2)"><tspan fill="${c}" font-weight="700">+${eur(f.neu)}</tspan> · ${pct} %${f.markt!=="_rest"?` · ${esc(marktDe(f.markt).slice(0,16))}`:""}</text>`;
+         + `<text x="${xR+bR+8}" y="${(ym+11).toFixed(1)}" font-size="10.5" fill="var(--text-2)"><tspan style="fill:${c}" font-weight="700">+${eur(f.neu)}</tspan> · ${pct} %${f.markt!=="_rest"?` · ${esc(marktDe(f.markt).slice(0,16))}`:""}</text>`;
     yL = l1; yS += sl + GAP;
   });
   const topf = `<rect x="${xL}" y="${(H-hoch)/2}" width="${bL}" height="${hoch}" rx="3" fill="var(--text-2)"/>`;
@@ -969,7 +976,7 @@ function spielVerlauf(s){
 }
 function spielDetail(s, ohneVerlauf){
   const md = s.maerkteDetail || [], fm = s.fensterMin || 30;
-  const PAL = ["#ffb547","#5b9dff","#7d8aa3","#a183ff","#2fd38a","#ff77a8"];
+  const PAL = ["var(--bf)","var(--pin)","var(--text-3)","var(--poly)","var(--stake)","var(--hz)"];
   // 1) wohin floss das neue Geld — quer über alle Märkte, je Auswahl
   const fl = [];
   for(const m of md) for(const a of m.auswahl) if(a.neu>0) fl.push({markt:m.name, name:a.name, neu:a.neu, quote:a.quote, anteil: m.neu? Math.round(a.neu/m.neu*100):null});
@@ -983,12 +990,11 @@ function spielDetail(s, ohneVerlauf){
     const R = 26, U = 2*Math.PI*R, ges = teile.reduce((x,t)=>x+t.w,0)||1; let off = 0;
     return `<svg width="70" height="70" viewBox="0 0 70 70" aria-hidden="true"><circle cx="35" cy="35" r="${R}" fill="none" stroke="var(--panel-3)" stroke-width="10"/>${teile.map(t=>{ const l = t.w/ges*U; const c = `<circle cx="35" cy="35" r="${R}" fill="none" stroke="${t.f}" stroke-width="10" stroke-dasharray="${l.toFixed(2)} ${(U-l).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 35 35)"/>`; off += l; return c; }).join("")}<text x="35" y="39" text-anchor="middle" style="fill:var(--text)" font-size="12" font-weight="800" font-family="Manrope">${mitte}</text></svg>`;
   };
+  // Lucas 19.10.: Märkte als Balken je Auswahl statt Kreise — die führende Auswahl in Betfair-Farbe
   const marktBlock = `<div class="mgrid">${md.map(m=>{
-    const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1;
-    const teile = m.auswahl.map((a,i)=>({w:a.eur, f:PAL[i%PAL.length]}));
+    const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1, topE = Math.max(...m.auswahl.map(a=>a.eur));
     return `<div class="mk"><div class="mk-k"><b>${esc(marktDe(m.name))}</b><span>${eur(m.eur)}${m.neu>0?` <em>+${eur(m.neu)}</em>`:""}</span></div>
-      <div class="mk-i">${donut(teile, Math.round(m.auswahl[0].eur/ges*100)+"%")}
-      <div class="mk-l">${m.auswahl.slice(0,4).map((a,i)=>`<div><i style="background:${PAL[i%PAL.length]}"></i><span>${esc(auswahlDe(a.name))}${a.quote?` <small>${q2(a.quote)}</small>`:""}</span><b>${Math.round(a.eur/ges*100)}%</b>${a.neu>0?`<em>+${eur(a.neu)}</em>`:""}</div>`).join("")}</div></div></div>`;
+      <div class="mb">${m.auswahl.slice(0,4).map(a=>`<div class="mb-z${a.eur===topE?" top":""}"><span class="mb-n">${esc(auswahlDe(a.name))}${a.quote?` <small>${q2(a.quote)}</small>`:""}</span><div class="mb-t"><i style="width:${(a.eur/ges*100).toFixed(1)}%"></i></div><b>${Math.round(a.eur/ges*100)} %</b>${a.neu>0?`<em>+${eur(a.neu)}</em>`:"<em></em>"}</div>`).join("")}</div></div>`;
   }).join("")}</div>`;
   return `<tr class="detail"><td colspan="6"><div class="det">${ohneVerlauf?"":spielVerlauf(s)}
     <div class="d-kopf">${flagge(s.land)} ${esc(s.liga)} · ${s.live?`<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}`:wann(s.anpfiff)} · ${eur(s.eur)} gematcht über alle Märkte${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}</div>
@@ -997,7 +1003,7 @@ function spielDetail(s, ohneVerlauf){
     ${(()=>{ const se = serieVon(D, s.id); return se ? `<div><h4>🔁 Dauerzufluss: ${se.n}× in Folge auf ${esc(auswahlDe(se.auswahl))} (${esc(marktDe(se.markt))}), ${eur(se.eur)} in ${se.dauerMin} Min</h4>${saeulenSvg(se.saeulen,"var(--bf)",320,44,5,se.tore)}</div>` : ""; })()}
     <div><h4>Wohin das neue Geld floss, letzte ${fm} Min</h4>${flussBlock}</div>
     <div><h4>Märkte</h4>${marktBlock||"–"}</div>
-    <div><h4>Geld im Spiel, letzte 10 Stunden</h4>${spark(s.kurve,"var(--bf)",320,48)}</div>
+    ${(s.reihe||[]).length>=3?"":`<div><h4>Geld im Spiel, letzte 10 Stunden</h4>${spark(s.kurve,"var(--bf)",320,48)}</div>`}
   </div></td></tr>`;
 }
 function spielTabelle(liste, id, max, mitVt=true){
