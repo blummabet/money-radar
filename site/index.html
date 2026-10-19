@@ -680,6 +680,16 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .wb-r{font-weight:800;text-align:right;font-size:15px}
 .wb-u{grid-column:2/4;font-size:11.5px;color:var(--text-3);margin-top:2px}
 @media (min-width:1300px){ .toepfe.p3{grid-template-columns:1fr 1fr 1fr} }
+
+.jf{display:flex;flex-direction:column;gap:2px}
+.jf-z{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,.9fr);gap:16px;align-items:center;padding:8px 8px;border-radius:10px;cursor:pointer}
+.jf-z:hover{background:var(--hover)}
+.jf-l{display:flex;gap:10px;align-items:center;min-width:0} .jf-l b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .jf-l small{display:block;font-size:12px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jf-b{display:flex;align-items:center;gap:8px}
+.jf-b i{display:block;height:10px;border-radius:5px;background:var(--bf)}
+.jf-b span{font-weight:800;font-size:14px;white-space:nowrap}
+.jf-r{text-align:right;min-width:0} .jf-r b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .jf-r small{display:block;font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:700px){ .jf-z{grid-template-columns:minmax(0,1fr) auto;row-gap:6px} .jf-b{grid-column:1/-1;grid-row:2} .jf-r{grid-column:2;grid-row:1} }
 </style>
 </head>
 <body>
@@ -1609,27 +1619,22 @@ function bcZeigen(ev){
   tip.style.opacity = 1; const links = i/(n-1) > .6;
   tip.style.left = links ? "" : `calc(${i/(n-1)*100}% + 12px)`; tip.style.right = links ? `calc(${(1-i/(n-1))*100}% + 12px)` : "";
 }
-// Wann spielt heute das Geld — Vorbild „Skypulse": oben die Summen je Quelle, darunter eine Zeitspur. Jede Stunde mit
-// Geld ist ein Block, quer geteilt nach Quelle; die Höhe zeigt, wie viel es ist (Wurzel, damit kleine Stunden sichtbar bleiben).
-function geldZeitleiste(D){
-  const jetzt = new Date(); jetzt.setMinutes(0,0,0);
-  const N = 24, std = Array.from({length:N},(_,i)=>new Date(+jetzt + i*36e5));
-  const T = lf(D.toepfe||[]).filter(top5Ok).filter(t=>!t.laeuft && t.anpfiff);
-  const eimer = std.map(()=>({betfair:0,poly:0,stake:0,n:0,top:null}));
-  const ges = {betfair:0,poly:0,stake:0};
-  for(const t of T){ const i = Math.floor((new Date(t.anpfiff)-jetzt)/36e5); if(i<0||i>=N) continue;
-    for(const [q,v] of Object.entries(t.q||{})){ eimer[i][q] += v.betrag; ges[q] += v.betrag; }
-    eimer[i].n++; if(!eimer[i].top || t.gesamt>eimer[i].top.gesamt) eimer[i].top = t; }
-  const eu = (q,v) => q==="betfair" ? v : v*0.92, sum = e => eu("betfair",e.betfair)+eu("poly",e.poly)+eu("stake",e.stake);
-  const max = Math.max(1,...eimer.map(sum));
-  if(!eimer.some(sum)) return `<div class="leer">In den nächsten 24 Stunden kein Spiel mit nennenswertem Geld.</div>`;
-  const kopf = `<div class="sp-k">${["betfair","poly","stake"].map(q=>`<div><span class="sp-n"><i style="background:${QUELLE[q].f}"></i>${QUELLE[q].n}</span><b>${geldIn(q,ges[q])}</b></div>`).join("")}
-    <div><span class="sp-n">Spiele</span><b>${eimer.reduce((a,e)=>a+e.n,0)}</b></div></div>`;
-  const spur = `<div class="sp-spur">${eimer.map((e,i)=>{ const g = sum(e); if(g < max*0.01) return `<div class="sp-slot"></div>`;
-      const h = 30 + 70*Math.sqrt(g/max);
-      return `<div class="sp-slot" title="${uhr(std[i].toISOString())} Uhr · ${eur(g)} · ${e.n} Spiel${e.n>1?"e":""}${e.top?` · größtes: ${esc(e.top.heim)} – ${esc(e.top.gast)}`:""}"><div class="sp-b" style="height:${h.toFixed(0)}%">${["betfair","poly","stake"].filter(q=>e[q]>0).map(q=>`<i style="flex:${eu(q,e[q])} 1 0;background:${QUELLE[q].f}"></i>`).join("")}</div></div>`; }).join("")}</div>
-    <div class="sp-x">${std.map((d,i)=>`<span>${i%3===0?uhr(d.toISOString()):""}</span>`).join("")}</div>`;
-  return kopf + spur;
+// Lucas 19.10. („Wann heute das Geld spielt — was mach ich damit?"): stattdessen, wohin JETZT Geld fließt —
+// Spiele nach neuem Betfair-Geld der letzten 30 Min, mit der Auswahl, die davon am meisten bekam.
+function jetztFliesst(D, n=8){
+  const S = lf(D.radar.spiele||[]).filter(s=>(s.d30||0)>0 && !s.entschieden && !s.klarVorn).sort((a,b)=>b.d30-a.d30).slice(0,n);
+  if(!S.length) return `<div class="leer">In den letzten 30 Minuten floss nirgends nennenswert neues Geld.</div>`;
+  const max = S[0].d30;
+  return `<div class="jf">${S.map(s=>{
+    let top = null, mk = null;
+    for(const m of s.maerkteDetail||[]) for(const x of m.auswahl||[]) if(x.neu>0 && (!top || x.neu>top.neu)){ top = x; mk = m; }
+    const anteil = top && mk && mk.neu ? Math.round(top.neu/mk.neu*100) : null;
+    const zeit = s.live ? `<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}` : wann(s.anpfiff);
+    return `<div class="jf-z" ${klick(esc(s.heim)+" – "+esc(s.gast), ohneHuelle(spielDetail(s)))}>
+      <div class="jf-l">${flagge(s.land)}<div style="min-width:0"><b>${esc(s.heim)} – ${esc(s.gast)}</b><small>${zeit} · ${esc(ligaName(s.liga))}</small></div></div>
+      <div class="jf-b"><i style="width:${Math.max(4,s.d30/max*100).toFixed(1)}%"></i><span>+${eur(s.d30)}</span></div>
+      <div class="jf-r">${top?`<b>${esc(auswahlDe(top.name))}</b><small>${anteil!=null?`${anteil} % von ${esc(marktDe(mk.name))}`:esc(marktDe(mk.name))}${top.quote?` · @ ${q2(top.quote)}`:""}</small>`:(s.marktZufluss||[])[0]?`<b>${esc(marktDe(s.marktZufluss[0].name))}</b><small>meistes neues Geld in diesem Markt</small>`:`<small>verteilt</small>`}</div>
+    </div>`; }).join("")}</div>`;
 }
 function seiteStart(D){
   // Lucas 18.10.: Dauerzufluss ist sein wichtigster KPI → läuft eine Serie, steht sie direkt unter „Gerade passiert"
@@ -1639,7 +1644,7 @@ function seiteStart(D){
   return `<div class="grid">
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div><div class="feed">${feedListe(D,5,1)}</div></div>
     ${serienDa?serienPanel:""}
-    <div class="panel c12"><div class="ph"><h3>Wann heute das Geld spielt</h3><span class="hint">nach Anpfiff-Stunde, nächste 24 h · Höhe = Geld</span></div>${geldZeitleiste(D)}</div>
+    <div class="panel c12"><div class="ph"><h3>Jetzt fließt Geld rein</h3><span class="hint">neues Geld auf Betfair, letzte 30 Min · rechts die Auswahl, die am meisten davon bekam</span><button class="chip rechts" data-geh="betfair">Betfair</button></div>${jetztFliesst(D)}</div>
     <div class="panel c8 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3>${quellenLegende()}</div>${toepfeListe(D,mobil?5:8)}</div>
     <div class="panel c4 feedpanel"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span><button class="chip rechts" data-geh="feed">Alle</button></div><div class="feed">${feedListe(D,14)}</div></div>
     ${serienDa?"":serienPanel}
