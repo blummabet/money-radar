@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme="hell">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#07080c">
+<meta name="theme-color" content="#f1f2f4">
+<script>try{const t=localStorage.getItem("radar-thema");if(t)document.documentElement.dataset.theme=t;}catch(_){}</script>
 <title>Geldradar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -486,59 +487,134 @@ main{padding:22px 28px 60px;min-width:0}
 }
 @media (max-width:420px){ .vbar{min-width:70px} .ringe{grid-template-columns:1fr 1fr 1fr;gap:4px} }
 
-/* ── Look 19.10. abends (Lucas: Dribbble „Prop Trading Dashboard") — fast schwarz, farbiges Leuchten, Glas-Panels ── */
-:root{ --bg:#07080c; --panel:#0f1117; --panel-2:#151821; --panel-3:#1e2230; --line:rgba(255,255,255,.07);
-  --text:#ffffff; --text-2:#c4c9d6; --text-3:#8d93a5; --akzent:#8b6cff; }
-body{background:
-  radial-gradient(900px 500px at 12% -8%, rgba(139,108,255,.20), transparent 60%),
-  radial-gradient(800px 600px at 105% 30%, rgba(47,211,138,.08), transparent 60%),
-  radial-gradient(700px 500px at 40% 110%, rgba(91,157,255,.08), transparent 60%), var(--bg);background-attachment:fixed}
-aside{background:rgba(10,11,16,.75);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
-.nav.an{background:linear-gradient(90deg, rgba(139,108,255,.22), rgba(139,108,255,.05));color:#fff;box-shadow:inset 0 0 0 1px rgba(139,108,255,.35)}
-.kopf{background:rgba(7,8,12,.72)}
-.panel{background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012));border:1px solid rgba(255,255,255,.08);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 20px 40px -24px rgba(0,0,0,.8);border-radius:20px}
+/* ── Look 19.10. (Lucas: Dribbble-Vorbilder) — EIN Satz Bausteine, zwei Themes. Standard hell (Vorbilder „Skypulse"/„Tendra"),
+   dunkel per Schalter oben rechts. Alles Farbige läuft über die Variablen unten, nichts fest verdrahtet. ── */
+:root,:root[data-theme="dunkel"]{ --bg:#07080c; --panel:#0f1117; --panel-2:#151821; --panel-3:#1e2230; --line:rgba(255,255,255,.07);
+  --text:#ffffff; --text-2:#c4c9d6; --text-3:#8d93a5; --akzent:#8b6cff; --akzent-text:#fff;
+  --glas-a:rgba(255,255,255,.045); --glas-b:rgba(255,255,255,.012); --rand:rgba(255,255,255,.08); --kante:rgba(255,255,255,.06);
+  --schatten:0 20px 40px -24px rgba(0,0,0,.8); --flaeche:rgba(255,255,255,.035); --flaeche-2:rgba(255,255,255,.07);
+  --hover:rgba(255,255,255,.03); --leise-zahl:#5d6377; --glow:rgba(139,108,255,.65); --kopf-bg:rgba(7,8,12,.72);
+  --chip-text:#0d1320; --lead-bg:#f2f5fb; --lead-text:#0d1320; --lead-sub:#3a4458;
+  --deko:radial-gradient(900px 500px at 12% -8%, rgba(139,108,255,.20), transparent 60%),
+    radial-gradient(800px 600px at 105% 30%, rgba(47,211,138,.08), transparent 60%),
+    radial-gradient(700px 500px at 40% 110%, rgba(91,157,255,.08), transparent 60%); }
+:root[data-theme="hell"]{ --bg:#f1f2f4; --panel:#ffffff; --panel-2:#f6f7f9; --panel-3:#e9ebef; --line:#e3e5e9;
+  --text:#121418; --text-2:#4a5162; --text-3:#858c9a; --akzent:#121418; --akzent-text:#fff;
+  --bf:#e08600; --pin:#2f6fe0; --poly:#7a5af8; --stake:#0e9c58; --hz:#de4579; --up:#159947; --down:#d92d2d;
+  --glas-a:#ffffff; --glas-b:#ffffff; --rand:#e3e5e9; --kante:rgba(255,255,255,0);
+  --schatten:0 1px 2px rgba(16,24,40,.04), 0 10px 28px -14px rgba(16,24,40,.12); --flaeche:#f7f8fa; --flaeche-2:#eceef2;
+  --hover:#f4f5f7; --leise-zahl:#b3b8c3; --glow:transparent; --kopf-bg:rgba(241,242,244,.86);
+  --chip-text:#ffffff; --lead-bg:#121418; --lead-text:#ffffff; --lead-sub:#b9bec9; --deko:none; }
+body{background:var(--deko), var(--bg);background-attachment:fixed}
+aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.nav.an{background:var(--flaeche-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--rand)}
+:root[data-theme="dunkel"] .nav.an{background:linear-gradient(90deg, rgba(139,108,255,.22), rgba(139,108,255,.05));box-shadow:inset 0 0 0 1px rgba(139,108,255,.35)}
+.kopf{background:var(--kopf-bg)}
+.unten-nav{background:var(--kopf-bg)!important}
+.tab tr.zeile:hover td,.nz:hover{background:var(--hover)}
+.kk:hover{border-color:color-mix(in srgb, var(--text) 22%, transparent)}
+.panel{background:linear-gradient(180deg, var(--glas-a), var(--glas-b));border:1px solid var(--rand);
+  box-shadow:inset 0 1px 0 var(--kante), var(--schatten);border-radius:20px}
 .panel h3{font-size:16px;font-weight:800}
-.kk,.karte,.tz,.lt,.zf{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.07)}
+.kk,.karte,.tz,.lt,.zf{background:var(--flaeche);border-color:var(--line)}
 .kpi .wert{font-size:32px}
-.chip.an{background:var(--akzent);border-color:var(--akzent);color:#fff}
+.chip{background:var(--panel);border-color:var(--rand)}
+.chip.an{background:var(--akzent);border-color:var(--akzent);color:var(--akzent-text)}
+.tp-c{color:var(--chip-text)}
+.tp-kk.lead{background:var(--lead-bg)} .tp-kk.lead .n{color:var(--lead-sub)} .tp-kk.lead>b{color:var(--lead-text)}
 /* Spiel-Karte im Stil einer Wett-App */
-.topf.mk{background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:12px 14px 12px;position:relative;overflow:hidden}
-.topf.mk::before{content:"";position:absolute;left:0;right:0;bottom:-40px;height:80px;background:radial-gradient(closest-side, rgba(139,108,255,.25), transparent);pointer-events:none}
-.topf.mk.ist-live::before{background:radial-gradient(closest-side, rgba(255,107,107,.25), transparent)}
-.topf.mk:hover{border-color:rgba(139,108,255,.5)}
+.topf.mk{background:linear-gradient(180deg, var(--glas-a), var(--glas-b));border:1px solid var(--rand);border-radius:18px;padding:12px 14px 12px;position:relative;overflow:hidden}
+:root[data-theme="hell"] .topf.mk{background:var(--flaeche);box-shadow:none}
+.topf.mk::before{content:"";position:absolute;left:0;right:0;bottom:-40px;height:80px;background:radial-gradient(closest-side, color-mix(in srgb, var(--glow) 40%, transparent), transparent);pointer-events:none}
+.topf.mk.ist-live::before{background:radial-gradient(closest-side, color-mix(in srgb, var(--down) 25%, transparent), transparent)}
+.topf.mk:hover{border-color:color-mix(in srgb, var(--akzent) 50%, transparent)}
 .mk-kopf{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--text-3)}
 .mk-liga{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .mk-liga .flag{width:16px;height:11px}
-.mk-zeit{background:rgba(255,255,255,.07);border-radius:999px;padding:2px 9px;color:var(--text-2);font-weight:700;white-space:nowrap}
-.mk-live{background:rgba(255,107,107,.16);color:#ff8a8a;border-radius:999px;padding:2px 9px;font-weight:800;white-space:nowrap}
+.mk-zeit{background:var(--flaeche-2);border-radius:999px;padding:2px 9px;color:var(--text-2);font-weight:700;white-space:nowrap}
+.mk-live{background:color-mix(in srgb, var(--down) 15%, transparent);color:var(--down);border-radius:999px;padding:2px 9px;font-weight:800;white-space:nowrap}
 .mk-mitte{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:start;margin-top:10px;position:relative}
 .mk-team{min-width:0;display:flex;flex-direction:column;gap:2px}
 .mk-team:last-child{text-align:right;align-items:flex-end}
 .mk-name{font-weight:700;font-size:14.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.mk-pct{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1;color:#5d6377}
+.mk-pct{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--leise-zahl)}
 .mk-pct small{font-size:15px;margin-left:2px;font-weight:700}
-.mk-team.lead .mk-name{color:#fff}
-.mk-team.lead .mk-pct{color:#fff;text-shadow:0 0 22px rgba(139,108,255,.65)}
+.mk-team.lead .mk-name{color:var(--text)}
+.mk-team.lead .mk-pct{color:var(--text);text-shadow:0 0 22px var(--glow)}
 .mk-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .mk-team:last-child .mk-chips{justify-content:flex-end}
 .mk-geld{text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:2px;min-width:86px}
 .mk-geld>b{font-size:20px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
 .mk-geld>small{font-size:11px;color:var(--text-3)}
 .mk-u{margin-top:5px;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px}
-.mk-u.ok{background:rgba(47,211,138,.15);color:var(--up)} .mk-u.nein{background:rgba(255,181,71,.15);color:var(--bf)}
+.mk-u.ok{background:color-mix(in srgb, var(--up) 15%, transparent);color:var(--up)} .mk-u.nein{background:color-mix(in srgb, var(--bf) 15%, transparent);color:var(--bf)}
 .mk-remis{margin-top:7px;font-size:12px;color:var(--text-3);display:flex;flex-direction:column;align-items:center}
 .mk-remis b{color:var(--text-2);font-size:13px}
-.mk-remis.lead b{color:#fff;font-size:18px;text-shadow:0 0 18px rgba(139,108,255,.65)}
+.mk-remis.lead b{color:var(--text);font-size:18px;text-shadow:0 0 18px var(--glow)}
 .mk-quellen{margin-top:10px;position:relative}
 .mk .tp-gb{margin:0 0 6px;height:5px}
-.mk .tp-gb i{box-shadow:0 0 10px currentColor}
+:root[data-theme="dunkel"] .mk .tp-gb i{box-shadow:0 0 10px currentColor}
 .mk .tp-gz{font-size:12.5px}
 .tp-c{font-size:11px;padding:2px 7px}
+.thema-knopf{background:var(--panel);border:1px solid var(--rand);border-radius:999px;width:36px;height:36px;display:grid;place-items:center;font-size:16px;flex:none}
 @media (max-width:700px){
   .mk-pct{font-size:26px} .mk-name{font-size:13.5px} .mk-geld{min-width:72px} .mk-geld>b{font-size:17px}
   .panel{border-radius:18px}
 }
+
+/* Graphen */
+.seg{display:inline-flex;background:var(--flaeche-2);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:none;padding:4px 10px;border-radius:8px;font-size:12.5px;font-weight:700;color:var(--text-2)}
+.seg button.an{background:var(--panel);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.bk-reihe{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px}
+.bk{background:none;border:0;border-right:1px solid var(--line);padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:3px;min-width:0}
+.bk:last-child{border-right:0}
+.bk:hover{background:var(--hover)} .bk.an{background:color-mix(in srgb, var(--f) 9%, transparent)} .bk.aus{opacity:.45}
+.bk-n{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--text-2)}
+.bk-n i{width:9px;height:9px;border-radius:3px;background:var(--f)}
+.bk-w{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.bk-u{font-size:12px;color:var(--text-3)}
+.bc{display:grid;grid-template-columns:44px 1fr;grid-template-rows:240px 22px;column-gap:8px}
+.bc-y{position:relative} .bc-y span{position:absolute;right:0;transform:translateY(-50%);font-size:11.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.bc-flaeche{position:relative;cursor:crosshair}
+.bc-flaeche svg{width:100%;height:100%;display:block;overflow:visible}
+.bc-g{stroke:var(--line);stroke-width:1;vector-effect:non-scaling-stroke}
+.bc-null{stroke:var(--text-3);stroke-width:1;stroke-dasharray:4 4;vector-effect:non-scaling-stroke;opacity:.6}
+.bc-l{fill:none;stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+:root[data-theme="dunkel"] .bc-l{filter:drop-shadow(0 0 6px currentColor)}
+.bc-x{grid-column:2;position:relative} .bc-x span{position:absolute;transform:translateX(-50%);font-size:11.5px;color:var(--text-3);white-space:nowrap;top:4px}
+.bc-x span:first-child{transform:none} .bc-x span:last-child{transform:translateX(-100%)}
+.bc-hair{position:absolute;top:0;bottom:0;width:1px;background:var(--text-3);opacity:0;pointer-events:none}
+.bc-tip{position:absolute;top:8px;opacity:0;pointer-events:none;background:#121418;color:#fff;border-radius:12px;padding:10px 12px;font-size:12.5px;min-width:180px;box-shadow:0 12px 30px -10px rgba(0,0,0,.4);z-index:3}
+.bc-tip-t{font-weight:700;margin-bottom:6px;color:#c9ced8}
+.bc-tip>div:not(.bc-tip-t){display:flex;justify-content:space-between;align-items:center;gap:16px;padding:2px 0;white-space:nowrap} .bc-tip span{display:flex;align-items:center;gap:6px} .bc-tip i{width:8px;height:8px;border-radius:2px}
+.strich{display:flex;gap:2px;height:44px;margin-top:18px;align-items:stretch}
+.strich i{flex:1 1 0;min-width:1px;border-radius:1px}
+.strich i.w,.strich-leg i.w{background:var(--up)} .strich i.l,.strich-leg i.l{background:var(--down)} .strich i.o,.strich-leg i.o{background:var(--panel-3)}
+.strich-leg{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;font-size:12px;color:var(--text-2)}
+.strich-leg span{display:inline-flex;align-items:center;gap:6px} .strich-leg i{width:3px;height:12px;border-radius:1px}
+.strich-leg .r{margin-left:auto;color:var(--text-3)}
+.zl{display:grid;grid-template-columns:repeat(24,1fr);gap:5px;height:150px;align-items:end;padding-top:22px}
+.zl-s{display:grid;grid-template-rows:1fr 18px;height:100%;position:relative;min-width:0}
+.zl-b{display:flex;flex-direction:column-reverse;gap:2px;justify-content:flex-start;height:100%}
+.zl-b i{display:block;border-radius:5px;min-height:3px}
+.zl-w{position:absolute;left:50%;transform:translateX(-50%);font-size:11px;font-weight:800;white-space:nowrap;background:var(--panel);padding:1px 5px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.zl-h{font-size:11px;color:var(--text-3);text-align:center;align-self:end}
+@media (max-width:700px){
+  .bk-reihe{grid-template-columns:1fr 1fr} .bk:nth-child(2){border-right:0} .bk:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .bk-w{font-size:22px} .bc{grid-template-rows:200px 22px;grid-template-columns:34px 1fr}
+  .zl{gap:2px;height:120px} .zl-w{display:none} .strich{gap:1px;height:36px}
+  .strich-leg .r{display:none}
+}
+
+.lc{display:grid;grid-template-columns:52px 1fr;grid-template-rows:var(--h) 20px;column-gap:8px;margin-top:8px}
+.lc-y{position:relative} .lc-y span{position:absolute;right:0;transform:translateY(-50%);font-size:11px;color:var(--text-3);white-space:nowrap}
+.lc-f{position:relative} .lc-f svg{width:100%;height:100%;display:block;overflow:visible}
+.lc-ende{position:absolute;inset:0;pointer-events:none}
+.lc-e{position:absolute;right:4px;transform:translateY(-120%);font-size:11.5px;font-weight:600;white-space:nowrap;background:color-mix(in srgb, var(--panel) 85%, transparent);padding:0 4px;border-radius:4px}
+.lc-m{position:absolute;top:-2px;transform:translateX(-50%);font-size:10.5px;color:var(--text-3);background:var(--panel);padding:0 4px;border-radius:4px}
+.lc .bc-x{grid-column:2}
+.sv{margin-bottom:12px} .sv h4 small{font-weight:500;color:var(--text-3);margin-left:6px} .sv h4 small b{color:var(--text)}
 </style>
 </head>
 <body>
@@ -549,7 +625,7 @@ aside{background:rgba(10,11,16,.75);backdrop-filter:blur(16px);-webkit-backdrop-
   <div class="aside-fuss"><div style="margin-bottom:6px">Datenstand</div><div id="quellen"></div></div>
 </aside>
 <main>
-  <div class="kopf"><div><h1 id="titel">Übersicht</h1><div class="sub" id="untertitel"></div></div><div id="ligaschalter"></div><div class="rechts"><span class="puls" id="puls"></span><span id="stand">lädt</span></div></div>
+  <div class="kopf"><div><h1 id="titel">Übersicht</h1><div class="sub" id="untertitel"></div></div><div id="ligaschalter"></div><div class="rechts"><span class="puls" id="puls"></span><span id="stand">lädt</span></div><button class="thema-knopf" id="thema" aria-label="Hell oder dunkel"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button></div>
   <section class="seite an" id="s-start"></section>
   <section class="seite" id="s-feed"></section>
   <section class="seite" id="s-betfair"></section>
@@ -612,7 +688,7 @@ function spark(werte, farbe, w=110, h=32){
 }
 function ring(prozent, farbe, mitte){
   const r=34, u=2*Math.PI*r, p=Math.max(0,Math.min(100,prozent||0));
-  return `<svg width="86" height="86" viewBox="0 0 86 86" aria-hidden="true"><circle cx="43" cy="43" r="${r}" fill="none" stroke="var(--panel-3)" stroke-width="8"/><circle cx="43" cy="43" r="${r}" fill="none" stroke="${farbe}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${(u*p/100).toFixed(1)} ${u.toFixed(1)}" transform="rotate(-90 43 43)"/><text x="43" y="48" text-anchor="middle" fill="#e9eef7" font-size="14" font-weight="800" font-family="Manrope">${esc(mitte)}</text></svg>`;
+  return `<svg width="86" height="86" viewBox="0 0 86 86" aria-hidden="true"><circle cx="43" cy="43" r="${r}" fill="none" stroke="var(--panel-3)" stroke-width="8"/><circle cx="43" cy="43" r="${r}" fill="none" stroke="${farbe}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${(u*p/100).toFixed(1)} ${u.toFixed(1)}" transform="rotate(-90 43 43)"/><text x="43" y="48" text-anchor="middle" style="fill:var(--text)" font-size="14" font-weight="800" font-family="Manrope">${esc(mitte)}</text></svg>`;
 }
 function farbeTeil(teile){
   const top = Math.max(...teile.filter(t=>!istRemis(t.name)).map(t=>t.wert));
@@ -721,7 +797,45 @@ function flussSankey(fl, PAL){
   return `<div class="sankey-k"><span>Neues Geld</span><b>+${eur(ges)}</b></div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-width:520px" role="img" aria-label="Wohin das neue Geld floss">${topf}${out}${lab}</svg>`;
 }
-function spielDetail(s){
+// Kleiner Linien-Graph fürs Detail: gestrecktes SVG + HTML-Beschriftung (lesbar auf dem Handy)
+function linien({reihen, x, hoehe=150, fmt=v=>v, lo:loF, hi:hiF, marke}){
+  const alle = reihen.flatMap(r=>r.werte.filter(v=>v!=null));
+  if(!alle.length) return "";
+  let lo = loF ?? Math.min(...alle), hi = hiF ?? Math.max(...alle); if(hi===lo){ hi += 1; lo -= 1; }
+  const W = 1000, H = 300, n = x.length, X = i => n>1 ? i/(n-1)*W : 0, Y = v => H - (v-lo)/(hi-lo)*H;
+  const pfad = w => { let d = "", an = false; w.forEach((v,i)=>{ if(v==null){ an = false; return; } d += `${an?"L":"M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`; an = true; }); return d; };
+  const ticks = [hi, (hi+lo)/2, lo];
+  const lab = reihen.filter(r=>r.name).map(r=>{ const i = r.werte.map((v,j)=>v!=null?j:-1).filter(j=>j>=0).pop(); return i==null?null:{r, v:r.werte[i], top:Y(r.werte[i])/H*100}; }).filter(Boolean).sort((a,b)=>a.top-b.top);
+  const abst = 1800/hoehe; for(let k=1;k<lab.length;k++) if(lab[k].top-lab[k-1].top<abst) lab[k].top = lab[k-1].top+abst;
+  const ende = lab.map(l=>`<span class="lc-e" style="top:${l.top.toFixed(1)}%;color:${l.r.farbe}">${esc(l.r.name)} <b>${fmt(l.v)}</b></span>`).join("");
+  return `<div class="lc" style="--h:${hoehe}px">
+    <div class="lc-y">${ticks.map(v=>`<span style="top:${(Y(v)/H*100).toFixed(1)}%">${fmt(v)}</span>`).join("")}</div>
+    <div class="lc-f"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      ${ticks.map(v=>`<line x1="0" x2="${W}" y1="${Y(v)}" y2="${Y(v)}" class="bc-g"/>`).join("")}
+      ${marke!=null?`<line x1="${X(marke)}" x2="${X(marke)}" y1="0" y2="${H}" class="bc-null"/>`:""}
+      ${reihen.filter(r=>r.flaeche).map(r=>`<path d="${pfad(r.werte)}L${W},${H}L0,${H}Z" style="fill:${r.farbe};opacity:.12"/>`).join("")}
+      ${reihen.map(r=>`<path d="${pfad(r.werte)}" class="bc-l" style="stroke:${r.farbe}"/>`).join("")}
+    </svg>${ende?`<div class="lc-ende">${ende}</div>`:""}${marke!=null?`<span class="lc-m" style="left:${(X(marke)/W*100).toFixed(1)}%">Anpfiff</span>`:""}</div>
+    <div class="bc-x">${[0, Math.floor((n-1)/2), n-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>`<span style="left:${(X(i)/W*100).toFixed(1)}%">${esc(x[i])}</span>`).join("")}</div>
+  </div>`;
+}
+// Spiel-Detail: Geld und Wahrscheinlichkeit über die letzten Stunden
+function spielVerlauf(s){
+  const r = s.reihe || []; if(r.length < 3) return "";
+  const x = r.map(p=>p[0]);
+  const ko = s.anpfiff ? Math.floor(new Date(s.anpfiff)/6e4) : null;
+  let marke = null; if(ko!=null){ const i = r.findIndex(p=>p[5]>=ko); if(i>0) marke = i; }
+  const geld = linien({reihen:[{werte:r.map(p=>p[1]), farbe:"var(--bf)", flaeche:true}], x, hoehe:120, fmt:v=>eur(v), lo:0, marke});
+  const pr = r.map(p=>{ const q = [p[2],p[3],p[4]]; if(q.some(v=>!v)) return [null,null,null]; const inv = q.map(v=>1/v), su = inv.reduce((a,b)=>a+b,0); return inv.map(v=>v/su*100); });
+  const quoten = pr.some(p=>p[0]!=null) ? linien({reihen:[
+      {name:s.heim, werte:pr.map(p=>p[0]), farbe:"var(--pin)"},
+      {name:"Remis", werte:pr.map(p=>p[1]), farbe:"var(--text-3)"},
+      {name:s.gast, werte:pr.map(p=>p[2]), farbe:"var(--hz)"}], x, hoehe:150, fmt:v=>Math.round(v)+" %", lo:0, marke}) : "";
+  const zu = r[r.length-1][1] - r[0][1];
+  return `<div class="sv"><h4>Geld auf Betfair <small>${eur(r[0][1])} → <b>${eur(r[r.length-1][1])}</b>${zu>0?` · +${eur(zu)} seit ${x[0]}`:""}</small></h4>${geld}
+    ${quoten?`<h4 style="margin-top:14px">Wahrscheinlichkeit laut Betfair-Quote</h4>${quoten}`:""}</div>`;
+}
+function spielDetail(s, ohneVerlauf){
   const md = s.maerkteDetail || [], fm = s.fensterMin || 30;
   const PAL = ["#ffb547","#5b9dff","#7d8aa3","#a183ff","#2fd38a","#ff77a8"];
   // 1) wohin floss das neue Geld — quer über alle Märkte, je Auswahl
@@ -735,7 +849,7 @@ function spielDetail(s){
   // 2) jeder Markt als Kreis (Lucas 17.10.: „spart Höhe") — Kacheln, zwei nebeneinander
   const donut = (teile, mitte) => {
     const R = 26, U = 2*Math.PI*R, ges = teile.reduce((x,t)=>x+t.w,0)||1; let off = 0;
-    return `<svg width="70" height="70" viewBox="0 0 70 70" aria-hidden="true"><circle cx="35" cy="35" r="${R}" fill="none" stroke="var(--panel-3)" stroke-width="10"/>${teile.map(t=>{ const l = t.w/ges*U; const c = `<circle cx="35" cy="35" r="${R}" fill="none" stroke="${t.f}" stroke-width="10" stroke-dasharray="${l.toFixed(2)} ${(U-l).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 35 35)"/>`; off += l; return c; }).join("")}<text x="35" y="39" text-anchor="middle" fill="#e9eef7" font-size="12" font-weight="800" font-family="Manrope">${mitte}</text></svg>`;
+    return `<svg width="70" height="70" viewBox="0 0 70 70" aria-hidden="true"><circle cx="35" cy="35" r="${R}" fill="none" stroke="var(--panel-3)" stroke-width="10"/>${teile.map(t=>{ const l = t.w/ges*U; const c = `<circle cx="35" cy="35" r="${R}" fill="none" stroke="${t.f}" stroke-width="10" stroke-dasharray="${l.toFixed(2)} ${(U-l).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 35 35)"/>`; off += l; return c; }).join("")}<text x="35" y="39" text-anchor="middle" style="fill:var(--text)" font-size="12" font-weight="800" font-family="Manrope">${mitte}</text></svg>`;
   };
   const marktBlock = `<div class="mgrid">${md.map(m=>{
     const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1;
@@ -744,7 +858,7 @@ function spielDetail(s){
       <div class="mk-i">${donut(teile, Math.round(m.auswahl[0].eur/ges*100)+"%")}
       <div class="mk-l">${m.auswahl.slice(0,4).map((a,i)=>`<div><i style="background:${PAL[i%PAL.length]}"></i><span>${esc(auswahlDe(a.name))}${a.quote?` <small>${q2(a.quote)}</small>`:""}</span><b>${Math.round(a.eur/ges*100)}%</b>${a.neu>0?`<em>+${eur(a.neu)}</em>`:""}</div>`).join("")}</div></div></div>`;
   }).join("")}</div>`;
-  return `<tr class="detail"><td colspan="6"><div class="det">
+  return `<tr class="detail"><td colspan="6"><div class="det">${ohneVerlauf?"":spielVerlauf(s)}
     <div class="d-kopf">${flagge(s.land)} ${esc(s.liga)} · ${s.live?`<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}`:wann(s.anpfiff)} · ${eur(s.eur)} gematcht über alle Märkte${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}</div>
     ${(()=>{ const lb = ((D.ligaBilanz||{}).ligen||{})[s.liga]; if(!lb) return ""; const h = lb.hoch;
       return `<div class="kk-klein">📚 Liga-Bilanz hohes Geld: ${h.treffer} % getroffen, Quote sagte ${h.erwartet} % · ROI ${h.roi>0?"+":""}${dez(h.roi)} % · ${h.n} Märkte · <b style="color:${lb.urteil==="trägt"?"var(--up)":lb.urteil==="trägt nicht"?"var(--down)":"var(--text-2)"}">${lb.urteil==="offen"?"noch offen":lb.urteil}</b></div>`; })()}
@@ -1311,7 +1425,7 @@ function topfDetail(t){
   }).join("");
   const urteil = t.einig===true ? `<div class="tp-banner ok">Alle Quellen mit klarer Meinung sehen dieselbe Seite vorn: <b>${esc(seitenName(t, Object.values(t.meinungen)[0]))}</b></div>`
     : t.einig===false ? `<div class="tp-banner nein">Die Quellen widersprechen sich: ${Object.entries(t.meinungen).map(([qn,k])=>`${QUELLE[qn].n} → <b>${esc(seitenName(t,k))}</b>`).join(", ")}</div>` : "";
-  return `<tr class="detail"><td colspan="6"><div class="det">${urteil}${bloecke}${waleListe(t.wale)}${sp?ohneHuelle(spielDetail(sp)).replace(/^<div class="det">/,'<div class="det"><h4 style="margin-top:6px">Betfair im Detail</h4>'):""}</div></td></tr>`;
+  return `<tr class="detail"><td colspan="6"><div class="det">${sp?spielVerlauf(sp):""}${urteil}${bloecke}${waleListe(t.wale)}${sp?ohneHuelle(spielDetail(sp,true)).replace(/^<div class="det">/,'<div class="det"><h4 style="margin-top:6px">Betfair im Detail</h4>'):""}</div></td></tr>`;
 }
 // Lucas 18.10.: laufende Spiele zugeklappt ans Ende — eine Zeile, Aufteilung ZUM ANPFIFF (live verzerrt der
 // Handel auf den Führenden den Anteil). Führt ein Team unter Quote 1,40, ist das Spiel schon raus (build.py).
@@ -1359,6 +1473,95 @@ function kompaktPinnacle(D, n){
   if(!z.length) return `<div class="leer">Gerade bewegt sich keine Pinnacle-Quote deutlich.</div>`;
   return `<div class="feed">${z.map(x=>`<div class="fe" ${x.bfId?klickSpiel({id:x.bfId,heim:x.heim,gast:x.gast}):""}>${icon("pinnacle")}<div style="min-width:0"><div class="t">${esc(x.auf)} ${x.istLive?`<span class="live">${x.min!=null?x.min+"'":"live"} ${x.stand[0]}:${x.stand[1]}</span>`:x.frisch?`<span class="tag t-lost">frisch</span>`:""}</div><div class="s">${esc(x.heim)} – ${esc(x.gast)}, ${x.istLive?`+${dez(x.pp)} pp in ${x.fensterMin} Min`:wann(x.anpfiff)}</div></div><div class="b"><span style="color:var(--text-3);font-weight:600;text-decoration:line-through">${q2(x.vonQuote)}</span> <span style="color:var(--up)">${q2(x.quote)}</span><small>+${dez(x.pp)} pp</small></div></div>`).join("")}</div>`;
 }
+
+// ── Graphen (Lucas 19.10., Vorbilder „Skypulse"/„Tendra") ─────────────────────────────────────────────────────
+// Linien laufen in einem gestreckten SVG (preserveAspectRatio="none", Strichstärke fix), alle Beschriftungen sind
+// HTML darüber — so bleibt die Schrift auf dem Handy lesbar.
+const VQ = {betfair:{n:"Betfair-Pushes",f:"var(--bf)"}, stake:{n:"Stake-Bursts",f:"var(--stake)"}, hz:{n:"HZ 0:0",f:"var(--hz)"}, wale:{n:"Wale",f:"var(--poly)"}};
+let bilanzTage = 30, bilanzAn = null;
+function bilanzDaten(D){
+  const ab = Date.now() - bilanzTage*864e5;
+  const z = (D.verlauf||[]).filter(x=>new Date(x[0]+"Z")>=ab);
+  const tage = []; for(let t=new Date(ab); t<=new Date(); t=new Date(+t+864e5)) tage.push(t.toISOString().slice(0,10));
+  const reihen = {};
+  for(const q of Object.keys(VQ)){
+    const zz = z.filter(x=>x[1]===q && x[2]!=null); if(!zz.length) continue;
+    let sum = 0, i = 0; const pkt = [];
+    for(const tg of tage){ while(i<zz.length && zz[i][0].slice(0,10)<=tg){ sum += zz[i][2]; i++; } pkt.push(sum); }
+    const n = zz.length, gew = zz.filter(x=>x[3]===1).length, sw = zz.filter(x=>new Date(x[0]+"Z")>=Date.now()-7*864e5);
+    reihen[q] = {pkt, n, roi:100*sum/n, treffer:100*gew/n, summe:sum, roi7: sw.length ? 100*sw.reduce((a,x)=>a+x[2],0)/sw.length : null, n7: sw.length};
+  }
+  return {tage, reihen, alle:z};
+}
+function bilanzPanel(D){
+  const B = bilanzDaten(D), qs = Object.keys(B.reihen).filter(q=>!bilanzAn || bilanzAn===q);
+  if(!Object.keys(B.reihen).length) return `<div class="leer">Noch keine abgerechneten Pushes im Zeitraum.</div>`;
+  const vz = v => (v>0?"+":"")+dez(v);
+  const kacheln = Object.entries(B.reihen).map(([q,r])=>`<button class="bk${bilanzAn===q?" an":""}${bilanzAn&&bilanzAn!==q?" aus":""}" data-bq="${q}" style="--f:${VQ[q].f}">
+      <span class="bk-n"><i></i>${VQ[q].n}</span>
+      <span class="bk-w" style="color:${r.roi>=0?"var(--up)":"var(--down)"}">${vz(r.roi)} %</span>
+      <span class="bk-u">${r.n} Tipps · ${dez(r.treffer,0)} % Treffer${r.roi7!=null?` · <b style="color:${r.roi7>=0?"var(--up)":"var(--down)"}">7 T ${vz(r.roi7)} %</b>`:""}</span>
+    </button>`).join("");
+  // Kurve: Einheiten kumuliert (1 Einheit je Tipp)
+  const alleW = qs.flatMap(q=>B.reihen[q].pkt), lo = Math.min(0,...alleW), hi = Math.max(0,...alleW), sp = (hi-lo)||1;
+  const W = 1000, H = 260, n = B.tage.length;
+  const x = i => n>1 ? i/(n-1)*W : 0, y = v => H - (v-lo)/sp*H;
+  const pfad = pkt => pkt.map((v,i)=>`${i?"L":"M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  const flaeche = (pkt) => `${pfad(pkt)}L${W},${y(0)}L0,${y(0)}Z`;
+  const ticks = []; const st = (hi-lo)/4; for(let k=0;k<=4;k++) ticks.push(lo+st*k);
+  const xl = [0, Math.round((n-1)/3), Math.round(2*(n-1)/3), n-1].map(i=>({i, t:B.tage[i]}));
+  const kurve = `<div class="bc" data-bc="1">
+    <div class="bc-y">${ticks.reverse().map(v=>`<span style="top:${(y(v)/H*100).toFixed(1)}%">${Math.round(v)>0?"+":""}${Math.round(v)}</span>`).join("")}</div>
+    <div class="bc-flaeche">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+        ${ticks.map(v=>`<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" class="bc-g"/>`).join("")}
+        <line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" class="bc-null"/>
+        ${qs.map(q=>`<path d="${flaeche(B.reihen[q].pkt)}" style="fill:${VQ[q].f};opacity:${qs.length===1?.14:.05}"/>`).join("")}
+        ${qs.map(q=>`<path d="${pfad(B.reihen[q].pkt)}" class="bc-l" style="stroke:${VQ[q].f}"/>`).join("")}
+      </svg>
+      <div class="bc-hair"></div><div class="bc-tip"></div>
+    </div>
+    <div class="bc-x">${xl.map(({i,t})=>`<span style="left:${(x(i)/W*100).toFixed(1)}%">${new Date(t).toLocaleDateString("de-AT",{day:"numeric",month:"short"})}</span>`).join("")}</div>
+  </div>`;
+  // Strichcode: jeder Tipp ein Strich (Vorbild „Tendra")
+  const striche = B.alle.filter(x=>qs.includes(x[1])).slice(-240);
+  const code = `<div class="strich">${striche.map(z=>`<i class="${z[3]===1?"w":z[3]===0?"l":"o"}" title="${VQ[z[1]].n} · ${new Date(z[0]+"Z").toLocaleDateString("de-AT")} · ${z[3]===1?"gewonnen":z[3]===0?"verloren":"offen"}"></i>`).join("")}</div>
+    <div class="strich-leg"><span><i class="w"></i>gewonnen ${striche.filter(z=>z[3]===1).length}</span><span><i class="l"></i>verloren ${striche.filter(z=>z[3]===0).length}</span><span><i class="o"></i>offen ${striche.filter(z=>z[3]==null).length}</span><span class="r">je Strich ein Tipp, neueste rechts</span></div>`;
+  window._bc = {B, qs, lo, sp, W, H};
+  return `<div class="bk-reihe">${kacheln}</div>${kurve}${code}`;
+}
+function bilanzKopf(){
+  return `<div class="ph"><h3>Bilanz der Pushes</h3><span class="hint">Einheiten-Gewinn, 1 Einheit je Tipp</span><div class="seg rechts">${[[7,"7 T"],[30,"30 T"],[60,"60 T"]].map(([t,n])=>`<button class="${t===bilanzTage?"an":""}" data-bt="${t}">${n}</button>`).join("")}</div></div>`;
+}
+function bcZeigen(ev){
+  const el = ev.target.closest(".bc-flaeche"); const c = window._bc; if(!el || !c) return;
+  const r = el.getBoundingClientRect(), fx = Math.min(1, Math.max(0, (ev.clientX-r.left)/r.width));
+  const n = c.B.tage.length, i = Math.round(fx*(n-1));
+  const hair = el.querySelector(".bc-hair"), tip = el.querySelector(".bc-tip");
+  hair.style.left = (i/(n-1)*100)+"%"; hair.style.opacity = 1;
+  const zeilen = c.qs.map(q=>{ const v = c.B.reihen[q].pkt[i]; return `<div><span><i style="background:${VQ[q].f}"></i>${VQ[q].n}</span><b style="color:${v>=0?"var(--up)":"var(--down)"}">${v>0?"+":""}${dez(v)}</b></div>`; }).join("");
+  tip.innerHTML = `<div class="bc-tip-t">${new Date(c.B.tage[i]).toLocaleDateString("de-AT",{weekday:"short",day:"numeric",month:"short"})}</div>${zeilen}`;
+  tip.style.opacity = 1; const links = i/(n-1) > .6;
+  tip.style.left = links ? "" : `calc(${i/(n-1)*100}% + 12px)`; tip.style.right = links ? `calc(${(1-i/(n-1))*100}% + 12px)` : "";
+}
+// Wann spielt heute das Geld? (Vorbild „Skypulse"-Zeitleiste) — Geld je Anpfiff-Stunde, gestapelt nach Quelle
+function geldZeitleiste(D){
+  const jetzt = new Date(); jetzt.setMinutes(0,0,0);
+  const std = Array.from({length:24},(_,i)=>new Date(+jetzt + i*36e5));
+  const T = lf(D.toepfe||[]).filter(top5Ok).filter(t=>!t.laeuft && t.anpfiff);
+  const eimer = std.map(()=>({betfair:0,poly:0,stake:0,spiele:[]}));
+  for(const t of T){ const i = Math.floor((new Date(t.anpfiff)-jetzt)/36e5); if(i<0||i>=24) continue;
+    for(const [q,v] of Object.entries(t.q||{})) eimer[i][q] = (eimer[i][q]||0) + (q==="betfair" ? v.betrag : v.betrag*0.92);
+    eimer[i].spiele.push(t); }
+  const sum = e => e.betfair+e.poly+e.stake, max = Math.max(1,...eimer.map(sum));
+  if(!eimer.some(sum)) return `<div class="leer">In den nächsten 24 Stunden kein Spiel mit nennenswertem Geld.</div>`;
+  return `<div class="zl">${eimer.map((e,i)=>{ const g = sum(e);
+    const top = e.spiele.sort((a,b)=>b.gesamt-a.gesamt)[0];
+    return `<div class="zl-s" title="${uhr(std[i].toISOString())}: ${eur(g)}${top?` · größtes: ${esc(top.heim)} – ${esc(top.gast)}`:""}">
+      <div class="zl-b">${g?["stake","poly","betfair"].filter(q=>e[q]>0).map(q=>`<i style="height:${(e[q]/max*100).toFixed(1)}%;background:${QUELLE[q].f}"></i>`).join(""):""}</div>
+      ${g>=max*0.3?`<span class="zl-w" style="bottom:calc(${(g/max*100).toFixed(1)}% * (1 - 18/150) + 24px)">${eur(g)}</span>`:""}
+      <span class="zl-h">${i%3===0?uhr(std[i].toISOString()).slice(0,2):""}</span></div>`; }).join("")}</div>`;
+}
 function seiteStart(D){
   // Lucas 18.10.: Dauerzufluss ist sein wichtigster KPI → läuft eine Serie, steht sie direkt unter „Gerade passiert"
   const serienDa = lf(D.serien||[]).length + (D.polySerien||[]).filter(top5Ok).length + (D.stakeSerien||[]).filter(top5Ok).length > 0;
@@ -1367,12 +1570,13 @@ function seiteStart(D){
   return `<div class="grid">
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div><div class="feed">${feedListe(D,5,1)}</div></div>
     ${serienDa?serienPanel:""}
+    <div class="panel c12"><div class="ph"><h3>Wann heute das Geld spielt</h3><span class="hint">Geld je Anpfiff-Stunde, nächste 24 h</span>${quellenLegende()}</div>${geldZeitleiste(D)}</div>
     <div class="panel c8 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3>${quellenLegende()}</div>${toepfeListe(D,mobil?5:8)}</div>
     <div class="panel c4 feedpanel"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span><button class="chip rechts" data-geh="feed">Alle</button></div><div class="feed">${feedListe(D,14)}</div></div>
     ${serienDa?"":serienPanel}
     <div class="panel c6"><div class="ph"><h3>Frischer Zufluss</h3><span class="hint">vor Anpfiff, 30 Min</span><button class="chip rechts" data-geh="betfair">Alle</button></div>${kompaktZufluss(D,4)}</div>
     <div class="panel c6"><div class="ph"><h3>Pinnacle bewegt sich</h3><span class="hint">faire Quote vorher und jetzt</span><button class="chip rechts" data-geh="pinnacle">Alle</button></div>${kompaktPinnacle(D,4)}</div>
-    <div class="panel c12"><div class="ph"><h3>Bilanz der Signale</h3><button class="chip rechts" data-geh="feed">Push-Auswertung</button></div>${bilanzRinge(D)}<div class="hinweis">Mitte: Rendite pro Tipp. Ring: Trefferquote.</div></div>
+    <div class="panel c12" id="bilanzpanel">${bilanzKopf()}${bilanzPanel(D)}</div>
   </div>`;
 }
 // Lucas 19.10.: „Bilanz nach Liga wäre ein Traum" — trägt hohes Geld in dieser Liga? (90 Tage, Tracking des alten Projekts)
@@ -1553,6 +1757,10 @@ document.addEventListener("click", e=>{
   if(e.target.closest("[data-zu]")){ drZu(); return; }
   const lg = e.target.closest("[data-liga]"); if(lg){ ligaModus = lg.dataset.liga; try{ localStorage.setItem("radar-liga", ligaModus); }catch(_){} render(); return; }
   const dk = e.target.closest("[data-dr]"); if(dk && !e.target.closest("a")){ drOeffnen(dk.dataset.dr); return; }
+  if(e.target.closest("#thema")){ const t = document.documentElement.dataset.theme==="hell" ? "dunkel" : "hell";
+    document.documentElement.dataset.theme = t; try{ localStorage.setItem("radar-thema", t); }catch(_){} return; }
+  const bt = e.target.closest("[data-bt]"); if(bt){ bilanzTage = +bt.dataset.bt; $("#bilanzpanel").innerHTML = bilanzKopf()+bilanzPanel(D); return; }
+  const bq = e.target.closest("[data-bq]"); if(bq){ bilanzAn = bilanzAn===bq.dataset.bq ? null : bq.dataset.bq; $("#bilanzpanel").innerHTML = bilanzKopf()+bilanzPanel(D); return; }
   const g = e.target.closest("[data-geh]"); if(g){ gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
   const sp = e.target.closest("[data-sport]"); if(sp){ filterSport = sp.dataset.sport; $("#s-poly").innerHTML = seitePoly(D); return; }
   const hf = e.target.closest("[data-hzf]"); if(hf){ hzFilter = hf.dataset.hzf; $("#hz-stats").innerHTML = hzStatsListe(D.hz.chancenBuch||{}); return; }
@@ -1570,6 +1778,7 @@ try{ const s = localStorage.getItem("radar-seite2"); if(s && SEITEN.some(x=>x[0]
 laden();
 setInterval(laden, 5*60*1000);
 document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) laden(); });
+document.addEventListener("pointermove", ev=>{ if(ev.target.closest && ev.target.closest(".bc-flaeche")) bcZeigen(ev); else document.querySelectorAll(".bc-hair,.bc-tip").forEach(x=>x.style.opacity=0); });
 </script>
 </body>
 </html>

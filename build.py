@@ -892,6 +892,16 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                 vor30, mo30, t30 = v, s.get("mo") or {}, t
             if t <= JETZT - timedelta(minutes=15):
                 vor15, t15 = v, t
+        # Lucas 19.10. („mehr Graphen, auch in den Details"): Verlauf Geld + Quoten der letzten 10 h für das Spiel-Detail
+        reihe = []
+        for s in snaps:
+            t, v = ts(s.get("ts")), s.get("totalVol")
+            if t and t >= JETZT - timedelta(hours=10) and isinstance(v, (int, float)):
+                mo_s = s.get("mo") or {}
+                reihe.append([t.strftime("%H:%M"), round(v), mo_s.get("hw"), mo_s.get("dr"), mo_s.get("aw"), int(t.timestamp() // 60)])
+        if len(reihe) > 30:
+            schritt = len(reihe) / 30
+            reihe = [reihe[int(i * schritt)] for i in range(30)] + [reihe[-1]]
         if len(kurve) > 18:
             schritt = len(kurve) / 18
             kurve = [kurve[int(i * schritt)] for i in range(18)] + [kurve[-1]]
@@ -941,6 +951,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             "top5": bool(TOP5_RX.search(str(m.get("league") or ""))),
             "quoten30": ({"heim": mo30.get("hw"), "remis": mo30.get("dr"), "gast": mo30.get("aw")} if mo30 else None),
             "kurve": kurve,
+            "reihe": reihe,
             "quoten": {"heim": mo.get("hw"), "remis": mo.get("dr"), "gast": mo.get("aw")},
             "wahrsch": ({"heim": fair.get("home"), "remis": fair.get("draw"), "gast": fair.get("away")} if fair else None),
             "verteilung": vert,
@@ -1840,6 +1851,62 @@ def betfair_pushes(ledger, record):
     return {"liste": out[:40], "bilanz": bil}
 
 
+# ── Verlauf aller Push-Ergebnisse (Lucas 19.10.: „zu wenig mit Graphen gearbeitet") ─────────────────────────
+VERLAUF_TAGE = 60
+
+
+def verlauf(bf_led, burst, finder, tr_led):
+    """Jede gepushte Wette der letzten 60 Tage als [zeit, quelle, rendite, ergebnis] — Grundlage für die
+    Bilanz-Kurve und den Strichcode im Frontend. rendite: Gewinn je 1 Einheit Einsatz (None = offen),
+    ergebnis: 1 gewonnen, 0 verloren, None offen."""
+    grenze = JETZT - timedelta(days=VERLAUF_TAGE)
+    out = []
+
+    def dazu(t, q, r, w):
+        tt = ts(t)
+        if tt and tt >= grenze:
+            out.append([tt.strftime("%Y-%m-%dT%H:%M"), q, None if r is None else round(float(r), 3), w])
+
+    for e in bf_led or []:
+        st, odd = e.get("status"), e.get("leadOdd")
+        if st == "won" and isinstance(odd, (int, float)):
+            dazu(e.get("sentAt"), "betfair", (odd - 1) * 0.98, 1)
+        elif st == "lost":
+            dazu(e.get("sentAt"), "betfair", -1.0, 0)
+        elif st == "pending":
+            dazu(e.get("sentAt"), "betfair", None, None)
+    for z in burst or []:
+        if not isinstance(z, dict) or not z.get("push") or not stake_ok(z):
+            continue
+        r = z.get("rendite")
+        if z.get("status") == "abgerechnet" and isinstance(r, (int, float)):
+            dazu(z.get("sentAt"), "stake", r, int(r > 0))
+        elif z.get("status") == "pending":
+            dazu(z.get("sentAt"), "stake", None, None)
+    for e in (finder or {}).get("eintraege") or []:
+        w = e.get("wetten") or {}
+        for gruppe, wette in (("tore", "over05"), ("heim", "heim")):
+            if gruppe not in (e.get("gruppen") or []):
+                continue
+            x = w.get(wette) or {}
+            if isinstance(x.get("r"), (int, float)):
+                dazu(e.get("gebuchtAt"), "hz", x["r"], int(bool(x.get("win"))))
+            elif not e.get("ft"):
+                dazu(e.get("gebuchtAt"), "hz", None, None)
+    for z in tr_led or []:
+        if not sport_ok(z.get("cat")) or not poly_key_ok(z.get("key")):
+            continue
+        p = z.get("pushPrice")
+        if z.get("result") == "win" and isinstance(p, (int, float)) and 0 < p < 1:
+            dazu(z.get("sentAt"), "wale", 1 / p - 1, 1)
+        elif z.get("result") == "loss":
+            dazu(z.get("sentAt"), "wale", -1.0, 0)
+        elif z.get("status") == "pending":
+            dazu(z.get("sentAt"), "wale", None, None)
+    out.sort(key=lambda x: x[0])
+    return out
+
+
 def main() -> int:
     prices = laden_bf("betfair_prices.json")
     bf_hist = laden_bf("betfair_history.json")
@@ -1885,6 +1952,7 @@ def main() -> int:
         "halbzeit": halbzeit(prices),
         "bfHtPushes": bf_ht_pushes(prices),
         "pushBilanz": push_bilanz(),
+        "verlauf": verlauf(bf_led, burst, finder, tr_led),
         "ligaBilanz": liga_bilanz(),
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
