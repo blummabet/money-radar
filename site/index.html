@@ -774,6 +774,55 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
   .mb-z{grid-template-columns:minmax(0,1fr) auto auto;gap:6px} .mb-t{display:none} .mb-z b{white-space:nowrap}
   .mb-z.top .mb-n{color:var(--bf)}
 }
+/* Markt-Charts: Geld-Wand (Treemap) + Hitparade — Lucas 19.10.: „ganz eigene Darstellung" */
+:root[data-theme="dunkel"]{--mw-sieg:#5b7cff;--mw-tore:#1fc2a4;--mw-hz:#ff77a8;--mw-rest:#8f98ae}
+:root[data-theme="hell"]{--mw-sieg:#3456e0;--mw-tore:#0d9a82;--mw-hz:#d43f78;--mw-rest:#69718a}
+.mw{position:relative;width:100%;border-radius:14px;overflow:hidden;margin-top:6px}
+.mw-k{position:absolute;box-sizing:border-box;padding:2px}
+.mw-i{height:100%;box-sizing:border-box;border-radius:10px;background:color-mix(in srgb, var(--f) 13%, var(--glas-a));padding:9px 10px 8px;display:flex;flex-direction:column;gap:1px;overflow:hidden;cursor:pointer;color:var(--text);transition:filter .15s}
+.mw-i:hover{filter:brightness(1.06)}
+.mw-i:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
+.mw-i.heiss{background:var(--f);color:#fff}
+.mw-sp{font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mw-m{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mw-m b{color:var(--text);font-weight:700}
+.mw-i.heiss .mw-m,.mw-i.heiss .mw-m b{color:rgba(255,255,255,.88)}
+.mw-fuss{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:6px;min-width:0}
+.mw-e{font-weight:800;font-size:15px;letter-spacing:-.01em;white-space:nowrap;line-height:1.1}
+.mw-k.g .mw-e{font-size:24px} .mw-k.g.xl .mw-e{font-size:38px;letter-spacing:-.03em}
+:root[data-theme="dunkel"] .mw-i.heiss{background:color-mix(in srgb, var(--f) 72%, #000)} .mw-k.m .mw-e{font-size:17px}
+.mw-n{font-size:11px;font-weight:800;white-space:nowrap;padding:1px 6px;border-radius:999px;background:color-mix(in srgb, var(--f) 22%, transparent);color:var(--f)}
+.mw-i.heiss .mw-n{background:rgba(255,255,255,.22);color:#fff}
+.mw-s{display:flex;height:4px;border-radius:2px;overflow:hidden;margin-top:6px;gap:1px}
+.mw-s i{display:block;background:var(--f)}
+.mw-i.heiss .mw-s i{background:#fff}
+.mw-k.k .mw-m,.mw-k.k .mw-s,.mw-k.xs .mw-m,.mw-k.xs .mw-s,.mw-k.xs .mw-n{display:none}
+.mw-k.xs .mw-i{padding:6px 7px} .mw-k.xs .mw-sp{font-size:11px} .mw-k.xs .mw-e{font-size:12px}
+.mw-leg{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:12px;color:var(--text-3)}
+.mw-leg span{display:inline-flex;align-items:center;gap:6px}
+.mw-leg i{width:12px;height:12px;border-radius:4px;display:inline-block}
+.hp{display:flex;flex-direction:column}
+.hp-z{display:grid;grid-template-columns:40px 50px minmax(0,1fr) 130px 120px;gap:14px;align-items:center;padding:9px 8px;border-radius:10px;cursor:pointer}
+.hp-z+.hp-z{border-top:1px solid var(--rand)}
+.hp-z:hover{background:var(--hover)}
+.hp-r{font-size:26px;font-weight:800;letter-spacing:-.03em;color:var(--leise-zahl);text-align:right;line-height:1}
+.hp-z:nth-child(-n+3) .hp-r{color:var(--text)}
+.hp-b{font-size:12.5px;font-weight:800;white-space:nowrap}
+.hp-b.auf{color:var(--up)} .hp-b.ab{color:var(--down)} .hp-b.gl{color:var(--text-3)}
+.hp-b.neu{display:inline-block;padding:2px 7px;border-radius:999px;background:var(--bf);color:#fff;font-size:11px;letter-spacing:.02em}
+.hp-t{min-width:0}
+.hp-t b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hp-t small{display:block;color:var(--text-3);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hp-t small em{font-style:normal;color:var(--text);font-weight:700}
+.hp-sp svg{display:block;width:100%;height:30px}
+.hp-g{text-align:right;white-space:nowrap}
+.hp-g b{display:block;font-size:15px;font-weight:800}
+.hp-g small{display:block;font-size:12px;color:var(--text-3)}
+.hp-g small.auf{color:var(--up)}
+@media (max-width:700px){
+  .hp-z{grid-template-columns:30px 40px minmax(0,1fr) auto;gap:10px;padding:9px 4px}
+  .hp-r{font-size:21px} .hp-sp{display:none}
+}
 </style>
 </head>
 <body>
@@ -1893,6 +1942,84 @@ function istSoll(zeilen){
       <span class="is-r"><b>${z.ist??"–"} %</b><small>Quote ${z.soll??"–"} %</small></span>${z.roi!=null?`<span class="is-roi" style="color:${z.roi>=0?"var(--up)":"var(--down)"}">${z.roi>0?"+":""}${dez(z.roi)} %</span>`:"<span></span>"}</div>`).join("")}
     <div class="is-leg"><span><i></i>so oft trat es ein</span><span><b></b>so oft sagte es die Quote</span><span>rechts: Rendite je Tipp</span></div></div>`;
 }
+
+// ── Markt-Charts (Lucas 19.10.) ──
+const MW_FAM = [["sieg","Sieg-Markt","var(--mw-sieg)"],["tore","Tore","var(--mw-tore)"],["hz","Halbzeit","var(--mw-hz)"],["rest","Ergebnis & Sonstiges","var(--mw-rest)"]];
+function mwFamilie(n){
+  n = String(n||"");
+  if(/^Half Time|^First Half/.test(n)) return "hz";
+  if(/^Match Odds$|^Draw no Bet$/.test(n)) return "sieg";
+  if(/^Over\/Under|^Both teams/.test(n)) return "tore";
+  return "rest";
+}
+function mwAuswahl(z){
+  // feste Reihenfolge wie im Spiel-Detail: Über vor Unter, Ja vor Nein, Heim – Remis – Gast
+  const r = a => { const n = String(a[0]||""); if(/^over/i.test(n)||/^yes$/i.test(n)||n===z.heim) return 0;
+    if(/^under/i.test(n)||/^no$/i.test(n)) return 2; if(/draw/i.test(n)) return 1; if(n===z.gast) return 2; return 3; };
+  return (z.auswahl||[]).filter(a=>a[1]>0).slice().sort((a,b)=>r(a)-r(b));
+}
+function mwHeiss(z){ return (z.neu||0) >= Math.max(z.top5 ? 5000 : 1000, z.eur*0.04); }
+function treemap(werte, W, H){
+  // „squarified": Kacheln möglichst quadratisch, größte zuerst
+  const ges = werte.reduce((a,b)=>a+b,0) || 1, fl = werte.map(v=>v/ges*W*H), out = [];
+  let x=0, y=0, w=W, h=H, reihe=[], i=0;
+  const schlecht = (r, s) => { const sum = r.reduce((a,b)=>a+b,0), mx = Math.max(...r), mn = Math.min(...r); return Math.max(s*s*mx/(sum*sum), sum*sum/(s*s*mn)); };
+  const legen = r => { const sum = r.reduce((a,b)=>a+b,0);
+    if(w >= h){ const cw = sum/h; let yy = y; for(const a of r){ out.push({x, y:yy, w:cw, h:a/cw}); yy += a/cw; } x += cw; w -= cw; }
+    else { const rh = sum/w; let xx = x; for(const a of r){ out.push({x:xx, y, w:a/rh, h:rh}); xx += a/rh; } y += rh; h -= rh; } };
+  while(i < fl.length){ const s = Math.min(w,h);
+    if(!reihe.length || schlecht([...reihe, fl[i]], s) <= schlecht(reihe, s)){ reihe.push(fl[i]); i++; } else { legen(reihe); reihe = []; } }
+  if(reihe.length) legen(reihe);
+  return out;
+}
+function geldWand(D){
+  const mc = D.marktCharts; if(!mc) return `<div class="leer">Die Geld-Wand erscheint mit dem nächsten Abruf.</div>`;
+  const handy = innerWidth <= 700, W = handy ? Math.max(280, innerWidth-64) : 1100, H = handy ? 500 : 430;
+  const Z = lf(mc.maerkte||[]).slice(0, handy ? 14 : 24);
+  if(!Z.length) return `<div class="leer">Keine Märkte in dieser Auswahl.</div>`;
+  const R = treemap(Z.map(z=>z.eur), W, H);
+  const kach = Z.map((z,i)=>{ const r = R[i], f = MW_FAM.find(x=>x[0]===mwFamilie(z.markt))[2];
+    const gr = r.w>=260&&r.h>=200 ? "g xl" : r.w>=170&&r.h>=110 ? "g" : r.w>=110&&r.h>=72 ? "m" : r.w>=70&&r.h>=46 ? "k" : "xs";
+    const au = mwAuswahl(z), sum = au.reduce((a,b)=>a+b[1],0)||1, fu = z.fuehrt;
+    const zeit = z.live ? `${z.live.min!=null?z.live.min+"'":"live"} ${z.live.stand?.[0]??0}:${z.live.stand?.[1]??0}` : "";
+    const titel = `${z.heim} – ${z.gast} · ${marktDe(z.markt)} · ${eur(z.eur)}${fu?` · ${auswahlDe(fu.name)} ${fu.anteil} %`:""}`;
+    return `<div class="mw-k ${gr}" style="left:${(r.x/W*100).toFixed(3)}%;top:${(r.y/H*100).toFixed(3)}%;width:${(r.w/W*100).toFixed(3)}%;height:${(r.h/H*100).toFixed(3)}%">
+      <div class="mw-i${mwHeiss(z)?" heiss":""}" style="--f:${f}" title="${esc(titel)}" tabindex="0" ${klickSpiel({id:z.id, heim:z.heim, gast:z.gast})}>
+        <div class="mw-sp">${gr.startsWith("g")?flagge(z.land)+" ":""}${esc(z.heim)} – ${esc(z.gast)}</div>
+        <div class="mw-m">${esc(marktDe(z.markt))}${fu?` · <b>${esc(auswahlDe(fu.name))} ${fu.anteil} %</b>`:""}${gr.startsWith("g")&&zeit?` · ${zeit}`:""}</div>
+        <div class="mw-fuss"><span class="mw-e">${eur(z.eur)}</span>${mwHeiss(z)?`<span class="mw-n">+${eur(z.neu)}</span>`:""}</div>
+        ${gr!=="k"&&gr!=="xs"?`<div class="mw-s">${au.map(a=>`<i style="width:${(a[1]/sum*100).toFixed(1)}%;opacity:${fu&&a[0]===fu.name?1:.35}"></i>`).join("")}</div>`:""}
+      </div></div>`; }).join("");
+  const da = new Set(Z.map(z=>mwFamilie(z.markt)));
+  return `<div class="mw" style="height:${H}px">${kach}</div>
+    <div class="mw-leg">${MW_FAM.filter(x=>da.has(x[0])).map(x=>`<span><i style="background:${x[2]}"></i>${x[1]}</span>`).join("")}<span>Kräftig gefärbt = gerade neues Geld (30 Min, live 15)</span></div>`;
+}
+function hitparade(D, n=15){
+  const mc = D.marktCharts; if(!mc) return "";
+  const alle = lf(mc.maerkte||[]);
+  if(!alle.length) return `<div class="leer">Keine Märkte in dieser Auswahl.</div>`;
+  // Rang vor 1 h innerhalb derselben Auswahl (Liga-Schalter gilt auch hier)
+  const vor = alle.filter(z=>z.vor60!=null).slice().sort((a,b)=>b.vor60-a.vor60), rv = new Map(vor.map((z,i)=>[z.k,i+1]));
+  const Z = alle.slice(0, n);
+  const zeilen = Z.map((z,i)=>{ const rang = i+1, alt = rv.get(z.k), fu = z.fuehrt;
+    let b;
+    if(!mc.messbar) b = `<span class="hp-b gl">–</span>`;
+    else if(alt==null) b = `<span class="hp-b neu">NEU</span>`;
+    else if(alt>rang) b = `<span class="hp-b auf">▲ ${alt-rang}</span>`;
+    else if(alt<rang) b = `<span class="hp-b ab">▼ ${rang-alt}</span>`;
+    else b = `<span class="hp-b gl">=</span>`;
+    const zeit = z.live ? `<span class="live">${z.live.min!=null?z.live.min+"'":"live"}</span> ${z.live.stand?.[0]??0}:${z.live.stand?.[1]??0}` : wann(z.anpfiff);
+    const plus = z.vor60!=null ? z.eur - z.vor60 : null;
+    const f = MW_FAM.find(x=>x[0]===mwFamilie(z.markt))[2];
+    return `<div class="hp-z" ${klickSpiel({id:z.id, heim:z.heim, gast:z.gast})}>
+      <span class="hp-r">${rang}</span><span>${b}</span>
+      <div class="hp-t"><b>${flagge(z.land)} ${esc(z.heim)} – ${esc(z.gast)}</b><small>${esc(marktDe(z.markt))}${fu?` · <em>${esc(auswahlDe(fu.name))} ${fu.anteil} %</em>${fu.quote?` @ ${q2(fu.quote)}`:""}`:""} · ${zeit}</small></div>
+      <div class="hp-sp">${(z.spur||[]).filter(v=>v!=null).length>=2?spark(z.spur.filter(v=>v!=null), f, 130, 30):""}</div>
+      <div class="hp-g"><b>${eur(z.eur)}</b>${plus!=null&&plus>0?`<small class="auf">+${eur(plus)} in 1 h</small>`:plus!=null?`<small>± 0 in 1 h</small>`:""}</div>
+    </div>`; }).join("");
+  const hinweis = mc.messbar ? "" : `<div class="kk-klein" style="margin-bottom:8px">Auf- und Absteiger erscheinen, sobald eine Stunde Verlauf gesammelt ist${mc.seit?` (seit ${uhr(mc.seit)})`:""}.</div>`;
+  return hinweis + `<div class="hp">${zeilen}</div>`;
+}
 function seiteBetfair(D){
   const alle = lf(D.radar.spiele), liste_ = BF_SETS[filterBf][1](alle);
   const norm = lf(alle).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
@@ -1908,6 +2035,8 @@ function seiteBetfair(D){
     <div class="panel c12"><div class="ph"><h3>Neues Geld auf Betfair</h3><span class="hint">je halbe Stunde, alle Spiele im Abruf, letzte 10 h</span></div>${bfNeuesGeld(alle)}</div>
     <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">wie viel mehr Geld als in dieser Liga üblich</span></div>${normPunkte(norm)}</div>
     <div class="panel c5"><div class="ph"><h3>Halbzeit-Geld</h3><span class="hint">Geld auf die 1. Halbzeit</span></div>${hzKarten(hzl.slice(0,4))}${hzl.length>4?liste("Alle Halbzeit-Spiele als Liste",hzl.length,hzTabelle(hzl,"hz-bf")):""}</div>
+    <div class="panel c12"><div class="ph"><h3>Geld-Wand</h3><span class="hint">die Märkte mit dem meisten Geld, Fläche = Geld im Markt</span></div>${geldWand(D)}</div>
+    <div class="panel c12"><div class="ph"><h3>Hitparade der Märkte</h3><span class="hint">Platz nach Geld im Markt, Pfeil = Plätze seit 1 h</span></div>${hitparade(D)}</div>
     <div class="panel c12">${liste(`Alle ${alle.length} Spiele aus ${D.radar.ligen} Ligen als Liste`, "", `<div id="bf-alle">${bfAlleInhalt(alle)}</div>`)}</div>
     <div class="panel c12">${liste(`Wo das Geld trägt: hohes Geld je Liga, letzte ${(D.ligaBilanz||{}).fensterTage||90} Tage`, "", `<div class="kk-klein" style="margin:10px 0 12px">Ein Kästchen je Markt mit hohem Einsatz · „trägt" erst ab 99 % Sicherheit</div>${ligaKaestchen(D.ligaBilanz)}`)}</div>
     ${((D.pushBilanz||{}).teile||{}).serie?.length?`<div class="panel c12">${liste(`🔁 Dauerzufluss: wie die Pushes liefen (seit ${tagKurz(D.pushBilanz.seit)})`, "", `<div class="kk-klein" style="margin:10px 0 12px">Zur Push-Quote abgerechnet, 2 % Kommission · Balken = so oft getroffen, Strich = was die Quote sagte</div>${istSoll(D.pushBilanz.teile.serie.map(g=>({name:esc(g.name), unter:`${g.n} Tipps`, ist:g.treffer, soll:g.erwartet, roi:g.roi})))}`)}</div>`:""}

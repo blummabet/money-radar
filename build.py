@@ -1907,6 +1907,72 @@ def verlauf(bf_led, burst, finder, tr_led):
     return out
 
 
+# ── Markt-Charts (Lucas 19.10.: „die Märkte mit dem meisten Geld, aber ganz eigene Darstellung") ──
+# Geld-Wand (Treemap) + Hitparade (Rang jetzt gegen vor 1 h). Jeder Lauf schreibt das Geld je Markt in ein
+# schlankes Protokoll (.bf/markt_charts.json, 4 h, Actions-Cache); daraus kommen „vor 1 h" und die Spur.
+MC_DATEI = BASIS / ".bf" / "markt_charts.json"
+MC_H = 4
+MC_MIN_EUR = 1500
+
+
+def _linie_durch(markt, stand):
+    m = re.match(r"^(?:Over/Under|First Half Goals) (\d+)\.5", str(markt or ""))
+    if not m or not isinstance(stand, list) or None in stand[:2]:
+        return False
+    return (stand[0] or 0) + (stand[1] or 0) > int(m.group(1))
+
+
+def markt_charts(radar):
+    jetzt = {}
+    zeilen = []
+    for s in (radar or {}).get("spiele") or []:
+        if s.get("entschieden") or s.get("klarVorn"):
+            continue
+        stand = (s.get("live") or {}).get("stand")
+        for m in s.get("maerkteDetail") or []:
+            if (m.get("eur") or 0) < MC_MIN_EUR or _linie_durch(m.get("name"), stand):
+                continue
+            k = f"{s['id']}|{m['name']}"
+            jetzt[k] = m["eur"]
+            aus = [a for a in m.get("auswahl") or [] if a.get("name") != "Rest"]
+            top = max(aus, key=lambda a: a.get("eur") or 0) if aus else None
+            zeilen.append({"k": k, "id": s["id"], "heim": s["heim"], "gast": s["gast"], "liga": s.get("liga"),
+                           "land": s.get("land"), "top5": s.get("top5"), "anpfiff": s.get("anpfiff"), "live": s.get("live"),
+                           "markt": m["name"], "eur": m["eur"], "neu": m.get("neu"), "fenster": s.get("fensterMin"),
+                           "fuehrt": ({"name": top.get("name"), "anteil": round(100 * (top.get("eur") or 0) / m["eur"]),
+                                       "quote": top.get("quote")} if top and m["eur"] else None),
+                           "auswahl": [[a.get("name"), a.get("eur"), a.get("quote")] for a in m.get("auswahl") or []]})
+    try:
+        buch = json.loads(MC_DATEI.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        buch = []
+    grenze = JETZT - timedelta(hours=MC_H)
+    buch = [b for b in buch if isinstance(b, dict) and (ts(b.get("t")) or grenze) > grenze]
+    if jetzt:
+        buch.append({"t": iso(JETZT), "m": jetzt})
+    try:
+        MC_DATEI.parent.mkdir(exist_ok=True)
+        MC_DATEI.write_text(json.dumps(buch, separators=(",", ":")), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        FEHLER.append(f"markt_charts: {str(exc)[:100]}")
+    # Punkt „vor 1 h": der nächste Eintrag an JETZT − 60 Min (±12 Min), sonst keiner → Bewegung noch nicht messbar
+    pts = [(ts(b["t"]), b["m"]) for b in buch]
+    vor = min((p for p in pts if abs((p[0] - (JETZT - timedelta(minutes=60))).total_seconds()) <= 12 * 60),
+              key=lambda p: abs((p[0] - (JETZT - timedelta(minutes=60))).total_seconds()), default=None)
+    # Spur: alle 20 Min ein Punkt über die letzten 4 h
+    raster, letzte = [], None
+    for t, m in pts:
+        if letzte is None or (t - letzte).total_seconds() >= 19 * 60:
+            raster.append(m); letzte = t
+    if pts and (not raster or raster[-1] is not pts[-1][1]):
+        raster.append(pts[-1][1])                     # der letzte Punkt ist immer „jetzt"
+    for z in zeilen:
+        z["vor60"] = (vor[1].get(z["k"]) if vor else None)
+        z["spur"] = [m.get(z["k"]) for m in raster][-13:]
+    zeilen.sort(key=lambda z: -z["eur"])
+    return {"messbar": bool(vor), "seit": buch[0]["t"] if buch else None, "maerkte": zeilen[:120]}
+
+
 def main() -> int:
     prices = laden_bf("betfair_prices.json")
     bf_hist = laden_bf("betfair_history.json")
@@ -1961,6 +2027,7 @@ def main() -> int:
         "pinnDrops": pinn_drops(prices),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
         "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, laden("poly_money_broad_live.json", {}), offen_m)),
+        "marktCharts": markt_charts(radar),
         "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(laden("poly_money_broad_live.json", {}) or {})}, hr, pfl, pbel),
         "stake": stake(burst),
         "hz": hz(finder),
