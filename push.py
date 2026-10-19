@@ -174,6 +174,16 @@ def _in_serie(d, sid, markt, auswahl):
                for x in d.get("serien") or [])
 
 
+def stat_zeile(d, sid):
+    """Lucas 19.10. (APISPORTS_KEY im neuen Repo): Live-Statistik aus live_stats.py, wenn vorhanden."""
+    x = (d.get("liveStats") or {}).get(str(sid)) or {}
+    st = _hz_stat(x.get("statistik") or {}) if x.get("statistik") else None
+    if not st:
+        return ""
+    minute = f" bis {x['min']}'" if x.get("min") else ""
+    return f"📊 <b>Live-Stats</b>{minute}: {st}\n"
+
+
 def zufluss(d):
     """Lucas 17.10.: nicht das Geld aufs ganze Spiel, sondern auf WELCHE Auswahl es einseitig floss."""
     for z in d.get("zufluss30") or []:
@@ -219,7 +229,8 @@ def live(d):
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {minute} · <b>{st[0]}:{st[1]}</b>\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(remis(_auswahl_de(fl.get('auswahl'))))}</b> @ <b>{q2(q)}</b>{richtung}\n"
-                f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n\n"
+                f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n"
+                + stat_zeile(d, z.get("id")) + "\n"
                 + _geld_block(fl, 15)
                 + liga_zeile(d, z.get("liga")))
         yield key, text, 12, _beleg("live", z, fl, live=True)
@@ -687,6 +698,7 @@ def serie(d):
                 f"💶 <b>{geld(x['eur'])}</b> in {x['dauerMin']} Min auf <b>{e(remis(_auswahl_de(x['auswahl'])))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"<i>= im Schnitt {x.get('anteil')} % von allem, was je Abruf in diesem Markt neu kam</i>\n"
                 + lay_hinweis
+                + (stat_zeile(d, x["id"]) if x.get("live") else "")
                 + (f"⚽ <b>Tor während der Serie</b> ({x['tor']['von'][0]}:{x['tor']['von'][1]} → {x['tor']['nach'][0]}:{x['tor']['nach'][1]}): "
                    f"{geld(x['tor']['vorTor'])} kamen vorher, {geld(x['tor']['nachTor'])} danach\n" if x.get("tor") else "")
                 + "\n"

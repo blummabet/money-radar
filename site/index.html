@@ -754,6 +754,15 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .mb-t{height:8px;background:var(--flaeche-2);border-radius:4px;overflow:hidden} .mb-t i{display:block;height:100%;border-radius:4px;background:color-mix(in srgb, var(--text-3) 45%, transparent)}
 .mb-z.top .mb-n{color:var(--text);font-weight:700} .mb-z.top .mb-t i{background:var(--bf)}
 .mb-z b{text-align:right} .mb-z em:empty{display:none} .mb-z em{font-style:normal;font-size:11.5px;color:var(--up);font-weight:700;text-align:right;white-space:nowrap}
+
+.ls{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:11.5px;color:var(--text-3);margin-top:4px}
+.ls b,.jf-l .ls b{display:inline;color:var(--text);font-weight:700;font-size:inherit;white-space:nowrap}
+.jf-l .ls span{display:inline}
+.ls-k{color:var(--text-2);font-weight:700}
+.ls-b{flex:1 0 60px;max-width:120px;height:6px;border-radius:3px;background:color-mix(in srgb, var(--hz) 35%, var(--panel-3));overflow:hidden}
+.ls-b i{display:block;height:100%;background:var(--pin)}
+.ls.gross{font-size:13px;gap:4px 14px;padding:10px 12px;background:var(--flaeche);border:1px solid var(--line);border-radius:12px;margin:0 0 12px}
+.ls.gross .ls-b{max-width:160px;height:8px}
 </style>
 </head>
 <body>
@@ -901,6 +910,7 @@ function serienKarten(D, max, quelle){
       <div class="serie-kopf"><span class="serie-n">🔁 ${x.n}× in Folge</span><span class="tag" style="background:${tint(farbe,16)};color:${farbe}">${istBf?"Betfair":istSt?"Stake":"Polymarket"}</span></div>
       <div class="kk-zahl" style="color:${farbe}">${istBf?eur(x.eur):usd(x.usd)} <small style="font-size:13px;color:var(--text-2);font-weight:600">in ${x.dauerMin} Min</small></div>
       <div class="kk-auf">auf <b>${esc(istBf?auswahlDe(x.auswahl):istSt?x.auswahl:pmLabel(x.auswahl, x.titel, x.sport))}</b>${x.quote?` @ ${q2(x.quote)}`:""}${x.preis?` <small style="color:var(--text-3)">(${Math.round(x.preis*100)} ¢)</small>`:""}${x.quoteStart&&x.quote&&Math.abs(x.quote-x.quoteStart)>=0.02?` <span class="${x.quote<x.quoteStart?"hoch":"runter"}">${x.quote<x.quoteStart?"↓":"↑"} von ${q2(x.quoteStart)}</span>`:""}</div>
+      ${istBf?liveStat(x.id):""}
       ${istBf&&x.tor?`<div class="kk-klein" style="color:var(--bf)">⚽ Tor während der Serie (${x.tor.von.join(":")} → ${x.tor.nach.join(":")}): ${eur(x.tor.vorTor)} vorher, ${eur(x.tor.nachTor)} danach</div>`:""}
       ${istBf?`<div class="kk-klein">${esc(marktDe(x.markt))}${x.letzteVorMin!=null?`, zuletzt vor ${x.letzteVorMin} Min`:""}</div>`:istSt?`<div class="kk-klein">${esc(x.markt)}, ${x.wetten} Wetten ab $1000</div>`:""}
       ${saeulenSvg(istBf ? x.saeulen.slice(-24) : x.saeulen, farbe, 260, 38, istBf?5:10, istBf ? (x.tore||[]).map(t=>({...t, i:t.i-(x.saeulen.length-24)})) : [])}
@@ -996,7 +1006,7 @@ function spielDetail(s, ohneVerlauf){
     return `<div class="mk"><div class="mk-k"><b>${esc(marktDe(m.name))}</b><span>${eur(m.eur)}${m.neu>0?` <em>+${eur(m.neu)}</em>`:""}</span></div>
       <div class="mb">${m.auswahl.slice(0,4).map(a=>`<div class="mb-z${a.eur===topE?" top":""}"><span class="mb-n">${esc(auswahlDe(a.name))}${a.quote?` <small>${q2(a.quote)}</small>`:""}</span><div class="mb-t"><i style="width:${(a.eur/ges*100).toFixed(1)}%"></i></div><b>${Math.round(a.eur/ges*100)} %</b>${a.neu>0?`<em>+${eur(a.neu)}</em>`:"<em></em>"}</div>`).join("")}</div></div>`;
   }).join("")}</div>`;
-  return `<tr class="detail"><td colspan="6"><div class="det">${ohneVerlauf?"":spielVerlauf(s)}
+  return `<tr class="detail"><td colspan="6"><div class="det">${s.live?liveStat(s.id,true):""}${ohneVerlauf?"":spielVerlauf(s)}
     <div class="d-kopf">${flagge(s.land)} ${esc(s.liga)} · ${s.live?`<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}`:wann(s.anpfiff)} · ${eur(s.eur)} gematcht über alle Märkte${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}</div>
     ${(()=>{ const lb = ((D.ligaBilanz||{}).ligen||{})[s.liga]; if(!lb) return ""; const h = lb.hoch;
       return `<div class="kk-klein">📚 Liga-Bilanz hohes Geld: ${h.treffer} % getroffen, Quote sagte ${h.erwartet} % · ROI ${h.roi>0?"+":""}${dez(h.roi)} % · ${h.n} Märkte · <b style="color:${lb.urteil==="trägt"?"var(--up)":lb.urteil==="trägt nicht"?"var(--down)":"var(--text-2)"}">${lb.urteil==="offen"?"noch offen":lb.urteil}</b></div>`; })()}
@@ -1711,6 +1721,16 @@ function bcZeigen(ev){
 }
 // Lucas 19.10. („Wann heute das Geld spielt — was mach ich damit?"): stattdessen, wohin JETZT Geld fließt —
 // Spiele nach neuem Betfair-Geld der letzten 30 Min, mit der Auswahl, die davon am meisten bekam.
+// Lucas 19.10. (APISPORTS_KEY): Live-Statistik je Betfair-Spiel aus live_stats.py — xG als Tauziehen-Balken
+function liveStat(id, gross){
+  const x = (D.liveStats||{})[String(id)]; if(!x || !x.statistik) return "";
+  const h = x.statistik.heim||{}, g = x.statistik.gast||{};
+  const paar = (f, lab, fmt=v=>v) => h[f]!=null && g[f]!=null ? `<span>${lab} <b>${fmt(h[f])}</b> : <b>${fmt(g[f])}</b></span>` : "";
+  const xg = h.xg!=null && g.xg!=null ? (h.xg+g.xg>0 ? h.xg/(h.xg+g.xg)*100 : 50) : null;
+  const zeile = [paar("xg","xG",v=>dez(v,2)), paar("aufsTor","aufs Tor"), paar("ecken","Ecken"), gross?paar("schuesse","Schüsse"):"", gross?paar("ballbesitz","Ballbesitz",v=>Math.round(v)+" %"):""].filter(Boolean).join("");
+  if(!zeile) return "";
+  return `<div class="ls${gross?" gross":""}"><span class="ls-k">📊${x.min?` ${x.min}'`:""}</span>${zeile}${xg!=null?`<div class="ls-b" title="xG-Anteil"><i style="width:${xg.toFixed(0)}%"></i></div>`:""}</div>`;
+}
 function jetztFliesst(D, n=8){
   // Lucas-Fall 19.10. (Al Nahdha 66' 3:0, „Über 2,5"): Geld auf schon entschiedene Linien oder Quoten unter 1,20 ist
   // Abrechnung/Einsammeln, kein Signal → zählt nicht. Gewertet wird nur das übrige neue Geld.
@@ -1733,7 +1753,7 @@ function jetztFliesst(D, n=8){
     const anteil = top && mk && mk.neu ? Math.round(top.neu/mk.neu*100) : null;
     const zeit = s.live ? `<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}` : wann(s.anpfiff);
     return `<div class="jf-z" ${klick(esc(s.heim)+" – "+esc(s.gast), ohneHuelle(spielDetail(s)))}>
-      <div class="jf-l">${flagge(s.land)}<div style="min-width:0"><b>${esc(s.heim)} – ${esc(s.gast)}</b><small>${zeit} · ${esc(ligaName(s.liga))}</small></div></div>
+      <div class="jf-l">${flagge(s.land)}<div style="min-width:0"><b>${esc(s.heim)} – ${esc(s.gast)}</b><small>${zeit} · ${esc(ligaName(s.liga))}</small>${s.live?liveStat(s.id):""}</div></div>
       <div class="jf-b"><i style="width:${Math.max(4,eff/max*100).toFixed(1)}%"></i><span>+${eur(eff)}</span></div>
       <div class="jf-r">${top?`<b>${esc(auswahlDe(top.name))}</b><small>${anteil!=null?`${anteil} % von ${esc(marktDe(mk.name))}`:esc(marktDe(mk.name))}${top.quote?` · @ ${q2(top.quote)}`:""}</small>`:(s.marktZufluss||[])[0]?`<b>${esc(marktDe(s.marktZufluss[0].name))}</b><small>meistes neues Geld in diesem Markt</small>`:`<small>verteilt</small>`}</div>
     </div>`; }).join("")}</div>`;

@@ -122,6 +122,10 @@ jobs:
           rm -f poly_money_broad_close.json   # 20 MB, wird jedes Mal frisch geholt — nicht in den Cache
       - name: Daten verdichten
         run: python3 build.py
+      - name: Live-Statistik (API-Football, xG und Schüsse für die gezeigten Live-Spiele)
+        env:
+          APISPORTS_KEY: ${{ secrets.APISPORTS_KEY }}
+        run: timeout 90 python3 live_stats.py || echo "Live-Statistik fehlgeschlagen, Seite und Pushes laufen ohne"
       - name: Pushes in den Test-Channel
         if: github.event_name != 'push'
         continue-on-error: true   # ein Fehler beim Pushen darf die Seite nicht vom Veröffentlichen abhalten
