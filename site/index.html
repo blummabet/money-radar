@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0d1320">
+<meta name="theme-color" content="#07080c">
 <title>Geldradar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -485,6 +485,60 @@ main{padding:22px 28px 60px;min-width:0}
   .tp-raster{margin-top:6px}
 }
 @media (max-width:420px){ .vbar{min-width:70px} .ringe{grid-template-columns:1fr 1fr 1fr;gap:4px} }
+
+/* ── Look 19.10. abends (Lucas: Dribbble „Prop Trading Dashboard") — fast schwarz, farbiges Leuchten, Glas-Panels ── */
+:root{ --bg:#07080c; --panel:#0f1117; --panel-2:#151821; --panel-3:#1e2230; --line:rgba(255,255,255,.07);
+  --text:#ffffff; --text-2:#c4c9d6; --text-3:#8d93a5; --akzent:#8b6cff; }
+body{background:
+  radial-gradient(900px 500px at 12% -8%, rgba(139,108,255,.20), transparent 60%),
+  radial-gradient(800px 600px at 105% 30%, rgba(47,211,138,.08), transparent 60%),
+  radial-gradient(700px 500px at 40% 110%, rgba(91,157,255,.08), transparent 60%), var(--bg);background-attachment:fixed}
+aside{background:rgba(10,11,16,.75);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.nav.an{background:linear-gradient(90deg, rgba(139,108,255,.22), rgba(139,108,255,.05));color:#fff;box-shadow:inset 0 0 0 1px rgba(139,108,255,.35)}
+.kopf{background:rgba(7,8,12,.72)}
+.panel{background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012));border:1px solid rgba(255,255,255,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 20px 40px -24px rgba(0,0,0,.8);border-radius:20px}
+.panel h3{font-size:16px;font-weight:800}
+.kk,.karte,.tz,.lt,.zf{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.07)}
+.kpi .wert{font-size:32px}
+.chip.an{background:var(--akzent);border-color:var(--akzent);color:#fff}
+/* Spiel-Karte im Stil einer Wett-App */
+.topf.mk{background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:12px 14px 12px;position:relative;overflow:hidden}
+.topf.mk::before{content:"";position:absolute;left:0;right:0;bottom:-40px;height:80px;background:radial-gradient(closest-side, rgba(139,108,255,.25), transparent);pointer-events:none}
+.topf.mk.ist-live::before{background:radial-gradient(closest-side, rgba(255,107,107,.25), transparent)}
+.topf.mk:hover{border-color:rgba(139,108,255,.5)}
+.mk-kopf{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--text-3)}
+.mk-liga{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.mk-liga .flag{width:16px;height:11px}
+.mk-zeit{background:rgba(255,255,255,.07);border-radius:999px;padding:2px 9px;color:var(--text-2);font-weight:700;white-space:nowrap}
+.mk-live{background:rgba(255,107,107,.16);color:#ff8a8a;border-radius:999px;padding:2px 9px;font-weight:800;white-space:nowrap}
+.mk-mitte{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:start;margin-top:10px;position:relative}
+.mk-team{min-width:0;display:flex;flex-direction:column;gap:2px}
+.mk-team:last-child{text-align:right;align-items:flex-end}
+.mk-name{font-weight:700;font-size:14.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.mk-pct{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1;color:#5d6377}
+.mk-pct small{font-size:15px;margin-left:2px;font-weight:700}
+.mk-team.lead .mk-name{color:#fff}
+.mk-team.lead .mk-pct{color:#fff;text-shadow:0 0 22px rgba(139,108,255,.65)}
+.mk-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.mk-team:last-child .mk-chips{justify-content:flex-end}
+.mk-geld{text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:2px;min-width:86px}
+.mk-geld>b{font-size:20px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.mk-geld>small{font-size:11px;color:var(--text-3)}
+.mk-u{margin-top:5px;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px}
+.mk-u.ok{background:rgba(47,211,138,.15);color:var(--up)} .mk-u.nein{background:rgba(255,181,71,.15);color:var(--bf)}
+.mk-remis{margin-top:7px;font-size:12px;color:var(--text-3);display:flex;flex-direction:column;align-items:center}
+.mk-remis b{color:var(--text-2);font-size:13px}
+.mk-remis.lead b{color:#fff;font-size:18px;text-shadow:0 0 18px rgba(139,108,255,.65)}
+.mk-quellen{margin-top:10px;position:relative}
+.mk .tp-gb{margin:0 0 6px;height:5px}
+.mk .tp-gb i{box-shadow:0 0 10px currentColor}
+.mk .tp-gz{font-size:12.5px}
+.tp-c{font-size:11px;padding:2px 7px}
+@media (max-width:700px){
+  .mk-pct{font-size:26px} .mk-name{font-size:13.5px} .mk-geld{min-width:72px} .mk-geld>b{font-size:17px}
+  .panel{border-radius:18px}
+}
 </style>
 </head>
 <body>
@@ -1220,28 +1274,28 @@ function topfFazit(t){
 // Wörter — Legende einmal oben im Panel. Oben ein Geld-Balken nach Quelle, darunter je Ausgang eine Kachel mit großer
 // Prozentzahl; in der Kachel stehen die Quellen, die dort ihr meistes Geld haben, als kräftige Farb-Chips.
 function topfKarte(t, i, maxGes){
+  // Lucas 19.10. (Dribbble-Vorbild „Mobet"/„Fundedpipps"): das Spiel ist der Held — Heim links, Gast rechts,
+  // Geld in der Mitte, große Prozentzahl unter jedem Team, Quellen als Farb-Chips unter dem Team, das sie spielen.
   const qs = Object.entries(t.q||{}).filter(([,q])=>q.betrag>0).sort((a,b)=>b[1].betrag-a[1].betrag);
-  const live = t.live ? `<span class="live">${t.live.min!=null?t.live.min+"'":"live"}</span> ${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}` : wann(t.anpfiff);
-  const urteil = t.einig===true ? `<span class="tp-urteil ok">✓ einig</span>` : t.einig===false ? `<span class="tp-urteil nein">uneinig</span>` : "";
-  const gesQ = qs.reduce((a,[,q])=>a+(q.eur||q.betrag),0) || 1;
-  const geldBalken = `<div class="tp-gb">${qs.map(([qn,q])=>`<i style="flex:${q.eur||q.betrag} 1 0;background:${QUELLE[qn].f}"></i>`).join("")}</div>
-    <div class="tp-gz">${qs.map(([qn,q])=>`<span style="color:${QUELLE[qn].f}">${geldIn(qn,q.betrag)}${qn==="stake"&&q.wetten?`<small> · ${q.wetten} Wetten</small>`:""}</span>`).join("")}</div>`;
-  const keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
-  const sw = t.seiten||{}, gesS = keys.reduce((a,k)=>a+(sw[k]||0),0);
+  const zeit = t.live ? `<span class="mk-live">● ${t.live.min!=null?t.live.min+"'":"live"} · ${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}</span>` : `<span class="mk-zeit">${wann(t.anpfiff)}</span>`;
+  const sw = t.seiten||{}, keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
+  const gesS = keys.reduce((a,k)=>a+(sw[k]||0),0);
+  const pct = k => gesS ? Math.round((sw[k]||0)/gesS*100) : null;
   const lead = gesS ? keys.reduce((a,k)=>(sw[k]||0)>(sw[a]||0)?k:a, keys[0]) : null;
-  const kacheln = gesS ? `<div class="tp-k${keys.length===2?" zwei":""}">${keys.map(k=>{
-    const chips = qs.filter(([,q])=>q.auf===k).map(([qn,q])=>`<span class="tp-c${q.meinung?"":" schwach"}" style="--f:${QUELLE[qn].f}" title="${QUELLE[qn].n}: ${q.anteil} % ihres Geldes auf ${esc(k2n(t,k))}">${q.anteil} %</span>`).join("");
-    const wk = (t.wale||[]).filter(x=>x.k===k), wS = wk.reduce((a,x)=>a+x.usd,0);
-    return `<div class="tp-kk${k===lead?" lead":""}"><span class="n">${esc(k2n(t,k))}</span><b>${Math.round((sw[k]||0)/gesS*100)} %</b><div class="tp-cs">${chips}${wk.length?`<span class="tp-c wal" title="belegte Wallets">🧠 ${usd(wS)}</span>`:""}</div></div>`;
-  }).join("")}</div>` : `<div class="tp-hinweis">Noch keine Aufteilung nach Seiten</div>`;
-  return `<div class="topf" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
-    <div class="tp-kopf">
-      <span class="tp-rang">${i+1}</span>
-      <div class="tp-titel"><b>${esc(t.heim)} – ${esc(t.gast)}</b><span>${t.land?flagge(t.land):sportIco(t.sport)} ${esc(ligaName(t.liga)||t.sport||"")} · ${live}</span></div>
-      <div class="tp-summe"><b>≈ ${eur(t.gesamt)}</b>${urteil}</div>
+  const chips = k => qs.filter(([,q])=>q.auf===k).map(([qn,q])=>`<span class="tp-c${q.meinung?"":" schwach"}" style="--f:${QUELLE[qn].f}" title="${QUELLE[qn].n}: ${q.anteil} % ihres Geldes">${QUELLE[qn].k} ${q.anteil}%</span>`).join("")
+    + ((t.wale||[]).some(x=>x.k===k) ? `<span class="tp-c wal">🧠 ${usd((t.wale||[]).filter(x=>x.k===k).reduce((a,x)=>a+x.usd,0))}</span>` : "");
+  const team = (k, name) => `<div class="mk-team${k===lead?" lead":""}"><div class="mk-name">${esc(name)}</div><div class="mk-pct">${pct(k)??"–"}<small>%</small></div><div class="mk-chips">${chips(k)}</div></div>`;
+  const remis = keys.includes("remis") ? `<div class="mk-remis${lead==="remis"?" lead":""}">Remis <b>${pct("remis")??"–"} %</b>${chips("remis")?`<div class="mk-chips">${chips("remis")}</div>`:""}</div>` : "";
+  const urteil = t.einig===true ? `<span class="mk-u ok">einig</span>` : t.einig===false ? `<span class="mk-u nein">uneinig</span>` : "";
+  return `<div class="topf mk${t.live?" ist-live":""}" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
+    <div class="mk-kopf"><span class="mk-liga">${t.land?flagge(t.land):sportIco(t.sport)} ${esc(ligaName(t.liga)||t.sport||"")}</span>${zeit}</div>
+    <div class="mk-mitte">
+      ${team("heim", t.heim)}
+      <div class="mk-geld"><b>${eur(t.gesamt)}</b><small>im Spiel</small>${urteil}${remis}</div>
+      ${team("gast", t.gast)}
     </div>
-    ${geldBalken}
-    ${kacheln}
+    <div class="mk-quellen"><div class="tp-gb">${qs.map(([qn,q])=>`<i style="flex:${q.betrag} 1 0;background:${QUELLE[qn].f};color:${QUELLE[qn].f}"></i>`).join("")}</div>
+      <div class="tp-gz">${qs.map(([qn,q])=>`<span style="color:${QUELLE[qn].f}">${geldIn(qn,q.betrag)}</span>`).join("")}</div></div>
   </div>`;
 }
 const quellenLegende = () => `<span class="legende">${Object.values(QUELLE).map(q=>`<span><i style="background:${q.f}"></i>${q.n}</span>`).join("")}</span>`;
