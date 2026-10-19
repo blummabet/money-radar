@@ -1556,8 +1556,14 @@ def belegte_positionen(wallets, track, *quellen):
     return out
 
 
+# Lucas 19.10.: „Jetzt fließt Geld rein" bleibt reines Betfair — bekommt dasselbe Spiel in den letzten 30 Min auch auf
+# Polymarket oder Stake Geld, zeigt die Zeile einen kleinen Chip. geld_toepfe füllt diese Karte nebenbei (Betfair-ID → Quelle).
+AUCH_WOANDERS = {}
+
+
 def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
     spiele = []
+    AUCH_WOANDERS.clear()
     # 1) Betfair als Grundgerüst (hat Land, Liga-Namen, Live-Stand)
     for sp in (radar or {}).get("spiele") or []:
         seiten = {}
@@ -1590,6 +1596,12 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
     #    Die Schlüssel tragen nur Kürzel („mls-nyr-tor-…"); die Teamnamen stehen in den Preis-Schlüsseln.
     #    „…-more-markets" (Tore, BTTS, Handicap) zählt zum Volumen desselben Spiels.
     pf_takt = {m.get("key"): m.get("takt") or {} for m in (pf or {}).get("maerkte") or [] if m.get("takt")}
+    pf_30 = {}
+    for m in (pf or {}).get("maerkte") or []:
+        su = sum((m.get("taktSumme") or [])[-3:])       # 3 × 10 Min = die letzten 30 Min
+        if su > 0:
+            seite = max(((n, sum((w or [])[-3:])) for n, w in (m.get("takt") or {}).items()), key=lambda kv: kv[1], default=(None, 0))
+            pf_30[m.get("key")] = (su, seite[0])
     mm_vol = {}
     for key, m in (poly_alle or {}).items():
         if isinstance(m, dict) and key.endswith("-more-markets"):
@@ -1632,6 +1644,10 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
               ((belegt or {}).get(key) or []) + ((belegt or {}).get(key + "-more-markets") or [])]
         if wl:
             g["wale"] = wl[:6]
+        if key in pf_30 and not str(g["id"]).startswith(("pm:", "st:")):
+            alt = AUCH_WOANDERS.setdefault(g["id"], {}).get("poly")
+            if not alt or alt["usd"] < pf_30[key][0]:
+                AUCH_WOANDERS[g["id"]]["poly"] = {"usd": round(pf_30[key][0]), "auf": pf_30[key][1]}
         g["q"]["poly"] = {"betrag": round(betrag), "seiten": seiten, "key": key, "seitenAus": herkunft if seiten else None,
                           "preise": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("prices") or {}).items()}}
 
@@ -1646,6 +1662,9 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
         e = je_event.setdefault(w.get("eventId"), {"w": w, "summe": 0.0, "n": 0, "seiten": {}})
         e["summe"] += w.get("einsatzUsd") or 0
         e["n"] += 1
+        if JETZT - t <= timedelta(minutes=30):
+            e["s30"] = e.get("s30", 0.0) + (w.get("einsatzUsd") or 0)
+            e["n30"] = e.get("n30", 0) + 1
         mk = str(w.get("markt") or "").lower()
         # Seite aus Sieg-Märkten, aber auch aus Handicap / Draw No Bet (Auswahl = Teamname, ggf. mit Linie)
         if mk in ("1x2", "match result", "winner", "match winner", "moneyline", "winner - twoway") \
@@ -1670,6 +1689,8 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
             if k:
                 seiten[k] = seiten.get(k, 0) + v
         g["q"]["stake"] = {"betrag": round(e["summe"]), "seiten": seiten, "wetten": e["n"]}
+        if e.get("s30") and not str(g["id"]).startswith(("pm:", "st:")):
+            AUCH_WOANDERS.setdefault(g["id"], {})["stake"] = {"usd": round(e["s30"]), "n": e["n30"]}
 
     # Lucas 18.10. (Kasimpasa 55' 2:1 mit „79 % auf Kasimpasa" oben in der Liste): live verstopfen führende Teams die
     # Liste, und ihr Betfair-Anteil wächst nur, weil nach dem Tor zu Mini-Quoten auf den Führenden gehandelt wird.
@@ -2029,6 +2050,7 @@ def main() -> int:
         "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, laden("poly_money_broad_live.json", {}), offen_m)),
         "marktCharts": markt_charts(radar),
         "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(laden("poly_money_broad_live.json", {}) or {})}, hr, pfl, pbel),
+        "auchWoanders": dict(AUCH_WOANDERS),
         "stake": stake(burst),
         "hz": hz(finder),
         "fehler": FEHLER,

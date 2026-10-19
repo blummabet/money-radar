@@ -688,6 +688,8 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .jf-b{display:flex;align-items:center;gap:8px}
 .jf-b i{display:block;height:10px;border-radius:5px;background:var(--bf)}
 .jf-b span{font-weight:800;font-size:14px;white-space:nowrap}
+.jf-qs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.jf-q{font-style:normal;font-size:11.5px;font-weight:800;white-space:nowrap;padding:2px 8px;border-radius:999px;background:color-mix(in srgb, var(--f) 15%, transparent);color:var(--f)}
 .jf-r{text-align:right;min-width:0} .jf-r b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .jf-r small{display:block;font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:700px){ .jf-z{grid-template-columns:minmax(0,1fr) auto;row-gap:6px} .jf-b{grid-column:1/-1;grid-row:2} .jf-r{grid-column:2;grid-row:1} }
 
@@ -1798,6 +1800,14 @@ function liveStat(id, gross){
   if(!zeile) return "";
   return `<div class="ls${gross?" gross":""}"><span class="ls-k">📊${x.min?` ${x.min}'`:""}</span>${zeile}${xg!=null?`<div class="ls-b" title="xG-Anteil"><i style="width:${xg.toFixed(0)}%"></i></div>`:""}</div>`;
 }
+// Lucas 19.10.: dasselbe Spiel bekam in den letzten 30 Min auch auf Polymarket / Stake Geld → kleiner Chip, sonst nichts
+function auchChips(D, id){
+  const a = (D.auchWoanders||{})[id]; if(!a) return "";
+  const c = [];
+  if(a.poly && a.poly.usd >= 1000) c.push(`<em class="jf-q" style="--f:var(--poly)" title="Polymarket, letzte 30 Min${a.poly.auf?": meist "+esc(a.poly.auf):""}">+ Poly ${usd(a.poly.usd)}</em>`);
+  if(a.stake && a.stake.usd >= 1000) c.push(`<em class="jf-q" style="--f:var(--stake)" title="Stake, ${a.stake.n} große Wette${a.stake.n>1?"n":""} in den letzten 30 Min">+ Stake ${usd(a.stake.usd)}</em>`);
+  return c.join("");
+}
 function jetztFliesst(D, n=8){
   // Lucas-Fall 19.10. (Al Nahdha 66' 3:0, „Über 2,5"): Geld auf schon entschiedene Linien oder Quoten unter 1,20 ist
   // Abrechnung/Einsammeln, kein Signal → zählt nicht. Gewertet wird nur das übrige neue Geld.
@@ -1820,7 +1830,7 @@ function jetztFliesst(D, n=8){
     const anteil = top && mk && mk.neu ? Math.round(top.neu/mk.neu*100) : null;
     const zeit = s.live ? `<span class="live">${s.live.min!=null?s.live.min+"'":"live"}</span> ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}` : wann(s.anpfiff);
     return `<div class="jf-z" ${klick(esc(s.heim)+" – "+esc(s.gast), ohneHuelle(spielDetail(s)))}>
-      <div class="jf-l">${flagge(s.land)}<div style="min-width:0"><b>${esc(s.heim)} – ${esc(s.gast)}</b><small>${zeit} · ${esc(ligaName(s.liga))}</small>${s.live?liveStat(s.id):""}</div></div>
+      <div class="jf-l">${flagge(s.land)}<div style="min-width:0"><b>${esc(s.heim)} – ${esc(s.gast)}</b><small>${zeit} · ${esc(ligaName(s.liga))}</small>${(c=>c?`<div class="jf-qs">${c}</div>`:"")(auchChips(D, s.id))}${s.live?liveStat(s.id):""}</div></div>
       <div class="jf-b"><i style="width:${Math.max(4,eff/max*100).toFixed(1)}%"></i><span>+${eur(eff)}</span></div>
       <div class="jf-r">${top?`<b>${esc(auswahlDe(top.name))}</b><small>${anteil!=null?`${anteil} % von ${esc(marktDe(mk.name))}`:esc(marktDe(mk.name))}${top.quote?` · @ ${q2(top.quote)}`:""}</small>`:(s.marktZufluss||[])[0]?`<b>${esc(marktDe(s.marktZufluss[0].name))}</b><small>meistes neues Geld in diesem Markt</small>`:`<small>verteilt</small>`}</div>
     </div>`; }).join("")}</div>`;
@@ -1828,12 +1838,12 @@ function jetztFliesst(D, n=8){
 function seiteStart(D){
   // Lucas 18.10.: Dauerzufluss ist sein wichtigster KPI → läuft eine Serie, steht sie direkt unter „Gerade passiert"
   const serienDa = lf(D.serien||[]).length + (D.polySerien||[]).filter(top5Ok).length + (D.stakeSerien||[]).filter(top5Ok).length > 0;
-  const serienPanel = `<div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Abruf für Abruf Geld auf dieselbe Auswahl</span></div>${serienKarten(D,4)}</div>`;
+  const serienPanel = `<div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">immer wieder Geld auf dieselbe Auswahl</span></div>${serienKarten(D,4)}</div>`;
   const mobil = window.innerWidth < 860;
   return `<div class="grid">
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div><div class="feed">${feedListe(D,5,1)}</div></div>
     ${serienDa?serienPanel:""}
-    <div class="panel c12"><div class="ph"><h3>Jetzt fließt Geld rein</h3><span class="hint">neues Geld auf Betfair, letzte 30 Min · rechts die Auswahl, die am meisten davon bekam</span><button class="chip rechts" data-geh="betfair">Betfair</button></div>${jetztFliesst(D)}</div>
+    <div class="panel c12"><div class="ph"><h3>Jetzt fließt Geld rein</h3><span class="hint">ein großer Schub in den letzten 30 Min, Betfair · Chip = auch auf Polymarket/Stake Geld</span><button class="chip rechts" data-geh="betfair">Betfair</button></div>${jetztFliesst(D)}</div>
     <div class="panel c8 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3>${quellenLegende()}</div>${toepfeListe(D,mobil?5:8)}</div>
     <div class="panel c4 feedpanel"><div class="ph"><h3>Live-Feed</h3><span class="hint">alles, neueste zuerst</span><button class="chip rechts" data-geh="feed">Alle</button></div><div class="feed">${feedListe(D,14)}</div></div>
     ${serienDa?"":serienPanel}
