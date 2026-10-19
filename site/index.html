@@ -1780,6 +1780,10 @@ function ligaKaestchen(lb){
     ${rest.length&&gut.length?liste(`Weitere ${rest.length} Ligen ohne klares Urteil`, "", `<div class="lk-grid" style="margin-top:12px">${rest.map(karte).join("")}</div>`):""}
     ${!gut.length&&rest.length>6?liste(`Weitere ${rest.length-6} Ligen`, "", `<div class="lk-grid" style="margin-top:12px">${rest.slice(6).map(karte).join("")}</div>`):""}`;
 }
+// Lucas 19.10.: Filter wechseln darf die aufgeklappte Liste nicht zuklappen → nur der Inhalt wird neu gebaut
+function bfAlleInhalt(alle){
+  return `<div class="chips" style="margin:12px 0">${Object.entries(BF_SETS).map(([k,[n,fn]])=>`<button class="chip${k===filterBf?" an":""}" data-filter="${k}">${n} <span style="opacity:.6">${fn(alle).length}</span></button>`).join("")}</div>${spielTabelle(BF_SETS[filterBf][1](alle),"t-bf",25)}`;
+}
 function seiteBetfair(D){
   const alle = lf(D.radar.spiele), liste_ = BF_SETS[filterBf][1](alle);
   const norm = lf(alle).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
@@ -1795,8 +1799,8 @@ function seiteBetfair(D){
     <div class="panel c12"><div class="ph"><h3>Neues Geld auf Betfair</h3><span class="hint">je halbe Stunde, alle Spiele im Abruf, letzte 10 h</span></div>${bfNeuesGeld(alle)}</div>
     <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">wie viel mehr Geld als in dieser Liga üblich</span></div>${normPunkte(norm)}</div>
     <div class="panel c5"><div class="ph"><h3>Halbzeit-Geld</h3><span class="hint">Geld auf die 1. Halbzeit</span></div>${hzKarten(hzl.slice(0,4))}${hzl.length>4?liste("Alle Halbzeit-Spiele als Liste",hzl.length,hzTabelle(hzl,"hz-bf")):""}</div>
-    <div class="panel c12"><div class="ph"><h3>Wo das Geld trägt</h3><span class="hint">je Liga: Märkte mit hohem Einsatz, letzte ${(D.ligaBilanz||{}).fensterTage||90} Tage · ein Kästchen je Markt · „trägt" erst ab 99 % Sicherheit</span></div>${ligaKaestchen(D.ligaBilanz)}</div>
-    <div class="panel c12">${liste(`Alle ${alle.length} Spiele aus ${D.radar.ligen} Ligen als Liste`, "", `<div class="chips" style="margin:12px 0">${Object.entries(BF_SETS).map(([k,[n,fn]])=>`<button class="chip${k===filterBf?" an":""}" data-filter="${k}">${n} <span style="opacity:.6">${fn(alle).length}</span></button>`).join("")}</div>${spielTabelle(liste_,"t-bf",25)}`)}</div>
+    <div class="panel c12">${liste(`Alle ${alle.length} Spiele aus ${D.radar.ligen} Ligen als Liste`, "", `<div id="bf-alle">${bfAlleInhalt(alle)}</div>`)}</div>
+    <div class="panel c12">${liste(`Wo das Geld trägt: hohes Geld je Liga, letzte ${(D.ligaBilanz||{}).fensterTage||90} Tage`, "", `<div class="kk-klein" style="margin:10px 0 12px">Ein Kästchen je Markt mit hohem Einsatz · „trägt" erst ab 99 % Sicherheit</div>${ligaKaestchen(D.ligaBilanz)}`)}</div>
   </div>`;
 }
 function seitePinnacle(D){
@@ -1948,6 +1952,10 @@ function gehe(k){
   try{ localStorage.setItem("radar-seite2", k); }catch(_){}
 }
 function render(){
+  // aufgeklappte Listen bleiben offen, auch wenn alle 5 Min neu gebaut wird (Zahlen im Titel ändern sich, daher ohne Ziffern)
+  const schl = el => el.textContent.replace(/[\d.,€$%k]+/g,"").trim();
+  const offen = new Set([...document.querySelectorAll("details[open] > summary")].map(schl));
+  queueMicrotask(()=>document.querySelectorAll("details > summary").forEach(su=>{ if(offen.has(schl(su))) su.parentElement.open = true; }));
   drZaehler = 0; for(const k in DR) delete DR[k];
   // Wächter: wirft ein Bereich einen Fehler (z. B. ein Feld fehlt in den Daten), bleibt der Rest stehen
   const sicher = (sel, fn) => { try{ $(sel).innerHTML = fn(); }catch(e){ console.error(sel, e);
@@ -2007,7 +2015,7 @@ document.addEventListener("click", e=>{
   const hf = e.target.closest("[data-hzf]"); if(hf){ hzFilter = hf.dataset.hzf; $("#hz-stats").innerHTML = hzStatsListe(D.hz.chancenBuch||{}); return; }
   const fd = e.target.closest("[data-feed]"); if(fd){ filterFeed = fd.dataset.feed; $("#s-feed").innerHTML = seiteFeed(D); return; }
   const pu = e.target.closest("[data-push]"); if(pu){ filterPush = pu.dataset.push; $("#pushpanel").innerHTML = pushPanel(D); return; }
-  const f = e.target.closest("[data-filter]"); if(f){ filterBf = f.dataset.filter; $("#s-betfair").innerHTML = seiteBetfair(D); return; }
+  const f = e.target.closest("[data-filter]"); if(f){ filterBf = f.dataset.filter; const el = $("#bf-alle"); if(el) el.innerHTML = bfAlleInhalt(lf(D.radar.spiele)); else $("#s-betfair").innerHTML = seiteBetfair(D); return; }
   const m = e.target.closest("[data-mehr]");
   if(m){ const id=m.dataset.mehr; $("#"+id).querySelector("tbody").innerHTML = listeFuer(id).map((s,i)=>spielZeile(s,i)).join(""); m.remove(); return; }
   if(e.target.closest("a")) return;
