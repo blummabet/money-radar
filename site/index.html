@@ -702,6 +702,22 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .pf-c i{display:block;border-radius:2px;min-height:2px}
 .pf-x{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);margin-top:4px}
 .pf-x span{display:inline-flex;align-items:center;gap:5px} .pf-x i{width:8px;height:8px;border-radius:2px}
+
+.pd-kopf{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--text-3)} .pd-kopf>span:first-child{display:flex;align-items:center;gap:6px} .pd-kopf b{color:var(--text)}
+.pd-k{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));grid-auto-flow:column;gap:8px}
+.pd-kk{background:var(--flaeche);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.pd-kk .n{font-size:13px;font-weight:600;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pd-kk b{font-size:32px;font-weight:800;letter-spacing:-.03em;line-height:1.1;color:var(--leise-zahl)} .pd-kk b small{font-size:16px;margin-left:2px}
+.pd-kk .q{font-size:12px;color:var(--text-3)}
+.pd-kk.lead{background:var(--lead-bg);border-color:var(--lead-bg)} .pd-kk.lead .n{color:var(--lead-sub)} .pd-kk.lead b{color:var(--lead-text)} .pd-kk.lead .q{color:var(--lead-sub)}
+.pd-w{display:flex;flex-direction:column;gap:12px}
+.pd-wl{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:5px} .pd-wl span{color:var(--text-3)}
+.pd-wb{display:flex;gap:2px;height:22px;min-width:24px}
+.pd-wb a{display:block;border-radius:5px;min-width:4px;background:color-mix(in srgb, var(--poly) 30%, var(--panel-3))}
+.pd-wb a.bel{background:var(--poly)} .pd-wb a:hover{opacity:.75}
+.pd-leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;color:var(--text-3)} .pd-leg span{display:inline-flex;align-items:center;gap:6px}
+.pd-leg i{width:10px;height:10px;border-radius:3px;background:color-mix(in srgb, var(--poly) 30%, var(--panel-3))} .pd-leg i.bel{background:var(--poly)}
+.pd-bf{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:13px;margin-bottom:6px} .pd-bf span{display:inline-flex;align-items:center;gap:6px} .pd-bf i{width:10px;height:10px;border-radius:3px}
 </style>
 </head>
 <body>
@@ -1132,17 +1148,32 @@ function pinDetail(g){
 }
 const TL = {};
 const seiteName = n => /^draw/i.test(n) ? "Remis" : n;
+// Lucas 19.10. („das Overlay sieht langweilig aus"): oben die Seiten als große Kacheln (Preis = Wahrscheinlichkeit),
+// dann wo die großen Halter stehen (ein Balken je Seite, ein Stück je Wallet), dann Betfair zum selben Spiel.
 function polyDetail(m){
   const ws = {}; for(const w of D.poly.wallets) ws[w.wallet] = w;
-  const teile = m.geld ? Object.entries(m.geld).map(([n,v])=>({name:seiteName(n), wert:v, preis:m.preise?.[n]})) : [];
-  const ges = teile.reduce((a,t)=>a+t.wert,0);
+  const pr = Object.entries(m.preise||{}), lead = pr.reduce((a,x)=>x[1]>(a?.[1]??-1)?x:a, null)?.[0];
+  const istRemis = k => /^(draw|remis)\b/i.test(k);
+  const ord = [...pr.filter(([k])=>!istRemis(k)).slice(0,1), ...pr.filter(([k])=>istRemis(k)), ...pr.filter(([k])=>!istRemis(k)).slice(1)];
+  const kacheln = `<div class="pd-k">${ord.map(([k,v])=>`<div class="pd-kk${k===lead?" lead":""}"><span class="n">${esc(seiteName(k))}</span><b>${Math.round(v*100)}<small>¢</small></b><span class="q">Quote ${v>0?q2(1/v):"–"}</span></div>`).join("")}</div>`;
+  // Wale je Seite
+  const W = m.wale||[], jeSeite = {};
+  for(const w of W) (jeSeite[w.seite] = jeSeite[w.seite] || []).push(w);
+  const maxS = Math.max(1, ...Object.values(jeSeite).map(l=>l.reduce((a,w)=>a+w.usd,0)));
+  const wale = W.length ? `<div class="pd-w">${Object.entries(jeSeite).sort((a,b)=>b[1].reduce((x,w)=>x+w.usd,0)-a[1].reduce((x,w)=>x+w.usd,0)).map(([seite,l])=>{ const sum = l.reduce((a,w)=>a+w.usd,0);
+      return `<div class="pd-wz"><div class="pd-wl"><b>${esc(seiteName(seite))}</b><span>${usd(sum)} · ${l.length} Wallet${l.length>1?"s":""}</span></div>
+        <div class="pd-wb" style="width:${(sum/maxS*100).toFixed(1)}%">${l.sort((a,b)=>b.usd-a.usd).map(w=>`<a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" class="${w.bewiesen?"bel":""}" style="flex:${w.usd} 1 0" title="Wallet ${esc(w.wallet.slice(2,6))}: ${usd(w.usd)}${w.bewiesen&&ws[w.wallet]?` · belegt, +${dez(ws[w.wallet].fensterClv)} pp auf den Schlusskurs`:""}"></a>`).join("")}</div></div>`; }).join("")}
+      <div class="pd-leg"><span><i class="bel"></i>belegte Wallet (schlägt den Schlusskurs)</span><span><i></i>andere große Halter</span><span>je Stück eine Wallet</span></div></div>` : `<div class="kk-klein">Keine großen Halter bekannt.</div>`;
+  // die anderen Quellen zum selben Spiel (Lucas: Quellen nebeneinander sehen)
+  const t = (D.toepfe||[]).find(x=>x.q?.poly?.key===m.key), sp = t ? (D.radar.spiele||[]).find(x=>x.id===t.id) : null;
+  const andere = t ? Object.entries(t.q||{}).filter(([q,v])=>q!=="poly" && v.betrag>0) : [];
+  const bf = andere.length ? `<div class="pd-bf">${andere.map(([q,v])=>`<span><i style="background:${QUELLE[q].f}"></i>${QUELLE[q].n} <b>${geldIn(q,v.betrag)}</b>${v.auf?` · ${v.anteil} % auf <b>${esc(k2n(t,v.auf))}</b>`:""}</span>`).join("")}${t.einig===true?`<span class="mk-u ok">einig mit Poly</span>`:t.einig===false?`<span class="mk-u nein">uneinig</span>`:""}</div>` : "";
   return `<tr class="detail"><td colspan="5"><div class="det">
-    <div><h4>Geld je Seite</h4>${teile.length?vbar(teile)+legende(teile, t=>usd(t.wert)):"–"}
-      <div class="mini-liste" style="margin-top:10px"><div><span>Volumen gesamt</span><b>${usd(m.usd)}</b></div><div><span>davon in offenen Positionen</span><b>${usd(ges)}</b></div></div></div>
-    <div><h4>Preis je Seite</h4><div class="mini-liste">${Object.entries(m.preise||{}).map(([n,v])=>`<div><span>${esc(seiteName(n))}</span><b>${Math.round(v*100)} ¢ <span style="color:var(--text-3);font-weight:600">= Quote ${v>0?q2(1/v):"–"}</span></b></div>`).join("")||"–"}</div>
-      <div style="margin-top:12px"><a href="https://polymarket.com/event/${encodeURIComponent(m.key)}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;display:inline-block">Markt auf Polymarket öffnen</a></div></div>
-    <div><h4>Größte Halter</h4><div class="mini-liste">${(m.wale||[]).slice(0,6).map(w=>{ const t = ws[w.wallet];
-      return `<div><span><a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener">${esc(w.wallet.slice(0,6))}…${esc(w.wallet.slice(-4))}</a>${w.bewiesen?` <span class="tag" style="background:${tint("var(--poly)",18)};color:var(--poly)">belegt${t?` +${dez(t.fensterClv)} pp`:""}</span>`:""}<br><span style="color:var(--text-3);font-size:12px">auf ${esc(seiteName(w.seite))}</span></span><b>${usd(w.usd)}</b></div>`;}).join("")||"–"}</div></div>
+    <div class="pd-kopf"><span>${sportIco(m.sport)} ${esc(ligaName(m.liga)||m.sport||"")} · ${wann(m.anpfiff)}</span><span>Volumen <b>${usd(m.usd)}</b></span></div>
+    ${kacheln}
+    <div><h4>Wo die großen Halter stehen</h4>${wale}</div>
+    ${bf||sp?`<div><h4>Andere Quellen zum selben Spiel</h4>${bf}${sp?spielVerlauf(sp):""}</div>`:""}
+    <div><a href="https://polymarket.com/event/${encodeURIComponent(m.key)}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;display:inline-block">Markt auf Polymarket öffnen</a></div>
   </div></td></tr>`;
 }
 const SPORT_ICO = {"Fußball":"⚽","E-Sport":"🎮","Tennis":"🎾"};
