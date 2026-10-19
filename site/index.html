@@ -1035,6 +1035,7 @@ function spielDetail(s, ohneVerlauf){
 }
 function spielTabelle(liste, id, max, mitVt=true){
   if(!liste.length) return `<div class="leer">Keine Spiele in dieser Auswahl.</div>`;
+  TL[id] = liste;   // 19.10. (FC Voluntari zeigte das Detail von Al-Hilal): Klick liest genau DIESE Liste, nicht eine ungefilterte
   return `<div class="tw"><table class="tab${mitVt?"":" ohne-vt"}" id="${id}"><thead><tr><th>Spiel</th><th class="hide-m">Anpfiff</th><th class="r">Geld</th><th class="r">Norm</th><th class="hide-m">Verlauf</th><th class="hide-m vt">Verteilung</th></tr></thead>
     <tbody>${liste.slice(0,max).map((s,i)=>spielZeile(s,i)).join("")}</tbody></table></div>
     ${liste.length>max?`<button class="mehr" data-mehr="${id}">Alle ${liste.length} Spiele zeigen</button>`:""}`;
@@ -2162,7 +2163,7 @@ function aufklappen(tr){
   const naechste = tr.nextElementSibling;
   if(naechste && naechste.classList.contains("detail")){ naechste.remove(); tr.classList.remove("offen"); tr.setAttribute("aria-expanded","false"); return; }
   const id = tr.closest("table").id, art = tr.dataset.art;
-  const s = (art ? TL[id] : listeFuer(id))?.[+tr.dataset.i]; if(!s) return;
+  const s = (TL[id] || listeFuer(id))?.[+tr.dataset.i]; if(!s) return;
   tr.classList.add("offen"); tr.setAttribute("aria-expanded","true");
   tr.insertAdjacentHTML("afterend", art==="poly" ? polyDetail(s) : art==="pinn" ? pinDetail(s) : art==="hz" ? hzDetail(s) : art==="zf" ? (D.radar.spiele.find(x=>x.id===s.id) ? spielDetail(D.radar.spiele.find(x=>x.id===s.id)) : "") : spielDetail(s));
 }
@@ -2181,7 +2182,7 @@ document.addEventListener("click", e=>{
   const pu = e.target.closest("[data-push]"); if(pu){ filterPush = pu.dataset.push; $("#pushpanel").innerHTML = pushPanel(D); return; }
   const f = e.target.closest("[data-filter]"); if(f){ filterBf = f.dataset.filter; const el = $("#bf-alle"); if(el) el.innerHTML = bfAlleInhalt(lf(D.radar.spiele)); else $("#s-betfair").innerHTML = seiteBetfair(D); return; }
   const m = e.target.closest("[data-mehr]");
-  if(m){ const id=m.dataset.mehr; $("#"+id).querySelector("tbody").innerHTML = listeFuer(id).map((s,i)=>spielZeile(s,i)).join(""); m.remove(); return; }
+  if(m){ const id=m.dataset.mehr; $("#"+id).querySelector("tbody").innerHTML = (TL[id] || listeFuer(id)).map((s,i)=>spielZeile(s,i)).join(""); m.remove(); return; }
   if(e.target.closest("a")) return;
   const tr = e.target.closest("tr.zeile"); if(tr) aufklappen(tr);
 });
