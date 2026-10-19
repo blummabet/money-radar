@@ -44,7 +44,15 @@ def poly_key_ok(key) -> bool:
     return not str(key or "").startswith(("atp-", "wta-"))
 
 
+ESOCCER_RX = re.compile(r"valhalla|valkyrie|e-?soccer|esports? battle|gt (sports )?league|\bfifa\b|volta|cyber ?(football|live)|adriatic league", re.I)
+
+
 def stake_ok(z) -> bool:
+    # Lucas 19.10. („Spurs (Arlo) – Chelsea (Dzen) … diese eSoccer-Spiele braucht kein Mensch"): FIFA-Simulationen
+    # (Stake-Sport „fifa", Ligen „Valhalla/Valkyrie Cup") laufen bei Stake als E-Sport mit — raus, überall.
+    if str(z.get("sport") or "").lower() in ("fifa", "efootball", "esoccer", "ebasketball") \
+       or ESOCCER_RX.search(str(z.get("liga") or "")) or ESOCCER_RX.search(str(z.get("ligaSlug") or "")):
+        return False
     if not sport_ok(z.get("kat")):
         return False
     liga = str(z.get("liga") or "").upper()
