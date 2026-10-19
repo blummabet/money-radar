@@ -114,18 +114,28 @@ main{padding:22px 28px 60px;min-width:0}
 .lt-1 b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lt-2{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--text-2);margin-top:5px}
 .lt-3{font-size:11.5px;color:var(--text-3);margin-top:3px}
-.tz-kopf{margin:18px 0 8px;font-size:13px;font-weight:700;color:var(--text-2);display:flex;align-items:center;gap:8px}
-.tz-kopf span{font-size:11.5px;background:var(--panel-3);border-radius:999px;padding:1px 8px;color:var(--text-2)}
-.tz-liste{display:grid;gap:6px}
-.tz{border:1px solid var(--line, var(--panel-3));border-radius:12px;padding:9px 12px;cursor:pointer;background:color-mix(in srgb, var(--panel-2, var(--panel)) 60%, transparent)}
-.tz-1{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:baseline;font-size:13.5px}
-.tz-1 b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
-.tz-r{font-size:12px;color:var(--text-2);white-space:nowrap}
-.tz-g{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
-.tz-2{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:11.5px;color:var(--text-3)}
-.tz-bar{display:flex;gap:2px;width:90px;height:5px;border-radius:3px;overflow:hidden;flex:none}
+.tz-kopf{margin:20px 0 8px;font-size:13px;font-weight:700;color:var(--text-2);display:flex;align-items:center;gap:8px}
+.tz-kopf span:not(.puls){font-size:11.5px;background:var(--panel-3);border-radius:999px;padding:1px 8px;color:var(--text-2)}
+.tz-kopf.lauf{color:var(--down)}
+.tz-kopf.lauf .puls{background:var(--down)}
+.tz-liste{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:6px}
+.tz{border:1px solid var(--line);border-radius:12px;padding:9px 12px;cursor:pointer;background:var(--panel-2)}
+.tz.lauf{box-shadow:inset 3px 0 0 var(--down)}
+.tz-1{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
+.tz-ico{display:flex;align-items:center}.tz-ico .flag{width:18px;height:12px}
+.tz-t{min-width:0;display:flex;flex-direction:column;gap:1px}
+.tz-t b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tz-t small{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tz-stand{color:var(--text)}
+.tz-g{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:14px}
+.tz-2{display:flex;align-items:center;gap:8px;margin-top:7px;font-size:11.5px;color:var(--text-2);padding-left:28px;flex-wrap:wrap}
+.tz-bar{display:flex;gap:2px;width:80px;height:5px;border-radius:3px;overflow:hidden;flex:none}
 .tz-bar i{display:block;height:100%}
-.tz-vor b{color:var(--text-2)}
+.tz-vor b{color:var(--text)}
+.tz-u{font-weight:700;font-size:11px;padding:1px 7px;border-radius:999px;margin-left:auto}
+.tz-u.ok{color:var(--up);background:color-mix(in srgb, var(--up) 14%, transparent)}
+.tz-u.nein{color:var(--bf);background:color-mix(in srgb, var(--bf) 16%, transparent)}
+.tz-u.wal{margin-left:0;background:none;padding:0}
 .topf{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:12px 14px 10px;cursor:pointer;transition:border-color .15s}
 .topf:hover,.topf:focus-visible{border-color:color-mix(in srgb, var(--text) 18%, transparent);outline:none}
 .tp-kopf{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center}
@@ -1178,16 +1188,22 @@ function topfDetail(t){
 }
 // Lucas 18.10.: laufende Spiele zugeklappt ans Ende — eine Zeile, Aufteilung ZUM ANPFIFF (live verzerrt der
 // Handel auf den Führenden den Anteil). Führt ein Team unter Quote 1,40, ist das Spiel schon raus (build.py).
+// Lucas 19.10. („alles untereinander, keine Flaggen, keine Icons, nur weiße Schrift — Einheitsbrei"): die Zeilen
+// tragen jetzt Flagge/Sport, Liga, Zeit, einen Mini-Balken mit der führenden Seite und das Einig/Uneinig-Zeichen.
 function topfZeile(t){
-  const live = !t.laeuft ? wann(t.anpfiff) : t.live ? `<span class="live">${t.live.min!=null?t.live.min+"'":"live"}</span> ${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}` : `<span class="live">läuft</span>`;
-  const sp = t.splitAnpfiff, keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
-  let vor = "";
+  const keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
+  const zeit = !t.laeuft ? wann(t.anpfiff) : t.live ? `<span class="live">${t.live.min!=null?t.live.min+"'":"live"}</span> <b class="tz-stand">${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}</b>` : `<span class="live">läuft</span>`;
+  const sp = t.laeuft ? t.splitAnpfiff : t.seiten;
+  let balken = "";
   if(sp){ const ges = keys.reduce((a,k)=>a+(sp[k]||0),0);
     if(ges){ const top = keys.reduce((a,k)=>(sp[k]||0)>(sp[a]||0)?k:a, keys[0]);
-      vor = `<span class="tz-bar">${keys.filter(k=>sp[k]>0).map(k=>`<i style="flex:${sp[k]} 1 0;background:${k===top?"var(--text-2)":"var(--panel-3)"}"></i>`).join("")}</span><span class="tz-vor">vor Anpfiff ${esc(k2n(t,top))} <b>${Math.round(sp[top]/ges*100)} %</b></span>`; } }
-  return `<div class="tz" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
-    <div class="tz-1"><b>${esc(t.heim)} – ${esc(t.gast)}</b><span class="tz-r">${live}</span><span class="tz-g">≈ ${eur(t.gesamt)}</span></div>
-    ${t.laeuft&&vor?`<div class="tz-2">${vor}</div>`:""}</div>`;
+      balken = `<span class="tz-bar">${keys.filter(k=>sp[k]>0).map(k=>`<i style="flex:${sp[k]} 1 0;background:${k===top?"var(--text)":"color-mix(in srgb, var(--text) 22%, transparent)"}"></i>`).join("")}</span>
+        <span class="tz-vor">${t.laeuft?"zum Anpfiff ":""}<b>${esc(k2n(t,top))}</b> ${Math.round(sp[top]/ges*100)} %</span>`; } }
+  const urt = t.einig===true ? `<span class="tz-u ok" title="Quellen einig">✓ einig</span>` : t.einig===false ? `<span class="tz-u nein" title="Quellen uneinig">⚠️ uneinig</span>` : "";
+  const wal = (t.wale||[]).some(x=>x.k) ? `<span class="tz-u wal">🧠</span>` : "";
+  return `<div class="tz${t.laeuft?" lauf":""}" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
+    <div class="tz-1"><span class="tz-ico">${t.land?flagge(t.land):sportIco(t.sport)}</span><div class="tz-t"><b>${esc(t.heim)} – ${esc(t.gast)}</b><small>${esc(ligaName(t.liga)||t.sport||"")} · ${zeit}</small></div><span class="tz-g">≈ ${eur(t.gesamt)}</span></div>
+    ${balken||urt||wal?`<div class="tz-2">${balken}${urt}${wal}</div>`:""}</div>`;
 }
 const k2n = (t,k) => k==="remis" ? "Remis" : seitenName(t,k);
 function toepfeListe(D, n){
@@ -1196,12 +1212,13 @@ function toepfeListe(D, n){
   const hatSeiten = t => Object.values(t.seiten||{}).some(v=>v>0);
   const vor = alle.filter(t=>!t.laeuft && hatSeiten(t)), ohne = alle.filter(t=>!t.laeuft && !hatSeiten(t)), lauf = alle.filter(t=>t.laeuft);
   const max = Math.max(1, ...alle.map(t=>t.gesamt));
-  const laufBlock = lauf.length ? `<div class="tz-kopf">Läuft gerade <span>${lauf.length}</span></div><div class="tz-liste">${lauf.slice(0,8).map(topfZeile).join("")}</div>
+  const laufBlock = lauf.length ? `<div class="tz-kopf lauf"><span class="puls"></span>Läuft gerade <span>${lauf.length}</span></div><div class="tz-liste">${lauf.slice(0,8).map(topfZeile).join("")}</div>
     ${lauf.length>8?liste(`Weitere ${lauf.length-8} laufende Spiele`, "", `<div class="tz-liste" style="margin-top:10px">${lauf.slice(8).map(topfZeile).join("")}</div>`):""}` : "";
   const ohneBlock = ohne.length ? `<div class="tz-kopf">Nur Volumen bekannt, keine Seitenaufteilung <span>${ohne.length}</span></div><div class="tz-liste">${ohne.slice(0,3).map(topfZeile).join("")}</div>
     ${ohne.length>3?liste(`Weitere ${ohne.length-3}`, "", `<div class="tz-liste" style="margin-top:10px">${ohne.slice(3).map(topfZeile).join("")}</div>`):""}` : "";
   return `<div class="toepfe">${vor.slice(0,n).map((t,i)=>topfKarte(t,i,max)).join("")}</div>
-    ${vor.length>n?liste(`Weitere ${vor.length-n} Spiele vor Anpfiff`, "", `<div class="toepfe" style="margin-top:12px">${vor.slice(n).map((t,i)=>topfKarte(t,i+n,max)).join("")}</div>`):""}
+    ${vor.length>n?`<div class="tz-kopf">Weitere Spiele vor Anpfiff <span>${vor.length-n}</span></div><div class="tz-liste">${vor.slice(n,n+6).map(topfZeile).join("")}</div>
+      ${vor.length>n+6?liste(`Noch ${vor.length-n-6} weitere`, "", `<div class="tz-liste" style="margin-top:10px">${vor.slice(n+6).map(topfZeile).join("")}</div>`):""}`:""}
     ${laufBlock}`;
 }
 function kompaktZufluss(D, n){
