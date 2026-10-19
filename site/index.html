@@ -1260,7 +1260,7 @@ function setzenKarten(liste){
 }
 // ── Liga-Filter (Lucas 17.10.: Top-5 sollen raus, aber per Knopf noch da sein) ──
 // Namen je Quelle: Betfair („Spanish La Liga"), Polymarket-Kürzel („LALIGA", „SEA", „FL1"), Stake („La Liga", „Premier League")
-const TOP5_RE = /^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|epl|bundesliga|la-?liga|la liga|laliga|sea|serie a|ligue-?1|ligue 1|fl1|premier league)$/i;
+const TOP5_RE = /^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|uefa champions league|champions league|ucl|epl|bundesliga|la-?liga|la liga|laliga|sea|serie a|ligue-?1|ligue 1|fl1|premier league)$/i;
 const istTop5 = liga => TOP5_RE.test(String(liga||"").trim());
 let ligaModus = "ohne";
 try{ ligaModus = localStorage.getItem("radar-liga") || "ohne"; }catch(_){}

@@ -67,7 +67,7 @@ _MK_HT = ("Half Time", "First Half Goals 0.5", "First Half Goals 1.5")
 # League" liefen als Top 5 durch — die Suchbegriffe trafen die zweite Liga mit. 537 Signale im
 # Buch, 4 gesendete Pushes. Negativer Lookahead statt Liste; tests/test_top5_eine_regel.py haelt
 # alle Kopien (Python + Radar) gleich.
-_TOP5_RX  = re.compile(r"(german bundesliga(?!\s*2)|english premier league(?!\s*2)|spanish la ?liga(?!\s*2)|italian serie a|french ligue 1|\bmls\b(?!\s*next)|major league soccer)", re.I)
+_TOP5_RX  = re.compile(r"(german bundesliga(?!\s*2)|english premier league(?!\s*2)|spanish la ?liga(?!\s*2)|italian serie a|french ligue 1|uefa champions league|\bmls\b(?!\s*next)|major league soccer)", re.I)
 _TOP5_NEG = re.compile(r"(summer series|friendl|reserve|women|u1[0-9]\b|youth|amateur)", re.I)
 _UEFA_RX  = re.compile(r"(champions league|europa league|europa conference|conference league|uefa)", re.I)
 

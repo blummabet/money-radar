@@ -434,7 +434,7 @@ def wale(d):
     Balken, Betfair/Pinnacle-Quote daneben) und SIND ANDERE dabei (Geld der anderen Plattformen, weitere Wale)."""
     wallets = {w.get("wallet"): w for w in (d.get("poly") or {}).get("wallets") or []}
     for o in (d.get("poly") or {}).get("setzen") or []:
-        top5 = str(o.get("markt") or "").split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1"}
+        top5 = str(o.get("markt") or "").split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1", "ucl"}
         if (o.get("usd") or 0) < (WAL_MIN_USD_TOP5 if top5 else WAL_MIN_USD):
             continue
         key = f"wal|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}"

@@ -268,7 +268,7 @@ def pinn_alle(consensus, history):
 
 # ── Pinnacle-Scan über alle Spiele (Lucas 18.10.) ───────────────────────────────────
 PINN_TOP5_KEYS = {"soccer_epl", "soccer_germany_bundesliga", "soccer_spain_la_liga", "soccer_italy_serie_a",
-                  "soccer_france_ligue_one"}
+                  "soccer_france_ligue_one", "soccer_uefa_champs_league"}
 PINN_VOR_MIN_PP = {True: 1.5, False: 2.5}     # vor Anpfiff, seit Eröffnung (Top-5 ist effizienter: kleiner Ausschlag zählt)
 PINN_FRISCH_PP = {True: 1.0, False: 1.5}      # davon in der letzten Stunde → „frisch"
 PINN_LIVE_MIN_PP = {True: 3.0, False: 4.0}    # live in ~15 Min, nur für ein Team, das NICHT führt
@@ -390,7 +390,7 @@ MIN_SCHNITT_USD = 500
 MIN_FENSTER = 8     # Aufloesungen im Messfenster, ab denen eine Untergrenze etwas sagt
 
 
-POLY_TOP5 = {"epl", "bun", "lal", "sea", "fl1", "lig1"}     # Polymarket-Schlüssel-Präfixe der Top-5-Ligen
+POLY_TOP5 = {"epl", "bun", "lal", "sea", "fl1", "lig1", "ucl"}   # 19.10. (Lucas): Champions League zählt zu den Top-5     # Polymarket-Schlüssel-Präfixe der Top-5-Ligen
 
 
 def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, trades_record=None):
@@ -735,7 +735,7 @@ def _phase(jetzt, kick):
     return "p1" if -d <= 3 * 3600 else "p0"
 
 
-TOP5_RX = re.compile(r"^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1)$", re.I)
+TOP5_RX = re.compile(r"^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|uefa champions league)$", re.I)
 
 
 def auswahl_zufluss(snaps, minuten, min_eur, min_anteil=0.65):
@@ -1390,7 +1390,7 @@ def stake_serien(hr):
     asof = ts((hr or {}).get("asof"))
     if not asof or JETZT - asof > timedelta(minutes=45):
         return []
-    top5_slugs = {"premier-league", "la-liga", "laliga", "bundesliga", "serie-a", "ligue-1"}
+    top5_slugs = {"premier-league", "la-liga", "laliga", "bundesliga", "serie-a", "ligue-1", "uefa-champions-league"}
     gruppen = {}
     for w in (hr or {}).get("wetten") or []:
         if not isinstance(w, dict) or w.get("kombi") or not stake_ok(w):
@@ -1606,7 +1606,7 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
         g = finden(h, gst, m.get("koTs"))
         if not g:
             g = {"id": "pm:" + key, "heim": h, "gast": gst, "liga": m.get("league"), "land": None,
-                 "anpfiff": m.get("koTs"), "live": None, "top5": key.split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1"},
+                 "anpfiff": m.get("koTs"), "live": None, "top5": key.split("-")[0] in POLY_TOP5,
                  "sport": m.get("sport") or "Fußball", "q": {}}
             spiele.append(g)
         betrag = float(m.get("totalUsd") or 0) + mm_vol.get(key, 0)
@@ -1661,7 +1661,7 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
         g = finden(h, gst, w.get("anpfiff"))
         if not g:
             g = {"id": "st:" + str(w.get("eventId")), "heim": h, "gast": gst, "liga": w.get("liga"), "land": None,
-                 "anpfiff": w.get("anpfiff"), "live": None, "top5": str(w.get("ligaSlug") or "") in {"premier-league", "la-liga", "bundesliga", "serie-a", "ligue-1"},
+                 "anpfiff": w.get("anpfiff"), "live": None, "top5": str(w.get("ligaSlug") or "") in {"premier-league", "la-liga", "bundesliga", "serie-a", "ligue-1", "uefa-champions-league"},
                  "sport": w.get("kat") or "Fußball", "q": {}}
             spiele.append(g)
         seiten = {}
@@ -1827,7 +1827,7 @@ def poly_fluss():
     rows = []
     for m in d.get("maerkte") or []:
         pre = str(m.get("key") or "").split("-")[0]
-        m["top5"] = pre in {"epl", "bun", "lal", "sea", "fl1", "lig1"}
+        m["top5"] = pre in POLY_TOP5
         rows.append(m)
     return {"stand": d.get("generatedAt"), "maerkte": rows}
 
