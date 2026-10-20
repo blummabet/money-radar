@@ -925,6 +925,37 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             if t and t >= JETZT - timedelta(hours=10) and isinstance(v, (int, float)):
                 mo_s = s.get("mo") or {}
                 reihe.append([t.strftime("%H:%M"), round(v), mo_s.get("hw"), mo_s.get("dr"), mo_s.get("aw"), int(t.timestamp() // 60)])
+        # Lucas 20.10. („Balken statt Linie, kürzere Zeitachse, damit man sieht, wann Geld reingepumpt wurde"):
+        # neues Geld je 10 Min über die letzten 6 h, dazu der Anpfiff und die Tore als Marken.
+        saeulen = None
+        pts = [(ts(s_.get("ts")), s_.get("totalVol"), s_.get("sc")) for s_ in snaps]
+        pts = [(t, v, sc) for t, v, sc in pts if t and isinstance(v, (int, float))]
+        if len(pts) >= 3:
+            start = JETZT - timedelta(hours=6)
+            grenzen = [start + timedelta(minutes=10 * k) for k in range(37)]
+
+            def stand_bis(g):
+                vv = None
+                for t, v, _ in pts:
+                    if t <= g:
+                        vv = v
+                    else:
+                        break
+                return vv
+            st = [stand_bis(g) for g in grenzen]
+            werte = [round(max(0, st[k + 1] - st[k])) if st[k] is not None and st[k + 1] is not None else None for k in range(36)]
+            erster = next((i for i, w in enumerate(werte) if w is not None), None)
+            tore, alt = [], None
+            for t, v, sc in pts:
+                if isinstance(sc, list) and len(sc) == 2:
+                    if alt is not None and sc != alt and t >= start:
+                        tore.append({"i": min(35, int((t - start).total_seconds() // 600)), "stand": sc})
+                    alt = sc
+            ko_t = ts(m.get("kickoff"))
+            if erster is not None:
+                saeulen = {"w": werte, "start": int(start.timestamp() // 60), "schritt": 10,
+                           "ko": (int((ko_t - start).total_seconds() // 600) if ko_t and start <= ko_t <= JETZT else None),
+                           "tore": tore[-6:]}
         if len(reihe) > 30:
             schritt = len(reihe) / 30
             reihe = [reihe[int(i * schritt)] for i in range(30)] + [reihe[-1]]
@@ -978,6 +1009,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             "quoten30": ({"heim": mo30.get("hw"), "remis": mo30.get("dr"), "gast": mo30.get("aw")} if mo30 else None),
             "kurve": kurve,
             "reihe": reihe,
+            "saeulen": saeulen,
             "quoten": {"heim": mo.get("hw"), "remis": mo.get("dr"), "gast": mo.get("aw")},
             "wahrsch": ({"heim": fair.get("home"), "remis": fair.get("draw"), "gast": fair.get("away")} if fair else None),
             "verteilung": vert,
