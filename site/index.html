@@ -1150,13 +1150,13 @@ function pushBilanz(D){
   const pz = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
   const farbe = v => v==null ? "var(--text-2)" : v>0 ? "var(--up)" : "var(--down)";
   const kachel = ([k,b]) => { const haupt = b.clvN ? b.clv : b.roi;
-    return `<div class="panel kpi c3"><div class="lab">${icon("betfair")}${esc(b.name)}</div>
+    return `<div class="panel kpi c3"><div class="lab">${icon(k==="pserie"?"poly":"betfair")}${esc(b.name)}</div>
       <div class="wert" style="color:${farbe(haupt)}">${b.n ? pz(haupt) : "–"}</div>
       <div class="neben">${!b.n ? "noch kein Push" : b.clvN ? `besser als die Schlussquote (Schnitt aus ${b.clvN})` : b.abgerechnet ? "Rendite pro Push" : `${b.n} gesendet, wartet auf Ergebnisse`}</div>
       <div class="neben">${b.abgerechnet ? `${b.abgerechnet} abgerechnet: ${b.treffer} % Treffer (Quote sagte ${b.erwartet} %), Rendite ${pz(b.roi)}` : ""}${b.offen?` · ${b.offen} offen`:""}</div></div>`; };
   const zeile = x => `<div class="fe"><span class="ico" style="background:${tint(x.status==="offen"?"var(--text-3)":x.win?"var(--up)":"var(--down)",18)};color:${x.status==="offen"?"var(--text-2)":x.win?"var(--up)":"var(--down)"}">${x.status==="offen"?"…":x.win?"✓":"✗"}</span>
-    <div style="min-width:0"><div class="t">${esc(auswahlDe(x.auswahl||""))} @ ${q2(x.quote)} <small style="color:var(--text-3)">${esc(marktDe(x.markt||""))}</small></div>
-    <div class="s">${esc(x.heim)} – ${esc(x.gast)}${x.ft?`, Endstand ${x.ft[0]}:${x.ft[1]}`:""}${x.schluss?`, Schlussquote ${q2(x.schluss)}`:""}</div></div>
+    <div style="min-width:0"><div class="t">${esc(x.anzeige||auswahlDe(x.auswahl||""))} @ ${q2(x.quote)} <small style="color:var(--text-3)">${esc(marktDe(x.markt||""))}</small></div>
+    <div class="s">${x.titel&&!x.heim?esc(x.titel):`${esc(x.heim)} – ${esc(x.gast)}`}${x.ft?`, Endstand ${x.ft[0]}:${x.ft[1]}`:""}${x.schluss?`, Schlussquote ${q2(x.schluss)}`:""}</div></div>
     <div class="b">${esc(B.arten[x.art]?.name||x.art)}<small>${x.ts?vor(x.ts):""}</small></div></div>`;
   return `${Object.entries(B.arten).map(kachel).join("")}
     ${(B.letzte||[]).length ? `<div class="panel c12">${liste("Unsere letzten Pushes mit Ergebnis", B.letzte.length, `<div class="feed">${B.letzte.slice(0,30).map(zeile).join("")}</div>`)}</div>` : ""}`;
@@ -2155,7 +2155,17 @@ function seitePoly(D){
     <div class="panel c6"><div class="ph"><h3>Wal-Pushes</h3><span class="hint">Bilanz je Sport · Trades-Channel</span></div>${walBilanzBalken(p.tradesBilanz||{})}${walStrich(D)}
       <div class="feed" style="margin-top:14px">${(p.tradesPushes||[]).slice(0,8).map(t=>`<div class="fe"><span class="ico" style="background:${tint("var(--poly)",16)};font-size:15px;width:34px;height:34px;border-radius:10px">${SPORT_ICO[t.sport]||"⚽"}</span><div style="min-width:0"><div class="t">${esc(seiteName(t.seite))} @ ${Math.round((t.preis||0)*100)} ¢${tagFuer(t.status)}</div><div class="s">${esc(t.spiel)}</div></div><div class="b">${usd(t.usd)}<small>${vor(t.zeit)}</small></div></div>`).join("") || `<div class="leer">Keine Wal-Pushes.</div>`}</div></div>
     <div class="panel c6"><div class="ph"><h3>Rangliste</h3><span class="hint">Vorsprung auf den Schlusskurs</span></div>${rangliste(p.wallets)}</div>
+    ${polySerieBilanz(D)}
   </div>`;
+}
+// Lucas 20.10.: Polymarket-Dauerzufluss im Buch — wie die Pushes liefen, unten im Tab und zugeklappt
+function polySerieBilanz(D){
+  const B = D.pushBilanz||{}, a = (B.arten||{}).pserie, t = (B.teile||{}).pserie||[];
+  if(!a || !a.n) return `<div class="c12 ruhig">🔁 Dauerzufluss Polymarket: wird ab jetzt mitgeschrieben, die Bilanz erscheint nach den ersten abgerechneten Spielen.</div>`;
+  const kopf = `🔁 Dauerzufluss: wie die Polymarket-Pushes liefen (${a.abgerechnet} abgerechnet${a.offen?`, ${a.offen} offen`:""})`;
+  const inhalt = t.length ? `<div class="kk-klein" style="margin:10px 0 12px">Zum Preis beim Push abgerechnet · Balken = so oft getroffen, Strich = was der Preis sagte</div>${istSoll(t.map(g=>({name:esc(g.name), unter:`${g.n} Tipps`, ist:g.treffer, soll:g.erwartet, roi:g.roi})))}`
+    : `<div class="leer">${a.n} gesendet, noch keins abgerechnet.</div>`;
+  return `<div class="panel c12">${liste(kopf, "", inhalt)}</div>`;
 }
 function stakeZeilen(gr){
   if(!gr.length) return `<div class="leer">In den letzten 24 Stunden keine große Wette.</div>`;

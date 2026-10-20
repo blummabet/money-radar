@@ -733,7 +733,11 @@ def serie(d):
                 + "<i>alle Polymarket-Käufe in diesem Markt, nicht nur Wale</i>\n"
                 + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
-        yield key, text, None
+        # Lucas 20.10.: Polymarket-Dauerzufluss ins Buch — Preis zum Push, abgerechnet über das Gamma-Ereignis
+        yield key, text, None, {"art": "pserie", "id": x["id"], "titel": x.get("titel"), "heim": None, "gast": None,
+                                "liga": x.get("liga"), "sport": x.get("sport") or "Fußball", "anpfiff": x.get("anpfiff"),
+                                "markt": "Polymarket", "auswahl": x["auswahl"], "anzeige": lab, "quote": x["quote"],
+                                "preis": x.get("preis"), "live": bool(x.get("live")), "top5": bool(x.get("top5")), "n": x["n"]}
     for x in d.get("stakeSerien") or []:
         if isinstance(x.get("quote"), (int, float)) and x["quote"] < SERIE_PUSH_MIN_QUOTE:
             continue

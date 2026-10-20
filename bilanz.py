@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import re
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -27,11 +28,13 @@ BASIS = Path(__file__).resolve().parent
 BUCH = BASIS / ".push_state" / "buch.json"
 BILANZ = BASIS / ".push_state" / "bilanz.json"
 PREISE = BASIS / ".bf" / "betfair_prices.json"
+GAMMA = "https://gamma-api.polymarket.com/events?slug={slug}"
+POLY_JE_LAUF = 15         # höchstens so viele Polymarket-Ereignisse pro Lauf nachschlagen
 ERGEBNISSE = "https://raw.githubusercontent.com/blummabet/betting-dashboard/main/betfair_track_results.json"
 KOMMISSION = 0.02
 VERFALL_TAGE = 4          # nach 4 Tagen ohne Ergebnis: „unaufgelöst"
 BEHALTEN = 3000
-ARTEN = {"serie": "Dauerzufluss", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht"}
+ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht"}
 
 
 def _ts(s):
@@ -130,11 +133,11 @@ def aktualisieren(buch, jetzt):
                 b["schlussTs"] = jetzt.isoformat()
 
     # 2) Ergebnis: ab ~2 h nach Anpfiff
-    warten = {str(b.get("id")) for b in buch if b.get("status") == "offen"
+    warten = {str(b.get("id")) for b in buch if b.get("status") == "offen" and b.get("art") != "pserie"
               and _ts(b.get("anpfiff")) and jetzt - _ts(b["anpfiff"]) > timedelta(hours=2)}
     erg = _ergebnisse(warten)
     for b in buch:
-        if b.get("status") != "offen" or str(b.get("id")) not in warten:
+        if b.get("status") != "offen" or b.get("art") == "pserie" or str(b.get("id")) not in warten:
             continue
         ft, ht = erg.get(str(b["id"]), (None, None))
         if not ft:
@@ -154,7 +157,65 @@ def aktualisieren(buch, jetzt):
                 b["r"] = round((q - 1) * (1 - KOMMISSION), 4) if w else -1.0
         elif jetzt - _ts(b["anpfiff"]) > timedelta(days=VERFALL_TAGE):
             b["status"] = "unaufgelöst"
+    poly_abrechnen(buch, jetzt)
     return buch[-BEHALTEN:]
+
+
+# ── Polymarket (Lucas 20.10.: Dauerzufluss auf Polymarket ins Buch) ───────────────────────────────────────
+def _poly_ausgang(event, auswahl):
+    """True/False, wenn der Markt der Auswahl entschieden ist; None = noch offen / nicht zuordenbar; 'void' = 50:50.
+    Etiketten wie in poly_fluss.seiten(): Ja-Nein-Märkte → Titel / „gegen Titel", sonst „Ausgang (Titel)" oder Ausgang."""
+    mks = event.get("markets") or []
+    for mk in mks:
+        try:
+            outs = json.loads(mk.get("outcomes") or "[]")
+            preise = [float(x) for x in json.loads(mk.get("outcomePrices") or "[]")]
+        except Exception:  # noqa: BLE001
+            continue
+        titel = (mk.get("groupItemTitle") or "").strip()
+        if [o.lower() for o in outs] == ["yes", "no"] and titel:
+            lab = {"Yes": titel, "No": f"gegen {titel}"}
+        elif titel and len(mks) > 1:
+            lab = {o: f"{o} ({titel})" for o in outs}
+        else:
+            lab = {o: o for o in outs}
+        for i, o in enumerate(outs):
+            if lab.get(o) != auswahl or i >= len(preise):
+                continue
+            if not mk.get("closed"):
+                return None
+            if max(preise) >= 0.99:
+                return preise[i] >= 0.99
+            if preise and abs(preise[i] - 0.5) < 0.02:
+                return "void"
+            return None
+    return None
+
+
+def poly_abrechnen(buch, jetzt):
+    offen = [b for b in buch if b.get("art") == "pserie" and b.get("status") == "offen" and _ts(b.get("anpfiff"))
+             and jetzt - _ts(b["anpfiff"]) > timedelta(hours=2 if (b.get("sport") or "Fußball") == "Fußball" else 3)]
+    events = {}
+    for slug in list(dict.fromkeys(b["id"] for b in offen))[:POLY_JE_LAUF]:
+        try:
+            req = urllib.request.Request(GAMMA.format(slug=urllib.parse.quote(str(slug))), headers={"User-Agent": "geldradar"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                ev = json.loads(r.read().decode("utf-8"))
+            if isinstance(ev, list) and ev:
+                events[slug] = ev[0]
+        except Exception as exc:  # noqa: BLE001
+            print(f"  bilanz: Polymarket {slug} nicht erreichbar ({str(exc)[:60]})")
+    for b in offen:
+        ev = events.get(b["id"])
+        w = _poly_ausgang(ev, b.get("auswahl")) if ev else None
+        if w == "void":
+            b["status"] = "nicht abrechenbar"
+        elif w is not None:
+            b["status"], b["win"] = "abgerechnet", w
+            q = b.get("quote") or 0
+            b["r"] = round(q - 1, 4) if w else -1.0          # Polymarket: keine Kommission auf den Gewinn
+        elif jetzt - _ts(b["anpfiff"]) > timedelta(days=VERFALL_TAGE):
+            b["status"] = "unaufgelöst"
 
 
 def zusammenfassen(buch):
@@ -172,8 +233,9 @@ def zusammenfassen(buch):
                     "erwartet": round(100 * sum(1 / b["quote"] for b in ab if b.get("quote")) / n) if n else None,
                     "roi": round(100 * sum(b["r"] for b in ab) / n, 1) if n else None,
                     "clvN": len(clv), "clv": round(100 * sum(clv) / len(clv), 1) if clv else None}
-    aus_teile = {"serie": teile([b for b in buch if b.get("art") == "serie"])}
-    letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "liga", "markt", "auswahl", "quote", "schluss", "ts",
+    aus_teile = {"serie": teile([b for b in buch if b.get("art") == "serie"]),
+                 "pserie": teile([b for b in buch if b.get("art") == "pserie"])}
+    letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "titel", "anzeige", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
               for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen")][:40]
     # Lucas 20.10. („Übersichtskurve auf die neuen Betfair-Pushes, weil das zählt"): jeder Push als
@@ -182,7 +244,7 @@ def zusammenfassen(buch):
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") == "pserie":
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,
@@ -221,6 +283,8 @@ def teile(alle):
         ("Quote über 2,00", [b for b in ab if b["quote"] > 2.0]),
         ("Top-5-Ligen", [b for b in ab if b.get("top5")]), ("Andere Ligen", [b for b in ab if not b.get("top5")]),
     ]
+    if any(b.get("sport") for b in ab):          # Polymarket: dazu je Sportart
+        gruppen += [(sp, [b for b in ab if (b.get("sport") or "Fußball") == sp]) for sp in ("Fußball", "E-Sport", "Tennis")]
     for b in ab:
         b.pop("_folge", None)
     return [{"name": n, **k} for n, g in gruppen if (k := _kennz(g))]
