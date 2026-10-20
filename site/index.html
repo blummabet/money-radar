@@ -785,6 +785,11 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .mw-i:hover{filter:brightness(1.06)}
 .mw-i:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
 .mw-i.heiss{background:var(--f);color:#fff}
+/* Lucas 20.10.: laufende Spiele dezent anders umrandet — feine rote Innenkante plus kleiner Punkt */
+.mw-i.laeuft{box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--down) 65%, transparent)}
+.mw-i.heiss.laeuft{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.75)}
+.mw-i.laeuft .mw-sp::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--down);margin-right:5px;vertical-align:1px}
+.mw-i.heiss.laeuft .mw-sp::before{background:#fff}
 .mw-sp{font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mw-m{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mw-m b{color:var(--text);font-weight:700}
@@ -1994,7 +1999,7 @@ function geldWand(D){
     const zeit = z.live ? `${z.live.min!=null?z.live.min+"'":"live"} ${z.live.stand?.[0]??0}:${z.live.stand?.[1]??0}` : "";
     const titel = `${z.heim} – ${z.gast} · ${marktDe(z.markt)} · ${eur(z.eur)}${fu?` · ${auswahlDe(fu.name)} ${fu.anteil} %`:""}`;
     return `<div class="mw-k ${gr}" style="left:${(r.x/W*100).toFixed(3)}%;top:${(r.y/H*100).toFixed(3)}%;width:${(r.w/W*100).toFixed(3)}%;height:${(r.h/H*100).toFixed(3)}%">
-      <div class="mw-i${mwHeiss(z)?" heiss":""}" style="--f:${f}" title="${esc(titel)}" tabindex="0" ${klickSpiel({id:z.id, heim:z.heim, gast:z.gast})}>
+      <div class="mw-i${mwHeiss(z)?" heiss":""}${z.live?" laeuft":""}" style="--f:${f}" title="${esc(titel)}" tabindex="0" ${klickSpiel({id:z.id, heim:z.heim, gast:z.gast})}>
         <div class="mw-sp">${gr.startsWith("g")?flagge(z.land)+" ":""}${esc(z.heim)} – ${esc(z.gast)}</div>
         <div class="mw-m">${esc(marktDe(z.markt))}${fu?` · <b>${esc(auswahlDe(fu.name))} ${fu.anteil} %</b>`:""}${gr.startsWith("g")&&zeit?` · ${zeit}`:""}</div>
         <div class="mw-fuss"><span class="mw-e">${eur(z.eur)}</span>${mwHeiss(z)?`<span class="mw-n">+${eur(z.neu)}</span>`:""}</div>
@@ -2002,7 +2007,7 @@ function geldWand(D){
       </div></div>`; }).join("");
   const da = new Set(Z.map(z=>mwFamilie(z.markt)));
   return `<div class="mw" style="height:${H}px">${kach}</div>
-    <div class="mw-leg">${MW_FAM.filter(x=>da.has(x[0])).map(x=>`<span><i style="background:${x[2]}"></i>${x[1]}</span>`).join("")}<span>Kräftig gefärbt = gerade neues Geld (30 Min, live 15)</span></div>`;
+    <div class="mw-leg">${MW_FAM.filter(x=>da.has(x[0])).map(x=>`<span><i style="background:${x[2]}"></i>${x[1]}</span>`).join("")}<span>Kräftig gefärbt = gerade neues Geld (30 Min, live 15)</span>${Z.some(z=>z.live)?`<span><i style="background:transparent;box-shadow:inset 0 0 0 1.5px var(--down)"></i>rote Kante = läuft</span>`:""}</div>`;
 }
 function hitparade(D, n=15){
   const mc = D.marktCharts; if(!mc) return "";
