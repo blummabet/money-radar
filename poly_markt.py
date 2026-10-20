@@ -45,14 +45,14 @@ PNL_API = "https://user-pnl-api.polymarket.com/user-pnl?user_address={user}&inte
 TAGS = ("soccer", "esports", "tennis")
 FENSTER_VOR_H, FENSTER_NACH_H = 30.0, 4.0
 MIN_VOL_HALTER = float(os.environ.get("PM_MIN_VOL_HALTER") or 5000)   # ab so viel Markt-Volumen lohnt der Halter-Abruf
-HALTER_SPIELE = int(os.environ.get("PM_HALTER_SPIELE") or 40)        # je Lauf so viele Spiele mit Haltern
+HALTER_SPIELE = int(os.environ.get("PM_HALTER_SPIELE") or 80)        # je Lauf so viele Spiele mit Haltern (Lucas 20.10.: verdoppelt)
 HALTER_SEITEN = 2                                                    # bis 400 Halter je Ausgang
-POS_BUDGET = int(os.environ.get("PM_POS_BUDGET") or 60)              # /positions-Abrufe je Lauf (Ø-Einstieg)
+POS_BUDGET = int(os.environ.get("PM_POS_BUDGET") or 80)              # /positions-Abrufe je Lauf (Ø-Einstieg)
 PNL_BUDGET = int(os.environ.get("PM_PNL_BUDGET") or 25)              # Lebensbilanz-Abrufe je Lauf
 AUFLOES_BUDGET = int(os.environ.get("PM_AUFLOES_BUDGET") or 40)      # Auflösungs-Nachschläge je Lauf
 WALE_JE_MARKT, WALE_HART, BEKANNT_AB_N = 12, 40, 4
 TRACK_HALTEN_H = 96                                                  # offene Position ohne Markt-Sichtung so lange halten
-LAUFZEIT_MAX_S = float(os.environ.get("PM_LAUFZEIT_S") or 300)
+LAUFZEIT_MAX_S = float(os.environ.get("PM_LAUFZEIT_S") or 240)     # Lauf alle 5 Min → unter 4 Min bleiben
 SPORTARTEN = {"Fußball", "E-Sport", "Tennis"}
 
 _SPORT_BY_TAG = {"esports": "E-Sport", "cs2": "E-Sport", "csgo": "E-Sport", "lol": "E-Sport", "dota": "E-Sport",
@@ -526,7 +526,7 @@ def main() -> int:
 
     # Halter für die geldstärksten Spiele (live und vor Anpfiff), nicht für Kleinstmärkte
     kandidaten = sorted((m for m in maerkte.values() if m["totalUsd"] >= MIN_VOL_HALTER),
-                        key=lambda m: (m["live"], -m["totalUsd"]))[:HALTER_SPIELE]
+                        key=lambda m: (not m["live"], -m["totalUsd"]))[:HALTER_SPIELE]   # laufende Spiele zuerst, jedes Mal
     pos_cache, pos_budget = {}, [POS_BUDGET]
     alte_open = track.get("open") or {}
     for m in kandidaten:

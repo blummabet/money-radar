@@ -82,13 +82,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh api -X POST "repos/${{ github.repository }}/actions/workflows/stake.yml/dispatches" -f ref=main && echo angestoßen || echo "nicht angestoßen"
-      - name: Polymarket-Fluss auf dem Mac anstoßen (alle 10 Min)
+      - name: Polymarket auf dem Mac anstoßen (jeder Lauf, alle 5 Min)
         if: github.event_name != 'push' && !inputs.push_test
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           m=$((10#$(date -u +%M)))
-          if [ $((m % 10)) -ge 5 ]; then gh api -X POST "repos/${{ github.repository }}/actions/workflows/poly-fluss.yml/dispatches" -f ref=main && echo angestoßen || echo "nicht angestoßen"; fi
+          gh api -X POST "repos/${{ github.repository }}/actions/workflows/poly-fluss.yml/dispatches" -f ref=main && echo angestoßen || echo "nicht angestoßen"
       - name: Betfair abrufen (Betwatch)
         env:
           BETWATCH_KEY: ${{ secrets.BETWATCH_KEY }}
