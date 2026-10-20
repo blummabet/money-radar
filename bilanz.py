@@ -103,6 +103,15 @@ def _ergebnisse(noetig):
     return {mid: (e.get("ft"), e.get("ht")) for mid, e in erg.items() if mid in noetig and e.get("ft")}
 
 
+def _hz_ungueltig(b):
+    """20.10. (Liverpool – Villarreal, HZ-Push nach der Pause @ 100,00): HZ-Pushes, die nach der 1. HZ rausgingen oder auf
+    einen praktisch entschiedenen Markt zeigten, waren Fehlalarme — sie zählen nicht in die Bilanz."""
+    if b.get("art") not in ("ht", "fix"):
+        return False
+    q, t, ko = b.get("quote"), _ts(b.get("ts")), _ts(b.get("anpfiff"))
+    return (isinstance(q, (int, float)) and q > 20) or bool(t and ko and (t - ko) > timedelta(minutes=52))
+
+
 def aktualisieren(buch, jetzt):
     try:
         preise = json.loads(PREISE.read_text(encoding="utf-8"))
@@ -110,6 +119,9 @@ def aktualisieren(buch, jetzt):
         preise = {}
     spiele = {str(m.get("matchId")): m for m in preise.get("matches") or []}
 
+    for b in buch:
+        if b.get("status") in ("offen", "abgerechnet") and _hz_ungueltig(b):
+            b["status"] = "ungültig"
     # 1) Schlussquote: solange vor Anpfiff, die aktuelle Quote derselben Auswahl nachziehen
     for b in buch:
         if b.get("status") != "offen" or b.get("live"):

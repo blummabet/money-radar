@@ -1047,8 +1047,8 @@ def halbzeit(prices):
             continue
         dt_min = (kick - JETZT).total_seconds() / 60
         minute = li.get("time")
-        if dt_min > 30 * 60 or dt_min < -75 or li.get("is_ht") or (dt_min < 0 and isinstance(minute, (int, float)) and minute > 45):
-            continue
+        if dt_min > 30 * 60 or dt_min < -52 or li.get("is_ht") or (dt_min < 0 and isinstance(minute, (int, float)) and minute > 45):
+            continue                      # −52 statt −75: die Minute hängt in der Pause manchmal bei 45 (20.10.)
         mk = m.get("markets") or {}
         maerkte = []
         tore = sum(x or 0 for x in (li.get("goal_v1"), li.get("goal_v2"))) if dt_min < 0 else 0
@@ -1093,9 +1093,10 @@ def halbzeit(prices):
             continue
         li = m.get("liveInfo") or {}
         minute = li.get("time")
-        if li.get("finished") or li.get("is_ht") or (isinstance(minute, (int, float)) and minute > 45):
-            continue
         kick = ts(m.get("kickoff"))
+        if li.get("finished") or li.get("is_ht") or (isinstance(minute, (int, float)) and minute > 45) \
+                or (kick and (JETZT - kick).total_seconds() > 52 * 60):
+            continue
         e = {k: v for k, v in e.items() if k != "_t"}
         if kick and kick < JETZT:
             e["live"] = {"min": minute, "stand": [li.get("goal_v1"), li.get("goal_v2")]}
@@ -1140,6 +1141,11 @@ def _bf_hz_offen(m, name=None):
     li = m.get("liveInfo") or {}
     if li.get("finished") or li.get("is_ht"):
         return False
+    # Lucas 20.10. (Liverpool – Villarreal: HZ-Push um 22:07, Pause war 20 Min vorbei, Betwatch meldete weiter „45'"):
+    # die Minute hängt in der Pause manchmal. Mehr als 52 Min nach Anpfiff ist die 1. HZ sicher vorbei.
+    ko = ts(m.get("kickoff"))
+    if ko and (JETZT - ko).total_seconds() > 52 * 60:
+        return False
     t = li.get("time")
     if t is not None:
         try:
@@ -1179,8 +1185,8 @@ def bf_ht_pushes(prices):
             lead = max(rs, key=lambda r: r.get("vol") or 0, default=None)
             if not lead or (lead.get("vol") or 0) / tot < 0.85:
                 continue
-            if isinstance(lead.get("odd"), (int, float)) and lead["odd"] < 1.30:
-                continue
+            if isinstance(lead.get("odd"), (int, float)) and (lead["odd"] < 1.30 or lead["odd"] > 20):
+                continue                  # über 20 (z. B. 100,00) ist der Markt praktisch entschieden — kein Signal
             if not best or tot > best["eur"]:
                 best = {**basis, "art": "ht", "markt": name, "eur": round(tot), "auf": lead.get("name"), "quote": lead.get("odd"),
                         "anteil": round(100 * (lead.get("vol") or 0) / tot),
