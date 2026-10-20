@@ -2059,7 +2059,7 @@ function geldWand(D){
       </div></div>`; }).join("");
   const da = new Set(Z.map(z=>mwFamilie(z.markt)));
   return `<div class="mw" style="height:${H}px">${kach}</div>
-    <div class="mw-leg">${MW_FAM.filter(x=>da.has(x[0])).map(x=>`<span><i style="background:${x[2]}"></i>${x[1]}</span>`).join("")}<span>Kräftig gefärbt = gerade neues Geld (30 Min, live 15)</span>${Z.some(z=>z.live)?`<span><i style="background:transparent;box-shadow:inset 0 0 0 1.5px var(--down)"></i>rote Kante = läuft</span>`:""}</div>`;
+    <div class="mw-leg">${MW_FAM.filter(x=>da.has(x[0])).map(x=>`<span><i style="background:color-mix(in srgb, ${x[2]} 18%, var(--glas-a))"></i><i style="background:${x[2]};margin-left:-4px"></i>${x[1]}</span>`).join("")}<span>hell = ruhig · kräftig = gerade neues Geld (30 Min, live 15)</span>${Z.some(z=>z.live)?`<span><i style="background:transparent;box-shadow:inset 0 0 0 1.5px var(--down)"></i>rote Kante = läuft</span>`:""}</div>`;
 }
 function hitparade(D, n=15){
   const mc = D.marktCharts; if(!mc) return "";
