@@ -1076,8 +1076,42 @@ def halbzeit(prices):
                     "live": ({"min": minute, "stand": [li.get("goal_v1"), li.get("goal_v2")]} if dt_min < 0 else None),
                     "eur": round(hz_eur), "moEur": round(mo), "htZuMo": round(ht / mo, 2) if mo > 0 else None,
                     "maerkte": maerkte})
+    # Lucas 20.10. (Dortmund und Fenerbahçe, beide Anpfiff 18:45, fehlten genau im Lauf nach Anpfiff): beim Wechsel
+    # auf „in-play" setzt Betfair die Märkte kurz aus, der Abruf liefert dann keine HZ-Volumina. Ein Spiel, das im
+    # letzten Lauf drin war und jetzt nur deshalb fehlt, behält bis zu 15 Min seinen letzten Stand (Live-Stand frisch).
+    try:
+        alt = json.loads(HZ_LETZT.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        alt = {}
+    drin = {x["id"] for x in out}
+    noch = {str(m.get("matchId")): m for m in (prices or {}).get("matches") or []}
+    for mid, e in (alt.get("spiele") or {}).items():
+        m = noch.get(mid)
+        t = ts(e.get("_t"))
+        if mid in drin or not m or not t or JETZT - t > timedelta(minutes=15):
+            continue
+        li = m.get("liveInfo") or {}
+        minute = li.get("time")
+        if li.get("finished") or li.get("is_ht") or (isinstance(minute, (int, float)) and minute > 45):
+            continue
+        kick = ts(m.get("kickoff"))
+        e = {k: v for k, v in e.items() if k != "_t"}
+        if kick and kick < JETZT:
+            e["live"] = {"min": minute, "stand": [li.get("goal_v1"), li.get("goal_v2")]}
+        e["gehalten"] = True
+        out.append(e)
+        drin.add(mid)
+    try:
+        HZ_LETZT.write_text(json.dumps({"spiele": {**{k: v for k, v in (alt.get("spiele") or {}).items() if k in drin and k not in {x["id"] for x in out if not x.get("gehalten")}},
+                                                   **{x["id"]: {**x, "_t": iso(JETZT)} for x in out if not x.get("gehalten")}}},
+                                       separators=(",", ":")), encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
     out.sort(key=lambda x: -x["eur"])
     return out[:40]
+
+
+HZ_LETZT = BASIS / ".bf" / "hz_letzt.json"
 
 
 # ── Betfair-HZ-Pushes wie im alten Projekt (betfair_alerts.py, Lucas 17.10.: „die sollen auch rein") ──
