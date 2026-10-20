@@ -832,7 +832,10 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 }
 /* Säulen „neues Geld je 10 Min" im Spiel-Detail */
 .gs{position:relative;margin-top:8px;padding-top:16px}
-.gs-b{display:grid;grid-template-columns:repeat(36,1fr);gap:2px;align-items:end;height:110px;border-bottom:1px solid var(--rand)}
+.gs-g{position:absolute;left:0;right:0;top:16px;height:110px;pointer-events:none}
+.gs-g span{position:absolute;left:0;right:0;border-top:1px dashed color-mix(in srgb, var(--text-3) 35%, transparent)}
+.gs-g em{position:absolute;left:0;bottom:1px;font-style:normal;font-size:10.5px;color:var(--text-3);line-height:1.2}
+.gs-b{position:relative;display:grid;grid-template-columns:repeat(36,1fr);gap:2px;align-items:end;height:110px;border-bottom:1px solid var(--rand)}
 .gs-b i{display:block;border-radius:3px 3px 1px 1px;background:color-mix(in srgb, var(--bf) 45%, transparent);min-height:0}
 .gs-b i.lv{background:var(--bf)}
 .gs-b i.top{box-shadow:0 0 0 1.5px var(--text) inset}
@@ -1055,7 +1058,11 @@ function linien({reihen, x, hoehe=150, fmt=v=>v, lo:loF, hi:hiF, marke}){
 // WANN Geld reingepumpt wurde. Vor Anpfiff gedämpft, live kräftig; Anpfiff und Tore als Marken.
 function geldSaeulen(s){
   const S = s.saeulen; if(!S || !(S.w||[]).some(v=>v>0)) return "";
-  const v = S.w, n = v.length, mx = Math.max(1, ...v.map(x=>x||0));
+  const v = S.w, n = v.length, roh = Math.max(1, ...v.map(x=>x||0));
+  // Lucas 20.10.: dezente Hilfslinien mit runden Beträgen — Skala auf die nächste runde Zahl (1-2-5) aufgerundet
+  const stufe = (() => { const e = Math.pow(10, Math.floor(Math.log10(roh/4))); for(const f of [1,2,2.5,5,10,20]) if(f*e*4 >= roh) return f*e; return 20*e; })();   // 2–4 Linien
+  const mx = stufe * Math.max(1, Math.ceil(roh/stufe));
+  const linienY = []; for(let y=stufe; y<=mx+1e-9; y+=stufe) linienY.push(y);
   const uhrVon = i => uhr(new Date((S.start + i*S.schritt)*6e4).toISOString());
   const ges = v.reduce((a,b)=>a+(b||0),0);
   let top = 0; v.forEach((x,i)=>{ if((x||0) > (v[top]||0)) top = i; });
@@ -1072,7 +1079,7 @@ function geldSaeulen(s){
   const st = (s.reihe||[]).length ? s.reihe[s.reihe.length-1][1] : s.eur;
   return `<h4>Neues Geld auf Betfair <small>je 10 Min · letzte 6 h</small></h4>
     <div class="gs-kz"><span><b>+${eur(ges)}</b> in 6 h</span><span>größter Schub <b>+${eur(v[top])}</b> um ${uhrVon(top)}</span><span><b>${eur(st)}</b> gematcht</span></div>
-    <div class="gs"><div class="gs-b">${bars}</div>${marken.join("")}<div class="gs-x">${achse}</div></div>`;
+    <div class="gs"><div class="gs-g">${linienY.map(y=>`<span style="bottom:${(y/mx*100).toFixed(2)}%"><em>${eur(y)}</em></span>`).join("")}</div><div class="gs-b">${bars}</div>${marken.join("")}<div class="gs-x">${achse}</div></div>`;
 }
 function spielVerlauf(s){
   // mit Säulen: die Quoten-Linie zeigt dasselbe 6-h-Fenster, damit beide Zeitachsen übereinander passen
