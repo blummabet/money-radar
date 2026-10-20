@@ -173,8 +173,12 @@ jobs:
           # nach einem Commit) verdrängt werden — dann riss die Kette (13:03–14:03 keine Pushes). Doppelt anstoßen ist
           # harmlos: die Gruppe „pages" hält höchstens EINEN wartenden Lauf, ein neuer ersetzt den alten.
           if [ "$andere" = "0" ]; then
-            gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main
-            echo "nächster Lauf angestoßen"
+            # 20.10. (17:05 UTC): der Anstoß schlug einmal fehl, der angelegte Lauf blieb als Geist „queued" hängen und die
+            # Kette stand 17 Min. Darum bis zu dreimal versuchen.
+            for v in 1 2 3; do
+              gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main && { echo "nächster Lauf angestoßen"; break; }
+              echo "Anstoß fehlgeschlagen (Versuch $v)"; sleep 15
+            done
           else
             echo "es läuft/wartet schon ein Lauf ($andere) — keine zweite Kette"
           fi
