@@ -166,11 +166,30 @@ def liga_zeile(d, liga):
             f"· {h['n']} Märkte · <b>{marke}</b></i>\n")
 
 
+def _quote_ok(q, q0, live=False):
+    """Lucas 20.10. (Porto U19, Über 3,5: das Geld drückte die Quote von 1,63 auf 1,35 — kein Push, weil 1,35 < 1,40):
+    vor Anpfiff zählt die Quote VOR dem Geldfluss. Drückt das Geld sie unter die Grenze, ist das ein Zeichen, kein
+    Ausschluss. Live bleibt es bei der aktuellen Quote — dort fallen Quoten auch ohne Geld, allein durch die Spielzeit
+    (Unter-Linien, Führende), und das wären keine Signale."""
+    if not isinstance(q, (int, float)):
+        return True
+    if q >= SERIE_PUSH_MIN_QUOTE:
+        return True
+    return (not live) and isinstance(q0, (int, float)) and q0 >= SERIE_PUSH_MIN_QUOTE and q >= 1.15
+
+
+def _drop_zeile(q, q0):
+    """Markant, wenn das Geld die Quote gedrückt hat (mind. 3 %)."""
+    if isinstance(q, (int, float)) and isinstance(q0, (int, float)) and q0 > 0 and q < q0 * 0.97:
+        return f"🔻 <b>Quote gedrückt: {q2(q0)} → {q2(q)}</b> (−{round(100 * (1 - q / q0))} %)\n"
+    return ""
+
+
 def _in_serie(d, sid, markt, auswahl):
     """Lucas 18.10. (Avaí: Dauerzufluss UND Frischer Zufluss gleichzeitig, dieselben €11k): läuft auf dieselbe
     Auswahl schon eine Serie, meldet nur die Serie — sie zeigt mehr (Verlauf, wie oft in Folge)."""
     return any(str(x.get("id")) == str(sid) and x.get("markt") == markt and x.get("auswahl") == auswahl
-               and not (isinstance(x.get("quote"), (int, float)) and x["quote"] < SERIE_PUSH_MIN_QUOTE)
+               and _quote_ok(x.get("quote"), x.get("quoteStart"), bool(x.get("live")))
                for x in d.get("serien") or [])
 
 
@@ -190,18 +209,20 @@ def zufluss(d):
         fl = (z.get("fluss") or [None])[0]
         if not fl or fl.get("eur", 0) < SCHWELLE[bool(z.get("top5"))][0]:
             continue
-        if isinstance(fl.get("quote"), (int, float)) and fl["quote"] < SERIE_PUSH_MIN_QUOTE:
-            continue                    # Lucas 18.10.: Pushes erst ab Quote 1,40 (Favoriten-Geld ist Normalfall)
+        if not _quote_ok(fl.get("quote"), fl.get("quoteVorher")):
+            continue                    # Lucas 18.10.: Pushes erst ab Quote 1,40 — gemessen VOR dem Geldfluss (20.10.)
         if _in_serie(d, z.get("id"), fl.get("markt"), fl.get("auswahl")):
             continue
         key = f"zf|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
         q, qv = fl.get("quote"), fl.get("quoteVorher")
-        richtung = (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
+        drop = _drop_zeile(q, qv)
+        richtung = "" if drop else (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
         text = (f"🟡 <b>Frischer Zufluss</b> · Betfair\n"
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 30 Min auf <b>{e(remis(_auswahl_de(fl.get('auswahl'))))}</b> @ <b>{q2(q)}</b>{richtung}\n"
-                f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n\n"
+                f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n"
+                + drop + "\n"
                 + _geld_block(fl, 30)
                 + pinnacle_zeile(d, z, fl)
                 + liga_zeile(d, z.get("liga")))
@@ -223,13 +244,15 @@ def live(d):
         st = lv.get("stand") or [0, 0]
         key = f"lz|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
         q, qv = fl.get("quote"), fl.get("quoteVorher")
-        richtung = (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
+        drop = _drop_zeile(q, qv)
+        richtung = "" if drop else (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
         minute = f"{lv.get('min')}'" if lv.get("min") is not None else "live"
         text = (f"🔴 <b>Live-Zufluss</b> · Betfair\n"
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {minute} · <b>{st[0]}:{st[1]}</b>\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(remis(_auswahl_de(fl.get('auswahl'))))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n"
+                + drop
                 + stat_zeile(d, z.get("id")) + "\n"
                 + _geld_block(fl, 15)
                 + liga_zeile(d, z.get("liga")))
@@ -688,11 +711,18 @@ def serie(d):
     """Lucas 17.10.: wiederholter Zufluss auf dieselbe Auswahl („bei jedem Scan wieder 10.000") ist ein
     eigener KPI. Push ab 3 Abrufen in Folge, wieder bei 5, 8 und 12 — nicht bei jedem neuen Treffer."""
     for x in d.get("serien") or []:
-        if isinstance(x.get("quote"), (int, float)) and x["quote"] < SERIE_PUSH_MIN_QUOTE:
+        if not _quote_ok(x.get("quote"), max([v for v in [x.get("quoteStart")] + [f.get("quoteVorher") for z_ in d.get("zufluss30") or []
+                         if str(z_.get("id")) == str(x["id"]) for f in z_.get("fluss") or [] if f.get("auswahl") == x["auswahl"]]
+                         if isinstance(v, (int, float))], default=None), bool(x.get("live"))):
             continue
         key = f"se|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}"
         q, q0 = x.get("quote"), x.get("quoteStart")
-        richtung = f" (Start {q2(q0)})" if q and q0 and abs(q - q0) >= 0.02 else ""
+        # die Quote vor dem Geldfluss kann älter sein als der Serienbeginn (Porto: 1,63 vor 30 Min, Serie ab 1,43)
+        vorher = [f.get("quoteVorher") for z_ in d.get("zufluss30") or [] if str(z_.get("id")) == str(x["id"])
+                  for f in z_.get("fluss") or [] if f.get("markt") == x["markt"] and f.get("auswahl") == x["auswahl"]]
+        q_vor = max([v for v in [q0, *vorher] if isinstance(v, (int, float))], default=q0)
+        drop = _drop_zeile(q, q_vor) if not x.get("live") else ""
+        richtung = "" if drop else f" (Start {q2(q0)})" if q and q0 and abs(q - q0) >= 0.02 else ""
         # Live steigt die Quote des Führenden/Favoriten mit der Zeit — aber nicht um ein Viertel in einer Dreiviertelstunde.
         # Steigt sie stärker, wurde das gematchte Geld eher von Lay-Seite in den Markt gedrückt (Volumen hat keine Richtung).
         lay_hinweis = ""
@@ -705,6 +735,7 @@ def serie(d):
                 f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n{e(x.get('liga'))} · {st}\n\n"
                 f"💶 <b>{geld(x['eur'])}</b> in {x['dauerMin']} Min auf <b>{e(remis(_auswahl_de(x['auswahl'])))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"<i>= im Schnitt {x.get('anteil')} % von allem, was je Abruf in diesem Markt neu kam</i>\n"
+                + drop
                 + lay_hinweis
                 + (stat_zeile(d, x["id"]) if x.get("live") else "")
                 + (f"⚽ <b>Tor während der Serie</b> ({x['tor']['von'][0]}:{x['tor']['von'][1]} → {x['tor']['nach'][0]}:{x['tor']['nach'][1]}): "
