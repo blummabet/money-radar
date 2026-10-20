@@ -319,7 +319,8 @@ def halbzeit(d):
         z = [f"⏸️ <b>HALBZEIT 0:0</b>\n",
              f"{flagge(h.get('land'))}<b>{e(h.get('spiel'))}</b>\n<i>{e(str(h.get('liga') or '')[:38])} · {wann}</i>\n\n"]
         erw = ([f"Over 2,5 {_hz_q(v.get('over25'))}"] if "tore" in gr and v.get("over25") else []) + \
-              ([f"Heimsieg {_hz_q(v.get('heim'))}"] if "heim" in gr and v.get("heim") else [])
+              ([f"Heimsieg {_hz_q(v.get('heim'))}"] if "heim" in gr and v.get("heim") else []) + \
+              ([f"Auswärtssieg {_hz_q(v.get('gast'))}"] if "gast" in gr and v.get("gast") else [])
         if erw:
             z.append(f"🎯 <b>Vorher:</b> {' · '.join(erw)}\n")
         jetzt = []
@@ -327,8 +328,11 @@ def halbzeit(d):
             jetzt.append(f"Tor in 2. HZ <b>{_hz_q(q['over05'])}</b>")
         if q.get("over15"):
             jetzt.append(f"2+ Tore {_hz_q(q['over15'])}")
-        if q.get("heim"):
-            jetzt.append((f"<b>Heimsieg {_hz_q(q['heim'])}</b>" if "heim" in gr else f"Heimsieg {_hz_q(q['heim'])}"))
+        # Lucas 20.10.: Sieg nur für den Favoriten vor Anpfiff — ein Underdog-Heimsieg ist kein Tipp
+        if "heim" in gr and q.get("heim"):
+            jetzt.append(f"<b>Heimsieg {_hz_q(q['heim'])}</b>")
+        if "gast" in gr and q.get("gast"):
+            jetzt.append(f"<b>Auswärtssieg {_hz_q(q['gast'])}</b> <i>(neu, wird gemessen)</i>")
         z.append("💰 <b>Jetzt:</b>\n   " + ("\n   ".join(jetzt) if jetzt else "–") + "\n")
         zt = _hz_zufluss(h.get("zufluss"))
         if zt:

@@ -59,8 +59,10 @@ MINDEST_N = 100
 Z = 1.645
 UG_MIN_N = 30
 PUSH_DECKEL = 8
-WETTEN = {"tore": ("over05", "over15"), "heim": ("heim",)}
-WETT_TEXT = {"over05": "Over 0.5 (Tor in 2. HZ)", "over15": "Over 1.5 (2+ Tore)", "heim": "Heimsieg"}
+# Lucas 20.10. („Heimsieg immer dabei ist Blödsinn, wenn Heim komplett Underdog ist"): Sieg nur für den FAVORITEN
+# vor Anpfiff. Heimfavorit wie bisher (1,30–1,60), Auswärtsfavorit mit derselben Spanne neu — wird ab heute gemessen.
+WETTEN = {"tore": ("over05", "over15"), "heim": ("heim",), "gast": ("gast",)}
+WETT_TEXT = {"over05": "Over 0.5 (Tor in 2. HZ)", "over15": "Over 1.5 (2+ Tore)", "heim": "Heimsieg", "gast": "Auswärtssieg"}
 
 
 def _laden(pfad, leer=None):
@@ -76,6 +78,18 @@ def _runner(m, markt, test):
         if test(str(r.get("name") or "")) and isinstance(r.get("odd"), (int, float)) and r["odd"] > 1:
             return float(r["odd"])
     return None
+
+
+def vor_quote(hist_punkte, feld):
+    """Letzte Vor-Anpfiff-Quote (hw/aw) aus betfair_history (Punkte ohne Minute). REIN."""
+    best = None
+    for p in hist_punkte or []:
+        if not isinstance(p, dict) or p.get("min") is not None:
+            continue
+        q = (p.get("mo") or {}).get(feld)
+        if isinstance(q, (int, float)) and q > 1 and (best is None or str(p.get("ts")) >= str(best[0])):
+            best = (p.get("ts"), float(q))
+    return best[1] if best else None
 
 
 def vor_heimquote(hist_punkte):
@@ -118,12 +132,18 @@ def kandidat(m, state_pend, hist_punkte, archiv=None):
             and not ist_nationalteam(m.get("league"))):
         gruppen.append("heim")
         vor["heim"] = hw
+    aw = vor_quote(hist_punkte, "aw")
+    if (aw is not None and HEIM_MIN_QUOTE < aw <= HEIM_MAX_QUOTE
+            and not ist_nationalteam(m.get("league")) and "heim" not in gruppen):
+        gruppen.append("gast")
+        vor["gast"] = aw
     if not gruppen:
         return None
     home = m.get("home")
     quoten = {"over05": _runner(m, "Over/Under 0.5 Goals", lambda s: s.startswith("Over")),
               "over15": _runner(m, "Over/Under 1.5 Goals", lambda s: s.startswith("Over")),
-              "heim": _runner(m, "Match Odds", lambda s: s == str(home))}
+              "heim": _runner(m, "Match Odds", lambda s: s == str(home)),
+              "gast": _runner(m, "Match Odds", lambda s: s == str(m.get("away")))}
     serie = None
     if archiv is not None:
         import team_archiv
@@ -219,7 +239,7 @@ def _k(v):
 # ── Abrechnen ───────────────────────────────────────────────────────────────────────────────
 def ergebnis(ft):
     h, a = ft
-    return {"over05": h + a >= 1, "over15": h + a >= 2, "heim": h > a}
+    return {"over05": h + a >= 1, "over15": h + a >= 2, "heim": h > a, "gast": a > h}
 
 
 def abrechnen(eintraege, endstaende, jetzt) -> list:

@@ -316,7 +316,7 @@ main{padding:22px 28px 60px;min-width:0}
 .pleg{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:11.5px;color:var(--text-2)}
 .pleg i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:4px}
 .pleg b{color:var(--text)}
-.qpills{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.qpills{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;margin-top:8px}
 .hz-ch{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;font-size:12px;font-weight:700;margin-top:6px}
 .hz-ch span{font-weight:500;color:var(--text-2)} .hz-ch b{color:var(--text)}
 .hz-ch.c-hoch{color:#ff9a5c} .hz-ch.c-niedrig{color:#7fb8ff} .hz-ch.ohne{color:var(--text-3);font-weight:500}
@@ -1609,14 +1609,16 @@ function stakeKarten(gr){
     </div>`).join("")}</div>`;
 }
 function hzSpielKarten(liste){
-  const nm2 = {over05:"Tor 2. HZ", over15:"2+ Tore", heim:"Heimsieg"};
+  const nm0 = {over05:"Tor 2. HZ", over15:"2+ Tore"};
   if(!liste.length) return `<div class="leer">Noch kein Spiel zur Pause 0:0.</div>`;
   // Pause war 0:0, also ist der Endstand genau die 2. Halbzeit
   const ausw = (k, ft) => { if(!Array.isArray(ft)) return null; const [h,a] = ft, t = h + a;
-    return k==="over05" ? t>=1 : k==="over15" ? t>=2 : k==="heim" ? h>a : null; };
+    return k==="over05" ? t>=1 : k==="over15" ? t>=2 : k==="heim" ? h>a : k==="gast" ? a>h : null; };
   return `<div class="kgrid">${liste.map(e=>{
     const ft = Array.isArray(e.ft) ? e.ft : null, tipps = e.gruppen||[];
-    const istTipp = k => k==="heim" ? tipps.includes("heim") : tipps.includes("tore");
+    const istTipp = k => k==="heim" || k==="gast" ? tipps.includes(k) : tipps.includes("tore");
+    // Lucas 20.10.: Sieg-Kachel nur für den Favoriten vor Anpfiff (Heim oder Auswärts), sonst nur die Tore
+    const nm2 = {...nm0, ...(tipps.includes("heim") ? {heim:"Heimsieg"} : tipps.includes("gast") ? {gast:"Auswärtssieg"} : {})};
     const rechts = ft ? `<span class="hz-end">${ft[0]}:${ft[1]}</span>` : `<span class="hz-lauf">${(Date.now()-new Date(e.zeit))/6e4>75?"Ergebnis folgt":"läuft"} · ${uhr(e.zeit)}</span>`;
     return `<div class="kk">
       <div class="kk-oben">${flagge(e.land)}<span>${esc(e.liga)}</span><span class="rechts">${rechts}</span></div>
