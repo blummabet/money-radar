@@ -2086,7 +2086,6 @@ function seitePinnacle(D){
       ["Live-Drops", liveD.length, "ohne Tor, Team liegt nicht vorn"],
       ["Größte Bewegung", top?`${dez(top.b)} pp`:"–", top?`${esc(top.g.heim)} – ${esc(top.g.gast)}`:""]])}</div>
     ${voll.map(([t,h,k])=>`<div class="panel c12"><div class="ph"><h3>${t}</h3><span class="hint">${h}</span></div><div class="toepfe p3">${k.join("")}</div></div>`).join("")}
-    ${leer.length?`<div class="c12 ruhig">Gerade ruhig: ${leer.map(t=>t[0].replace("🔴 ","")).join(" · ")}</div>`:""}
     <div class="panel c12"><div class="ph"><h3>Wohin Pinnacle zieht</h3><span class="hint">Spiele mit großem Betfair-Geld · je Spiel der Ausgang mit der größten Bewegung</span></div>${pinZug(D)}</div>
     <div class="panel c12">${liste(`Pinnacle gegen Betfair und Polymarket (${lf(D.sharp).length})`, "", pinKarten(lf(D.sharp)))}</div>
     <div class="panel c12">${liste(`Alle ${alle.length} Spiele mit Pinnacle-Quote als Liste`, "", pinTabelle(alle,"pin-alle"))}</div>
@@ -2147,7 +2146,6 @@ function seitePoly(D){
     <div class="panel c12 kz-panel">${polyKennzahlen(D)}</div>
     ${(p.setzen||[]).length?`<div class="panel c12"><div class="ph"><h3>Belegte Wale setzen gerade</h3><span class="hint">schlagen nachweislich den Schlusskurs</span></div>${setzenKarten(p.setzen)}</div>`:""}
     ${voll.map(([t,html])=>`<div class="panel c12"><div class="ph"><h3>${t==="Dauerzufluss"?"🔁 ":""}${t}</h3><span class="hint">${t==="Dauerzufluss"?"3 Abschnitte à 10 Min in Folge dieselbe Seite vorn":"Käufe der letzten 30 Min je Seite"}</span></div>${html}</div>`).join("")}
-    ${leer.length?`<div class="c12 ruhig">Gerade ruhig: ${leer.map(t=>t[0]).join(" · ")}</div>`:""}
     <div class="panel c12"><div class="ph"><h3>Märkte, nächste 30 Stunden</h3><span class="hint">Preis in Cent = Wahrscheinlichkeit</span>
       <div class="chips rechts">${sports.map(s=>`<button class="chip${s===filterSport?" an":""}" data-sport="${s}">${s==="alle"?"Alle":SPORT_ICO[s]+" "+s} <span style="opacity:.6">${s==="alle"?p.maerkte.length:p.maerkte.filter(m=>(m.sport||"Fußball")===s).length}</span></button>`).join("")}</div></div>
       <div class="toepfe p3">${auswahl.slice(0,12).map(polyKarte).join("")}</div>${auswahl.length>12?liste("Alle Märkte als Liste",auswahl.length,polyTabelle(auswahl,"p-alle")):""}</div>
@@ -2184,7 +2182,7 @@ function seiteStake(D){
       ["Davon live", gr.filter(x=>x.phase==="live").length, "während das Spiel läuft"],
       ["Offen", gr.filter(x=>stakeStatus(x)==="pending").length, "noch nicht abgerechnet"],
       bilanzKachel(D, "stake", "Stake-Bursts 30 T")])}</div>
-    ${serLeer?`<div class="c12 ruhig">Gerade ruhig: Dauerzufluss</div>`:`<div class="panel c12"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Einzelwetten ab $1000, 3 Abschnitte à 10 Min in Folge dieselbe Auswahl</span></div>${ser}</div>`}
+    ${serLeer?"":`<div class="panel c12"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Einzelwetten ab $1000, 3 Abschnitte à 10 Min in Folge dieselbe Auswahl</span></div>${ser}</div>`}
     <div class="panel c7"><div class="ph"><h3>Große Wetten, letzte 24 Stunden</h3><span class="hint">je Spiel und Auswahl zusammengefasst</span></div>${stakeZeilen(gr.slice(0,14))}${gr.length>14?liste(`Weitere ${gr.length-14}`, "", stakeZeilen(gr.slice(14))):""}</div>
     <div class="panel c5"><div class="ph"><h3>Bilanz je Art</h3><span class="hint">alle abgerechneten Meldungen</span></div>
       ${nullBalken(Object.entries(st.bilanz||{}).map(([a,b])=>({name:esc(a), wert:b.roi, unter:`${b.n} Tipps · ${b.treffer} % Treffer${b.ug!=null&&b.ug>0?` · <b style="color:var(--up)">belegt</b>`:""}`})))}
