@@ -779,15 +779,14 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 /* Markt-Charts: Geld-Wand (Treemap) + Hitparade — Lucas 19.10.: „ganz eigene Darstellung" */
 :root[data-theme="dunkel"]{--mw-sieg:#5b7cff;--mw-tore:#1fc2a4;--mw-hz:#ff77a8;--mw-rest:#8f98ae}
 :root[data-theme="hell"]{--mw-sieg:#3456e0;--mw-tore:#0d9a82;--mw-hz:#d43f78;--mw-rest:#69718a}
-.mw{position:relative;width:100%;border-radius:14px;overflow:hidden;margin-top:6px}
+.mw{position:relative;width:100%;border-radius:14px;overflow:visible;margin-top:6px}
 .mw-k{position:absolute;box-sizing:border-box;padding:2px}
 .mw-i{height:100%;box-sizing:border-box;border-radius:10px;background:color-mix(in srgb, var(--f) 13%, var(--glas-a));padding:9px 10px 8px;display:flex;flex-direction:column;gap:1px;overflow:hidden;cursor:pointer;color:var(--text);transition:filter .15s}
 .mw-i:hover{filter:brightness(1.06)}
 .mw-i:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
 .mw-i.heiss{background:var(--f);color:#fff}
 /* Lucas 20.10.: laufende Spiele dezent anders umrandet — feine rote Innenkante plus kleiner Punkt */
-.mw-i.laeuft{box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--down) 65%, transparent)}
-.mw-i.heiss.laeuft{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.75)}
+.mw-i.laeuft{box-shadow:0 0 0 2px var(--down)}              /* Ring außen im Zwischenraum — sichtbar auf hellen UND kräftigen Kacheln */
 .mw-i.laeuft .mw-sp::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--down);margin-right:5px;vertical-align:1px}
 .mw-i.heiss.laeuft .mw-sp::before{background:#fff}
 .mw-sp{font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
