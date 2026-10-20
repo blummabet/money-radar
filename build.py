@@ -604,6 +604,7 @@ def stake(ledger):
                       "markt": z.get("markt") or ", ".join(z.get("maerkte") or []) or None,
                       "usd": z.get("summeUsd"), "wetten": z.get("nWetten"), "quote": z.get("quote"),
                       "phase": z.get("phase"), "minute": z.get("spielminute"), "faktor": z.get("faktor"),
+                      "anpfiff": z.get("anpfiff"), "kat": z.get("kat"),
                       "zeit": z.get("sentAt"), "status": z.get("status"), "rendite": z.get("rendite")})
     heute.sort(key=lambda r: r["zeit"] or "", reverse=True)
     # Lucas 17.10.: dieselbe Wette (Spiel + Auswahl) steht als Burst UND Spiel-Burst da → zusammenfassen.

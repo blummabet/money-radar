@@ -624,6 +624,13 @@ def stake(d):
         # Erkennung); mit 10 Min fiel z. B. Al Fayha – Al Ahli (Über, $42k, 16:49) knapp durch und kam nie.
         if g.get("phase") == "live" and (JETZT - t0).total_seconds() > 15 * 60:
             continue
+        # Lucas 20.10. (Fenerbahçe – Slavia: Spiel-Burst kam ~10 Min nach Abpfiff, „live"): Fußball ist ~110 Min nach
+        # Anpfiff aus. Kam der Burst so spät oder ab der 88. Minute, ist es Schluss-/Abrechnungsgeld, kein Signal.
+        ko = ts(g.get("anpfiff"))
+        if (g.get("kat") or "Fußball") == "Fußball" and g.get("phase") == "live" and (
+                (ko and ((JETZT - ko).total_seconds() > 110 * 60 or (t0 - ko).total_seconds() > 100 * 60))
+                or (isinstance(g.get("minute"), (int, float)) and g["minute"] >= 88)):
+            continue
         arten = []
         for z in gruppe:
             if z.get("art") and z["art"] not in arten:
