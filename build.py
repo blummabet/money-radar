@@ -1876,7 +1876,7 @@ def betfair_pushes(ledger, record):
 VERLAUF_TAGE = 60
 
 
-def verlauf(bf_led, burst, finder, tr_led):
+def verlauf(bf_buch, burst, finder, tr_led):
     """Jede gepushte Wette der letzten 60 Tage als [zeit, quelle, rendite, ergebnis] — Grundlage für die
     Bilanz-Kurve und den Strichcode im Frontend. rendite: Gewinn je 1 Einheit Einsatz (None = offen),
     ergebnis: 1 gewonnen, 0 verloren, None offen."""
@@ -1888,14 +1888,11 @@ def verlauf(bf_led, burst, finder, tr_led):
         if tt and tt >= grenze:
             out.append([tt.strftime("%Y-%m-%dT%H:%M"), q, None if r is None else round(float(r), 3), w])
 
-    for e in bf_led or []:
-        st, odd = e.get("status"), e.get("leadOdd")
-        if st == "won" and isinstance(odd, (int, float)):
-            dazu(e.get("sentAt"), "betfair", (odd - 1) * 0.98, 1)
-        elif st == "lost":
-            dazu(e.get("sentAt"), "betfair", -1.0, 0)
-        elif st == "pending":
-            dazu(e.get("sentAt"), "betfair", None, None)
+    # Lucas 20.10.: „Betfair" in der Bilanz sind die EIGENEN Geldradar-Pushes (Push-Buch aus bilanz.py), nicht mehr
+    # die des alten Projekts — „weil das zählt". Gibt es das Buch (noch) nicht, bleibt Betfair leer statt alt.
+    for z in (bf_buch or {}).get("verlauf") or []:
+        if isinstance(z, list) and len(z) == 3:
+            dazu(z[0] + "+00:00" if len(z[0]) == 16 else z[0], "betfair", z[1], z[2])
     for z in burst or []:
         if not isinstance(z, dict) or not z.get("push") or not stake_ok(z):
             continue
@@ -2041,7 +2038,7 @@ def main() -> int:
         "halbzeit": halbzeit(prices),
         "bfHtPushes": bf_ht_pushes(prices),
         "pushBilanz": push_bilanz(),
-        "verlauf": verlauf(bf_led, burst, finder, tr_led),
+        "verlauf": verlauf(push_bilanz(), burst, finder, tr_led),
         "ligaBilanz": liga_bilanz(),
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),

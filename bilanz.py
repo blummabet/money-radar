@@ -176,7 +176,18 @@ def zusammenfassen(buch):
     letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
               for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen")][:40]
-    return {"arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None}
+    # Lucas 20.10. („Übersichtskurve auf die neuen Betfair-Pushes, weil das zählt"): jeder Push als
+    # [Zeit UTC, Rendite je Einheit, 1/0] — offen mit None. build.py baut daraus die Bilanz-Kurve.
+    grenze = datetime.now(timezone.utc) - timedelta(days=60)
+    verlauf = []
+    for b in buch:
+        t = _ts(b.get("ts"))
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen"):
+            continue
+        ab = b.get("status") == "abgerechnet"
+        verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,
+                        (1 if b.get("win") else 0) if ab else None])
+    return {"arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
 
 
 def _kennz(ab):
