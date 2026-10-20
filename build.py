@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""build.py — Geld-Radar, Phase 1: verdichtet die Daten der alten Pipeline zu EINER kleinen Datei.
+"""build.py — Geldradar: verdichtet die EIGENEN Abrufe zu EINER kleinen Datei (site/data.json).
 
-Keine eigenen API-Abfragen. Quelle sind die JSON-Dateien, die blummabet/betting-dashboard
-ohnehin schreibt (öffentliches Repo). Ausgabe: site/data.json, die die Website liest.
-
-    RADAR_SRC=/pfad/zum/alten/repo python3 build.py     # lokal testen
-    python3 build.py                                    # holt per HTTPS (GitHub Actions)
+Seit 20.10.2026 eigenständig (Lucas: „muss autonom im neuen Projekt laufen, egal ob das alte noch da ist"):
+    .bf/   Betfair (fetch_betfair, ergebnisse, liga_norm, hz_finder, betfair_direction) — dieser Workflow
+    .pin/  Pinnacle-Abgleich (pinnacle_konsens)                                         — dieser Workflow
+    .pm/ .pf/  Polymarket (poly_markt, poly_fluss)                                       — Mac-Runner, poly-fluss.yml
+    .st/   Stake (stake/)                                                                — Mac-Runner, stake.yml
+    .push_state/  Push-Buch (bilanz.py)                                                  — push.py
+Das alte Projekt wird nur noch mit RADAR_ALT=an gelesen (Notbehelf, standardmäßig aus).
 
 Regeln:
 - Keine Picks, keine Empfehlung. Gezeigt wird, wo Geld liegt und wer es setzt.
@@ -60,7 +62,9 @@ def stake_ok(z) -> bool:
 
 
 def laden(name: str, default=None):
-    """Eine Datei der alten Pipeline. Fehlt sie oder ist sie kaputt: default + Notiz."""
+    """Eine Datei der alten Pipeline. Fehlt sie oder ist sie kaputt: default + Notiz. Ohne RADAR_ALT=an: default."""
+    if not ALT:
+        return default
     try:
         if SRC:
             return json.loads((Path(SRC) / name).read_text(encoding="utf-8"))
@@ -72,6 +76,23 @@ def laden(name: str, default=None):
 
 
 FEHLER: list[str] = []
+# Lucas 20.10.: „das muss autonom im neuen Projekt laufen". Ohne RADAR_ALT=an liest der Geldradar NICHTS mehr aus dem
+# alten Projekt — weder als Quelle noch als stiller Rückfall.
+ALT = os.environ.get("RADAR_ALT", "aus").strip().lower() == "an"
+
+
+def eigen(name: str, ordner: str = ".bf", default=None, max_min: float | None = None):
+    """Eine Datei, die dieses Repo selbst führt (Actions-Cache). Fehlt sie: default + Notiz."""
+    p = Path(__file__).resolve().parent / ordner / name
+    try:
+        if max_min is not None and (datetime.now().timestamp() - p.stat().st_mtime) > max_min * 60:
+            FEHLER.append(f"{ordner}/{name}: älter als {max_min:.0f} Min")
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        FEHLER.append(f"{ordner}/{name}: {str(exc)[:100]}")
+        return default
+
+
 BF_EIGEN = {"an": False, "pin": False, "st": False}
 
 
@@ -88,6 +109,11 @@ def laden_bf(name: str, ordner: str = ".bf"):
             return d
     except Exception as exc:  # noqa: BLE001
         FEHLER.append(f".bf/{name}: {str(exc)[:120]}")
+    if not ALT:                     # kein Rückfall aufs alte Projekt: lieber der eigene ältere Stand
+        try:
+            return json.loads(lokal.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            return {}
     return laden(name, {})
 
 
@@ -1788,18 +1814,7 @@ def liga_bilanz():
         buch = json.loads(LIGA_BUCH.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         buch = {}
-    try:
-        roh = laden("betfair_track_results.json", None)
-        if roh:
-            import betfair_track_store
-            for z in betfair_track_store.entpacken(roh):
-                if not isinstance(z, dict) or z.get("win") is None or not z.get("league"):
-                    continue
-                k = f"{z.get('matchId')}|{z.get('market')}"
-                buch[k] = {"l": z["league"], "t": (z.get("settledAt") or "")[:10], "q": z.get("entryOdd") or z.get("odd"),
-                           "w": bool(z["win"]), "v": z.get("mktVol") or 0, "a": z.get("sharePct") or 0, "m": z.get("market")}
-    except Exception as exc:  # noqa: BLE001
-        FEHLER.append(f"Liga-Bilanz: {str(exc)[:100]}")
+    # 20.10.: die Zeilen schreibt ergebnisse.py aus dem eigenen Betfair-Abruf — kein Track-Record des alten Projekts mehr
     grenze = (JETZT - timedelta(days=LIGA_FENSTER_TAGE)).strftime("%Y-%m-%d")
     buch = {k: v for k, v in buch.items() if (v.get("t") or "9") >= grenze}
     try:
@@ -1853,23 +1868,43 @@ def poly_fluss():
     return {"stand": d.get("generatedAt"), "maerkte": rows}
 
 
-def betfair_pushes(ledger, record):
+def betfair_pushes(buch):
+    """Lucas 20.10.: die EIGENEN Betfair-Pushes aus dem Push-Buch (bilanz.py) — nicht mehr die des alten Projekts."""
+    buch = buch or {}
+    status = {"abgerechnet": None, "offen": "pending"}
     out = []
-    for e in ledger or []:
-        t = ts(e.get("sentAt"))
-        if not t or t < JETZT - timedelta(hours=36):
+    for e in buch.get("letzte") or []:
+        t = ts(e.get("ts"))
+        if e.get("art") == "pserie" or not t or t < JETZT - timedelta(hours=36):
             continue
-        out.append({"zeit": e.get("sentAt"), "art": {"fresh": "Frisches Geld", "ht": "Halbzeit"}.get(e.get("scenario"), e.get("scenario")),
-                    "markt": e.get("market"), "liga": e.get("league"), "heim": e.get("home"), "gast": e.get("away"),
-                    "auf": e.get("leadName"), "quote": e.get("leadOdd"), "eur": round(e.get("value") or 0),
-                    "anteil": round((e.get("leadShare") or 0) * 100), "status": e.get("status"),
-                    "pinnacleEinig": (e.get("consensus") or {}).get("agree")})
-    out.sort(key=lambda x: x["zeit"], reverse=True)
-    r = record or {}
-    bil = {"n": r.get("n"), "treffer": round((r.get("hitRate") or 0) * 100, 1), "roi": round((r.get("roi") or 0) * 100, 1),
-           "roiUg": round((r.get("roiUg") or 0) * 100, 1) if r.get("roiUg") is not None else None,
-           "schlaegtPinnacle": round((r.get("pctBeatPinn") or 0) * 100) if r.get("pctBeatPinn") is not None else None}
+        out.append({"zeit": e.get("ts"), "art": ((buch.get("arten") or {}).get(e.get("art")) or {}).get("name"),
+                    "markt": e.get("markt"), "liga": e.get("liga"), "heim": e.get("heim"), "gast": e.get("gast"),
+                    "auf": e.get("auswahl"), "quote": e.get("quote"), "eur": round(e.get("eur") or 0), "anteil": None,
+                    "status": ("won" if e.get("win") else "lost") if e.get("status") == "abgerechnet" else status.get(e.get("status"))})
+    v = [z for z in buch.get("verlauf") or [] if isinstance(z, list) and len(z) == 3 and z[1] is not None]
+    n = len(v)
+    bil = {"n": n, "treffer": round(100 * sum(1 for z in v if z[2]) / n, 1) if n else None,
+           "roi": round(100 * sum(z[1] for z in v) / n, 1) if n else None, "roiUg": None, "schlaegtPinnacle": None}
     return {"liste": out[:40], "bilanz": bil}
+
+
+def eigene_wal_pushes(buch):
+    """Wal-Pushes aus dem eigenen Push-Buch im Format, das poly() und verlauf() kennen (Lucas 20.10.)."""
+    led = []
+    for z in (buch or {}).get("walVerlauf") or []:
+        led.append({"sentAt": z.get("zeit") + "+00:00" if len(str(z.get("zeit") or "")) == 16 else z.get("zeit"),
+                    "key": z.get("key"), "side": z.get("seite"), "usd": z.get("usd"), "pushPrice": z.get("preis"),
+                    "cat": z.get("sport"), "wallet": z.get("wallet"),
+                    "result": {"won": "win", "lost": "loss"}.get(z.get("status")), "status": z.get("status")})
+    je = {}
+    for z in led:
+        if z["result"] and isinstance(z.get("pushPrice"), (int, float)) and 0 < z["pushPrice"] < 1:
+            b = je.setdefault(z.get("cat") or "Fußball", [])
+            b.append(1 / z["pushPrice"] - 1 if z["result"] == "win" else -1.0)
+    rec = {"byCat": {sp: {"n": len(r), "hit": sum(1 for x in r if x > 0) / len(r), "roi": sum(r) / len(r), "roiUg": None,
+                          "belegt": None} for sp, r in je.items()},
+           "startAb": min((z["sentAt"] for z in led), default=None)}
+    return led, rec
 
 
 # ── Verlauf aller Push-Ergebnisse (Lucas 19.10.: „zu wenig mit Graphen gearbeitet") ─────────────────────────
@@ -1994,29 +2029,28 @@ def markt_charts(radar):
 def main() -> int:
     prices = laden_bf("betfair_prices.json")
     bf_hist = laden_bf("betfair_history.json")
-    bf_norm = laden("betfair_league_norm.json", {})
-    bf_norm_state = laden("betfair_league_norm_state.json", {})
-    bf_led = laden("betfair_public_ledger.json", [])
-    bf_rec = laden("betfair_public_record.json", {})
-    overview = laden("betfair_overview.json", {})
+    bf_norm = eigen("betfair_league_norm.json", default={})            # liga_norm.py
+    bf_norm_state = eigen("betfair_league_norm_state.json", default={})
     consensus = laden_bf("betfair_consensus.json", ".pin")
     history = laden_bf("betfair_consensus_history.json", ".pin")
-    track = laden("poly_wallet_track.json", {})
-    upcoming = laden("poly_money_upcoming.json", {})
-    wale = laden("poly_whale_public_ledger.json", [])
-    offen_m = laden("poly_money_broad_offen.json", {})
-    tr_led = laden("poly_whale_trades_ledger.json", [])
-    tr_rec = laden("poly_whale_trades_record.json", {})
+    # 20.10.: Polymarket aus dem EIGENEN Mac-Lauf (poly_markt.py → .pm/), Wal-Pushes aus dem eigenen Push-Buch
+    track = eigen("poly_wallet_track.json", ".pm", default={}, max_min=60)
+    pm = (eigen("poly_maerkte.json", ".pm", default={}, max_min=60) or {}).get("maerkte") or {}
+    upcoming = {k: v for k, v in pm.items() if not v.get("live")}
+    live_m = {k: v for k, v in pm.items() if v.get("live")}
+    offen_m = {k: v for k, v in upcoming.items() if v.get("whales")}
+    wale = []                                     # öffentliche Wal-Pushes des alten Projekts gibt es nicht mehr
+    tr_led, tr_rec = eigene_wal_pushes(push_bilanz())
     # 18.10.: Stake kommt aus dem eigenen Mac-Lauf (.st/, stake.yml); ist der älter als 40 Min, aus dem alten Projekt
     burst = laden_bf("stake_burst_ledger.json", ".st") or []
     hr = laden_bf("stake_highroller.json", ".st")      # einzelne Highroller-Wetten mit Zeitstempel (für die Serien)
-    finder = laden("hz_finder.json", {})
+    finder = eigen("hz_finder.json", default={})            # hz_finder.py (eigener Lauf)
 
     daten = {
         "generatedAt": iso(JETZT),
         "quellen": {
             "betfair": stand(prices, "_meta.generatedAt"),
-            "zufluss": stand(overview, "generatedAt"),
+            "zufluss": stand(prices, "_meta.generatedAt"),   # 20.10.: Zufluss rechnet der Geldradar selbst aus dem eigenen Abruf
             "pinnacle": stand(consensus, "generatedAt"),
             "polymarket": stand(track, "updatedAt"),
             # Stand = letzter Abruf (asof), nicht letzte Meldung — sonst wirkt Stake in ruhigen Phasen „alt"
@@ -2025,7 +2059,7 @@ def main() -> int:
             "hz": stand(finder, "updatedAt"),
             "stakeAbruf": (hr or {}).get("asof"),
         },
-        "betfair": betfair(prices, overview, consensus),
+        "betfair": betfair(prices, {}, consensus),          # die Übersicht des alten Projekts gibt es nicht mehr
         "radar": (radar := betfair_radar(prices, bf_hist, bf_norm, bf_norm_state)),
         "zufluss30": zufluss_liste(radar, consensus),
         "liveZufluss": live_zufluss(radar),
@@ -2034,7 +2068,7 @@ def main() -> int:
         "polySerien": poly_serien(pfl),
         "stakeSerien": stake_serien(hr),
         "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"], "stakeEigen": BF_EIGEN["st"],
-        "bfPushes": betfair_pushes(bf_led, bf_rec),
+        "bfPushes": betfair_pushes(push_bilanz()),
         "halbzeit": halbzeit(prices),
         "bfHtPushes": bf_ht_pushes(prices),
         "pushBilanz": push_bilanz(),
@@ -2044,9 +2078,9 @@ def main() -> int:
         "pinnAlle": pinn_alle(consensus, history),
         "pinnDrops": pinn_drops(prices),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
-        "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, laden("poly_money_broad_live.json", {}), offen_m)),
+        "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, live_m, offen_m)),
         "marktCharts": markt_charts(radar),
-        "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(laden("poly_money_broad_live.json", {}) or {})}, hr, pfl, pbel),
+        "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(live_m or {})}, hr, pfl, pbel),
         "auchWoanders": dict(AUCH_WOANDERS),
         "stake": stake(burst),
         "hz": hz(finder),

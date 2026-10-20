@@ -28,13 +28,11 @@ BASIS = Path(__file__).resolve().parent
 BUCH = BASIS / ".push_state" / "buch.json"
 BILANZ = BASIS / ".push_state" / "bilanz.json"
 PREISE = BASIS / ".bf" / "betfair_prices.json"
-GAMMA = "https://gamma-api.polymarket.com/events?slug={slug}"
-POLY_JE_LAUF = 15         # höchstens so viele Polymarket-Ereignisse pro Lauf nachschlagen
-ERGEBNISSE = "https://raw.githubusercontent.com/blummabet/betting-dashboard/main/betfair_track_results.json"
+ERGEBNISSE = BASIS / ".bf" / "ergebnisse.json"
 KOMMISSION = 0.02
 VERFALL_TAGE = 4          # nach 4 Tagen ohne Ergebnis: „unaufgelöst"
 BEHALTEN = 3000
-ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht"}
+ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "Wal-Einstieg Polymarket", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht"}
 
 
 def _ts(s):
@@ -93,22 +91,16 @@ def gewonnen(markt, auswahl, heim, gast, ft, ht):
 
 
 def _ergebnisse(noetig):
-    """matchId -> (ft, ht). Nur laden, wenn ein Eintrag wirklich auf ein Ergebnis wartet."""
+    """matchId -> (ft, ht) aus dem EIGENEN Ergebnisbuch (.bf/ergebnisse.json, ergebnisse.py) — Lucas 20.10.:
+    unabhängig vom alten Projekt."""
     if not noetig:
         return {}
     try:
-        with urllib.request.urlopen(ERGEBNISSE, timeout=40) as r:
-            roh = json.loads(r.read().decode("utf-8"))
+        erg = json.loads(ERGEBNISSE.read_text(encoding="utf-8"))
     except Exception as exc:  # noqa: BLE001
-        print(f"  bilanz: Ergebnisbuch nicht erreichbar ({str(exc)[:80]})")
+        print(f"  bilanz: Ergebnisbuch nicht lesbar ({str(exc)[:80]})")
         return {}
-    import betfair_track_store      # Kopie aus dem alten Projekt: das Ergebnisbuch ist gepackt gespeichert
-    zeilen = betfair_track_store.entpacken(roh)
-    out = {}
-    for z in zeilen:
-        if isinstance(z, dict) and z.get("ft") and str(z.get("matchId")) in noetig:
-            out[str(z["matchId"])] = (z.get("ft"), z.get("ht"))
-    return out
+    return {mid: (e.get("ft"), e.get("ht")) for mid, e in erg.items() if mid in noetig and e.get("ft")}
 
 
 def aktualisieren(buch, jetzt):
@@ -192,22 +184,29 @@ def _poly_ausgang(event, auswahl):
     return None
 
 
+POLY_EREIGNISSE = BASIS / ".pm" / "poly_ereignisse.json"   # vom Mac-Lauf (poly_markt.py) — Polymarket blockt GitHub
+
+
 def poly_abrechnen(buch, jetzt):
-    offen = [b for b in buch if b.get("art") == "pserie" and b.get("status") == "offen" and _ts(b.get("anpfiff"))
-             and jetzt - _ts(b["anpfiff"]) > timedelta(hours=2 if (b.get("sport") or "Fußball") == "Fußball" else 3)]
-    events = {}
-    for slug in list(dict.fromkeys(b["id"] for b in offen))[:POLY_JE_LAUF]:
-        try:
-            req = urllib.request.Request(GAMMA.format(slug=urllib.parse.quote(str(slug))), headers={"User-Agent": "geldradar"})
-            with urllib.request.urlopen(req, timeout=20) as r:
-                ev = json.loads(r.read().decode("utf-8"))
-            if isinstance(ev, list) and ev:
-                events[slug] = ev[0]
-        except Exception as exc:  # noqa: BLE001
-            print(f"  bilanz: Polymarket {slug} nicht erreichbar ({str(exc)[:60]})")
-    for b in offen:
-        ev = events.get(b["id"])
-        w = _poly_ausgang(ev, b.get("auswahl")) if ev else None
+    """Polymarket-Pushes (Dauerzufluss „pserie", Wal-Einstiege „wal") über die nachgeschlagenen Ereignisse abrechnen."""
+    try:
+        evs = json.loads(POLY_EREIGNISSE.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        evs = {}
+    for b in buch:
+        if b.get("art") not in ("pserie", "wal") or b.get("status") != "offen" or not _ts(b.get("anpfiff")):
+            continue
+        ev = evs.get(str(b.get("id")))
+        w = None
+        if ev:
+            if b["art"] == "pserie":
+                w = _poly_ausgang(ev, b.get("auswahl"))
+            else:
+                import poly_markt
+                preise = poly_markt.aufloesung_ev(ev)
+                if preise:
+                    gew = poly_markt.sieger(preise)
+                    w = "void" if gew is None else (gew == b.get("auswahl") if b.get("auswahl") in preise else None)
         if w == "void":
             b["status"] = "nicht abrechenbar"
         elif w is not None:
@@ -234,8 +233,9 @@ def zusammenfassen(buch):
                     "roi": round(100 * sum(b["r"] for b in ab) / n, 1) if n else None,
                     "clvN": len(clv), "clv": round(100 * sum(clv) / len(clv), 1) if clv else None}
     aus_teile = {"serie": teile([b for b in buch if b.get("art") == "serie"]),
-                 "pserie": teile([b for b in buch if b.get("art") == "pserie"])}
-    letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "titel", "anzeige", "liga", "markt", "auswahl", "quote", "schluss", "ts",
+                 "pserie": teile([b for b in buch if b.get("art") == "pserie"]),
+                 "wal": teile([b for b in buch if b.get("art") == "wal"])}
+    letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "titel", "anzeige", "eur", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
               for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen")][:40]
     # Lucas 20.10. („Übersichtskurve auf die neuen Betfair-Pushes, weil das zählt"): jeder Push als
@@ -244,12 +244,23 @@ def zusammenfassen(buch):
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") == "pserie":
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,
                         (1 if b.get("win") else 0) if ab else None])
-    return {"arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
+    # Wal-Pushes: eigener Verlauf mit Sportart (die Übersichtskurve zeigt sie als „Wale")
+    wale = []
+    for b in buch:
+        t = _ts(b.get("ts"))
+        if b.get("art") != "wal" or not t or t < grenze or b.get("status") not in ("abgerechnet", "offen"):
+            continue
+        ab = b.get("status") == "abgerechnet"
+        wale.append({"zeit": t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), "r": b.get("r") if ab else None,
+                     "w": (1 if b.get("win") else 0) if ab else None, "sport": b.get("sport"), "key": b.get("id"),
+                     "seite": b.get("auswahl"), "anzeige": b.get("anzeige"), "titel": b.get("titel"), "preis": b.get("preis"),
+                     "usd": b.get("usd"), "wallet": b.get("wallet"), "status": "won" if ab and b.get("win") else "lost" if ab else "pending"})
+    return {"walVerlauf": wale, "arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
 
 
 def _kennz(ab):

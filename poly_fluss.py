@@ -27,7 +27,6 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-RAW = "https://raw.githubusercontent.com/blummabet/betting-dashboard/main/"
 GAMMA = "https://gamma-api.polymarket.com/events?slug={slug}"
 TRADES = "https://data-api.polymarket.com/trades?market={cond}&limit=500&takerOnly=true"
 OUT = Path(__file__).resolve().parent / ".pf" / "poly_fluss.json"
@@ -71,8 +70,13 @@ def ts(s):
 
 def kandidaten():
     """Märkte aus dem alten Projekt: kommende 30 h + laufende, erlaubte Sportarten, kein ATP/WTA."""
-    up = get(RAW + "poly_money_upcoming.json") or {}
-    live = get(RAW + "poly_money_broad_live.json") or {}
+    # 20.10.: aus dem eigenen Scan (poly_markt.py läuft im selben Mac-Lauf direkt davor), nicht mehr aus dem alten Projekt
+    try:
+        pm = json.loads((Path(__file__).resolve().parent / ".pm" / "poly_maerkte.json").read_text(encoding="utf-8")).get("maerkte") or {}
+    except Exception:  # noqa: BLE001
+        pm = {}
+    up = {k: v for k, v in pm.items() if not v.get("live")}
+    live = {k: v for k, v in pm.items() if v.get("live")}
     pool = {}
     for quelle, ist_live in ((up, False), (live, True)):
         for key, m in (quelle or {}).items():

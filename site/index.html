@@ -1098,7 +1098,7 @@ const statusTag = s => s==="won"?`<span class="tag t-won">gewonnen</span>`:s==="
 const stakeStatus = x => x.status==="abgerechnet"&&x.rendite!=null ? (x.rendite>0?"won":"lost") : "pending";
 function allePushes(D){
   const f = [];
-  for(const p of D.bfPushes.liste) f.push({q:"betfair", t:`${p.auf} @ ${q2(p.quote)}`, s:`${p.heim} – ${p.gast}, ${p.liga}, ${p.anteil} % des neuen Geldes`, b:eur(p.eur), zeit:p.zeit, status:p.status});
+  for(const p of D.bfPushes.liste) f.push({q:"betfair", t:`${p.auf} @ ${q2(p.quote)}`, s:`${p.heim} – ${p.gast}, ${p.liga}${p.anteil!=null?`, ${p.anteil} % des neuen Geldes`:p.art?`, ${p.art}`:""}`, b:eur(p.eur), zeit:p.zeit, status:p.status});
   for(const w of D.poly.tradesPushes||[]) f.push({q:"poly", t:`${SPORT_ICO[w.sport]||""} Wal auf ${nm(/^draw/i.test(w.seite)?"Draw":w.seite)} @ ${Math.round((w.preis||0)*100)} ¢`, s:w.spiel, b:usd(w.usd), zeit:w.zeit, status:w.status});
   for(const x of D.stake.gruppen||[]) f.push({q:"stake", t:`${x.auswahl}${x.quote?" @ "+q2(x.quote):""}`, s:`${x.spiel}, ${x.arten.join(" + ")}`, b:usd(x.usd), zeit:x.zeit, status:stakeStatus(x)});
   for(const h of D.hz.heute) f.push({q:"hz", t:`0:0 zur Pause, Tor 2. HZ @ ${q2(h.quoten?.over05)}`, s:`${h.spiel}, ${h.liga}`, b:"0:0", zeit:h.zeit});
@@ -1150,7 +1150,7 @@ function pushBilanz(D){
   const pz = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
   const farbe = v => v==null ? "var(--text-2)" : v>0 ? "var(--up)" : "var(--down)";
   const kachel = ([k,b]) => { const haupt = b.clvN ? b.clv : b.roi;
-    return `<div class="panel kpi c3"><div class="lab">${icon(k==="pserie"?"poly":"betfair")}${esc(b.name)}</div>
+    return `<div class="panel kpi c3"><div class="lab">${icon(k==="pserie"||k==="wal"?"poly":"betfair")}${esc(b.name)}</div>
       <div class="wert" style="color:${farbe(haupt)}">${b.n ? pz(haupt) : "–"}</div>
       <div class="neben">${!b.n ? "noch kein Push" : b.clvN ? `besser als die Schlussquote (Schnitt aus ${b.clvN})` : b.abgerechnet ? "Rendite pro Push" : `${b.n} gesendet, wartet auf Ergebnisse`}</div>
       <div class="neben">${b.abgerechnet ? `${b.abgerechnet} abgerechnet: ${b.treffer} % Treffer (Quote sagte ${b.erwartet} %), Rendite ${pz(b.roi)}` : ""}${b.offen?` · ${b.offen} offen`:""}</div></div>`; };
@@ -1586,7 +1586,7 @@ function bilanzRinge(D){
     ${wf?r(wf.treffer,"#a183ff",wf.roi,"Wale Fußball",`${wf.n} Tipps${wf.belegt?`<br><span class="gruen">belegt</span>`:""}`):""}
     ${burst?r(burst.treffer,"#2fd38a",burst.roi,"Stake-Burst",`${burst.n} Tipps`):""}
     ${hz?r(hz.treffer,"#ff77a8",hz.roi,"HZ Heimsieg",`${hz.n} Spiele`):""}
-    ${r(pb.treffer,"#ffb547",pb.roi,"Betfair-Pushes",`${pb.n} Tipps`)}
+    ${pb&&pb.n?r(pb.treffer,"#ffb547",pb.roi,"Betfair-Pushes",`${pb.n} Tipps`):""}
   </div>`;
 }
 
@@ -2152,7 +2152,7 @@ function seitePoly(D){
     <div class="panel c12"><div class="ph"><h3>Märkte, nächste 30 Stunden</h3><span class="hint">Preis in Cent = Wahrscheinlichkeit</span>
       <div class="chips rechts">${sports.map(s=>`<button class="chip${s===filterSport?" an":""}" data-sport="${s}">${s==="alle"?"Alle":SPORT_ICO[s]+" "+s} <span style="opacity:.6">${s==="alle"?p.maerkte.length:p.maerkte.filter(m=>(m.sport||"Fußball")===s).length}</span></button>`).join("")}</div></div>
       <div class="toepfe p3">${auswahl.slice(0,12).map(polyKarte).join("")}</div>${auswahl.length>12?liste("Alle Märkte als Liste",auswahl.length,polyTabelle(auswahl,"p-alle")):""}</div>
-    <div class="panel c6"><div class="ph"><h3>Wal-Pushes</h3><span class="hint">Bilanz je Sport · Trades-Channel</span></div>${walBilanzBalken(p.tradesBilanz||{})}${walStrich(D)}
+    <div class="panel c6"><div class="ph"><h3>Wal-Pushes</h3><span class="hint">Bilanz je Sport · eigene Pushes seit 20.10.</span></div>${walBilanzBalken(p.tradesBilanz||{})}${walStrich(D)}
       <div class="feed" style="margin-top:14px">${(p.tradesPushes||[]).slice(0,8).map(t=>`<div class="fe"><span class="ico" style="background:${tint("var(--poly)",16)};font-size:15px;width:34px;height:34px;border-radius:10px">${SPORT_ICO[t.sport]||"⚽"}</span><div style="min-width:0"><div class="t">${esc(seiteName(t.seite))} @ ${Math.round((t.preis||0)*100)} ¢${tagFuer(t.status)}</div><div class="s">${esc(t.spiel)}</div></div><div class="b">${usd(t.usd)}<small>${vor(t.zeit)}</small></div></div>`).join("") || `<div class="leer">Keine Wal-Pushes.</div>`}</div></div>
     <div class="panel c6"><div class="ph"><h3>Rangliste</h3><span class="hint">Vorsprung auf den Schlusskurs</span></div>${rangliste(p.wallets)}</div>
     ${polySerieBilanz(D)}

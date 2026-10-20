@@ -1,7 +1,9 @@
-name: Polymarket-Fluss (Mac)
+name: Polymarket (Mac)
 
-# Wohin fließt auf Polymarket das neue Geld (Käufe je Seite, 30/10 Min)? Läuft auf dem Mac-Runner
-# „radar", weil Polymarket Rechenzentren blockt. Angestoßen vom Seitenbau etwa alle 10 Min.
+# Polymarket für den Geldradar, komplett in diesem Repo (Lucas 20.10.2026: „muss autonom laufen"). Läuft auf dem
+# Mac-Runner „radar", weil Polymarket Rechenzentren blockt. Angestoßen vom Seitenbau etwa alle 10 Min.
+#   poly_markt.py  Märkte, Geld je Seite, Wale, Wallet-Buch (CLV), Ereignisse zum Abrechnen der Poly-Pushes  → .pm/
+#   poly_fluss.py  wohin das neue Geld fließt (Käufe je Seite, 30/10 Min)                                     → .pf/
 # Ergebnis reist über den Actions-Cache (Schlüssel polyfluss-…) zum Seitenbau — kein Commit.
 on:
   workflow_dispatch:
@@ -22,9 +24,36 @@ concurrency:
 jobs:
   fluss:
     runs-on: [self-hosted, radar]
-    timeout-minutes: 9
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
+      - name: Gedächtnis laden (Märkte + Wallet-Buch)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .pf
+            .pm
+          key: polyfluss-none
+          restore-keys: polyfluss-
+      - name: Push-Buch des Seitenbaus lesen (welche Poly-Pushes sind abzurechnen)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .bf
+            .pin
+            .push_state
+          key: radar-none
+          restore-keys: radar-
+      - name: Wallet-Buch einmalig übernehmen (nur wenn es fehlt)
+        run: |
+          mkdir -p .pm
+          [ -s .pm/poly_wallet_track.json ] || { curl -sf https://raw.githubusercontent.com/blummabet/betting-dashboard/main/poly_wallet_track.json -o .pm/poly_wallet_track.json && echo "Startwert übernommen"; } || true
+      - name: Märkte, Wale, Wallet-Buch
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          PY=python3
+          for p in /opt/homebrew/bin/python3.11 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.13; do [ -x "$p" ] && { PY="$p"; break; }; done
+          "$PY" poly_markt.py 2>&1 | tee pm.log || echo "⚠️ Polymarket-Scan fehlgeschlagen"
       - name: Käufe je Seite holen
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
@@ -32,8 +61,11 @@ jobs:
           for p in /opt/homebrew/bin/python3.11 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.13; do [ -x "$p" ] && { PY="$p"; break; }; done
           "$PY" poly_fluss.py 2>&1 | tee pf.log
       - uses: actions/cache/save@v4
+        if: always()
         with:
-          path: .pf
+          path: |
+            .pf
+            .pm
           key: polyfluss-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Bericht als Issue
         if: always() && inputs.bericht
@@ -41,5 +73,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          { tail -20 pf.log; echo; echo '```'; python3 -c "import json;d=json.load(open('.pf/poly_fluss.json'));[print(m['titel'][:40], m['fenster'].get('30')) for m in d['maerkte'][:8]]" 2>&1; echo '```'; } > bericht.txt
+          { cat pm.log; tail -20 pf.log; echo; echo '```'; python3 -c "import json;d=json.load(open('.pf/poly_fluss.json'));[print(m['titel'][:40], m['fenster'].get('30')) for m in d['maerkte'][:8]]" 2>&1; echo '```'; } > bericht.txt
           gh issue create -R ${{ github.repository }} --title "Poly-Fluss $(date -u +%FT%H:%MZ)" --body-file bericht.txt

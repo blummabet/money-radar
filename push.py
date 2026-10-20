@@ -547,7 +547,13 @@ def wale(d):
         zeilen.append("")
         zeilen.append(f'<a href="https://polymarket.com/event/{mk}">Markt öffnen</a> · '
                       f'<a href="https://polymarket.com/profile/{e(o.get("wallet"))}">Wallet ansehen</a>')
-        yield key, "\n".join(zeilen) + "\n", None
+        # Lucas 20.10.: Wal-Pushes ins eigene Buch (vorher rechnete nur das alte Projekt sie ab)
+        beleg = ({"art": "wal", "id": o.get("markt"), "titel": o.get("spiel"), "heim": None, "gast": None,
+                  "liga": (g or {}).get("liga"), "sport": o.get("sport") or "Fußball", "anpfiff": o.get("anpfiff"),
+                  "markt": "Polymarket", "auswahl": o.get("seite"), "anzeige": seite, "quote": round(1 / preis, 3),
+                  "preis": preis, "usd": round(usd), "wallet": o.get("wallet"), "live": False,
+                  "top5": top5} if preis and 0 < preis < 1 else None)
+        yield key, "\n".join(zeilen) + "\n", None, beleg
 
 
 def stake(d):

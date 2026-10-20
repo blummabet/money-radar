@@ -46,10 +46,12 @@ jobs:
             .push_state
           key: radar-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: radar-
-      - name: Polymarket-Fluss vom Mac-Runner laden
+      - name: Polymarket vom Mac-Runner laden (Fluss .pf, Märkte + Wallets .pm)
         uses: actions/cache/restore@v4
         with:
-          path: .pf
+          path: |
+            .pf
+            .pm
           key: polyfluss-none
           restore-keys: polyfluss-
       - name: Stake vom Mac-Runner laden
@@ -58,32 +60,22 @@ jobs:
           path: .st
           key: stake-none
           restore-keys: stake-
-      - name: Betfair-Historie beim ersten Mal aus dem alten Projekt übernehmen
+      # Einmalige Startwerte: nur wenn eine Datei im eigenen Gedächtnis FEHLT (erster Lauf / Cache verloren). Danach
+      # führt dieses Repo alles selbst; ist das alte Projekt weg, laufen diese Zeilen ins Leere und es geht ohne weiter.
+      - name: Startwerte einmalig übernehmen (nur fehlende Dateien)
         run: |
           mkdir -p .bf
+          RAW=https://raw.githubusercontent.com/blummabet/betting-dashboard/main
           if [ ! -s .bf/betfair_history.json ]; then
-            curl -sf https://raw.githubusercontent.com/blummabet/betting-dashboard/main/betfair_history.json -o .bf/betfair_history.json || true
-            curl -sf https://raw.githubusercontent.com/blummabet/betting-dashboard/main/betfair_prices.json -o .bf/betfair_prices.json || true
+            curl -sf "$RAW/betfair_history.json" -o .bf/betfair_history.json || true
+            curl -sf "$RAW/betfair_prices.json" -o .bf/betfair_prices.json || true
             touch -d '2 hours ago' .bf/betfair_prices.json 2>/dev/null || true
           fi
-      # Stake und Polymarket gehen nur vom Mac (Cloudflare/Geo-Sperre für Rechenzentren). Statt die
-      # Logik zu kopieren, stößt dieses Repo die Mac-Workflows des ALTEN Projekts öfter an — per
-      # workflow_dispatch, das zählt nicht gegen dessen ausgereiztes Zeitplan-Kontingent. Deren
-      # concurrency (cancel-in-progress: false) reiht höchstens einen wartenden Lauf ein, es staut sich nichts.
-      #   poly-live-scan  alle 5 Min (vorher 15) · betfair.yml mit Stake alle 10 Min (vorher 15) ·
-      #   poly-global-scan alle 15 Min (vorher 30)
-      - name: Mac-Läufe im alten Projekt anstoßen (Stake, Polymarket)
-        if: github.event_name != 'push' && !inputs.push_test
-        env:
-          GH_TOKEN: ${{ secrets.OLD_REPO_TOKEN }}
-        run: |
-          [ -z "$GH_TOKEN" ] && { echo "OLD_REPO_TOKEN fehlt — übersprungen"; exit 0; }
-          m=$((10#$(date -u +%M)))
-          stoss () { gh api -X POST "repos/blummabet/betting-dashboard/actions/workflows/$1/dispatches" -f ref=main >/dev/null 2>&1 && echo "angestoßen: $1" || echo "nicht angestoßen: $1"; }
-          stoss poly-live-scan.yml
-          [ $((m % 10)) -lt 5 ] && stoss betfair.yml
-          [ $((m % 15)) -lt 5 ] && stoss poly-global-scan.yml
-          true
+          for f in betfair_league_norm_state.json betfair_league_norm.json hz_finder.json hz_finder_seen.json team_archiv.json; do
+            [ -s ".bf/$f" ] || { curl -sf "$RAW/$f" -o ".bf/$f" && echo "Startwert übernommen: $f"; } || true
+          done
+      # 20.10.2026 (Lucas: „muss autonom im neuen Projekt laufen"): Stake und Polymarket laufen in DIESEM Repo auf dem
+      # Mac-Runner (stake.yml, poly-fluss.yml) — das alte Projekt wird nicht mehr angestoßen und nicht mehr gelesen.
       - name: Stake auf dem Mac anstoßen (jeder Lauf)
         if: github.event_name != 'push' && !inputs.push_test
         env:
@@ -100,7 +92,16 @@ jobs:
       - name: Betfair abrufen (Betwatch)
         env:
           BETWATCH_KEY: ${{ secrets.BETWATCH_KEY }}
-        run: python3 fetch_betfair.py || echo "Betfair-Abruf fehlgeschlagen, Seite nimmt die Daten des alten Projekts"
+        run: python3 fetch_betfair.py || echo "Betfair-Abruf fehlgeschlagen, Seite nimmt den letzten eigenen Stand"
+      - name: Betfair weiterverarbeiten (Richtung, Ergebnisse, Liga-Buch, Liga-Norm, HZ 0:0)
+        env:
+          BETWATCH_KEY: ${{ secrets.BETWATCH_KEY }}
+          APISPORTS_KEY: ${{ secrets.APISPORTS_KEY }}
+        run: |
+          python3 betfair_direction.py || echo "⚠️ Richtung fehlgeschlagen"
+          python3 ergebnisse.py        || echo "⚠️ Ergebnisse fehlgeschlagen"
+          python3 liga_norm.py         || echo "⚠️ Liga-Norm fehlgeschlagen"
+          timeout 60 python3 hz_finder.py || echo "⚠️ HZ-Finder fehlgeschlagen"
       - name: Pinnacle abrufen (Odds API) und mit Betfair/Polymarket abgleichen
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
@@ -108,18 +109,22 @@ jobs:
           BF_ODDS_BUDGET_S: '60'
         run: |
           mkdir -p .pin && cd .pin
-          RAW=https://raw.githubusercontent.com/blummabet/betting-dashboard/main
-          # Gedächtnis-Dateien nur beim ersten Mal aus dem alten Projekt, danach führt dieses Repo sie selbst
-          for f in betfair_consensus_history.json odds_sports.json betfair_anker.json money_map_ledger.json; do
-            [ -s "$f" ] || curl -sf "$RAW/$f" -o "$f" || true
-          done
-          # Eingaben, die das alte Projekt laufend erneuert (Polymarket kommt vom Mac)
-          for f in betfair_direction.json poly_money_broad_close.json poly_money_broad_live.json poly_money_upcoming.json liga_poly_prices.json pinnacle_poly_scan.json; do
-            curl -sf "$RAW/$f" -o "$f.neu" && mv "$f.neu" "$f" || true
-          done
-          cp ../.bf/betfair_prices.json . 2>/dev/null || curl -sf "$RAW/betfair_prices.json" -o betfair_prices.json
-          if [ -n "$ODDS_API_KEY" ]; then timeout 200 python3 ../pinnacle_konsens.py || echo "Pinnacle-Lauf fehlgeschlagen, Seite nimmt das alte Projekt"; fi
-          rm -f poly_money_broad_close.json   # 20 MB, wird jedes Mal frisch geholt — nicht in den Cache
+          # Eingaben aus dem EIGENEN Abruf: Betfair-Richtung (.bf) und Polymarket-Märkte vom Mac (.pm)
+          cp ../.bf/betfair_prices.json ../.bf/betfair_direction.json . 2>/dev/null || true
+          python3 - <<'PY'
+          import json, pathlib
+          try:
+              pm = json.loads(pathlib.Path("../.pm/poly_maerkte.json").read_text()).get("maerkte") or {}
+          except Exception:
+              pm = {}
+          vor = {k: v for k, v in pm.items() if not v.get("live")}
+          live = {k: v for k, v in pm.items() if v.get("live")}
+          for name, d in (("poly_money_upcoming.json", vor), ("poly_money_broad_close.json", vor), ("poly_money_broad_live.json", live)):
+              pathlib.Path(name).write_text(json.dumps(d))
+          print("Polymarket-Eingaben:", len(vor), "vor Anpfiff,", len(live), "live")
+          PY
+          if [ -n "$ODDS_API_KEY" ]; then timeout 200 python3 ../pinnacle_konsens.py || echo "Pinnacle-Lauf fehlgeschlagen, Seite nimmt den letzten eigenen Stand"; fi
+          rm -f poly_money_broad_close.json poly_money_upcoming.json poly_money_broad_live.json liga_poly_prices.json pinnacle_poly_scan.json
       - name: Daten verdichten
         run: python3 build.py
       - name: Live-Statistik (API-Football, xG und Schüsse für die gezeigten Live-Spiele)

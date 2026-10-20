@@ -384,6 +384,7 @@ _BASE_HEADERS = {
                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"),
 }
 # Auth-Varianten in Reihenfolge probieren; die erste, die 200 liefert, wird gemerkt + geloggt.
+RESULTS_MAX = 50       # Endstände je Abfrage (POST /football/results)
 _AUTH_ORDER = ["token", "query", "apikey", "bearer"]   # 17.10.: Betwatch nimmt nur noch den Token-Header
 _AUTH = {"mode": None}
 
