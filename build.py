@@ -559,7 +559,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
         t = ts(z.get("sentAt"))
         if not t or t < JETZT - timedelta(hours=36) or not sport_ok(z.get("cat")) or not poly_key_ok(z.get("key")):
             continue
-        tp.append({"wallet": z.get("wallet"), "markt": z.get("key"), "spiel": name_fuer(z.get("key")), "seite": z.get("side"),
+        tp.append({"wallet": z.get("wallet"), "markt": z.get("key"), "spiel": z.get("titel") or name_fuer(z.get("key")), "seite": z.get("side"),
                    "usd": z.get("usd"), "preis": z.get("pushPrice"), "sport": z.get("cat"), "zeit": z.get("sentAt"),
                    "status": {"win": "won", "loss": "lost"}.get(z.get("result"), "pending" if z.get("status") == "pending" else None)})
     tp.sort(key=lambda x: x["zeit"] or "", reverse=True)
@@ -1970,7 +1970,7 @@ def eigene_wal_pushes(buch):
     for z in (buch or {}).get("walVerlauf") or []:
         led.append({"sentAt": z.get("zeit") + "+00:00" if len(str(z.get("zeit") or "")) == 16 else z.get("zeit"),
                     "key": z.get("key"), "side": z.get("seite"), "usd": z.get("usd"), "pushPrice": z.get("preis"),
-                    "cat": z.get("sport"), "wallet": z.get("wallet"),
+                    "cat": z.get("sport"), "wallet": z.get("wallet"), "titel": z.get("titel"),
                     "result": {"won": "win", "lost": "loss"}.get(z.get("status")), "status": z.get("status")})
     je = {}
     for z in led:
