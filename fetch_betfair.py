@@ -259,6 +259,9 @@ def select_ids(parsed, now=None, window_h=WINDOW_H, cap=MAX_DETAIL, prio_window_
         if e.get("live"):
             continue
         k = _ko(e)
+        if k is not None and k < now and (now - k) <= timedelta(hours=2.5):
+            live.append(e)                         # angepfiffen, aber (noch) nicht als live gemeldet → wie live behandeln
+            continue
         if k is None or k < now:
             continue
         if k <= nah_horizon:                       # 12.10.: der heutige Abend vor der Vorschau
@@ -501,6 +504,10 @@ def main():
     for e in parse_events(events or []):
         by_id[e["matchId"]] = e
     for e in parse_events(live or []):
+        # 21.10. (Lille U19 – Galatasaray U19 fehlte ab Anpfiff): Betwatch liefert im Live-Feed manche Spiele mit LEEREM
+        # live_info. Dann war live=False, der Anpfiff lag in der Vergangenheit — und das Spiel bekam keinen Abruf mehr.
+        # Wer im Live-Feed steht, ist live.
+        e["live"] = True
         by_id[e["matchId"]] = e   # live überschreibt prematch
     _vorher = _load(PRICES_FILE) if callable(globals().get("_load")) else {}
     _vol = bekanntes_volumen(_vorher)
