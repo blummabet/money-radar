@@ -1,0 +1,46 @@
+name: Diagnose Betwatch (Spiel suchen)
+
+# Lucas 21.10.: Lille U19 – Galatasaray U19 fehlt seit dem Anpfiff in den Daten. Fragt Betwatch direkt (events + live),
+# sucht die Paarung und legt das Ergebnis als Issue ab. Der Schlüssel wird nie ausgegeben.
+on:
+  workflow_dispatch:
+    inputs:
+      suche:
+        description: 'Suchbegriff (Teamname)'
+        default: 'Lille'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  suche:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Betwatch fragen
+        env:
+          BETWATCH_KEY: ${{ secrets.BETWATCH_KEY }}
+          SUCHE: ${{ inputs.suche }}
+        run: |
+          python3 - <<'PY' > bericht.txt
+          import os, json
+          import fetch_betfair as F
+          s = os.environ.get("SUCHE", "Lille").lower()
+          for pfad in ("/football/events", "/football/live"):
+              d = F._get(pfad) or []
+              treffer = [e for e in d if s in json.dumps(e.get("teams") or {}).lower()]
+              print(f"## {pfad}: {len(d)} Spiele, {len(treffer)} Treffer")
+              for e in treffer:
+                  print("-", e.get("match_id"), (e.get("teams") or {}).get("v1"), "vs", (e.get("teams") or {}).get("v2"),
+                        "|", e.get("league"), "|", e.get("kickoff"), "|", json.dumps(e.get("live_info") or {}))
+                  det = F._get(f"/football/event/{e.get('match_id')}") or {}
+                  mk = det.get("markets") or []
+                  print(f"    Detail: {len(mk)} Märkte, Volumen {sum(float(m.get('average_volume') or 0) for m in mk):.0f}")
+          PY
+          cat bericht.txt
+      - name: Bericht als Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create -R ${{ github.repository }} --title "Betwatch-Suche ${{ inputs.suche }} $(date -u +%FT%H:%MZ)" --body-file bericht.txt
