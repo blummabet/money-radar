@@ -847,6 +847,28 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .gs-x span.r{right:0}
 .gs-kz{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12.5px;color:var(--text-2);margin-top:2px}
 .gs-kz b{color:var(--text)}
+/* kompakte Zufluss-Zeilen (Betfair-Seite) */
+.zrl{display:grid;grid-template-columns:1fr 1fr;gap:4px 22px}
+.zr{padding:10px 4px 12px;border-bottom:1px solid var(--rand);cursor:pointer;min-width:0}
+.zr:hover{background:var(--hover)}
+.zr-k{display:flex;align-items:baseline;gap:10px;min-width:0}
+.zr-t{display:flex;align-items:center;gap:7px;min-width:0;flex:1}
+.zr-t b{font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zr-t .flag{flex:none}
+.zr-e{font-size:19px;font-weight:800;color:var(--up);white-space:nowrap;letter-spacing:-.01em}
+.zr-m{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--text-3);margin:2px 0 7px;min-width:0}
+.zr-m span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zr-m span:last-child{flex:none}
+.zr-m em{font-style:normal;font-weight:800;margin-left:4px;padding:0 5px;border-radius:5px}
+.zr-m em.ab{color:var(--up);background:color-mix(in srgb, var(--up) 12%, transparent)}
+.zr-m em.auf{color:var(--down);background:color-mix(in srgb, var(--down) 12%, transparent)}
+.zr-m em.ok{color:var(--up)} .zr-m em.nein{color:var(--down)}
+.zr-b{display:flex;gap:2px;height:22px;border-radius:7px;overflow:hidden}
+.zr-b i{display:flex;align-items:center;min-width:0;background:var(--flaeche-2);font-style:normal}
+.zr-b i.an{background:var(--bf);color:#fff}
+.zr-b i span{font-size:12px;font-weight:700;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zr-b i span b{font-weight:800}
+@media (max-width:860px){ .zrl{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -1434,31 +1456,37 @@ function flussKopf(f){
     <div class="kk-auf">auf <b>${esc(auswahlDe(f.auswahl))}</b> @ <b>${q2(f.quote)}</b> ${q}</div>
     <div class="kk-klein">${f.anteil} % des neuen Geldes in ${esc(marktDe(f.markt))}${f.marktGesamt?` · Markt gesamt ${eur(f.marktGesamt)}${f.auswahlGesamt?`, davon ${Math.round(f.auswahlGesamt/f.marktGesamt*100)} % auf ${esc(auswahlDe(f.auswahl))}`:""}`:""}</div>`;
 }
+// Lucas 21.10. („viele Spiele untereinander, viel Text, den man erst lesen muss"): eine kompakte Zeile je Spiel —
+// oben Spiel + Betrag, darunter EIN Balken: der ganze Markt nach Auswahl aufgeteilt, die Auswahl mit dem neuen Geld kräftig.
+function flussReihe(D, x, istLive){
+  const fl = (x.fluss||[])[0]; if(!fl) return "";
+  const sp = spielInfo(x);
+  const mv = (fl.marktVerteilung||[]).map(v=>({name:v[0], eur:v[1]||0, quote:v[2]}));
+  const rang = n => { n = String(n||""); if(/^over/i.test(n)||/^yes$/i.test(n)||n===x.heim) return 0; if(/draw/i.test(n)) return 1; if(/^under/i.test(n)||/^no$/i.test(n)||n===x.gast) return 2; return 3; };
+  mv.sort((a,b)=>rang(a.name)-rang(b.name));
+  const ges = mv.reduce((a,b)=>a+b.eur,0) || 1;
+  const kurz = n => /^(over|under) [\d.]+/i.test(n||"") ? auswahlDe(n) : nm(auswahlDe(n));
+  const seg = mv.map(v=>{ const an = v.name===fl.auswahl; const w = Math.max(an?18:3, v.eur/ges*100);
+    return `<i class="${an?"an":""}" style="flex:${w.toFixed(1)}" title="${esc(kurz(v.name))}: ${eur(v.eur)}${v.quote?" @ "+q2(v.quote):""}">${an?`<span>${esc(kurz(v.name))} <b>${q2(fl.quote)}</b></span>`:""}</i>`; }).join("");
+  const q = fl.quote, qv = fl.quoteVorher;
+  const drop = q && qv && Math.abs(q-qv) >= 0.02 ? `<em class="${q<qv?"ab":"auf"}">${q<qv?"↓":"↑"} ${q2(qv)}</em>` : "";
+  const pin = x.pinnacle && fl.markt==="Match Odds" ? `<em class="${x.pinnacle.einig?"ok":"nein"}" title="Pinnacle ${x.pinnacle.einig?"einig":"anders"}">P${x.pinnacle.einig?"✓":"✗"}</em>` : "";
+  const zeit = istLive ? `<span class="live">${x.live?.min!=null?x.live.min+"'":"live"}</span> ${(x.live?.stand||[0,0]).join(":")}` : wann(x.anpfiff);
+  return `<div class="zr" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
+    <div class="zr-k"><div class="zr-t">${flagge(x.land)}<b>${esc(x.heim)} – ${esc(x.gast)}</b>${serieTag(serieVon(D, x.id))}</div><div class="zr-e">+${eur(fl.eur)}</div></div>
+    <div class="zr-m"><span>${zeit} · ${esc(ligaName(x.liga))}</span><span>${esc(marktDe(fl.markt))} ${eur(fl.marktGesamt||ges)} ${drop}${pin}</span></div>
+    <div class="zr-b">${seg}</div>
+  </div>`;
+}
 function zuflussKarten(D, max){
-  const z = lf(D.zufluss30 && D.zufluss30.length ? D.zufluss30 : D.betfair.zufluss).slice(0, max);
+  const z = lf(D.zufluss30||[]).filter(x=>(x.fluss||[]).length).slice(0, max);
   if(!z.length) return `<div class="leer">In den letzten 30 Minuten floss vor Anpfiff kein Geld einseitig auf eine Auswahl${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
-  return `<div class="kgrid">${z.map(x=>{
-    const vt = x.verteilung ? x.verteilung.map(v=>({name:v.name,wert:v.eur,quote:v.quote})) : null;
-    const pf = x.quoteRichtung==="faellt" ? `<span class="hoch">↓ von ${q2(x.quoteVorher)}</span>` : x.quoteRichtung==="steigt" ? `<span class="runter">↑ von ${q2(x.quoteVorher)}</span>` : "";
-    const sp = spielInfo(x);
-    return `<div class="kk zf-k" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
-      <div class="kk-oben">${flagge(x.land)}<span>${esc(x.liga)}</span><span class="rechts">${wann(x.anpfiff)}</span></div>
-      <div class="kk-titel">${esc(x.heim)} – ${esc(x.gast)} ${serieTag(serieVon(D, x.id))}</div>
-      ${(x.fluss||[]).length ? flussKopf(x.fluss[0]) + flussZeilen(x.fluss,false) : `<div class="kk-zahl gruen">+${eur(x.zuflussEur)}</div><div class="kk-auf">auf <b>${esc(nm(x.meistesGeldAuf))}</b> @ <b>${q2(x.quote)}</b> ${pf}</div>${vt?vbar(vt):""}`}
-      ${x.pinnacle && (x.fluss||[])[0]?.markt==="Match Odds"?`<div class="kk-fuss">${x.pinnacle.einig?`<span class="tag t-won">Pinnacle einig</span>`:`<span class="tag t-lost">Pinnacle anders</span>`}</div>`:""}
-    </div>`;}).join("")}</div>`;
+  return `<div class="zrl">${z.map(x=>flussReihe(D, x, false)).join("")}</div>`;
 }
 function liveKarten(D, max){
-  const z = lf(D.liveZufluss||[]).slice(0, max);
+  const z = lf(D.liveZufluss||[]).filter(x=>(x.fluss||[]).length).slice(0, max);
   if(!z.length) return `<div class="leer">Gerade fließt live kein Geld einseitig auf eine Auswahl${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
-  return `<div class="kgrid">${z.map(x=>{
-    const vt = x.verteilung ? x.verteilung.map(v=>({name:v.name,wert:v.eur,quote:v.quote})) : null;
-    const sp = spielInfo(x);
-    return `<div class="kk live-k" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
-      <div class="kk-oben">${flagge(x.land)}<span>${esc(x.liga)}</span><span class="rechts">${live(x)}</span></div>
-      <div class="kk-titel">${esc(x.heim)} – ${esc(x.gast)} ${serieTag(serieVon(D, x.id))}</div>
-      ${(x.fluss||[]).length ? flussKopf(x.fluss[0]) + flussZeilen(x.fluss,false) : ""}
-    </div>`;}).join("")}</div>`;
+  return `<div class="zrl">${z.map(x=>flussReihe(D, x, true)).join("")}</div>`;
 }
 function normChart(liste){
   if(!liste.length) return `<div class="leer">Gerade liegt nirgends ungewöhnlich viel Geld.</div>`;
