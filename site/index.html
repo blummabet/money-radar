@@ -1372,7 +1372,8 @@ function feedGeschichten(D){
     if(e.q==="betfair" && e.sp && !g.sp) g.sp = e.sp;
     if((e.q==="betfair" || e.q==="pinnacle") && !g.bfName){ g.bfName = true; g.heim = e.heim; g.gast = e.gast; }   // Betfair-Namen sind die saubersten
     for(const f of ["liga","land","anpfiff","sport"]) if(!g[f] && e[f]) g[f] = e[f];
-    if(e.live && (!g.live || (e.live.min!=null && g.live.min==null))) g.live = e.live;
+    const frisch = !e.zeit || Date.now()-new Date(e.zeit) < 3*36e5;   // 21.10.: alter Stake-Burst „live" ist nach Stunden kein Live mehr
+    if(e.live && frisch && (!g.live || (e.live.min!=null && g.live.min==null))) g.live = e.live;
   }
   const jetzt = Date.now();
   return [...G.values()].map(g=>{
