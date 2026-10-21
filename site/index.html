@@ -968,9 +968,9 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .fx-st.nein{background:color-mix(in srgb, var(--down) 18%, transparent);color:var(--down)}
 .fx-meta{font-size:11.5px;color:var(--text-3);display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap;overflow:hidden}
 .fx-ico{font-size:9.5px;font-weight:800}
-.fx-bil{margin-left:auto;flex:none;font-size:10.5px;font-weight:700;color:var(--text-3);background:var(--flaeche-2);padding:1px 7px;border-radius:999px}
+.fx-bil{display:block;margin-top:2px;font-size:10px;font-weight:700;color:var(--text-3);background:var(--flaeche-2);padding:1px 7px;border-radius:999px}
 .fx-bil b.auf{color:var(--up)} .fx-bil b.ab{color:var(--down)}
-.fx-b{font-weight:800;font-size:14px;white-space:nowrap;color:var(--f)}
+.fx-b{font-weight:800;font-size:14px;white-space:nowrap;color:var(--f);text-align:right}
 .fx-rest{font-size:11.5px;color:var(--text-3);padding:4px 0 2px 86px}
 .fx-abschnitt{margin-top:16px}
 .fx-abschnitt:first-of-type{margin-top:6px}
@@ -1297,7 +1297,7 @@ const FEED_STOP = new Set(["al","el","fc","sc","cf","ac","as","ud","cd","sk","fk
 const feedNorm = n => String(n||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\(.*?\)/g," ").split(/[^a-z0-9]+/).filter(w=>w.length>=3 && !FEED_STOP.has(w));
 const feedTeam = n => feedNorm(n)[0] || String(n||"").toLowerCase().trim();
 const feedKey = (h, g) => h && g ? [feedTeam(h), feedTeam(g)].sort().join("|") : null;
-const feedTeams = titel => { if(/^[a-z0-9]+(-[a-z0-9]+)+$/.test(titel||"")) return [String(titel).replace(/-\d{4}-\d\d-\d\d.*$/,"").replace(/-/g," ").toUpperCase(), ""]; const t = pmTitel(titel||"").split(/\s+vs\.?\s+|\s+-\s+|\s+–\s+/i).map(x=>x.trim()).filter(Boolean); return t.length>=2 ? t.slice(0,2) : [titel||"", ""]; };
+const feedTeams = titel => { titel = String(titel||"").replace(/ - More Markets$| - Halftime Result$/,""); if(/^[a-z0-9]+(-[a-z0-9]+)+$/.test(titel||"")) return [String(titel).replace(/-\d{4}-\d\d-\d\d.*$/,"").replace(/-/g," ").toUpperCase(), ""]; const t = pmTitel(titel||"").split(/\s+vs\.?\s+|\s+-\s+|\s+–\s+/i).map(x=>x.trim()).filter(Boolean); return t.length>=2 ? t.slice(0,2) : [titel||"", ""]; };
 // Bilanz je Ereignis-Art aus dem eigenen Push-Buch (erst ab 20 abgerechneten)
 function feedBilanz(D, art){
   const b = (D.pushBilanz?.arten||{})[art]; if(!b || (b.abgerechnet||0) < 20) return "";
@@ -1355,8 +1355,8 @@ function fxZeile(D, e){
   const meta = [e.k==="push"&&e.pushArt?e.pushArt:FX_NAME[e.k], e.markt].filter(Boolean).join(" · ");
   return `<div class="fx-z" style="--f:${FARBE[e.q]}">${fxForm(e)}
     <div class="fx-m"><div class="fx-a">${esc(e.aus||"")}${e.quote?` <span class="fx-q">@ ${q2(e.quote)}</span>`:""}${drop}${st}</div>
-      <div class="fx-meta"><span class="fx-ico" style="color:${FARBE[e.q]}">${ICO[e.q]}</span>${esc(meta)}${e.bil?feedBilanz(D, e.bil):""}</div></div>
-    <div class="fx-b">${e.wert?esc(e.b):""}</div></div>`;
+      <div class="fx-meta"><span class="fx-ico" style="color:${FARBE[e.q]}">${ICO[e.q]}</span>${esc(meta)}</div></div>
+    <div class="fx-b">${e.wert?esc(e.b):""}${e.bil?feedBilanz(D, e.bil):""}</div></div>`;
 }
 // Ereignisse → Spiel-Geschichten
 function feedGeschichten(D){
@@ -1365,7 +1365,8 @@ function feedGeschichten(D){
     const k = feedKey(e.heim, e.gast) || (e.heim+"|"+e.gast);
     if(!G.has(k)) G.set(k, {k, ev:[], heim:e.heim, gast:e.gast});
     const g = G.get(k); g.ev.push(e);
-    if(e.q==="betfair" && e.sp && !g.sp){ g.sp = e.sp; g.heim = e.heim; g.gast = e.gast; }
+    if(e.q==="betfair" && e.sp && !g.sp) g.sp = e.sp;
+    if((e.q==="betfair" || e.q==="pinnacle") && !g.bfName){ g.bfName = true; g.heim = e.heim; g.gast = e.gast; }   // Betfair-Namen sind die saubersten
     for(const f of ["liga","land","anpfiff","sport"]) if(!g[f] && e[f]) g[f] = e[f];
     if(e.live && (!g.live || (e.live.min!=null && g.live.min==null))) g.live = e.live;
   }
