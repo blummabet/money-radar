@@ -1948,7 +1948,7 @@ def betfair_pushes(buch):
     out = []
     for e in buch.get("letzte") or []:
         t = ts(e.get("ts"))
-        if e.get("art") == "pserie" or not t or t < JETZT - timedelta(hours=36):
+        if e.get("art") in ("pserie", "wal") or not t or t < JETZT - timedelta(hours=36):   # Polymarket-Pushes stehen unter „Wale"/Poly
             continue
         out.append({"zeit": e.get("ts"), "art": ((buch.get("arten") or {}).get(e.get("art")) or {}).get("name"),
                     "markt": e.get("markt"), "liga": e.get("liga"), "heim": e.get("heim"), "gast": e.get("gast"),
