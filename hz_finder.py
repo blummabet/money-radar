@@ -483,6 +483,15 @@ def main(base_dir=BASE, jetzt=None, senden=None) -> int:
             gs = geldstand(m)
             if gs:
                 beob[mid] = {"ts": jetzt.isoformat(), "stand": gs}
+        # Lucas 21.10. (Malacateco – Comunicaciones, HZ-Push um 10:39, Spiel lief in der Nacht): Betwatch meldete das
+        # Spiel stundenlang weiter „zur Pause". Pause ist nur 40–80 Min nach Anpfiff möglich — sonst ist der Stand alt.
+        try:
+            _ko = datetime.fromisoformat(str(m.get("kickoff")).replace("Z", "+00:00"))
+            _ko = _ko if _ko.tzinfo else _ko.replace(tzinfo=timezone.utc)
+            if not (40 <= (jetzt - _ko).total_seconds() / 60 <= 80):
+                continue
+        except (TypeError, ValueError):
+            continue
         f = kandidat(m, pend.get(mid), hist.get(mid), archiv)
         if not f or f["k"] in haben or f["k"] in seen:
             continue
@@ -512,6 +521,16 @@ def main(base_dir=BASE, jetzt=None, senden=None) -> int:
             endst[str(mid_)] = (e_.get("ft"), e_.get("ht"))
     for mid, s in archiv.items():
         endst.setdefault(mid, (s.get("ft"), s.get("ht")))
+    # 21.10.: Funde, die mehr als 80 Min nach Anpfiff gebucht wurden, beruhten auf einem veralteten Live-Stand → ungültig
+    for e_ in eintraege:
+        try:
+            _gb = datetime.fromisoformat(str(e_.get("gebuchtAt")).replace("Z", "+00:00"))
+            _ko = datetime.fromisoformat(str(e_.get("kickoff")).replace("Z", "+00:00"))
+            _ko = _ko if _ko.tzinfo else _ko.replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            continue
+        if e_.get("status") in ("pending", "abgerechnet") and (_gb - _ko).total_seconds() > 80 * 60:
+            e_["status"], e_["grund"] = "ungueltig", "Live-Stand veraltet (gebucht > 80 Min nach Anpfiff)"
     eintraege = abrechnen(eintraege, endst, jetzt)[-KEEP:]
     ber = bericht(eintraege)
 
