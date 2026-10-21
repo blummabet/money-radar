@@ -648,7 +648,7 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .np{display:flex;flex-direction:column;gap:4px}
 .np-z{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 88px;gap:14px;align-items:center;padding:8px 6px;border-radius:10px;cursor:pointer}
 .np-z:hover{background:var(--hover)}
-.np-l{display:flex;gap:10px;align-items:center;min-width:0} .np-l b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .np-l small{display:block;font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-l{display:flex;gap:10px;align-items:center;min-width:0} .np-l>div>b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .np-l small{display:block;font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .np-t{position:relative;height:22px;background:linear-gradient(var(--flaeche-2),var(--flaeche-2)) center/100% 4px no-repeat;border-radius:2px}
 .np-t i{position:absolute;left:0;top:9px;height:4px;border-radius:2px;opacity:.5}
 .np-t b{position:absolute;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:11px;font-weight:800;padding:2px 7px;border-radius:999px;white-space:nowrap}
@@ -925,7 +925,7 @@ const istRemis = n => /^(the draw|draw|remis)/i.test(n||"");
 const nm = n => istRemis(n) ? "Remis" : n;
 const flagge = cc => {
   cc = String(cc||"").toLowerCase(); if(cc==="uk") cc="gb";
-  return /^[a-z]{2}$/.test(cc) ? `<img class="flag" src="https://flagcdn.com/w40/${cc}.png" alt="" loading="lazy">` : `<span class="flag" style="display:grid;place-items:center;font-size:10px;color:var(--text-3)">◎</span>`;
+  return /^[a-z]{2}$/.test(cc) ? `<img class="flag" src="https://flagcdn.com/w40/${cc}.png" alt="" loading="lazy">` : `<span class="flag" style="display:inline-grid;place-items:center;font-size:10px;color:var(--text-3);vertical-align:-2px">◎</span>`;
 };
 const FARBE = {betfair:"var(--bf)",pinnacle:"var(--pin)",poly:"var(--poly)",stake:"var(--stake)",hz:"var(--hz)"};
 const ICO = {betfair:"BF",pinnacle:"PIN",poly:"PM",stake:"ST",hz:"HZ"};
@@ -1425,10 +1425,11 @@ function drOeffnen(k){
 }
 function drZu(){ document.body.classList.remove("dr-offen"); }
 const liste = (titel, n, html) => `<details class="als-liste"><summary>${titel} <span>${n}</span></summary>${html}</details>`;
-const live = s => s.live ? `<span class="live">${s.live.ht?"HZ":s.live.min!=null?s.live.min+"'":"live"}</span> <b>${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}</b>` : `<span class="status">${wann(s.anpfiff)}</span>`;
+// 21.10.: liefert Betwatch keinen Stand (manche Live-Spiele), steht nur „live" da — kein erfundenes 0:0
+const live = s => s.live ? `<span class="live">${s.live.ht?"HZ":s.live.min!=null?s.live.min+"'":"live"}</span>${s.live.stand && s.live.stand[0]!=null ? ` <b>${s.live.stand[0]}:${s.live.stand[1]}</b>` : ""}` : `<span class="status">${wann(s.anpfiff)}</span>`;
 // Polymarket liefert Liga-Kürzel („EPL", „LIGUE-1", „BRAZIL-SERIE-A", „ESPORTS") — lesbar machen
 const LIGA_PM = {"EPL":"Premier League","LIGUE-1":"Ligue 1","LA-LIGA":"La Liga","LALIGA":"La Liga","BUNDESLIGA":"Bundesliga","SERIE-A":"Serie A","ESPORTS":"E-Sport","SOCCER":"Fußball","MLS":"MLS","UCL":"Champions League","UEL":"Europa League"};
-const ligaName = l => { const t = String(l||""); if(!t || t!==t.toUpperCase() || !/[A-Z]/.test(t)) return t; return LIGA_PM[t] || t.toLowerCase().split("-").map(w=>w.length<=3&&w!=="cup"?w.toUpperCase():w[0].toUpperCase()+w.slice(1)).join(" "); };
+const ligaName = l => { const t = String(l||""); if(!t || t!==t.toUpperCase() || !/[A-Z]/.test(t)) return t; return LIGA_PM[t] || t.toLowerCase().split(/[-\s]+/).filter(Boolean).map(w=>w.length<=3&&w!=="cup"?w.toUpperCase():w[0].toUpperCase()+w.slice(1)).join(" "); };
 const spielInfo = s => D.radar.spiele.find(x=>x.id===s.id);
 
 // Markt- und Auswahlnamen auf Deutsch
@@ -1471,7 +1472,7 @@ function flussReihe(D, x, istLive, opt={}){
   const q = fl.quote, qv = fl.quoteVorher;
   const drop = q && qv && Math.abs(q-qv) >= 0.02 ? `<em class="${q<qv?"ab":"auf"}">${q<qv?"↓":"↑"} ${q2(qv)}</em>` : "";
   const pin = x.pinnacle && fl.markt==="Match Odds" ? `<em class="${x.pinnacle.einig?"ok":"nein"}" title="Pinnacle ${x.pinnacle.einig?"einig":"anders"}">P${x.pinnacle.einig?"✓":"✗"}</em>` : "";
-  const zeit = istLive ? `<span class="live">${x.live?.min!=null?x.live.min+"'":"live"}</span> ${(x.live?.stand||[0,0]).join(":")}` : wann(x.anpfiff);
+  const zeit = istLive ? `<span class="live">${x.live?.min!=null?x.live.min+"'":"live"}</span>${x.live?.stand && x.live.stand[0]!=null ? " "+x.live.stand.join(":") : ""}` : wann(x.anpfiff);
   return `<div class="zr" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
     <div class="zr-k"><div class="zr-t">${flagge(x.land)}<b>${esc(x.heim)} – ${esc(x.gast)}</b>${serieTag(serieVon(D, x.id))}</div><div class="zr-e">+${eur(opt.summe ?? fl.eur)}</div></div>
     <div class="zr-m"><span>${zeit} · ${esc(ligaName(x.liga))}</span><span>${esc(marktDe(fl.markt))} ${eur(fl.marktGesamt||ges)} ${drop}${pin}</span></div>
@@ -2114,7 +2115,7 @@ function hitparade(D, n=15){
 }
 function seiteBetfair(D){
   const alle = lf(D.radar.spiele), liste_ = BF_SETS[filterBf][1](alle);
-  const norm = lf(alle).filter(s=>s.xnorm>=1&&!s.entschieden).slice(0,12);
+  const norm = lf(alle).filter(s=>s.xnorm>=1.5&&!s.entschieden).slice(0,8);   // 21.10.: „über der Norm" heißt mind. ×1,5
   const hzl = lf(D.halbzeit||[]);
   const teile = [["🔁 Dauerzufluss", "Abruf für Abruf dieselbe Auswahl vorn", serienKarten(D,8,"betfair")],
     ["Frischer Zufluss", "vor Anpfiff, 30 Min", zuflussKarten(D,8)],
