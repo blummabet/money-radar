@@ -491,6 +491,9 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
     for key, m in quelle.items():
         if not isinstance(m, dict) or key.endswith(("-more-markets", "-exact-score")) or not sport_ok(m.get("sport")) or not poly_key_ok(key):
             continue
+        # 21.10.: Nebenmärkte wie „…-total-corners" / „…-halftime-result" („Over vs Under") sind keine Spiele
+        if not re.search(r"\d{4}-\d{2}-\d{2}$", key):
+            continue
         h = m.get("hoursToKickoff")
         k = ts(m.get("koTs"))
         if k and not (0 <= (k - JETZT).total_seconds() / 3600 <= 30):

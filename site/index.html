@@ -869,6 +869,69 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .zr-b i span{font-size:12px;font-weight:700;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .zr-b i span b{font-weight:800}
 @media (max-width:860px){ .zrl{grid-template-columns:1fr} }
+/* Lucas 21.10.: „Wo am meisten liegt" als Duell — halbe Höhe, Spuren je Quelle statt Chips und Text */
+.toepfe.duos{grid-template-columns:repeat(3,minmax(0,1fr))}
+.toepfe.duos .eins{grid-column:1/-1}
+.topf.duo{background:var(--flaeche);border:1px solid var(--rand);border-radius:16px;padding:11px 13px 12px;position:relative}
+.topf.duo.ist-live{box-shadow:inset 3px 0 0 var(--down)}
+.duo-kopf{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;color:var(--text-3)}
+.duo-teams{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:end;gap:8px;margin-top:8px}
+.duo-n{min-width:0;display:flex;flex-direction:column;gap:0}
+.duo-n.r{text-align:right;align-items:flex-end}
+.duo-n b{font-size:13.5px;font-weight:700;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.duo-n>span{font-size:22px;font-weight:800;letter-spacing:-.03em;line-height:1.05;color:var(--leise-zahl)}
+.duo-n>span small{font-size:12px;margin-left:1px}
+.duo-n.lead b,.duo-n.lead>span{color:var(--text)}
+.duo-geld{display:flex;flex-direction:column;align-items:center;gap:3px;padding-bottom:2px}
+.duo-geld b{font-size:15px;font-weight:800;white-space:nowrap}
+.duo-u{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.duo-u.ok{background:color-mix(in srgb, var(--up) 14%, transparent);color:var(--up)}
+.duo-u.nein{background:color-mix(in srgb, var(--bf) 16%, transparent);color:var(--bf)}
+.duo-bar{display:flex;gap:3px;height:12px;margin:8px 0 9px}
+.duo-bar i{border-radius:4px;background:color-mix(in srgb, var(--text) 16%, transparent);min-width:6px;display:grid;place-items:center;overflow:hidden}
+.duo-bar i.an{background:var(--text)}
+.duo-bar em{font-style:normal;font-size:9px;font-weight:800;color:var(--text-2);line-height:1;white-space:nowrap}
+.duo-bar i.an em{color:var(--bg)}
+.duo-qs{display:flex;flex-direction:column;gap:5px}
+.duo-q{display:grid;grid-template-columns:22px minmax(0,1fr) 58px;align-items:center;gap:8px}
+.duo-k{font-size:10px;font-weight:800;color:var(--f)}
+.duo-s{display:flex;gap:2px;height:5px}
+.duo-s i{border-radius:3px;background:color-mix(in srgb, var(--f) 22%, transparent);min-width:3px}
+.duo-s i.an{background:var(--f)}
+.duo-s i.leer{background:repeating-linear-gradient(90deg,color-mix(in srgb, var(--f) 25%, transparent) 0 4px,transparent 4px 7px)}
+.duo-b{font-size:11.5px;font-weight:700;color:var(--text-2);text-align:right;white-space:nowrap}
+.duo-q.quer .duo-k::after{content:"↯";margin-left:2px;color:var(--bf)}
+.eins .duo-n>span{font-size:30px} .eins .duo-geld b{font-size:19px} .eins .duo-bar{height:16px} .eins .duo-s{height:6px}
+@media (max-width:1100px){ .toepfe.duos{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:700px){ .toepfe.duos{grid-template-columns:1fr} .eins .duo-n>span{font-size:26px} }
+/* Lucas 21.10.: Polymarket-Märkte — Preis = Wahrscheinlichkeit, darunter das neue Geld je Ausgang */
+.pks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.pk{background:var(--flaeche);border:1px solid var(--rand);border-radius:16px;padding:11px 13px 11px;cursor:pointer;min-width:0}
+.pk.lebt{border-color:color-mix(in srgb, var(--poly) 30%, var(--rand))}
+.pk-kopf{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;color:var(--text-3)}
+.pk-titel{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:7px 0 8px}
+.pk-titel b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pk-titel span{font-size:13px;font-weight:800;color:var(--text-2);white-space:nowrap}
+.pk-bar{display:flex;gap:3px}
+.pk-s{min-width:44px;display:flex;flex-direction:column;gap:2px;padding:6px 7px 5px;border-radius:9px;background:color-mix(in srgb, var(--poly) 9%, transparent);overflow:hidden}
+.pk-s.an{background:color-mix(in srgb, var(--poly) 22%, transparent)}
+.pk-n{font-size:11px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-s b{font-size:17px;font-weight:800;line-height:1.05;letter-spacing:-.02em}
+.pk-s b small{font-size:10px;margin-left:1px;color:var(--text-3)}
+.pk-s.an b{color:var(--poly)}
+.pk-f{position:relative;font-size:10.5px;font-weight:800;color:var(--text-3);white-space:nowrap;padding-top:4px;margin-top:2px}
+.pk-f::before{content:"";position:absolute;left:0;top:0;height:3px;width:var(--w);border-radius:2px;background:currentColor}
+.pk-f.plus{color:var(--up)} .pk-f.minus{color:var(--down)}
+.pk-s.zieht{box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--up) 60%, transparent)}
+.pk-fuss{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;min-height:18px}
+.pk-neu{font-weight:800;color:var(--poly);white-space:nowrap}
+.pk-neu small{font-weight:600;color:var(--text-3)}
+.pk-ruhig{color:var(--text-3)}
+.pk-puls{display:flex;align-items:flex-end;gap:2px;height:16px;width:62px}
+.pk-puls i{flex:1;background:var(--poly);border-radius:1px}
+.pk-wal{margin-left:auto;font-size:11px;font-weight:800;color:var(--poly);background:color-mix(in srgb, var(--poly) 13%, transparent);padding:2px 8px;border-radius:999px;white-space:nowrap}
+@media (max-width:1100px){ .pks{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:700px){ .pks{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -1720,29 +1783,31 @@ function topfFazit(t){
 // Lucas 19.10. (2. Anlauf, „100 mal Polymarket", „graue Schrift auf grau", „Klammern links"): Quellen über FARBE statt
 // Wörter — Legende einmal oben im Panel. Oben ein Geld-Balken nach Quelle, darunter je Ausgang eine Kachel mit großer
 // Prozentzahl; in der Kachel stehen die Quellen, die dort ihr meistes Geld haben, als kräftige Farb-Chips.
+// Lucas 21.10. („300 px je Spiel, viel Text, Einheitsbrei"): ein Duell auf halber Höhe — oben das Tauziehen aller
+// Quellen zusammen, darunter je Quelle eine dünne Spur mit IHRER Aufteilung. Liegen die kräftigen Stücke
+// untereinander, sind sich die Quellen einig; springt eine Spur auf die andere Seite, sieht man den Widerspruch.
 function topfKarte(t, i, maxGes){
-  // Lucas 19.10. (Dribbble-Vorbild „Mobet"/„Fundedpipps"): das Spiel ist der Held — Heim links, Gast rechts,
-  // Geld in der Mitte, große Prozentzahl unter jedem Team, Quellen als Farb-Chips unter dem Team, das sie spielen.
-  const qs = Object.entries(t.q||{}).filter(([,q])=>q.betrag>0).sort((a,b)=>b[1].betrag-a[1].betrag);
-  const zeit = t.live ? `<span class="mk-live">● ${t.live.min!=null?t.live.min+"'":"live"} · ${t.live.stand?.[0]??0}:${t.live.stand?.[1]??0}</span>` : `<span class="mk-zeit">${wann(t.anpfiff)}</span>`;
-  const sw = t.seiten||{}, keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
-  const gesS = keys.reduce((a,k)=>a+(sw[k]||0),0);
+  const keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
+  const sw = t.seiten||{}, gesS = keys.reduce((a,k)=>a+(sw[k]||0),0);
   const pct = k => gesS ? Math.round((sw[k]||0)/gesS*100) : null;
   const lead = gesS ? keys.reduce((a,k)=>(sw[k]||0)>(sw[a]||0)?k:a, keys[0]) : null;
-  const chips = k => qs.filter(([,q])=>q.auf===k).map(([qn,q])=>`<span class="tp-c${q.meinung?"":" schwach"}" style="--f:${QUELLE[qn].f}" title="${QUELLE[qn].n}: ${q.anteil} % ihres Geldes">${QUELLE[qn].k} ${q.anteil}%</span>`).join("")
-    + ((t.wale||[]).some(x=>x.k===k) ? `<span class="tp-c wal">🧠 ${usd((t.wale||[]).filter(x=>x.k===k).reduce((a,x)=>a+x.usd,0))}</span>` : "");
-  const team = (k, name) => `<div class="mk-team${k===lead?" lead":""}"><div class="mk-name">${esc(name)}</div><div class="mk-pct">${pct(k)??"–"}<small>%</small></div><div class="mk-chips">${chips(k)}</div></div>`;
-  const remis = keys.includes("remis") ? `<div class="mk-remis${lead==="remis"?" lead":""}">Remis <b>${pct("remis")??"–"} %</b>${chips("remis")?`<div class="mk-chips">${chips("remis")}</div>`:""}</div>` : "";
-  const urteil = t.einig===true ? `<span class="mk-u ok">einig</span>` : t.einig===false ? `<span class="mk-u nein">uneinig</span>` : "";
-  return `<div class="topf mk${t.live?" ist-live":""}" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
-    <div class="mk-kopf"><span class="mk-liga">${t.land?flagge(t.land):sportIco(t.sport)} ${esc(ligaName(t.liga)||t.sport||"")}</span>${zeit}</div>
-    <div class="mk-mitte">
-      ${team("heim", t.heim)}
-      <div class="mk-geld"><b>${eur(t.gesamt)}</b><small>im Spiel</small>${urteil}${remis}</div>
-      ${team("gast", t.gast)}
-    </div>
-    <div class="mk-quellen"><div class="tp-gb">${qs.map(([qn,q])=>`<i style="flex:${q.betrag} 1 0;background:${QUELLE[qn].f};color:${QUELLE[qn].f}"></i>`).join("")}</div>
-      <div class="tp-gz">${qs.map(([qn,q])=>`<span style="color:${QUELLE[qn].f}">${geldIn(qn,q.betrag)}</span>`).join("")}</div></div>
+  const zeit = t.live ? `<span class="mk-live">● ${t.live.min!=null?t.live.min+"'":"live"}${t.live.stand?.[0]!=null?" · "+t.live.stand.join(":"):""}</span>` : `<span class="mk-zeit">${wann(t.anpfiff)}</span>`;
+  const walAuf = k => (t.wale||[]).filter(x=>x.k===k).reduce((a,x)=>a+x.usd,0);
+  const name = (k, n) => `<div class="duo-n${k===lead?" lead":""}${k==="gast"?" r":""}"><b>${esc(n)}${walAuf(k)?` <span title="belegte Wale: ${usd(walAuf(k))}">🧠</span>`:""}</b><span>${pct(k)??"–"}<small>%</small></span></div>`;
+  const haupt = `<div class="duo-bar">${keys.map(k=>sw[k]>0?`<i class="${k===lead?"an":""}" style="flex:${sw[k]} 1 0">${k==="remis"&&pct(k)>=9?`<em>X ${pct(k)}</em>`:""}</i>`:"").join("")}</div>`;
+  const qs = Object.entries(t.q||{}).filter(([,q])=>q.betrag>0).sort((a,b)=>b[1].betrag-a[1].betrag);
+  const spur = ([qn,q]) => { const s = q.seiten||{}, g = keys.reduce((a,k)=>a+(s[k]||0),0);
+    const top = g ? keys.reduce((a,k)=>(s[k]||0)>(s[a]||0)?k:a, keys[0]) : null;
+    const quer = top && lead && top!==lead && q.meinung!==false;
+    return `<div class="duo-q${quer?" quer":""}" style="--f:${QUELLE[qn].f}"><span class="duo-k">${QUELLE[qn].k}</span>
+      <div class="duo-s">${g?keys.map(k=>s[k]>0?`<i class="${k===top?"an":""}" style="flex:${s[k]} 1 0"></i>`:"").join(""):`<i class="leer" style="flex:1"></i>`}</div>
+      <span class="duo-b">${geldIn(qn,q.betrag)}</span></div>`; };
+  const urteil = t.einig===true ? `<span class="duo-u ok">✓ einig</span>` : t.einig===false ? `<span class="duo-u nein">⚡ uneinig</span>` : "";
+  return `<div class="topf duo${t.live?" ist-live":""}${i===0?" eins":""}" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
+    <div class="duo-kopf"><span class="mk-liga">${t.land?flagge(t.land):sportIco(t.sport)} ${esc(ligaName(t.liga)||t.sport||"")}</span>${zeit}</div>
+    <div class="duo-teams">${name("heim", t.heim)}<div class="duo-geld"><b>${eur(t.gesamt)}</b>${urteil}</div>${name("gast", t.gast)}</div>
+    ${haupt}
+    <div class="duo-qs">${qs.map(spur).join("")}</div>
   </div>`;
 }
 const quellenLegende = () => `<span class="legende">${Object.values(QUELLE).map(q=>`<span><i style="background:${q.f}"></i>${q.n}</span>`).join("")}</span>`;
@@ -1790,7 +1855,7 @@ function toepfeListe(D, n, nLauf=8){
     ${lauf.length>nLauf?liste(`Weitere ${lauf.length-nLauf} laufende Spiele`, "", `<div class="tz-liste" style="margin-top:10px">${lauf.slice(nLauf).map(topfZeile).join("")}</div>`):""}` : "";
   const ohneBlock = ohne.length ? `<div class="tz-kopf">Nur Volumen bekannt, keine Seitenaufteilung <span>${ohne.length}</span></div><div class="tz-liste">${ohne.slice(0,3).map(topfZeile).join("")}</div>
     ${ohne.length>3?liste(`Weitere ${ohne.length-3}`, "", `<div class="tz-liste" style="margin-top:10px">${ohne.slice(3).map(topfZeile).join("")}</div>`):""}` : "";
-  return `<div class="toepfe">${vor.slice(0,n).map((t,i)=>topfKarte(t,i,max)).join("")}</div>
+  return `<div class="toepfe duos">${vor.slice(0,n).map((t,i)=>topfKarte(t,i,max)).join("")}</div>
     ${vor.length>n?liste(`Weitere ${vor.length-n} Spiele vor Anpfiff`, "", `<div class="tz-liste" style="margin-top:10px">${vor.slice(n).map(topfZeile).join("")}</div>`):""}
     ${laufBlock}`;
 }
@@ -1911,7 +1976,10 @@ function jetztFliesst(D, n=8){
     for(const m of s.maerkteDetail||[]) for(const x of m.auswahl||[]){ if(x.neu==null) continue; mitSel = true;
       if(x.neu<=0 || tote(s, m.name, x.name, x.quote)) continue; eff += x.neu; if(!top || x.neu>top.neu){ top = x; mk = m; } }
     return {s, top, mk, eff: mitSel ? eff : s.d30};
-  }).filter(x=>x.eff >= 1000).sort((a,b)=>b.eff-a.eff).slice(0,n);
+  }).filter(x=>x.eff >= 1000)
+    // Lucas 21.10.: läuft auf genau dieser Auswahl schon ein Dauerzufluss, steht das Spiel dort — nicht doppelt
+    .filter(x=>!(x.top && x.mk && (D.serien||[]).some(r=>r.id===x.s.id && r.markt===x.mk.name && r.auswahl===x.top.name)))
+    .sort((a,b)=>b.eff-a.eff).slice(0,n);
   if(!S.length) return `<div class="leer">In den letzten 30 Minuten floss nirgends nennenswert neues Geld.</div>`;
   // Lucas 21.10.: dieselbe kompakte Zeile wie auf der Betfair-Seite — Betrag, ein Markt-Balken, Statistik und Poly/Stake-Chips
   return `<div class="zrl">${S.map(({s,top,mk,eff})=>{
@@ -2128,7 +2196,7 @@ function seiteBetfair(D){
     <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">wie viel mehr Geld als in dieser Liga üblich</span></div>${normPunkte(norm)}</div>
     <div class="panel c5"><div class="ph"><h3>Halbzeit-Geld</h3><span class="hint">Geld auf die 1. Halbzeit</span></div>${hzKarten(hzl.slice(0,4))}${hzl.length>4?liste("Alle Halbzeit-Spiele als Liste",hzl.length,hzTabelle(hzl,"hz-bf")):""}</div>
     <div class="panel c12"><div class="ph"><h3>Geld-Wand</h3><span class="hint">die Märkte mit dem meisten Geld, Fläche = Geld im Markt</span></div>${geldWand(D)}</div>
-    <div class="panel c12"><div class="ph"><h3>Hitparade der Märkte</h3><span class="hint">Platz nach Geld im Markt, Pfeil = Plätze seit 1 h</span></div>${hitparade(D)}</div>
+    <div class="panel c12"><div class="ph"><h3>Hitparade der Märkte</h3><span class="hint">Platz nach Geld im Markt, Pfeil = Plätze seit 1 h</span></div>${hitparade(D, window.innerWidth<700?10:15)}</div>
     <div class="panel c12">${liste(`Alle ${alle.length} Spiele aus ${D.radar.ligen} Ligen als Liste`, "", `<div id="bf-alle">${bfAlleInhalt(alle)}</div>`)}</div>
     <div class="panel c12">${liste(`Wo das Geld trägt: hohes Geld je Liga, letzte ${(D.ligaBilanz||{}).fensterTage||90} Tage`, "", `<div class="kk-klein" style="margin:10px 0 12px">Ein Kästchen je Markt mit hohem Einsatz · „trägt" erst ab 99 % Sicherheit</div>${ligaKaestchen(D.ligaBilanz)}`)}</div>
     ${((D.pushBilanz||{}).teile||{}).serie?.length?`<div class="panel c12">${liste(`🔁 Dauerzufluss: wie die Pushes liefen (seit ${tagKurz(D.pushBilanz.seit)})`, "", `<div class="kk-klein" style="margin:10px 0 12px">Zur Push-Quote abgerechnet, 2 % Kommission · Balken = so oft getroffen, Strich = was die Quote sagte</div>${istSoll(D.pushBilanz.teile.serie.map(g=>({name:esc(g.name), unter:`${g.n} Tipps`, ist:g.treffer, soll:g.erwartet, roi:g.roi})))}`)}</div>`:""}
@@ -2174,19 +2242,40 @@ function seitePinnacle(D){
     <div class="panel c12">${liste(`Alle ${alle.length} Spiele mit Pinnacle-Quote als Liste`, "", pinTabelle(alle,"pin-alle"))}</div>
   </div>`;
 }
+// Lucas 21.10. („Märkte zeigen fast nur Preise, ‚5 Wale' steht überall"): die Karte zeigt jetzt, was sich BEWEGT —
+// Preis-Balken als Wahrscheinlichkeit, darunter je Ausgang das neue Geld der letzten 30 Min (netto, Nein-Käufe
+// abgezogen), rechts der Puls der letzten 2 h. Wale nur noch, wenn sie belegt sind. Ruhige Märkte → Liste.
+const pmFlussVon = key => (D.polyFluss?.maerkte||[]).find(f=>f.key===key);
+function pmBewegung(m){
+  const f = pmFlussVon(m.key), w = f?.fenster?.["30"]; if(!w) return null;
+  const s = w.seiten||{}, netto = {};
+  for(const k of Object.keys(m.preise||{})) netto[k] = (s[k]||0) - (s["gegen "+k]||0);
+  return {f, neu:w.neu||0, netto};
+}
 function polyKarte(m){
   const pr = Object.entries(m.preise||{}), remis = pr.find(([k])=>/^(draw|remis|unentschieden)\b/i.test(k));
-  const teams = pr.filter(x=>x!==remis);
+  const teams = pr.filter(x=>x!==remis), reihe = [teams[0], remis, teams[1]].filter(Boolean);
   const lead = pr.reduce((a,x)=>x[1]>(a?.[1]??-1)?x:a, null)?.[0];
-  const team = ([k,v], rechts) => `<div class="mk-team${k===lead?" lead":""}"><div class="mk-name">${esc(k)}</div><div class="mk-pct">${Math.round(v*100)}<small>¢</small></div></div>`;
-  const chip = m.nBelegt ? `<span class="mk-u ok" style="background:color-mix(in srgb, var(--poly) 15%, transparent);color:var(--poly)">🧠 ${m.nBelegt} belegt</span>` : m.nWale ? `<span class="mk-u" style="background:var(--flaeche-2);color:var(--text-2)">${m.nWale} Wale</span>` : "";
-  return `<div class="topf mk" ${klick(esc(m.spiel), ohneHuelle(polyDetail(m)))}>
-    <div class="mk-kopf"><span class="mk-liga">${sportIco(m.sport)} ${esc(ligaName(m.liga)||m.sport||"")}</span><span class="mk-zeit">${wann(m.anpfiff)}</span></div>
-    <div class="mk-mitte">${teams[0]?team(teams[0]):"<div></div>"}
-      <div class="mk-geld"><b>${usd(m.usd)}</b><small>Volumen</small>${chip}${remis?`<div class="mk-remis${remis[0]===lead?" lead":""}">Remis <b>${Math.round(remis[1]*100)} ¢</b></div>`:""}</div>
-      ${teams[1]?team(teams[1]):"<div></div>"}</div>
-    <div class="mk-quellen"><div class="tp-gb">${[teams[0],remis,teams[1]].filter(Boolean).map((x,i)=>`<i style="flex:${x[1]} 1 0;background:${x[0]===lead?"var(--poly)":"color-mix(in srgb, var(--poly) 28%, var(--panel-3))"}"></i>`).join("")}</div></div>
+  const bw = pmBewegung(m), net = bw?.netto||{};
+  const nmax = Math.max(1, ...Object.values(net).map(Math.abs));
+  const zug = bw ? Object.entries(net).sort((a,b)=>b[1]-a[1])[0] : null;
+  const kurz = k => /^draw/i.test(k) ? "Remis" : k;
+  const seg = ([k,v]) => `<div class="pk-s${k===lead?" an":""}${zug&&zug[1]>0&&k===zug[0]?" zieht":""}" style="flex:${Math.max(v,.04)} 1 0">
+      <span class="pk-n">${esc(kurz(k))}</span><b>${Math.round(v*100)}<small>¢</small></b>
+      ${bw?`<span class="pk-f ${net[k]>0?"plus":net[k]<0?"minus":""}" style="--w:${(Math.abs(net[k]||0)/nmax*100).toFixed(0)}%">${net[k]?(net[k]>0?"+":"−")+usd(Math.abs(net[k])):"·"}</span>`:""}</div>`;
+  const bel = (m.wale||[]).filter(w=>w.bewiesen), belSeite = bel.length ? kurz(Object.entries(bel.reduce((a,w)=>(a[w.seite]=(a[w.seite]||0)+w.usd,a),{})).sort((a,b)=>b[1]-a[1])[0][0]) : null;
+  return `<div class="pk${bw?" lebt":""}" ${klick(esc(m.spiel), ohneHuelle(polyDetail(m)))}>
+    <div class="pk-kopf"><span class="mk-liga">${sportIco(m.sport)} ${esc(ligaName(m.liga)||m.sport||"")}</span><span class="mk-zeit">${wann(m.anpfiff)}</span></div>
+    <div class="pk-titel"><b>${esc(m.spiel.replace(/ vs /," – "))}</b><span>${usd(m.usd)}</span></div>
+    <div class="pk-bar">${reihe.map(seg).join("")}</div>
+    <div class="pk-fuss">${bw?`<span class="pk-neu">+${usd(bw.neu)} <small>in 30 Min</small></span>${pkPuls(bw.f)}`:`<span class="pk-ruhig">ruhig</span>`}
+      ${bel.length?`<span class="pk-wal">🧠 ${bel.length} belegt${belSeite?" · "+esc(belSeite):""}</span>`:""}</div>
   </div>`;
+}
+function pkPuls(f){
+  const s = (f.taktSumme||[]).slice(-12); if(!s.some(x=>x)) return "";
+  const mx = Math.max(1,...s);
+  return `<span class="pk-puls" title="Käufe je 10 Min, letzte 2 h">${s.map(v=>`<i style="height:${Math.max(8,v/mx*100).toFixed(0)}%;opacity:${v?1:.25}"></i>`).join("")}</span>`;
 }
 function polyKennzahlen(D){
   const p = D.poly, M = lf(p.maerkte), vol = M.reduce((a,m)=>a+(m.usd||0),0);
@@ -2229,9 +2318,11 @@ function seitePoly(D){
     <div class="panel c12 kz-panel">${polyKennzahlen(D)}</div>
     ${(p.setzen||[]).length?`<div class="panel c12"><div class="ph"><h3>Belegte Wale setzen gerade</h3><span class="hint">schlagen nachweislich den Schlusskurs</span></div>${setzenKarten(p.setzen)}</div>`:""}
     ${voll.map(([t,html])=>`<div class="panel c12"><div class="ph"><h3>${t==="Dauerzufluss"?"🔁 ":""}${t}</h3><span class="hint">${t==="Dauerzufluss"?"3 Abschnitte à 10 Min in Folge dieselbe Seite vorn":"Käufe der letzten 30 Min je Seite"}</span></div>${html}</div>`).join("")}
-    <div class="panel c12"><div class="ph"><h3>Märkte, nächste 30 Stunden</h3><span class="hint">Preis in Cent = Wahrscheinlichkeit</span>
+    <div class="panel c12"><div class="ph"><h3>Märkte, nächste 30 Stunden</h3><span class="hint">Preis in Cent = Wahrscheinlichkeit · darunter neues Geld der letzten 30 Min</span>
       <div class="chips rechts">${sports.map(s=>`<button class="chip${s===filterSport?" an":""}" data-sport="${s}">${s==="alle"?"Alle":SPORT_ICO[s]+" "+s} <span style="opacity:.6">${s==="alle"?p.maerkte.length:p.maerkte.filter(m=>(m.sport||"Fußball")===s).length}</span></button>`).join("")}</div></div>
-      <div class="toepfe p3">${auswahl.slice(0,12).map(polyKarte).join("")}</div>${auswahl.length>12?liste("Alle Märkte als Liste",auswahl.length,polyTabelle(auswahl,"p-alle")):""}</div>
+      ${(()=>{ const lebt = auswahl.filter(m=>(pmBewegung(m)?.neu||0)>=500).sort((a,b)=>pmBewegung(b).neu-pmBewegung(a).neu).slice(0,12);
+        const karten = lebt.length ? lebt : auswahl.slice(0,6), rest = auswahl.filter(m=>!karten.includes(m));
+        return `<div class="pks">${karten.map(polyKarte).join("")}</div>${rest.length?liste(lebt.length?"Ruhige Märkte":"Weitere Märkte", rest.length, polyTabelle(rest,"p-alle")):""}`; })()}</div>
     <div class="panel c6"><div class="ph"><h3>Wal-Pushes</h3><span class="hint">Bilanz je Sport · eigene Pushes seit 20.10.</span></div>${walBilanzBalken(p.tradesBilanz||{})}${walStrich(D)}
       <div class="feed" style="margin-top:14px">${(p.tradesPushes||[]).slice(0,8).map(t=>`<div class="fe"><span class="ico" style="background:${tint("var(--poly)",16)};font-size:15px;width:34px;height:34px;border-radius:10px">${SPORT_ICO[t.sport]||"⚽"}</span><div style="min-width:0"><div class="t">${esc(seiteName(t.seite))} @ ${Math.round((t.preis||0)*100)} ¢${tagFuer(t.status)}</div><div class="s">${esc(t.spiel)}</div></div><div class="b">${usd(t.usd)}<small>${vor(t.zeit)}</small></div></div>`).join("") || `<div class="leer">Keine Wal-Pushes.</div>`}</div></div>
     <div class="panel c6"><div class="ph"><h3>Rangliste</h3><span class="hint">Vorsprung auf den Schlusskurs</span></div>${rangliste(p.wallets)}</div>

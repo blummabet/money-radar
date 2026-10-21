@@ -92,14 +92,37 @@ def kandidaten():
             pool[key] = {"key": key, "sport": m.get("sport") or "Fußball", "liga": m.get("league"),
                          "anpfiff": m.get("koTs"), "usd": float(m.get("totalUsd") or 0),
                          "live": ist_live or (k <= JETZT)}
-    # nach Volumen, Live-Spiele bevorzugt (dort ändert sich am meisten)
-    return sorted(pool.values(), key=lambda m: (not m["live"], -m["usd"]))[:MAX_EVENTS]
+    # Lucas 21.10.: früher Live zuerst, dann Volumen — abends füllten Dutzende kleine Live-Märkte (CS2, ITF) alle
+    # Plätze und die großen kommenden Spiele (Bayern–Arsenal, $1,9 Mio) hatten nie einen Fluss. Jetzt geteilt:
+    # die größten Live-Märkte UND die größten kommenden, je nach Volumen.
+    live = sorted((m for m in pool.values() if m["live"]), key=lambda m: -m["usd"])
+    kommend = sorted((m for m in pool.values() if not m["live"]), key=lambda m: -m["usd"])
+    n_live = min(len(live), MAX_EVENTS // 2)
+    return live[:n_live] + kommend[:MAX_EVENTS - n_live]
 
 
-def seiten(event):
+def seiten(event, sport=None):
     """Gamma-Event → [(conditionId, {outcome: Etikett-für-Kauf})]."""
     out = []
-    for mk in event.get("markets") or []:
+    mks = event.get("markets") or []
+    if sport == "E-Sport":
+        # Lucas 21.10.: im E-Sport nur der Sieger der Serie — „Map 1 Winner", Handicaps und Runden sind eigene
+        # Wetten und verfälschten Fluss und Dauerzufluss. Etikett = schlicht der Teamname.
+        mw = [mk for mk in mks if "match winner" in (mk.get("groupItemTitle") or mk.get("question") or "").lower()]
+        if not mw and len(mks) == 1:
+            mw = mks
+        out = []
+        for mk in mw:
+            cond = mk.get("conditionId")
+            if not cond or mk.get("closed"):
+                continue
+            try:
+                outs = json.loads(mk.get("outcomes") or "[]")
+            except Exception:  # noqa: BLE001
+                outs = []
+            out.append((cond, {o: o for o in outs}, mk.get("question") or ""))
+        return out
+    for mk in mks:
         cond = mk.get("conditionId")
         if not cond or mk.get("closed"):
             continue
@@ -128,7 +151,7 @@ def fluss_fuer(m):
     gross = []
     takt, takt_summe, aeltester = {}, [0.0] * TAKT_N, 0.0
     preis_summe = {}                             # Etikett -> [usd*preis, usd] der letzten 60 Min
-    for cond, lab, frage in seiten(event):
+    for cond, lab, frage in seiten(event, m.get("sport")):
         tr = get(TRADES.format(cond=cond))
         if not isinstance(tr, list):
             continue
