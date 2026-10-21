@@ -529,6 +529,35 @@ def main():
         hist = append_history(hist, snap, now=now)
 
     snaps = dedup_matchups(snaps)   # Doppel-Listings (zwei matchIds, ein Spiel) zusammenführen
+    # money-radar 21.10. (Lille U19 – Galatasaray U19: 9× Dauerzufluss gepusht, auf der Seite aber nicht zu finden; am
+    # Vortag fehlten Dortmund/Fenerbahçe nach Anpfiff): rund um den Anpfiff liefert Betwatch ein Spiel manchmal einen
+    # Abruf lang ohne Märkte (Betfair setzt sie beim Wechsel auf „in-play" aus). Dann bleibt der letzte Stand bis zu
+    # 15 Min stehen, statt dass das Spiel von der Seite verschwindet. In die Historie geht er nicht noch einmal.
+    try:
+        _vt = datetime.fromisoformat(str((_vorher.get("_meta") or {}).get("generatedAt")).replace("Z", "+00:00"))
+        _frisch = (now - _vt).total_seconds() <= 15 * 60
+    except (TypeError, ValueError):
+        _frisch = False
+    if _frisch:
+        _da = {str(x.get("matchId")) for x in snaps}
+        for alt in _vorher.get("matches") or []:
+            mid = str(alt.get("matchId"))
+            if mid in _da or (alt.get("liveInfo") or {}).get("finished"):
+                continue
+            try:
+                ko = datetime.fromisoformat(str(alt.get("kickoff")).replace("Z", "+00:00"))
+                ko = ko if ko.tzinfo else ko.replace(tzinfo=timezone.utc)
+            except (TypeError, ValueError):
+                continue
+            delta = (now - ko).total_seconds() / 60          # Minuten seit Anpfiff (negativ = vorher)
+            seit = alt.get("gehaltenSeit") or now.isoformat()
+            try:
+                lang = (now - datetime.fromisoformat(str(seit).replace("Z", "+00:00"))).total_seconds() / 60
+            except (TypeError, ValueError):
+                lang = 0
+            if -60 <= delta <= 150 and lang <= 15:
+                snaps.append({**alt, "gehalten": True, "gehaltenSeit": seit})
+                _da.add(mid)
     if not snaps:
         print("  ⚠️  Keine Snapshots gebaut — bestehende Preise bleiben (kein Wipe).")
         return 1
