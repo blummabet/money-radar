@@ -902,9 +902,23 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
         vol = float(m.get("totalVol") or 0)
         if vol < 300:
             continue
+        # Lucas 22.10. (Persik Kediri ×3,9 — die €30k lagen fast alle auf „Über 0,5" @ 1,05): Geld zu Quoten unter
+        # 1,15 ist Absicherung/Einsammeln, kein Interesse am Spiel → zählt nicht gegen die Liga-Norm.
+        tot, top_r = 0.0, None
+        for mn, mk in (m.get("markets") or {}).items():
+            for r in (mk or {}).get("runners") or []:
+                if not isinstance(r, dict) or not (r.get("vol") or 0) > 0:
+                    continue
+                if isinstance(r.get("odd"), (int, float)) and r["odd"] < 1.15:
+                    tot += r["vol"]
+                if not top_r or r["vol"] > top_r[1]["vol"]:
+                    top_r = (mn, r)
+        geld_auf = {"markt": top_r[0], "auswahl": top_r[1].get("name"), "quote": top_r[1].get("odd"),
+                    "anteil": round(100 * top_r[1]["vol"] / vol)} if top_r and vol else None
+        vol_norm = max(0.0, vol - min(tot, vol))
         ph = _phase(JETZT, kick)
         b = medi.get(f"{m.get('league')}|{ph}") or {}
-        xnorm = round(vol / b["med"], 1) if b.get("med") and (b.get("n") or 0) >= 5 else None
+        xnorm = round(vol_norm / b["med"], 1) if b.get("med") and (b.get("n") or 0) >= 5 else None
         pr = proben.get(f"{m.get('league')}|{ph}") or []
         rang = {"weniger": sum(1 for x in pr if x < vol), "n": len(pr),
                 "max": pr[-1] if pr else None} if len(pr) >= 5 else None
@@ -995,7 +1009,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                              and li.get("goal_v1") != li.get("goal_v2")
                              and isinstance(mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw"), (int, float))
                              and mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw") < 1.40),
-            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "phase": ph, "rang": rang,
+            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "geldAuf": geld_auf, "totEur": round(tot), "phase": ph, "rang": rang,
             "d60": round(vol - vor60) if vor60 is not None else None,
             # nur wenn der Vergleichspunkt nicht uralt ist (sonst wäre es kein 30-Min-Zufluss)
             "d30": round(vol - vor30) if vor30 is not None and t30 and t30 >= JETZT - timedelta(minutes=50) else None,
