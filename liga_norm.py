@@ -81,6 +81,19 @@ def _stage_idx(st):
     return STAGES.index(st) if st in STAGES else len(STAGES)
 
 
+TOT_QUOTE = 1.15     # Lucas 22.10. (Persik Kediri): Geld zu Quoten darunter ist Absicherung/Einsammeln, kein Interesse
+
+
+def totes_geld(s):
+    """Volumen eines Schnappschusses auf Auswahlen unter TOT_QUOTE (aus "sel": {Markt: {Auswahl: [vol, quote]}}). REIN."""
+    tot = 0.0
+    for mk in (s.get("sel") or {}).values():
+        for v in (mk or {}).values():
+            if isinstance(v, list) and len(v) > 1 and isinstance(v[1], (int, float)) and v[1] < TOT_QUOTE:
+                tot += float(v[0] or 0)
+    return tot
+
+
 def samples_from_history(history, leagues, now_ms):
     """Je Event+Phase eine Stichprobe → [{"league","stage","vol","eid","ts"}]. REIN.
 
@@ -107,6 +120,7 @@ def samples_from_history(history, leagues, now_ms):
             ts, vol = _ms(s.get("ts")), s.get("totalVol")
             if ts is None or not isinstance(vol, (int, float)):
                 continue
+            vol = float(vol) - totes_geld(s)
             st = stage_of(ts, kick)
             if st is None or _stage_idx(st) >= cur:   # laufende (und unbekannte) Phase: noch offen
                 continue
@@ -116,7 +130,7 @@ def samples_from_history(history, leagues, now_ms):
         for st, vol in best.items():
             if vol >= MIN_EUR:
                 out.append({"league": league, "stage": st, "vol": round(vol),
-                            "eid": str(eid), "ts": last_ts.get(st)})
+                            "eid": str(eid), "ts": last_ts.get(st), "rein": True})
     return out
 
 
@@ -131,11 +145,14 @@ def merge_samples(store, new, now_ms):
         key = "%s|%s" % (s["league"], s["stage"])
         rows = buckets.setdefault(key, [])
         hit = next((r for r in rows if len(r) > 2 and r[2] == s["eid"]), None)
+        rein = 1 if s.get("rein") else 0
         if hit:
-            if s["vol"] > hit[1]:                     # Phase spaeter mit hoeherem Endstand gesehen
-                hit[1], hit[0] = s["vol"], s["ts"]
+            alt_rein = len(hit) > 3 and hit[3] == 1
+            # 22.10.: eine bereinigte Messung (ohne Geld unter 1,15) ersetzt die alte ungefilterte, auch wenn sie kleiner ist
+            if (rein and not alt_rein) or s["vol"] > hit[1]:
+                hit[:] = [s["ts"], s["vol"], s["eid"], rein]
         else:
-            rows.append([s["ts"], s["vol"], s["eid"]])
+            rows.append([s["ts"], s["vol"], s["eid"], rein])
     cutoff = now_ms - WINDOW_DAYS * 86400000
     out = {}
     for key, rows in buckets.items():
@@ -156,7 +173,8 @@ def aggregate(buckets):
     for key, rows in (buckets or {}).items():
         vals = sorted(float(r[1]) for r in rows if len(r) > 1 and isinstance(r[1], (int, float)))
         if vals:
-            out[key] = {"med": round(vals[len(vals) // 2]), "n": len(vals)}
+            out[key] = {"med": round(vals[len(vals) // 2]), "n": len(vals),
+                        "rein": sum(1 for r in rows if len(r) > 3 and r[3] == 1)}   # davon schon ohne Absicherungsgeld gemessen
     return out
 
 

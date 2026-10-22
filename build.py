@@ -1009,7 +1009,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                              and li.get("goal_v1") != li.get("goal_v2")
                              and isinstance(mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw"), (int, float))
                              and mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw") < 1.40),
-            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "geldAuf": geld_auf, "totEur": round(tot), "phase": ph, "rang": rang,
+            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "normN": b.get("n"), "geldAuf": geld_auf, "totEur": round(tot), "phase": ph, "rang": rang,
             "d60": round(vol - vor60) if vor60 is not None else None,
             # nur wenn der Vergleichspunkt nicht uralt ist (sonst wäre es kein 30-Min-Zufluss)
             "d30": round(vol - vor30) if vor30 is not None and t30 and t30 >= JETZT - timedelta(minutes=50) else None,
