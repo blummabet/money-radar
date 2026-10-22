@@ -1,0 +1,32 @@
+name: Push-Auswertung (per Hand)
+
+# Lucas 22.10.: „was wäre sinnvoller nachzuspielen?" — liest das Push-Buch aus dem Cache (nur lesen, nichts speichern)
+# und legt die Auswertung als Issue ab.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  auswerten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gedächtnis laden (nur lesen)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .bf
+            .pin
+            .push_state
+          key: radar-lesen-${{ github.run_id }}
+          restore-keys: radar-
+      - name: Auswerten
+        run: python3 auswertung.py > bericht.md; head -c 60000 bericht.md > b.md
+      - name: Bericht als Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create -R ${{ github.repository }} --title "Push-Auswertung $(date -u +%FT%H:%MZ)" --body-file b.md
