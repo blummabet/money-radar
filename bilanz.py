@@ -161,6 +161,7 @@ def aktualisieren(buch, jetzt):
                 b["r"] = round((q - 1) * (1 - KOMMISSION), 4) if w else -1.0
         elif jetzt - _ts(b["anpfiff"]) > timedelta(days=VERFALL_TAGE):
             b["status"] = "unaufgelöst"
+    poly_kurse(buch, jetzt)
     poly_abrechnen(buch, jetzt)
     return buch[-BEHALTEN:]
 
@@ -197,6 +198,78 @@ def _poly_ausgang(event, auswahl):
 
 
 POLY_EREIGNISSE = BASIS / ".pm" / "poly_ereignisse.json"   # vom Mac-Lauf (poly_markt.py) — Polymarket blockt GitHub
+
+
+POLY_MAERKTE = BASIS / ".pm" / "poly_maerkte.json"
+MESSUNG_AB = "2026-10-22T06:00:00+00:00"     # Lucas 22.10.: ab hier vorwärts gemessen, Regel vorher festgelegt
+MESSUNG_PREIS = (0.34, 0.59)                 # = Quote 1,70 bis 2,94
+MESSUNG_ZIEL = 60
+
+
+def _poly_preis(m, auswahl):
+    """Aktueller Preis der Auswahl im Markt-Scan; „gegen X" = 1 − Preis von X."""
+    pr = (m or {}).get("prices") or {}
+    a = str(auswahl or "")
+    if a in pr:
+        return pr[a]
+    if a.startswith("gegen ") and a[6:] in pr:
+        return 1 - pr[a[6:]]
+    return None
+
+
+def poly_kurse(buch, jetzt):
+    """Lucas 22.10.: Kursmessung für Polymarket-Pushes — die Messlatte, die bei Betfair die Schlussquote ist.
+    Vor Anpfiff: letzter Preis vor dem Anpfiff (als Quote in „schluss", gleiche CLV-Formel wie Betfair).
+    Für alle (auch live): der Preis 15 Min nach dem Push („nach15") — steigt er, lag der Push vor dem Markt."""
+    try:
+        d = json.loads(POLY_MAERKTE.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return
+    t = _ts(d.get("generatedAt"))
+    if not t or jetzt - t > timedelta(minutes=20):
+        return                                    # veralteter Scan misst nichts
+    mk = d.get("maerkte") or {}
+    for b in buch:
+        if b.get("art") not in ("pserie", "wal") or b.get("status") != "offen":
+            continue
+        p = _poly_preis(mk.get(str(b.get("id"))), b.get("auswahl"))
+        if not p or not 0.01 < p < 0.99:
+            continue
+        ko, ts = _ts(b.get("anpfiff")), _ts(b.get("ts"))
+        if not b.get("live") and ko and t < ko:
+            b["schluss"], b["schlussTs"] = round(1 / p, 4), t.isoformat()
+        if ts and "nach15" not in b and timedelta(minutes=13) <= t - ts <= timedelta(minutes=35):
+            b["nach15"] = round(1 / p, 4)
+
+
+def messung(buch):
+    """Die vorab festgelegte Regel für den Polymarket-Dauerzufluss, je Sport — Fortschritt bis 60 und Urteil."""
+    import math
+    ab = _ts(MESSUNG_AB)
+    regel = [b for b in buch if b.get("art") == "pserie" and _ts(b.get("ts")) and _ts(b["ts"]) >= ab
+             and b.get("preis") and MESSUNG_PREIS[0] <= b["preis"] <= MESSUNG_PREIS[1]]
+    aus = []
+    for sp in ("Fußball", "E-Sport", "Tennis"):
+        z = [b for b in regel if (b.get("sport") or "Fußball") == sp]
+        fertig = [b for b in z if b.get("status") == "abgerechnet"]
+        n = len(fertig)
+        r = [b["r"] for b in fertig]
+        roi = sum(r) / n if n else None
+        se = (math.sqrt(sum((x - roi) ** 2 for x in r) / (n - 1)) / math.sqrt(n)) if n > 1 else None
+        clv = [b["quote"] / b["schluss"] - 1 for b in z if not b.get("live") and b.get("schluss") and b.get("quote")
+               and _ts(b.get("schlussTs")) and _ts(b.get("anpfiff")) and _ts(b["schlussTs"]) >= _ts(b["anpfiff"]) - timedelta(minutes=20)]
+        mo = [b["quote"] / b["nach15"] - 1 for b in z if b.get("nach15") and b.get("quote")]
+        urteil = None
+        if n >= MESSUNG_ZIEL:
+            kante = (clv and sum(clv) / len(clv) > 0) or (mo and sum(mo) / len(mo) > 0)
+            urteil = "bestanden" if roi - se > 0 and kante else "nicht bestanden"
+        aus.append({"sport": sp, "gesendet": len(z), "abgerechnet": n, "offen": sum(1 for b in z if b.get("status") == "offen"),
+                    "treffer": round(100 * sum(1 for b in fertig if b["win"]) / n) if n else None,
+                    "erwartet": round(100 * sum(1 / b["quote"] for b in fertig) / n) if n else None,
+                    "roi": round(100 * roi, 1) if roi is not None else None, "fehler": round(100 * se, 1) if se is not None else None,
+                    "clv": round(100 * sum(clv) / len(clv), 1) if clv else None, "clvN": len(clv),
+                    "kurs15": round(100 * sum(mo) / len(mo), 1) if mo else None, "kurs15N": len(mo), "urteil": urteil})
+    return {"ab": MESSUNG_AB, "preis": MESSUNG_PREIS, "ziel": MESSUNG_ZIEL, "sport": aus}
 
 
 def poly_abrechnen(buch, jetzt):
@@ -272,7 +345,7 @@ def zusammenfassen(buch):
                      "w": (1 if b.get("win") else 0) if ab else None, "sport": b.get("sport"), "key": b.get("id"),
                      "seite": b.get("auswahl"), "anzeige": b.get("anzeige"), "titel": b.get("titel"), "preis": b.get("preis"),
                      "usd": b.get("usd"), "wallet": b.get("wallet"), "status": "won" if ab and b.get("win") else "lost" if ab else "pending"})
-    return {"walVerlauf": wale, "arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
+    return {"messung": messung(buch), "walVerlauf": wale, "arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
 
 
 def _kennz(ab):
