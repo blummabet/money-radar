@@ -1587,7 +1587,7 @@ function polyDetail(m){
 }
 const SPORT_ICO = {"Fußball":"⚽","E-Sport":"🎮","Tennis":"🎾"};
 const sportIco = sp => `<span class="sico" title="${esc(sp||"Fußball")}">${SPORT_ICO[sp]||"⚽"}</span>`;
-let filterSport = "alle";
+let filterSport = "alle", filterRang = "clv";
 function polyTabelle(liste, id){
   if(!liste.length) return `<div class="leer">Keine Märkte in dieser Auswahl.</div>`;
   TL[id] = liste;
@@ -1883,6 +1883,18 @@ function rangliste(ws){
       <div class="nz-bar"><i style="width:${(w.fensterClv/max*100).toFixed(1)}%;background:var(--poly)"></i><span style="color:var(--poly)">+${dez(w.fensterClv)} pp</span></div>
       <div class="nz-r"><b style="color:${w.pnl>=0?"var(--up)":"var(--down)"}">${usd(w.pnl)}</b><small>Bilanz</small></div>
     </a>`).join("")}</div>`;
+}
+// Lucas 22.10.: Wallets, die im Zeitraum Geld machen — auch ohne Vorsprung auf den Schlusskurs
+function gewinnRangliste(ws, tg){
+  if(!ws.length) return `<div class="leer">Noch keine Wallet mit genug abgerechneten Sportwetten in ${tg} Tagen.</div>`;
+  const max = Math.max(1, ...ws.map(w=>Math.abs(w.gewinn||0)));
+  return `<div class="kk-klein" style="margin-bottom:8px">Gewinn aus den Sportwetten, die wir bei der Wallet gesehen haben (Halten bis zum Ende unterstellt) · rechts klein: Polymarket gesamt, alle Kategorien</div>
+    <div class="nchart">${ws.slice(0,12).map((w,i)=>{ const f = w.gewinn>=0 ? "var(--up)" : "var(--down)";
+    return `<a class="nz" href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" style="text-decoration:none">
+      <div class="nz-l"><span class="rang">${i+1}</span>${sportIco(w.sport)}<div style="min-width:0"><div class="n">Wallet ${esc(w.wallet.slice(2,6))}</div><div class="l">${w.nGeld} Wetten${w.treffer!=null?` · ${w.treffer} % Treffer`:""}${w.roi!=null?` · ROI ${w.roi>0?"+":""}${dez(w.roi)} %`:""}${w.offen?` · <span style="color:var(--poly)">${w.offen} offen</span>`:""}</div></div></div>
+      <div class="nz-bar"><i style="width:${(Math.abs(w.gewinn)/max*100).toFixed(1)}%;background:${f}"></i><span style="color:${f}">${w.gewinn>=0?"+":"−"}${usd(Math.abs(w.gewinn))}</span></div>
+      <div class="nz-r"><b style="color:${w.clv>=0?"var(--poly)":"var(--text-3)"}">${w.clv==null?"–":(w.clv>0?"+":"")+dez(w.clv)+" pp"}</b><small>${w.pnlGesamt!=null?`PM ${w.pnlGesamt>=0?"+":"−"}${usd(Math.abs(w.pnlGesamt))}`:"Schlusskurs"}</small></div>
+    </a>`; }).join("")}</div>`;
 }
 function bilanzRinge(D){
   const pb = D.bfPushes.bilanz, burst = D.stake.bilanz?.Burst, hz = (D.hz.bericht||[]).find(b=>/Heim/.test(b.wette)) || (D.hz.bericht||[])[0], wf = (D.poly.tradesBilanz||{})["Fußball"];
@@ -2478,7 +2490,9 @@ function seitePoly(D){
         return `<div class="pks">${karten.map(polyKarte).join("")}</div>${rest.length?liste(lebt.length?"Ruhige Märkte":"Weitere Märkte", rest.length, polyTabelle(rest,"p-alle")):""}`; })()}</div>
     <div class="panel c6"><div class="ph"><h3>Wal-Pushes</h3><span class="hint">Bilanz je Sport · eigene Pushes seit 20.10.</span></div>${walBilanzBalken(p.tradesBilanz||{})}${walStrich(D)}
       <div class="feed" style="margin-top:14px">${(p.tradesPushes||[]).slice(0,8).map(t=>`<div class="fe"><span class="ico" style="background:${tint("var(--poly)",16)};font-size:15px;width:34px;height:34px;border-radius:10px">${SPORT_ICO[t.sport]||"⚽"}</span><div style="min-width:0"><div class="t">${esc(seiteName(t.seite))} @ ${Math.round((t.preis||0)*100)} ¢${tagFuer(t.status)}</div><div class="s">${esc(t.spiel)}</div></div><div class="b">${usd(t.usd)}<small>${vor(t.zeit)}</small></div></div>`).join("") || `<div class="leer">Keine Wal-Pushes.</div>`}</div></div>
-    <div class="panel c6"><div class="ph"><h3>Rangliste</h3><span class="hint">Vorsprung auf den Schlusskurs</span></div>${rangliste(p.wallets)}</div>
+    <div class="panel c6"><div class="ph"><h3>Rangliste</h3>
+      <div class="chips rechts">${[["clv","Schlusskurs"],["7","Gewinn 7 T"],["30","Gewinn 30 T"]].map(([k,n])=>`<button class="chip${k===filterRang?" an":""}" data-rang="${k}">${n}</button>`).join("")}</div></div>
+      ${filterRang==="clv" ? `<div class="kk-klein" style="margin-bottom:8px">Vorsprung auf den Schlusskurs, belegt mit Untergrenze</div>${rangliste(p.wallets)}` : gewinnRangliste((p.gewinnListen||{})[filterRang]||[], filterRang)}</div>
     ${polyMessung(D)}
     ${polySerieBilanz(D)}
   </div>`;
@@ -2667,6 +2681,7 @@ document.addEventListener("click", e=>{
   const bt = e.target.closest("[data-bt]"); if(bt){ bilanzTage = +bt.dataset.bt; $("#bilanzpanel").innerHTML = bilanzKopf()+bilanzPanel(D); return; }
   const bq = e.target.closest("[data-bq]"); if(bq){ bilanzAn = bilanzAn===bq.dataset.bq ? null : bq.dataset.bq; $("#bilanzpanel").innerHTML = bilanzKopf()+bilanzPanel(D); return; }
   const g = e.target.closest("[data-geh]"); if(g){ gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
+  const rg = e.target.closest("[data-rang]"); if(rg){ filterRang = rg.dataset.rang; $("#s-poly").innerHTML = seitePoly(D); return; }
   const sp = e.target.closest("[data-sport]"); if(sp){ filterSport = sp.dataset.sport; $("#s-poly").innerHTML = seitePoly(D); return; }
   const hf = e.target.closest("[data-hzf]"); if(hf){ hzFilter = hf.dataset.hzf; $("#hz-stats").innerHTML = hzStatsListe(D.hz.chancenBuch||{}); return; }
   const fd = e.target.closest("[data-feed]"); if(fd){ filterFeed = fd.dataset.feed; $("#s-feed").innerHTML = seiteFeed(D); return; }

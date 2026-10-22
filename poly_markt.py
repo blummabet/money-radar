@@ -353,6 +353,41 @@ def markt_zeile(ev, tag):
 
 
 # ── 4. Wallet-Buch ─────────────────────────────────────────────────────────────────────────────────────────
+TAGE_HALTEN = 60
+
+
+def geld_aus_position(usd, last_price, entry, win):
+    """(Gewinn, Einsatz) in $ einer aufgelösten Position — oder (None, None). Wie im alten Projekt:
+    Anteile = usd / letzter Preis, Einsatz = Anteile × Einstieg, der Gewinner zahlt 1 $ je Anteil.
+    Unterstellt Halten bis zur Auflösung (wir sehen Positionen, keine Verkäufe)."""
+    try:
+        u, lp, en = float(usd or 0), float(last_price), float(entry)
+    except (TypeError, ValueError):
+        return None, None
+    if not (u > 0 and 0 < lp < 1 and 0 < en < 1):
+        return None, None
+    anteile = u / lp
+    einsatz = anteile * en
+    return (round(anteile - einsatz, 2) if win else round(-einsatz, 2)), round(einsatz, 2)
+
+
+def tage_fortschreiben(s, clv, win, gewinn=None, einsatz=None):
+    """Lucas 22.10. (Rangliste auch nach Gewinn 7/30 Tage): Tages-Gedächtnis je Wallet im Format des alten
+    Projekts {Tag: [n, clvSum, wins, clvSqSum, gewinn, einsatz, nGeld]} — das übernommene Gedächtnis läuft so nahtlos weiter."""
+    tag = JETZT.date().isoformat()
+    tage = {k: list(v) for k, v in (s.get("tage") or {}).items() if isinstance(v, (list, tuple)) and len(v) >= 4}
+    e = tage.get(tag) or [0, 0.0, 0, 0.0]
+    c = float(clv)
+    neu = [e[0] + 1, round(e[1] + c, 2), e[2] + (1 if win else 0), round(e[3] + c * c, 2)]
+    g_ok = isinstance(gewinn, (int, float)) and isinstance(einsatz, (int, float))
+    if len(e) >= 6 or g_ok:
+        neu += [round((float(e[4]) if len(e) >= 6 else 0.0) + (gewinn or 0.0), 2),
+                round((float(e[5]) if len(e) >= 6 else 0.0) + (einsatz or 0.0), 2),
+                (int(e[6]) if len(e) >= 7 else 0) + (1 if g_ok else 0)]
+    tage[tag] = neu
+    s["tage"] = {k: tage[k] for k in sorted(tage)[-TAGE_HALTEN:]}
+
+
 def track_fortschreiben(track, maerkte, aufgeloest):
     openp = {k: dict(v) for k, v in (track.get("open") or {}).items()}
     scores = {w: dict(s) for w, s in (track.get("scores") or {}).items()}
@@ -401,6 +436,7 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         s["usd"] = (s.get("usd") or 0) + (e.get("usd") or 0)
         s.setdefault("firstTs", JETZT.date().isoformat())
         s["lastTs"] = JETZT.date().isoformat()
+        tage_fortschreiben(s, clv, win, *geld_aus_position(e.get("usd"), e.get("lastPrice"), einstieg, win))
         if e.get("sport"):
             b = s.setdefault("bySport", {}).setdefault(e["sport"], {"n": 0, "clvSumPP": 0.0, "wins": 0})
             b["n"] += 1
@@ -570,14 +606,23 @@ def main() -> int:
 
     # Lebensbilanz: zuerst Wallets ohne Wert, dann die mit der meisten Historie
     kand = sorted((w for w, s in track["scores"].items() if isinstance(s, dict) and (s.get("n") or 0) >= 5),
-                  key=lambda w: (isinstance(track["scores"][w].get("pnl"), (int, float)), -(track["scores"][w].get("n") or 0)))
+                  key=lambda w: (isinstance(track["scores"][w].get("pnl"), (int, float)), str(track["scores"][w].get("pnlTs") or ""),
+                                 -(track["scores"][w].get("n") or 0)))
     for w in kand[:PNL_BUDGET]:
         if not _zeit_ok():
             break
         data = _get(PNL_API.format(user=w))
         if isinstance(data, list) and data and isinstance(data[-1], dict):
             try:
-                track["scores"][w]["pnl"] = round(float(data[-1].get("p")), 2)
+                sc = track["scores"][w]
+                sc["pnl"] = round(float(data[-1].get("p")), 2)
+                # 22.10.: dieselbe Tagesreihe liefert auch 7 und 30 Tage (Polymarket gesamt, alle Kategorien)
+                sek = lambda x: (lambda t: t / 1000 if t > 1e12 else t)(float(x.get("t") or 0))   # Sekunden oder ms
+                jetzt_t = sek(data[-1]) or JETZT.timestamp()
+                for tg in (7, 30):
+                    vorher = [x for x in data if isinstance(x, dict) and sek(x) <= jetzt_t - tg * 86400]
+                    sc[f"pnl{tg}"] = round(sc["pnl"] - float(vorher[-1].get("p")), 2) if vorher else None
+                sc["pnlTs"] = JETZT.isoformat()
             except (TypeError, ValueError):
                 pass
 

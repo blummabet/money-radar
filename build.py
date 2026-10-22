@@ -419,6 +419,33 @@ MIN_FENSTER = 8     # Aufloesungen im Messfenster, ab denen eine Untergrenze etw
 POLY_TOP5 = {"epl", "bun", "lal", "sea", "fl1", "lig1", "ucl"}   # 19.10. (Lucas): Champions League zählt zu den Top-5     # Polymarket-Schlüssel-Präfixe der Top-5-Ligen
 
 
+def zeitraum_bilanz(s, tage):
+    """Gewinn, Einsatz, Treffer der letzten `tage` Tage aus dem Tages-Gedächtnis einer Wallet (+ Nachtrag des alten
+    Projekts). None, wenn nichts dasteht. Unterstellt Halten bis zur Auflösung."""
+    t, tn = (s or {}).get("tage") or {}, (s or {}).get("tageNachtrag") or {}
+    if not isinstance(t, dict) or (not t and not tn):
+        return None
+    ab = (JETZT.date() - timedelta(days=tage - 1)).isoformat()
+    n = wins = n_geld = 0
+    clv = gewinn = einsatz = 0.0
+    for k, v in t.items():
+        if str(k) < ab or not isinstance(v, (list, tuple)) or len(v) < 4:
+            continue
+        n += int(v[0]); clv += float(v[1]); wins += int(v[2])
+        if len(v) >= 7:
+            gewinn += float(v[4]); einsatz += float(v[5]); n_geld += int(v[6])
+    for k, v in (tn if isinstance(tn, dict) else {}).items():
+        if str(k) < ab or not isinstance(v, (list, tuple)) or len(v) < 3:
+            continue
+        n_geld += int(v[0]); gewinn += float(v[1]); einsatz += float(v[2])
+    if not n and not n_geld:
+        return None
+    return {"n": n, "wins": wins, "treffer": round(100 * wins / n) if n else None, "clv": round(clv / n, 2) if n else None,
+            "nGeld": n_geld, "gewinn": round(gewinn, 2) if n_geld else None, "einsatz": round(einsatz, 2) if n_geld else None,
+            "roi": round(100 * gewinn / einsatz, 1) if n_geld and einsatz > 0 else None,
+            "seit": min([str(k) for k in t] + [str(k) for k in (tn or {})]) if (t or tn) else None}
+
+
 def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, trades_record=None):
     scores = (track or {}).get("scores") or {}
     offen = (track or {}).get("open") or {}
@@ -458,6 +485,22 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                        "einstieg": p.get("entryPrice") or p.get("firstPrice"), "einTs": p.get("firstTs"),
                        "marktUsd": p.get("marktUsd"), "sport": p.get("sport")} for p in offen_jetzt[:5]],
         })
+    # Lucas 22.10.: „es könnten Wallets ja trotzdem in 7 bzw. 30 Tagen vorn sein, ohne Vorsprung auf den Schlusskurs"
+    # — zweite und dritte Rangliste nach GEWINN im Zeitraum, aus dem Tages-Gedächtnis (Sportwetten, die wir sahen).
+    gewinn_listen = {}
+    for tg, min_n in ((7, 5), (30, 10)):
+        zeilen = []
+        for w, sc in scores.items():
+            f = zeitraum_bilanz(sc, tg)
+            if not f or f["nGeld"] < min_n or f["gewinn"] is None:
+                continue
+            haupt = max((sc.get("bySport") or {"Fußball": {"n": 0}}).items(), key=lambda kv: kv[1].get("n", 0))[0]
+            if not sport_ok(haupt):
+                continue
+            zeilen.append({"wallet": w, "sport": haupt, **f, "pnlGesamt": sc.get(f"pnl{tg}"), "pnl": sc.get("pnl"),
+                           "offen": len(pos_je.get(w) or [])})
+        zeilen.sort(key=lambda r: -r["gewinn"])
+        gewinn_listen[str(tg)] = zeilen[:15]
     # Sortiert nach der UNTERGRENZE: wer oben steht, ist nicht nur im Schnitt gut, sondern belegt.
     wallets.sort(key=lambda r: -r["clvUg"])
     wallets = wallets[:20]
@@ -578,7 +621,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                      "usd": z.get("usd"), "preis": z.get("whaleEntry"), "anteilSeite": z.get("seitenAnteil"),
                      "liga": z.get("league"), "zeit": z.get("sentAt"), "status": z.get("status")})
     wale.sort(key=lambda r: r["zeit"] or "", reverse=True)
-    return {"wallets": wallets, "maerkte": auswahl, "walPushes": wale[:20], "setzen": setzen[:20],
+    return {"wallets": wallets, "gewinnListen": gewinn_listen, "maerkte": auswahl, "walPushes": wale[:20], "setzen": setzen[:20],
             "tradesPushes": tp[:40], "tradesBilanz": bil, "tradesSeit": (trades_record or {}).get("startAb"),
             "regel": {"minN": MIN_N, "minSchnittUsd": MIN_SCHNITT_USD, "minFenster": MIN_FENSTER}}
 
