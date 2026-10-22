@@ -658,9 +658,10 @@ def _geld_block(fl, minuten):
     for name, vol, quote, neu in vt:
         n = max(0, min(10, round(10 * vol / mg)))
         lab = remis(_auswahl_de(name))[:14].ljust(breite)
-        z = f"{lab} {'▓' * n}{'░' * (10 - n)} {geld(vol):>6}" + (f" +{geld(neu)}" if neu >= 500 else "")
+        # Lucas 22.10. („liegen 16k auf Über 2,5 oder 13k+12k?"): der Betrag ist der STAND, das neue Geld steckt darin
+        z = f"{lab} {'▓' * n}{'░' * (10 - n)} {geld(vol):>6}" + (f" (davon {geld(neu)} neu)" if neu >= 500 else "")
         zeilen.append(z)
-    kopf = f"🏦 So liegt der <b>{e(_markt_de(fl.get('markt')))}</b> jetzt ({geld(mg)} gesamt):\n"
+    kopf = f"🏦 So liegt der <b>{e(_markt_de(fl.get('markt')))}</b> jetzt ({geld(mg)} im ganzen Markt):\n"
     return kopf + "<code>" + e("\n".join(zeilen)) + "</code>\n"
 
 
