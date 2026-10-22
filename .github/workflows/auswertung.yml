@@ -24,6 +24,14 @@ jobs:
             .push_state
           key: radar-lesen-${{ github.run_id }}
           restore-keys: radar-
+      - name: Polymarket-Märkte laden (nur lesen)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .pf
+            .pm
+          key: polyfluss-lesen-${{ github.run_id }}
+          restore-keys: polyfluss-
       - name: Auswerten
         run: python3 auswertung.py > bericht.md; head -c 60000 bericht.md > b.md
       - name: Bericht als Issue
