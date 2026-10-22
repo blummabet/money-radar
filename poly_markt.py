@@ -114,7 +114,11 @@ def _ts(s):
 
 
 def ko_zeit(ev):
-    for f in ("startTime", "gameStartTime", "startDate"):
+    """Anpfiff. 22.10. (Lucas: Wallet 0xf7f6 „Top-Liste, aber überall im Minus"): „startDate" ist bei Gamma der Tag,
+    an dem der Markt ANGELEGT wurde — stand es vor dem gameStartTime der Märkte, galt jedes Tennis-/E-Sport-Spiel
+    sofort als „läuft", es gab nie einen Schlusspreis und der Schlusskurs-Vorsprung wurde aus dem Preis WÄHREND
+    des Spiels gerechnet (+12 bis +19 pp statt ~0). startDate deshalb nur noch als letzter Notnagel."""
+    for f in ("startTime", "gameStartTime"):
         t = _ts(ev.get(f))
         if t:
             return t
@@ -122,7 +126,7 @@ def ko_zeit(ev):
         t = _ts(m.get("gameStartTime"))
         if t:
             return t
-    return None
+    return _ts(ev.get("startDate"))
 
 
 def liga_aus_slug(key):
@@ -420,8 +424,10 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         del openp[ok]
         if gew is None or e.get("side") not in preise:
             continue                                   # 50:50 oder Seite nicht zuordenbar → nicht werten
-        einstieg = e.get("entryPrice") or e.get("firstPrice")
-        schluss = e.get("closePrice") or e.get("lastPrice")
+        # 22.10.: nur echte Werte vor Anpfiff — kein Rückfall auf den letzten Preis (der liegt im Spiel und kennt
+        # den Ausgang schon) und kein erstes Sehen nach Anpfiff als Einstieg
+        einstieg = e.get("entryPrice") or (e.get("firstPrice") if (e.get("htkFirst") or 0) > 0 else None)
+        schluss = e.get("closePrice")
         if not isinstance(einstieg, (int, float)) or not isinstance(schluss, (int, float)):
             continue
         clv = (schluss - einstieg) * 100
@@ -449,7 +455,7 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         ko = _ts(e.get("koTs")) or _ts(e.get("firstTs"))
         if ko and ko < grenze:
             del openp[ok]                              # nie aufgelöst gesehen → raus
-    return {"open": openp, "scores": scores, "updatedAt": JETZT.isoformat()}
+    return {"open": openp, "scores": scores, "updatedAt": JETZT.isoformat(), "reparatur": track.get("reparatur")}
 
 
 def aufloesung_ev(ev):
@@ -543,10 +549,38 @@ def buch_ereignisse():
 
 
 # ── Hauptlauf ────────────────────────────────────────────────────────────────────────────────────────────────
+REPARATUR = "2026-10-22"
+
+
+def reparatur_2210(track):
+    """Einmalig: die Wallet-Bilanzen seit der Übernahme (20.10.) sind durch den Anpfiff-Fehler verfälscht. Die
+    Bilanzen werden aus dem alten Projekt neu übernommen (es misst dieselben Wallets bis heute richtig); offene
+    Positionen bleiben. Ist das alte Projekt nicht erreichbar, werden die Schlusskurs-Felder geleert statt falsch
+    weitergeführt."""
+    if track.get("reparatur") == REPARATUR:
+        return track
+    try:   # 11 MB — eigener, längerer Abruf statt _get (12 s)
+        with urllib.request.urlopen("https://raw.githubusercontent.com/blummabet/betting-dashboard/main/poly_wallet_track.json", timeout=90) as r:
+            alt = json.loads(r.read())
+    except Exception:  # noqa: BLE001
+        alt = None
+    if isinstance(alt, dict) and isinstance(alt.get("scores"), dict) and len(alt["scores"]) > 1000:
+        track["scores"] = alt["scores"]
+        print(f"  poly_markt: Reparatur — {len(alt['scores'])} Wallet-Bilanzen aus dem alten Projekt neu übernommen")
+    else:
+        for sc in (track.get("scores") or {}).values():
+            for k in ("clvFenN", "clvFenSum", "clvSqSum"):
+                sc.pop(k, None)
+        print("  poly_markt: Reparatur — altes Projekt nicht erreichbar, Schlusskurs-Fenster geleert")
+    track["reparatur"] = REPARATUR
+    return track
+
+
 def main() -> int:
     BASIS.mkdir(exist_ok=True)
     try:
         track = json.loads(TRACK.read_text(encoding="utf-8"))
+        track = reparatur_2210(track)
     except Exception:  # noqa: BLE001
         track = {}
     bekannt = {w for w, s in (track.get("scores") or {}).items() if isinstance(s, dict) and (s.get("n") or 0) >= BEKANNT_AB_N}
