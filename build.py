@@ -1576,7 +1576,7 @@ def poly_serien(pf):
             # Lucas 17.10. (Betis–Barça 5:2, Push 10 Min nach Abpfiff): gut 2 h nach Anpfiff ist das Spiel aus
             if ko and (m.get("sport") or "Fußball") == "Fußball" and JETZT - ko > timedelta(minutes=115):
                 continue
-            if preis and preis >= 0.90:
+            if preis and preis > 1 / 1.20:          # 23.10.: wie Betfair und Stake — unter Quote 1,20 kein Dauerzufluss
                 continue
             out.append({"preis": preis, "quote": round(1 / preis, 2) if preis else None, "id": m.get("key"), "titel": m.get("titel"), "liga": m.get("liga"), "sport": m.get("sport"),
                         "anpfiff": m.get("anpfiff"), "live": m.get("live"), "top5": m.get("top5"), "quelle": "poly",
@@ -1637,6 +1637,10 @@ def stake_serien(hr):
                 continue
             summe = sum(v[i] for i in kette)
             if summe < (50000 if top5 else 15000):
+                continue
+            # Lucas 23.10. („No @ 1,01 — dachte, sowas gibt's nicht mehr"): wie bei Betfair, unter 1,20 ist das Einsammeln
+            # oder Absicherung, kein Dauerzufluss — auch nicht auf der Seite
+            if isinstance(sel.get("quote"), (int, float)) and sel["quote"] < 1.20:
                 continue
             # Lucas 18.10. (Forest–Arsenal „Over 0,5 Halbzeit @1,55" kam in der Pause): die Abschnitte zählten ab dem
             # Stand der Stake-Datei, nicht ab jetzt — eine Serie konnte bis ~1 h nach der letzten Wette noch melden.
