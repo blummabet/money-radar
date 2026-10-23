@@ -1277,10 +1277,12 @@ function geldSaeulen(s){
   // Balken — der Rest des Spiels grau. So sieht man in einem Bild: wie viel kam insgesamt, wie viel davon auf DIESE Auswahl.
   const T = S.teile||[];
   const grund = serieVon(D, s.id) || null;
-  const flw = grund ? null : ([...(D.liveZufluss||[]), ...(D.zufluss30||[])].find(x=>x.id===s.id)?.fluss||[])[0];
-  const ziel = grund || flw;
+  const pz = grund ? null : pushesZu(s)[0];
+  const pzz = pz ? (()=>{ const t = T.find(t=>auswahlDe(t.auswahl)===auswahlDe(pz.auf) && (!pz.markt || t.markt===pz.markt)); return t ? {markt:t.markt, auswahl:t.auswahl} : null; })() : null;
+  const flw = grund || pzz ? null : ([...(D.liveZufluss||[]), ...(D.zufluss30||[])].find(x=>x.id===s.id)?.fluss||[])[0];
+  const ziel = grund || pzz || flw;
   const fokus = (ziel && T.find(t=>t.markt===ziel.markt && t.auswahl===ziel.auswahl)) || T[0] || null;
-  const warum = !fokus ? "" : grund && fokus.auswahl===grund.auswahl ? "Dauerzufluss" : flw && fokus.auswahl===flw.auswahl ? "Zufluss" : "meistes neues Geld";
+  const warum = !fokus ? "" : grund && fokus.auswahl===grund.auswahl ? "Dauerzufluss" : pzz && fokus.auswahl===pzz.auswahl ? `Push ${uhr(pz.zeit)}` : flw && fokus.auswahl===flw.auswahl ? "Zufluss" : "meistes neues Geld";
   const live = i => S.ko!=null && i >= S.ko;
   const bars = v.map((x,i)=>{ const f = fokus ? Math.min(x||0, fokus.w[i]||0) : 0;
     return `<i class="${x==null?"leer":""}${fokus?" mitfokus":live(i)?" lv":""}${i===top?" top":""}" style="height:${x?Math.max(3, x/mx*100).toFixed(1):0}%" title="${uhrVon(i)}–${uhrVon(i+1)}: ${x==null?"keine Daten":"+"+eur(x)+(fokus&&f?`, davon ${eur(f)} auf ${auswahlDe(fokus.auswahl)}`:"")}">${f&&x?`<b style="height:${(f/x*100).toFixed(1)}%"></b>`:""}</i>`; }).join("");
@@ -1331,6 +1333,7 @@ function teilenText(s){
   fl.sort((x,y)=>y.a.neu-x.a.neu);
   const se = serieVon(D, s.id);
   if(se) z.push(`🔁 ${se.n}× in Folge: ${eur(se.eur)} auf ${auswahlDe(se.auswahl)} @ ${q2(se.quote)} (${marktDe(se.markt)})`);
+  for(const p of pushesZu(s).slice(0,2)) if(!se || auswahlDe(se.auswahl)!==auswahlDe(p.auf)) z.push(`📣 ${p.art||"Push"} um ${uhr(p.zeit)}: ${auswahlDe(p.auf)} @ ${q2(p.quote)}${p.eur?` · ${eur(p.eur)}`:""}`);
   const t = fl[0];
   // der Markt im Bild: Serie, sonst der mit dem meisten Geld auf einer Auswahl (Stand, ohne Absicherung)
   let mBest = null, aBest = null; for(const mm of md) for(const aa of mm.auswahl) if(aa.name!=="Rest" && !(aa.quote && aa.quote<1.15) && (!aBest || aa.eur>aBest.eur)){ aBest = aa; mBest = mm; }
@@ -1366,6 +1369,10 @@ function dKopf(s){
 }
 // Lucas 23.10. (Beitar Nahariya: „ich seh nicht, dass auf Über 2,5 alles liegt — und +€447 sieht im Flussdiagramm
 // dramatisch aus"): neues Geld zählt erst als Schub, wenn es nennenswert ist; sonst führt der STAND (wo das Geld liegt).
+// Lucas 23.10. („Dauerzufluss muss ich immer erkennen — 10 Min später ist er aus der Liste, aber im Detail darf er nicht fehlen"):
+// die Pushes der letzten 6 h zu diesem Spiel bleiben im Fenster sichtbar, auch wenn die Serie gerade abgerissen ist.
+const pushesZu = s => (D.bfPushes?.liste||[]).filter(p=>p.heim===s.heim && p.gast===s.gast && p.zeit && Date.now()-new Date(p.zeit) < 6*36e5)
+  .sort((a,b)=>new Date(b.zeit)-new Date(a.zeit));
 const neuNennenswert = (s, neu) => neu >= Math.max(1000, 0.03*(s.eur||0));
 function dChips(s, fl, fm){
   const c = [], neu = fl.reduce((a,x)=>a+x.neu,0);
@@ -1379,7 +1386,9 @@ function dChips(s, fl, fm){
   const t = fl.find(x=>!(x.quote && x.quote<1.15));
   if(t) c.push(`<span class="dc">→ <b>${esc(auswahlDe(t.name))}</b>${t.quote?` @ ${q2(t.quote)}`:""} <small>${esc(marktDe(t.markt))}</small></span>`);
   const se = serieVon(D, s.id);
-  if(se) c.push(`<span class="dc bf">🔁 ${se.n}× in Folge · ${esc(auswahlDe(se.auswahl))} · ${eur(se.eur)}</span>`);
+  if(se) c.push(`<span class="dc bf">🔁 läuft: ${se.n}× in Folge · ${esc(auswahlDe(se.auswahl))} @ ${q2(se.quote)} · ${eur(se.eur)}</span>`);
+  for(const p of pushesZu(s).slice(0,3)) if(!(se && auswahlDe(se.auswahl)===auswahlDe(p.auf) && /Dauer/.test(p.art||"")))
+    c.push(`<span class="dc bf" title="Push ${esc(p.art||"")} um ${uhr(p.zeit)}">📣 ${esc(p.art||"Push")} ${uhr(p.zeit)} · ${esc(auswahlDe(p.auf))} @ ${q2(p.quote)}${p.eur?` · ${eur(p.eur)}`:""}${p.status==="won"?" ✓":p.status==="lost"?" ✗":""}</span>`);
   // gedrückte Quote: die Auswahl mit dem meisten neuen Geld, gegenüber vor ~1 h
   const md = s.maerkteDetail||[];
   const ta = t && (md.find(m=>m.name===t.markt)?.auswahl||[]).find(a=>a.name===t.name);
@@ -1389,7 +1398,9 @@ function dChips(s, fl, fm){
   const a = (D.auchWoanders||{})[s.id];
   if(a?.poly?.usd>=1000) c.push(`<span class="dc" style="--f:var(--poly)">+ Poly ${usd(a.poly.usd)}${a.poly.auf?` <small>${esc(a.poly.auf)}</small>`:""}</span>`);
   if(a?.stake?.usd>=1000) c.push(`<span class="dc" style="--f:var(--stake)">+ Stake ${usd(a.stake.usd)}</span>`);
-  return c.length ? `<div class="dcs">${c.join("")}</div>` : "";
+  // Serien- und Push-Chips zuerst — das Wichtigste darf nicht hinten stehen
+  const vorn = c.filter(x=>x.includes('dc bf')), rest = c.filter(x=>!x.includes('dc bf'));
+  return c.length ? `<div class="dcs">${[...vorn, ...rest].join("")}</div>` : "";
 }
 function marktWand(s){
   const md = (s.maerkteDetail||[]).filter(m=>m.eur>0); if(!md.length) return "";
