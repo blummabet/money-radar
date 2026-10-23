@@ -1078,26 +1078,69 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .duo-q2 i{font-style:normal;font-weight:800;font-size:11px} .duo-q2 i.mehr{color:var(--up)} .duo-q2 i.weniger{color:var(--down)}
 .duo-impl{display:flex;gap:3px;height:3px;margin:-5px 0 9px}
 .duo-impl i{background:color-mix(in srgb, var(--text-3) 45%, transparent);border-radius:2px}
-/* 23.10.: Top 3 jetzt — Signal-Stapel statt Liste */
-.t3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.t3-k{position:relative;border-radius:14px;padding:12px 14px 12px;background:var(--glas-a);border:1px solid var(--rand);cursor:pointer;display:flex;flex-direction:column;gap:6px;min-width:0}
-.t3-k:first-child{border-color:color-mix(in srgb, var(--up) 45%, var(--rand))}
+/* 23.10. abends: Top 3 als Radar-Scheiben */
+.t3-panel{overflow:hidden}
+.t3{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);grid-template-rows:auto auto;gap:12px}
+.t3-k{position:relative;display:flex;gap:14px;align-items:center;padding:12px 14px;border-radius:16px;cursor:pointer;min-width:0;
+  background:radial-gradient(120% 140% at 0% 50%, color-mix(in srgb, var(--glow) 13%, transparent), transparent 55%), var(--glas-a);border:1px solid var(--rand);transition:transform .15s, border-color .15s}
+.t3-k:hover{transform:translateY(-1px);border-color:color-mix(in srgb, var(--glow) 45%, var(--rand))}
+.t3-k.eins{grid-row:span 2;flex-direction:row;align-items:center;gap:22px;padding:20px 22px;
+  background:radial-gradient(90% 120% at 12% 50%, color-mix(in srgb, var(--glow) 20%, transparent), transparent 60%), var(--glas-a);border-color:color-mix(in srgb, var(--glow) 35%, var(--rand))}
+.t3-sch{position:relative;width:var(--d);height:var(--d);flex:none}
+.t3-sch svg{display:block;width:100%;height:100%}
+.t3-mitte{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.t3-mitte b{font-size:17px;font-weight:900;font-variant-numeric:tabular-nums}
+.t3-sch.gross .t3-mitte b{font-size:40px;letter-spacing:-.02em}
+.t3-mitte small{font-size:11px;color:var(--text-3);margin-top:4px;font-weight:700}
+.t3-an{filter:drop-shadow(0 0 4px color-mix(in srgb, currentColor 0%, transparent))}
+.t3.erst .t3-an{animation:t3feld .6s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i) * 70ms)}
+@keyframes t3feld{from{stroke-opacity:0}}
+.t3-sweep{position:absolute;inset:18%;border-radius:50%;background:conic-gradient(from 0deg, transparent 0 270deg, color-mix(in srgb, var(--glow) 38%, transparent) 360deg);
+  animation:t3dreh 4s linear infinite}
+.t3-gitter{fill:none;stroke:var(--line);stroke-width:1}
+.t3-ico{font-size:12px}.t3-ico.aus{opacity:.28;filter:grayscale(1)}
+@keyframes t3dreh{to{transform:rotate(360deg)}}
+.t3-i{min-width:0;flex:1;display:flex;flex-direction:column;gap:5px}
 .t3-o{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3);min-width:0}
-.t3-o .mk-liga{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.t3-nr{font-weight:900;font-size:12px;color:var(--text-2)}
+.t3-k.eins .t3-nr{color:var(--glow)}
+.t3-liga{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .t3-o>:last-child{margin-left:auto;flex:none}
-.t3-r{font-weight:900;font-size:13px;color:var(--text);width:20px;height:20px;border-radius:6px;display:grid;place-items:center;background:var(--panel-3);flex:none}
-.t3-k:first-child .t3-r{background:var(--up);color:#06140d}
-.t3-t{font-weight:800;font-size:15.5px;line-height:1.25}
-.t3-f{font-size:13px;color:var(--text-2)} .t3-f b{color:var(--text)} .t3-f small{color:var(--text-3)}
-.t3-m{display:flex;align-items:center;gap:10px}
-.t3-b{flex:1;height:10px;border-radius:5px;background:var(--panel-3);display:flex;overflow:hidden;gap:2px}
-.t3-b i{display:block;height:100%;transform-origin:left;animation:t3wachs .7s cubic-bezier(.2,.8,.2,1) both}
-.t3-b i:nth-child(2){animation-delay:.08s}.t3-b i:nth-child(3){animation-delay:.16s}.t3-b i:nth-child(4){animation-delay:.24s}.t3-b i:nth-child(5){animation-delay:.32s}
-@keyframes t3wachs{from{transform:scaleX(0)}}
-.t3-s{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
-.t3-cs{display:flex;flex-wrap:wrap;gap:4px}
-.t3-c{font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:999px;color:var(--f);background:color-mix(in srgb, var(--f) 14%, transparent)}
-@media (max-width:860px){ .t3{grid-template-columns:1fr} }
+.t3-live{display:inline-flex;align-items:center;gap:5px;color:var(--down);font-weight:800}
+.t3-live i{width:7px;height:7px;border-radius:50%;background:var(--down);animation:puls 2s infinite}
+.t3-zeit{font-weight:700;color:var(--text-2)}
+.t3-t{font-weight:800;font-size:14.5px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t3-t span{color:var(--text-3);font-weight:600}
+.t3-k.eins .t3-t{font-size:20px;white-space:normal}
+.t3-tipp{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.t3-auf{font-weight:800;font-size:14px}
+.t3-q{font-weight:900;font-size:14px;font-variant-numeric:tabular-nums;color:var(--glow)}
+.t3-q s{color:var(--text-3);font-weight:600;margin-right:6px;text-decoration-thickness:1.5px}
+.t3-tipp small{color:var(--text-3);font-size:12px}
+.t3-k.eins .t3-auf{font-size:24px;letter-spacing:-.01em}
+.t3-k.eins .t3-q{font-size:24px}
+.t3-sl{display:flex;align-items:flex-end;gap:3px;height:34px;margin:4px 0 2px;max-width:320px}
+.t3-sl i{flex:1;border-radius:3px 3px 1px 1px;background:color-mix(in srgb, var(--up) 35%, transparent);min-height:3px}
+.t3-sl i.jetzt{background:var(--up);box-shadow:0 0 10px color-mix(in srgb, var(--up) 60%, transparent)}
+.t3-gs{display:flex;flex-wrap:wrap;gap:4px 12px}
+.t3-g{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--text-2)}
+.t3-g i{width:8px;height:8px;border-radius:2px;background:var(--f)}
+.t3-g.aus{color:var(--text-3);text-decoration:line-through}
+.t3-k:not(.eins) .t3-gs{gap:3px 9px} .t3-k:not(.eins) .t3-g{font-size:11.5px}
+.t3-fuss{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:10px;font-size:11.5px;color:var(--text-3)}
+.t3-fuss span{display:inline-flex;align-items:center;gap:5px}.t3-fuss span i{width:7px;height:7px;border-radius:2px;background:var(--f)}
+.t3-fuss em{font-style:normal;margin-left:auto}
+.t3-leer{display:flex;align-items:center;gap:14px;color:var(--text-2);font-size:13.5px}
+.t3-leer small{color:var(--text-3)}
+@media (max-width:860px){
+  .t3{grid-template-columns:1fr}
+  .t3-k.eins{grid-row:auto;flex-direction:column;align-items:stretch;gap:14px;padding:16px}
+  .t3-k.eins .t3-sch{align-self:center}
+  .t3-k.eins .t3-t{font-size:18px} .t3-k.eins .t3-auf,.t3-k.eins .t3-q{font-size:21px}
+  .t3-sl{max-width:none}
+  .t3-fuss em{margin-left:0;width:100%}
+}
+@media (prefers-reduced-motion:reduce){ .t3-sweep,.t3.erst .t3-an,.t3-live i{animation:none} .t3-sweep{display:none} }
 /* Auswertung: zugeklappter Block je Seite */
 .ausw{border:1px dashed var(--rand);border-radius:var(--r);padding:12px 16px}
 .ausw>summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
@@ -2504,26 +2547,57 @@ function topDreiDaten(D){
     return {s, p, summe, n: Object.keys(p).length, fA, fM, neu, se, lb};
   }).filter(x=>x.n>=2 && x.summe>=3 && x.fA).sort((a,b)=>b.summe-a.summe).slice(0,3);
 }
+// 23.10. abends (Lucas: „inhaltlich top, optisch muss das richtig geil werden"): jedes Spiel als Radar-Scheibe —
+// sieben Felder rundherum, je Signal eins; leuchtet ein Feld, zieht dieses Signal. Mitte = Punkte. Die Nr. 1 groß
+// mit Radar-Sweep und Geld-Säulen der letzten 2 h, Nr. 2 und 3 kompakt daneben.
+const T3_ICO = ["🔁","📣","💶","📏","🔻","➕","🏆"];
+const T3_MAX = {serie:4, push:2, neu:3, norm:2, quote:2, auch:2, liga:1};
+let T3_ERST = true;
+function t3Scheibe(p, summe, gross){
+  const R = gross ? 62 : 30, sw = gross ? 13 : 7, M = R + sw, u = 2*Math.PI*R, n = T3_SIG.length, spalt = gross ? 7 : 5, len = u/n - spalt;
+  const felder = T3_SIG.map(([k,name,f],i)=>{ const an = p[k] ? 0.45 + 0.55*Math.min(1, p[k]/T3_MAX[k]) : 0;
+    const rot = -90 + i*360/n + (spalt/2)/u*360;
+    return `<circle cx="${M}" cy="${M}" r="${R}" fill="none" stroke="${an?f:"var(--panel-3)"}" stroke-width="${sw}" stroke-opacity="${an?an.toFixed(2):1}"
+      stroke-dasharray="${len.toFixed(2)} ${u.toFixed(2)}" transform="rotate(${rot.toFixed(2)} ${M} ${M})" class="${an?"t3-an":""}" style="--i:${i}"><title>${name}${p[k]?`: ${dez(p[k])} Punkte`:" — zieht gerade nicht"}</title></circle>`; }).join("");
+  // groß: je Feld sein Zeichen auf dem Ring, damit man ohne Legende sieht, welches Signal leuchtet
+  const zeichen = gross ? T3_SIG.map(([k],i)=>{ const w = (-90 + (i+0.5)*360/n) * Math.PI/180;
+    return `<text x="${(M+R*Math.cos(w)).toFixed(1)}" y="${(M+R*Math.sin(w)).toFixed(1)}" class="t3-ico${p[k]?"":" aus"}" text-anchor="middle" dominant-baseline="central">${T3_ICO[i]}</text>`; }).join("") : "";
+  const kreise = gross ? `<circle cx="${M}" cy="${M}" r="${R*0.72}" class="t3-gitter"/><circle cx="${M}" cy="${M}" r="${R*0.42}" class="t3-gitter"/>` : "";
+  return `<div class="t3-sch${gross?" gross":""}" style="--d:${2*M}px">
+    ${gross?`<div class="t3-sweep"></div>`:""}
+    <svg viewBox="0 0 ${2*M} ${2*M}" width="${2*M}" height="${2*M}" aria-hidden="true">${kreise}${felder}${zeichen}</svg>
+    <div class="t3-mitte"><b>${dez(summe)}</b>${gross?`<small>Punkte</small>`:""}</div></div>`;
+}
+function t3Saeulen(s){
+  const w = (s.saeulen?.w||[]).slice(-12); if(w.filter(x=>x>0).length < 2) return "";
+  const mx = Math.max(1, ...w);
+  return `<div class="t3-sl" title="neues Geld je 10 Min, letzte 2 Stunden">${w.map((x,i)=>`<i style="height:${Math.max(4, x/mx*100).toFixed(0)}%"${i===w.length-1?' class="jetzt"':""}></i>`).join("")}</div>`;
+}
 function topDrei(D){
   const T = topDreiDaten(D);
   const modus = ligaModus==="ohne" ? "ohne Top-5" : ligaModus==="nur" ? "nur Top-5" : "alle Ligen";
-  if(!T.length) return `<div class="leer">Gerade kommen nirgends zwei Signale zusammen (${modus}). Sobald etwa Dauerzufluss und neues Geld auf dasselbe Spiel treffen, steht es hier.</div>`;
-  const MAX = 12;
-  return `<div class="t3">${T.map(({s,p,summe,fA,fM,neu,se,lb},i)=>{
-    const zeit = s.live ? `<span class="mk-live">● ${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?" · "+s.live.stand.join(":"):""}</span>` : `<span class="mk-zeit">${wann(s.anpfiff)}</span>`;
-    const stuecke = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>`<i style="width:${(p[k]/MAX*100).toFixed(1)}%;background:${f}" title="${n}: ${dez(p[k])} Punkte"></i>`).join("");
-    const chips = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>{ const t =
-      k==="serie" ? `🔁 ${se.n}× in Folge` : k==="neu" ? `💶 +${eur(neu)} in ${s.fensterMin||30} Min` : k==="norm" ? `×${dez(s.xnorm)} der Liga` :
-      k==="quote" ? `🔻 ${q2(fA.q60)} → ${q2(fA.quote)}` : k==="push" ? `📣 Push ${uhr(pushesZu(s)[0].zeit)}` : k==="liga" ? `Liga trägt` : n;
-      return `<span class="t3-c" style="--f:${f}">${t}</span>`; }).join("");
-    return `<div class="t3-k"${bk("t3|"+s.id, s.eur, "€")} ${klickSpiel({id:s.id, heim:s.heim, gast:s.gast})}>
-      <div class="t3-o"><span class="t3-r">${i+1}</span><span class="mk-liga">${flagge(s.land)} ${esc(ligaName(s.liga)||"")}</span>${zeit}</div>
-      <div class="t3-t">${esc(s.heim)} – ${esc(s.gast)}</div>
-      <div class="t3-f">auf <b>${esc(auswahlDe(fA.name))}</b>${fA.quote?` @ <b>${q2(fA.quote)}</b>`:""} <small>${esc(marktDe(fM?.name||""))}</small></div>
-      <div class="t3-m"><div class="t3-b">${stuecke}</div><b class="t3-s">${dez(summe)}</b></div>
-      <div class="t3-cs">${chips}${lb?.urteil==="trägt nicht"?`<span class="t3-c" style="--f:var(--text-3)">Liga trägt nicht −1</span>`:""}</div>
-    </div>`; }).join("")}</div>
-    <div class="kk-klein" style="margin-top:8px">Balken = Punkte je Signal, jedes Stück eine Quelle · gezählt ab zwei Signalen gleichzeitig · ${modus}</div>`;
+  if(!T.length) return `<div class="t3-leer">${t3Scheibe({}, 0, false)}<div>Gerade kommen nirgends zwei Signale zusammen <small>(${modus})</small>. Sobald etwa Dauerzufluss und neues Geld auf dasselbe Spiel treffen, leuchtet es hier auf.</div></div>`;
+  const erst = T3_ERST; T3_ERST = false;
+  const karte = ({s,p,summe,fA,fM,neu,se,lb}, i) => {
+    const gross = i===0;
+    const zeit = s.live ? `<span class="t3-live"><i></i>${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}</span>` : `<span class="t3-zeit">${wann(s.anpfiff)}</span>`;
+    const alt = p.quote && fA.q60 ? `<s>${q2(fA.q60)}</s>` : "";
+    const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>{ const t =
+      k==="serie" ? `${se.n}× in Folge` : k==="neu" ? `+${eur(neu)} in ${s.fensterMin||30} Min` : k==="norm" ? `×${dez(s.xnorm)} der Liga` :
+      k==="quote" ? `Quote ${q2(fA.q60)} → ${q2(fA.quote)}` : k==="push" ? `Push ${uhr(pushesZu(s)[0].zeit)}` : k==="liga" ? `Liga trägt` :
+      [ (D.auchWoanders||{})[s.id]?.poly?.usd>=1000 ? "Polymarket" : "", (D.auchWoanders||{})[s.id]?.stake?.usd>=1000 ? "Stake" : "" ].filter(Boolean).join(" + ")+" auch";
+      return `<span class="t3-g" style="--f:${f}"><i></i>${t}</span>`; }).join("") + (lb?.urteil==="trägt nicht" ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>Liga trägt nicht</span>` : "");
+    return `<div class="t3-k${gross?" eins":""}"${bk("t3|"+s.id, s.eur, "€")} ${klickSpiel({id:s.id, heim:s.heim, gast:s.gast})} style="--glow:${T3_SIG.find(([k])=>p[k])[2]}">
+      ${t3Scheibe(p, summe, gross)}
+      <div class="t3-i">
+        <div class="t3-o"><span class="t3-nr">${i+1}</span><span class="t3-liga">${flagge(s.land)} ${esc(ligaName(s.liga)||"")}</span>${zeit}</div>
+        <div class="t3-t">${esc(s.heim)} <span>–</span> ${esc(s.gast)}</div>
+        <div class="t3-tipp"><span class="t3-auf">${esc(auswahlDe(fA.name))}</span>${fA.quote?`<span class="t3-q">${alt}${q2(fA.quote)}</span>`:""}<small>${esc(marktDe(fM?.name||""))}</small></div>
+        ${gross ? t3Saeulen(s) : ""}
+        <div class="t3-gs">${gruende}</div>
+      </div></div>`; };
+  return `<div class="t3${erst?" erst":""}">${T.map(karte).join("")}</div>
+    <div class="t3-fuss">${T3_SIG.map(([k,n,f])=>`<span style="--f:${f}"><i></i>${n.replace(/^\S+ /,"")}</span>`).join("")}<em>leuchtendes Feld = Signal zieht · ${modus}</em></div>`;
 }
 function seiteStart(D){
   // Lucas 18.10.: Dauerzufluss ist sein wichtigster KPI → läuft eine Serie, steht sie direkt unter „Gerade passiert"
@@ -2531,7 +2605,7 @@ function seiteStart(D){
   const serienPanel = `<div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">immer wieder Geld auf dieselbe Auswahl</span></div>${serienKarten(D,4)}</div>`;
   const mobil = window.innerWidth < 860;
   return `<div class="grid">
-    <div class="panel c12 t3-panel"><div class="ph"><h3>Top 3 jetzt</h3><span class="hint">wo gerade mehrere Signale zusammenkommen</span></div>${topDrei(D)}</div>
+    <div class="panel c12 t3-panel"><div class="ph"><h3>Top 3 jetzt</h3><span class="hint">wo gerade die meisten Signale gleichzeitig ziehen</span></div>${topDrei(D)}</div>
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div>${feedListe(D,4)}</div>
     ${serienDa?serienPanel:""}
     <div class="panel c12"><div class="ph"><h3>Geld-Wand</h3><span class="hint">Fläche = Geld im Markt · kräftig = gerade neues Geld</span><button class="chip rechts" data-geh="betfair">Betfair</button></div>${geldWand(D)}</div>
