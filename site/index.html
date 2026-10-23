@@ -2523,7 +2523,7 @@ function jetztFliesst(D, n=8){
 // auch auf Polymarket/Stake, Liga-Bilanz. Raus: entschieden, klar vorn, Geld unter Quote 1,20 (Absicherung).
 const t3Pushes = s => pushesZu(s).filter(x=>/Halbzeit|Fix/i.test(x.art||""));
 const T3_SIG = [["serie","🔁 Dauerzufluss","var(--bf)"],["push","📣 HZ-Push","var(--down)"],["neu","💶 neues Geld","var(--up)"],
-  ["norm","× Liga-Norm","var(--pin)"],["quote","🔻 Quote gedrückt","var(--hz)"],["auch","+ Poly/Stake","var(--poly)"],["liga","Liga trägt","var(--stake)"]];
+  ["norm","× Liga-Norm","var(--pin)"],["quote","🔻 Quote gedrückt","var(--hz)"],["poly","🧠 Polymarket","var(--poly)"],["stake","🎰 Stake","var(--stake)"],["liga","Liga trägt","var(--text-2)"]];
 function topDreiDaten(D){
   const LB = (D.ligaBilanz||{}).ligen||{};
   return lf(D.radar.spiele||[]).filter(s=>!s.entschieden && !s.klarVorn && !(s.live && s.live.min!=null && s.live.min>=85)).map(s=>{
@@ -2544,17 +2544,25 @@ function topDreiDaten(D){
     const tore = s.live && s.live.stand ? (s.live.stand[0]||0)+(s.live.stand[1]||0) : 0;
     const zeitDrop = fA && (seiteVon(s, fA.name)==="x" || /^under/i.test(fA.name));
     if(fA && fA.q60 && fA.quote && fA.quote < fA.q60*0.97 && !(s.live && (tore>0 || zeitDrop))) p.quote = Math.min(2, (fA.q60/fA.quote-1)*100/5);
-    const aw = (D.auchWoanders||{})[s.id]; if(aw){ const a = (aw.poly?.usd>=1000?1:0) + (aw.stake?.usd>=1000?1:0); if(a) p.auch = a; }
+    // Lucas 23.10.: „auch wenn bei Stake ein Burst war? bei Poly ein gutes Wallet?" — je Quelle ein Feld:
+    // belegter Wal bzw. Stake-Burst auf DIESELBE Seite = 2 Punkte, nur Geld dort in den letzten 30 Min = 1 Punkt
+    const aw = (D.auchWoanders||{})[s.id] || {}, fk = fA ? {h:"heim", g:"gast", x:"remis"}[seiteVon(s, fA.name)] : null;
+    const wale = fk ? ((D.toepfe||[]).find(x=>x.id===s.id)?.wale||[]).filter(w=>w.bewiesen && w.k===fk) : [];
+    if(wale.length) p.poly = 2; else if(aw.poly?.usd>=1000) p.poly = 1;
+    const fkey = feedKey(s.heim, s.gast);
+    const burst = fk ? (D.stake?.gruppen||[]).find(g=>/burst/i.test((g.arten||[g.art]).join(" ")) && g.zeit && Date.now()-new Date(g.zeit) < 3*36e5
+      && feedKey(...String(g.spiel||"").split(/\s+-\s+/)) === fkey && {h:"heim", g:"gast", x:"remis"}[seiteVon(s, g.auswahl)] === fk) : null;
+    if(burst) p.stake = 2; else if(aw.stake?.usd>=1000) p.stake = 1;
     const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
     const summe = Object.values(p).reduce((a,b)=>a+b,0) - (lb?.urteil==="trägt nicht" ? 1 : 0);
-    return {s, p, summe, n: Object.keys(p).length, fA, fM, neu, se, lb};
+    return {s, p, summe, n: Object.keys(p).length, fA, fM, neu, se, lb, wale, burst, aw};
   }).filter(x=>x.n>=2 && x.summe>=3 && x.fA).sort((a,b)=>b.summe-a.summe).slice(0,3);
 }
 // 23.10. abends (Lucas: „inhaltlich top, optisch muss das richtig geil werden"): jedes Spiel als Radar-Scheibe —
 // sieben Felder rundherum, je Signal eins; leuchtet ein Feld, zieht dieses Signal. Mitte = Punkte. Die Nr. 1 groß
 // mit Radar-Sweep und Geld-Säulen der letzten 2 h, Nr. 2 und 3 kompakt daneben.
-const T3_ICO = ["🔁","📣","💶","📏","🔻","➕","🏆"];
-const T3_MAX = {serie:4, push:2, neu:3, norm:2, quote:2, auch:2, liga:1};
+const T3_ICO = ["🔁","📣","💶","📏","🔻","🧠","🎰","🏆"];
+const T3_MAX = {serie:4, push:2, neu:3, norm:2, quote:2, poly:2, stake:2, liga:1};
 let T3_ERST = true;
 function t3Scheibe(p, summe, gross){
   const R = gross ? 62 : 30, sw = gross ? 13 : 7, M = R + sw, u = 2*Math.PI*R, n = T3_SIG.length, spalt = gross ? 7 : 5, len = u/n - spalt;
@@ -2581,14 +2589,15 @@ function topDrei(D){
   const modus = ligaModus==="ohne" ? "ohne Top-5" : ligaModus==="nur" ? "nur Top-5" : "alle Ligen";
   if(!T.length) return `<div class="t3-leer">${t3Scheibe({}, 0, false)}<div>Gerade kommen nirgends zwei Signale zusammen <small>(${modus})</small>. Sobald etwa Dauerzufluss und neues Geld auf dasselbe Spiel treffen, leuchtet es hier auf.</div></div>`;
   const erst = T3_ERST; T3_ERST = false;
-  const karte = ({s,p,summe,fA,fM,neu,se,lb}, i) => {
+  const karte = ({s,p,summe,fA,fM,neu,se,lb,wale,burst,aw}, i) => {
     const gross = i===0;
     const zeit = s.live ? `<span class="t3-live"><i></i>${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}</span>` : `<span class="t3-zeit">${wann(s.anpfiff)}</span>`;
     const alt = p.quote && fA.q60 ? `<s>${q2(fA.q60)}</s>` : "";
     const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>{ const t =
       k==="serie" ? `${se.n}× in Folge` : k==="neu" ? `+${eur(neu)} in ${s.fensterMin||30} Min` : k==="norm" ? `×${dez(s.xnorm)} der Liga` :
       k==="quote" ? `Quote ${q2(fA.q60)} → ${q2(fA.quote)}` : k==="push" ? `${/Fix/i.test(t3Pushes(s)[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(t3Pushes(s)[0].zeit)}` : k==="liga" ? `Liga trägt` :
-      [ (D.auchWoanders||{})[s.id]?.poly?.usd>=1000 ? "Polymarket" : "", (D.auchWoanders||{})[s.id]?.stake?.usd>=1000 ? "Stake" : "" ].filter(Boolean).join(" + ")+" auch";
+      k==="poly" ? (wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : `Polymarket +${usd(aw.poly.usd)}`) :
+      k==="stake" ? (burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : `Stake +${usd(aw.stake.usd)}`) : n;
       return `<span class="t3-g" style="--f:${f}"><i></i>${t}</span>`; }).join("") + (lb?.urteil==="trägt nicht" ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>Liga trägt nicht</span>` : "");
     return `<div class="t3-k${gross?" eins":""}"${bk("t3|"+s.id, s.eur, "€")} ${klickSpiel({id:s.id, heim:s.heim, gast:s.gast})} style="--glow:${T3_SIG.find(([k])=>p[k])[2]}">
       ${t3Scheibe(p, summe, gross)}
