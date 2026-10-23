@@ -150,7 +150,7 @@ jobs:
           key: radar-${{ github.run_id }}-${{ github.run_attempt }}
       # 23.10.: Jeder Lauf (und jeder Mac-Lauf) legt einen neuen Cache an — 3.560 Stück, 10,7 GB, über der Grenze von
       # 10 GB. Dann räumt GitHub selbst ab und erwischte zeitweise den frischen Polymarket-Stand (Seite ohne Polymarket).
-      # Je Präfix bleiben die neuesten 8, der Rest geht weg (höchstens 400 je Lauf).
+      # Je Präfix bleiben die neuesten 8, der Rest geht weg (höchstens 150 je Lauf, sonst bremst es die Kette).
       - name: Alte Caches aufräumen
         continue-on-error: true
         env:
@@ -177,7 +177,7 @@ jobs:
               je[pre] = je.get(pre, 0) + 1
               if je[pre] > 8: weg.append(c)
           n = 0
-          for c in weg[-400:]:                            # die ältesten zuerst
+          for c in weg[-150:]:                            # die ältesten zuerst
               try: api(f"caches/{c['id']}", "DELETE"); n += 1
               except Exception: pass
           print(f"Caches: {len(alle)} gesamt, {n} alte gelöscht, {len(weg) - n} bleiben für später")
