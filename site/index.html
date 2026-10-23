@@ -1050,6 +1050,8 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .dw-k.xs .dw-i{padding:0} .dw-k.xs .dw-i>*{display:none}
 .dw-k.k .dw-m{display:none} .dw-k.k .dw-i{padding:5px 6px} .dw-k.k .dw-f{font-size:11.5px} .dw-k.k .dw-f em{display:none}
 .dk-teilen{margin-left:auto;font:inherit;font-size:12.5px;font-weight:700;color:var(--text);background:var(--flaeche-2);border:1px solid var(--rand);border-radius:999px;padding:4px 12px;cursor:pointer}
+.dc.stand{--f:var(--text);font-weight:600}
+.dc.leise{color:var(--text-3);background:transparent;border-style:dashed}
 </style>
 </head>
 <body>
@@ -1329,8 +1331,13 @@ function teilenText(s){
   fl.sort((x,y)=>y.a.neu-x.a.neu);
   const se = serieVon(D, s.id);
   if(se) z.push(`🔁 ${se.n}× in Folge: ${eur(se.eur)} auf ${auswahlDe(se.auswahl)} @ ${q2(se.quote)} (${marktDe(se.markt)})`);
-  const t = fl[0], m = se ? md.find(x=>x.name===se.markt) || t?.m : t?.m;
-  if(t) z.push(`💶 +${eur(t.a.neu)} in ${fm} Min auf ${auswahlDe(t.a.name)} @ ${q2(t.a.quote)}${t.m.neu?` (${Math.round(t.a.neu/t.m.neu*100)} % des neuen Geldes im Markt)`:""}`);
+  const t = fl[0];
+  // der Markt im Bild: Serie, sonst der mit dem meisten Geld auf einer Auswahl (Stand, ohne Absicherung)
+  let mBest = null, aBest = null; for(const mm of md) for(const aa of mm.auswahl) if(aa.name!=="Rest" && !(aa.quote && aa.quote<1.15) && (!aBest || aa.eur>aBest.eur)){ aBest = aa; mBest = mm; }
+  const m = se ? md.find(x=>x.name===se.markt) || mBest : mBest || t?.m;
+  const neuSum = fl.reduce((x,f)=>x+f.a.neu,0);
+  if(t && !neuNennenswert(s, neuSum)) z.push(`😴 ruhig: nur +${eur(neuSum)} in ${fm} Min`);
+  if(t && neuNennenswert(s, neuSum)) z.push(`💶 +${eur(t.a.neu)} in ${fm} Min auf ${auswahlDe(t.a.name)} @ ${q2(t.a.quote)}${t.m.neu?` (${Math.round(t.a.neu/t.m.neu*100)} % des neuen Geldes im Markt)`:""}`);
   const ta = t?.a; if(ta && ta.q60 && ta.quote && ta.quote < ta.q60*0.97) z.push(`🔻 Quote gedrückt: ${q2(ta.q60)} → ${q2(ta.quote)}`);
   if(m){ const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1, br = Math.max(...m.auswahl.map(a=>auswahlDe(a.name).length));
     z.push("", `🏦 ${marktDe(m.name)} (${eur(m.eur)} im Markt):`);
@@ -1357,9 +1364,18 @@ function dKopf(s){
   return `<div class="dk"><div class="dk-1">${flagge(s.land)}<span>${esc(ligaName(s.liga)||s.liga||"")}</span>${zeit}<button class="dk-teilen" data-teilen="${esc(String(s.id))}" aria-label="Teilen">↗ Teilen</button></div>
     <div class="dk-2"><b>${eur(s.eur)}</b> gematcht über alle Märkte ${norm}</div></div>`;
 }
+// Lucas 23.10. (Beitar Nahariya: „ich seh nicht, dass auf Über 2,5 alles liegt — und +€447 sieht im Flussdiagramm
+// dramatisch aus"): neues Geld zählt erst als Schub, wenn es nennenswert ist; sonst führt der STAND (wo das Geld liegt).
+const neuNennenswert = (s, neu) => neu >= Math.max(1000, 0.03*(s.eur||0));
 function dChips(s, fl, fm){
   const c = [], neu = fl.reduce((a,x)=>a+x.neu,0);
-  if(neu>0) c.push(`<span class="dc stark">⚡ +${eur(neu)} <small>in ${fm} Min</small></span>`);
+  // wo das meiste Geld liegt (Stand, ohne Absicherungsgeld)
+  let best = null;
+  for(const m of s.maerkteDetail||[]){ const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1;
+    for(const a of m.auswahl) if(a.name!=="Rest" && !(a.quote && a.quote<1.15) && (!best || a.eur>best.a.eur)) best = {m, a, ant: Math.round(a.eur/ges*100)}; }
+  if(best) c.push(`<span class="dc stand">🏦 meistes Geld: <b>${esc(auswahlDe(best.a.name))}</b> ${best.ant} % · ${eur(best.a.eur)}${best.a.quote?` <small>@ ${q2(best.a.quote)}</small>`:""}</span>`);
+  if(neu>0) c.push(neuNennenswert(s, neu) ? `<span class="dc stark">⚡ +${eur(neu)} <small>in ${fm} Min</small></span>` : `<span class="dc leise">ruhig: +${eur(neu)} in ${fm} Min</span>`);
+  if(!neuNennenswert(s, neu)) fl = [];   // bei Kleckerbeträgen keinen „→ wohin"-Chip
   const t = fl.find(x=>!(x.quote && x.quote<1.15));
   if(t) c.push(`<span class="dc">→ <b>${esc(auswahlDe(t.name))}</b>${t.quote?` @ ${q2(t.quote)}`:""} <small>${esc(marktDe(t.markt))}</small></span>`);
   const se = serieVon(D, s.id);
@@ -1411,7 +1427,10 @@ function spielDetail(s, ohneVerlauf){
   for(const m of md) for(const a of m.auswahl) if(a.neu>0) fl.push({markt:m.name, name:a.name, neu:a.neu, quote:a.quote, anteil: m.neu? Math.round(a.neu/m.neu*100):null});
   // Absicherungsgeld (Quote unter 1,15) ans Ende, sonst nach Betrag
   fl.sort((x,y)=>((x.quote&&x.quote<1.15)-(y.quote&&y.quote<1.15)) || (y.neu-x.neu));
-  const flussBlock = fl.length ? flussSankey(fl, PAL) : `<div class="kk-klein">In den letzten ${fm} Minuten kam kein neues Geld dazu.</div>`;
+  const neu = fl.reduce((a,x)=>a+x.neu,0);
+  const flussBlock = !fl.length ? `<div class="kk-klein">In den letzten ${fm} Minuten kam kein neues Geld dazu.</div>`
+    : neuNennenswert(s, neu) ? flussSankey(fl, PAL)
+    : `<details class="dq"><summary>Kaum neues Geld: nur +${eur(neu)} in ${fm} Min (${dez(100*neu/Math.max(1,s.eur))} % des Spiels) · trotzdem zeigen</summary>${flussSankey(fl, PAL)}</details>`;
   const saeulen = ohneVerlauf ? "" : (geldSaeulen(s) || "");
   return `<tr class="detail"><td colspan="6"><div class="det">
     ${dKopf(s)}${s.live?liveStat(s.id,true):""}${dChips(s, fl, fm)}
