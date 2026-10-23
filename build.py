@@ -1013,10 +1013,39 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                         tore.append({"i": min(35, int((t - start).total_seconds() // 600)), "stand": sc})
                     alt = sc
             ko_t = ts(m.get("kickoff"))
+            # Lucas 23.10.: je Säule auch, wie viel davon auf die einzelnen Auswahlen ging (die 5 mit dem meisten neuen
+            # Geld in 6 h) — die Seite färbt die Auswahl der Meldung kräftig ein, der Rest des Spiels bleibt grau
+            sp_sel = [(ts(s_.get("ts")), s_.get("sel")) for s_ in snaps]
+            sp_sel = [(t, sl) for t, sl in sp_sel if t and isinstance(sl, dict)]
+            teile = []
+            if len(sp_sel) >= 3:
+                def sel_bis(g):
+                    letzt = None
+                    for t, sl in sp_sel:
+                        if t <= g:
+                            letzt = sl
+                        else:
+                            break
+                    return letzt
+                stände = [sel_bis(g) for g in grenzen]
+
+                def vol(sl, mk, nm):
+                    v = ((sl or {}).get(mk) or {}).get(nm)
+                    return float(v[0]) if isinstance(v, list) and v else 0.0
+                letzt = next((x for x in reversed(stände) if x), None) or {}
+                erst_ = next((x for x in stände if x), None) or {}
+                kand = sorted(((vol(letzt, mk, nm) - vol(erst_, mk, nm), mk, nm) for mk, d in letzt.items() if isinstance(d, dict) for nm in d),
+                              reverse=True)[:5]
+                for gesamt, mk, nm in kand:
+                    if gesamt < 300:
+                        continue
+                    w = [round(max(0, vol(stände[k + 1], mk, nm) - vol(stände[k], mk, nm))) if stände[k] and stände[k + 1] else None
+                         for k in range(36)]
+                    teile.append({"markt": mk, "auswahl": nm, "w": w})
             if erster is not None:
                 saeulen = {"w": werte, "start": int(start.timestamp() // 60), "schritt": 10,
                            "ko": (int((ko_t - start).total_seconds() // 600) if ko_t and start <= ko_t <= JETZT else None),
-                           "tore": tore[-6:]}
+                           "tore": tore[-6:], "teile": teile}
         if len(reihe) > 30:
             schritt = len(reihe) / 30
             reihe = [reihe[int(i * schritt)] for i in range(30)] + [reihe[-1]]
