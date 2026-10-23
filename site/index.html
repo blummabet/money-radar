@@ -1945,6 +1945,9 @@ function polyFenster(key){
   if(lead) c.push(`<span class="dc stand">🏷 Favorit: <b>${esc(seiteName(lead))}</b> ${Math.round((mk?.preise||f?.preise||{})[lead]*100)} ¢</span>`);
   if(f && neu>0) c.push(nenn ? `<span class="dc stark">⚡ +${usd(neu)} <small>gekauft in 30 Min</small></span>` : `<span class="dc leise">ruhig: +${usd(neu)} in 30 Min</span>`);
   if(f && nenn && w30.auf) c.push(`<span class="dc">→ <b>${esc(lab(w30.auf))}</b> ${w30.anteil} % der Käufe</span>`);
+  // ein einzelner Käufer macht den ganzen Schub aus → wichtig zu wissen (ein Wal ist kein Markt)
+  const g0 = (f?.gross||[])[0];
+  if(f && nenn && g0 && g0.usd >= 0.6*neu) c.push(`<span class="dc" style="--f:var(--bf)">👤 ${Math.round(100*g0.usd/neu)} % von einem Kauf (${usd(g0.usd)})</span>`);
   const bel = (mk?.wale||[]).filter(w=>w.bewiesen);
   if(bel.length){ const je = {}; for(const w of bel) je[w.seite] = (je[w.seite]||0) + w.usd; const top = Object.entries(je).sort((a,b)=>b[1]-a[1])[0];
     c.push(`<span class="dc" style="--f:var(--poly)">🧠 ${bel.length} belegte Wale · ${esc(seiteName(top[0]))} ${usd(top[1])}</span>`); }
