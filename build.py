@@ -1034,8 +1034,11 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                     return float(v[0]) if isinstance(v, list) and v else 0.0
                 letzt = next((x for x in reversed(stände) if x), None) or {}
                 erst_ = next((x for x in stände if x), None) or {}
-                kand = sorted(((sel_vol(letzt, mk, nm) - sel_vol(erst_, mk, nm), mk, nm) for mk, d in letzt.items() if isinstance(d, dict) for nm in d),
-                              reverse=True)[:5]
+                def quote_ok(d, nm):         # Geld zu Quoten unter 1,15 ist Absicherung (wie bei der Liga-Norm)
+                    v = d.get(nm)
+                    return not (isinstance(v, list) and len(v) > 1 and isinstance(v[1], (int, float)) and v[1] < 1.15)
+                kand = sorted(((sel_vol(letzt, mk, nm) - sel_vol(erst_, mk, nm), mk, nm) for mk, d in letzt.items() if isinstance(d, dict)
+                               for nm in d if quote_ok(d, nm)), reverse=True)[:5]
                 for gesamt, mk, nm in kand:
                     if gesamt < 300:
                         continue
