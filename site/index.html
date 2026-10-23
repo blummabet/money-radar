@@ -2494,7 +2494,10 @@ function topDreiDaten(D){
     // Fokus: die Serie, sonst die Auswahl mit dem meisten neuen Geld
     let fA = top, fM = mk;
     if(se){ const m = md.find(x=>x.name===se.markt), a = m && (m.auswahl||[]).find(x=>x.name===se.auswahl); if(a){ fA = a; fM = m; } }
-    if(fA && fA.q60 && fA.quote && fA.quote < fA.q60*0.97) p.quote = Math.min(2, (fA.q60/fA.quote-1)*100/5);
+    // live drückt jedes Tor und die ablaufende Zeit die Quote (Remis, Unter) — dort zählt der Drop nur bei 0:0 und nicht auf Remis/Unter
+    const tore = s.live && s.live.stand ? (s.live.stand[0]||0)+(s.live.stand[1]||0) : 0;
+    const zeitDrop = fA && (seiteVon(s, fA.name)==="x" || /^under/i.test(fA.name));
+    if(fA && fA.q60 && fA.quote && fA.quote < fA.q60*0.97 && !(s.live && (tore>0 || zeitDrop))) p.quote = Math.min(2, (fA.q60/fA.quote-1)*100/5);
     const aw = (D.auchWoanders||{})[s.id]; if(aw){ const a = (aw.poly?.usd>=1000?1:0) + (aw.stake?.usd>=1000?1:0); if(a) p.auch = a; }
     const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
     const summe = Object.values(p).reduce((a,b)=>a+b,0) - (lb?.urteil==="trägt nicht" ? 1 : 0);
