@@ -1052,6 +1052,22 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .dk-teilen{margin-left:auto;font:inherit;font-size:12.5px;font-weight:700;color:var(--text);background:var(--flaeche-2);border:1px solid var(--rand);border-radius:999px;padding:4px 12px;cursor:pointer}
 .dc.stand{--f:var(--text);font-weight:600}
 .dc.leise{color:var(--text-3);background:transparent;border-style:dashed}
+.pf-gross .pk-s{padding:9px 10px 8px;border-radius:12px}
+.pf-gross .pk-s b{font-size:24px}
+.pf-gross .pk-n{font-size:12.5px}
+.pf-q{font-size:11px;color:var(--text-3)}
+.pf-gross .pk-f{font-size:12px;margin-top:4px}
+.pf-gross .pk-f small{font-weight:600;color:var(--text-3);font-size:10px}
+.gs-b.pf-b i.mitfokus b{background:var(--poly)}
+.gs-leg i.pfl{background:var(--poly)}
+.gs-b.pf-b{height:90px}
+.pfk{display:flex;flex-direction:column}
+.pfk-z{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center;padding:7px 0;border-top:1px dashed var(--line)}
+.pfk-z:first-child{border-top:0}
+.pfk-b{font-size:15px;color:var(--poly);font-weight:800}
+.pfk-m{display:flex;flex-direction:column;min-width:0}
+.pfk-m span{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .pfk-m span small{color:var(--text-3)}
+.pfk-m>small{font-size:11.5px;color:var(--text-3)}
 </style>
 </head>
 <body>
@@ -1727,32 +1743,6 @@ const TL = {};
 const seiteName = n => /^draw/i.test(n) ? "Remis" : n;
 // Lucas 19.10. („das Overlay sieht langweilig aus"): oben die Seiten als große Kacheln (Preis = Wahrscheinlichkeit),
 // dann wo die großen Halter stehen (ein Balken je Seite, ein Stück je Wallet), dann Betfair zum selben Spiel.
-function polyDetail(m){
-  const ws = {}; for(const w of D.poly.wallets) ws[w.wallet] = w;
-  const pr = Object.entries(m.preise||{}), lead = pr.reduce((a,x)=>x[1]>(a?.[1]??-1)?x:a, null)?.[0];
-  const istRemis = k => /^(draw|remis)\b/i.test(k);
-  const ord = [...pr.filter(([k])=>!istRemis(k)).slice(0,1), ...pr.filter(([k])=>istRemis(k)), ...pr.filter(([k])=>!istRemis(k)).slice(1)];
-  const kacheln = `<div class="pd-k">${ord.map(([k,v])=>`<div class="pd-kk${k===lead?" lead":""}"><span class="n">${esc(seiteName(k))}</span><b>${Math.round(v*100)}<small>¢</small></b><span class="q">Quote ${v>0?q2(1/v):"–"}</span></div>`).join("")}</div>`;
-  // Wale je Seite
-  const W = m.wale||[], jeSeite = {};
-  for(const w of W) (jeSeite[w.seite] = jeSeite[w.seite] || []).push(w);
-  const maxS = Math.max(1, ...Object.values(jeSeite).map(l=>l.reduce((a,w)=>a+w.usd,0)));
-  const wale = W.length ? `<div class="pd-w">${Object.entries(jeSeite).sort((a,b)=>b[1].reduce((x,w)=>x+w.usd,0)-a[1].reduce((x,w)=>x+w.usd,0)).map(([seite,l])=>{ const sum = l.reduce((a,w)=>a+w.usd,0);
-      return `<div class="pd-wz"><div class="pd-wl"><b>${esc(seiteName(seite))}</b><span>${usd(sum)} · ${l.length} Wallet${l.length>1?"s":""}</span></div>
-        <div class="pd-wb" style="width:${(sum/maxS*100).toFixed(1)}%">${l.sort((a,b)=>b.usd-a.usd).map(w=>`<a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" class="${w.bewiesen?"bel":""}" style="flex:${w.usd} 1 0" title="Wallet ${esc(w.wallet.slice(2,6))}: ${usd(w.usd)}${w.bewiesen&&ws[w.wallet]?` · belegt, +${dez(ws[w.wallet].fensterClv)} pp auf den Schlusskurs`:""}"></a>`).join("")}</div></div>`; }).join("")}
-      <div class="pd-leg"><span><i class="bel"></i>belegte Wallet (schlägt den Schlusskurs)</span><span><i></i>andere große Halter</span><span>je Stück eine Wallet</span></div></div>` : `<div class="kk-klein">Keine großen Halter bekannt.</div>`;
-  // die anderen Quellen zum selben Spiel (Lucas: Quellen nebeneinander sehen)
-  const t = (D.toepfe||[]).find(x=>x.q?.poly?.key===m.key), sp = t ? (D.radar.spiele||[]).find(x=>x.id===t.id) : null;
-  const andere = t ? Object.entries(t.q||{}).filter(([q,v])=>q!=="poly" && v.betrag>0) : [];
-  const bf = andere.length ? `<div class="pd-bf">${andere.map(([q,v])=>`<span><i style="background:${QUELLE[q].f}"></i>${QUELLE[q].n} <b>${geldIn(q,v.betrag)}</b>${v.auf?` · ${v.anteil} % auf <b>${esc(k2n(t,v.auf))}</b>`:""}</span>`).join("")}${t.einig===true?`<span class="mk-u ok">einig mit Poly</span>`:t.einig===false?`<span class="mk-u nein">uneinig</span>`:""}</div>` : "";
-  return `<tr class="detail"><td colspan="5"><div class="det">
-    <div class="pd-kopf"><span>${sportIco(m.sport)} ${esc(ligaName(m.liga)||m.sport||"")} · ${wann(m.anpfiff)}</span><span>Volumen <b>${usd(m.usd)}</b></span></div>
-    ${kacheln}
-    <div><h4>Wo die großen Halter stehen</h4>${wale}</div>
-    ${bf||sp?`<div><h4>Andere Quellen zum selben Spiel</h4>${bf}${sp?spielVerlauf(sp):""}</div>`:""}
-    <div><a href="https://polymarket.com/event/${encodeURIComponent(m.key)}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;display:inline-block">Markt auf Polymarket öffnen</a></div>
-  </div></td></tr>`;
-}
 const SPORT_ICO = {"Fußball":"⚽","E-Sport":"🎮","Tennis":"🎾"};
 const sportIco = sp => `<span class="sico" title="${esc(sp||"Fußball")}">${SPORT_ICO[sp]||"⚽"}</span>`;
 let filterSport = "alle", filterRang = "clv";
@@ -1924,32 +1914,76 @@ const top5Ok = x => ligaModus==="alle" || (ligaModus==="ohne" ? !x.top5 : !!x.to
 // Lucas 17.10.: „im Poly-Tab auf ein Spiel klicken, man sieht überhaupt keine Details" — die Fluss-Karten
 // hatten keinen Klick. Jetzt: Netto je Team, Käufe je Seite (30/10 Min), Takt der letzten Stunden, größte
 // Käufe mit Wallet, dazu Preise und Halter aus dem Markt-Datensatz, falls vorhanden.
-function polyFlussDetail(m){
-  const f = m.fenster?.["30"] || {}, f10 = m.fenster?.["10"] || {}, net = pmNetto(f.seiten, m.key);
-  const mk = (D.poly.maerkte||[]).find(x=>x.key===m.key);
-  const PAL = ["#a183ff","#5b9dff","#ffb547","#2fd38a"];
-  const maxS = Math.max(1, ...Object.values(f.seiten||{}));
-  const seiten = Object.entries(f.seiten||{}).map(([k,v])=>`<div class="dz"><div class="dz-l"><b>${esc(pmLabel(k, m.titel, m.sport))}</b>${f10.seiten?.[k]?` <small>davon ${usd(f10.seiten[k])} in 10 Min</small>`:""}</div>
-      <div class="dz-bar"><i style="width:${(v/maxS*100).toFixed(1)}%;background:var(--poly)"></i></div><div class="dz-r">${usd(v)}</div></div>`).join("");
-  const netBlock = net ? net.map(n=>`<div class="pm-net"><span>${esc(pmLabel(n.team, m.titel, m.sport))}</span>
-      <div class="pm-bar"><i class="pm-g" style="width:${(n.gegen/Math.max(...net.map(x=>Math.max(x.fuer,x.gegen)),1)*50).toFixed(1)}%"></i><i class="pm-f" style="width:${(n.fuer/Math.max(...net.map(x=>Math.max(x.fuer,x.gegen)),1)*50).toFixed(1)}%"></i></div>
-      <b style="color:${n.netto>=0?"var(--up)":"var(--down)"}">${n.netto>=0?"+":"−"}${usd(Math.abs(n.netto))}</b></div>`).join("") + `<div class="kk-klein" style="margin-top:4px">links Geld dagegen (Nein), rechts dafür (Ja)</div>` : "";
-  const takt = Object.entries(m.takt||{}).slice(0,3).map(([k,v],i)=>`<div style="margin-top:8px"><div class="kk-klein"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${PAL[i]};margin-right:6px"></i>${esc(pmLabel(k, m.titel, m.sport))}: ${usd(v.reduce((a,b)=>a+b,0))}</div>${saeulenSvg(v,PAL[i],320,34,10)}</div>`).join("");
-  const reichweite = m.taktReichweiteMin && m.taktReichweiteMin < 230 ? `<div class="kk-klein">Die Abfrage reicht nur ${m.taktReichweiteMin} Min zurück (500 Trades je Markt), links davon fehlen Daten.</div>` : "";
-  const gross = (m.gross||[]).map(g=>`<div><span><b>${esc(pmLabel(g.auf, m.titel, m.sport))}</b> @ ${Math.round(g.preis*100)} ¢ <span style="color:var(--text-3)">= Quote ${g.preis>0?q2(1/g.preis):"–"}, vor ${g.vor} Min</span>${g.wallet?`<br><a href="https://polymarket.com/profile/${encodeURIComponent(g.wallet)}" target="_blank" rel="noopener" style="font-size:12px">Wallet ${esc(g.wallet.slice(2,6))}</a>`:""}</span><b>${usd(g.usd)}</b></div>`).join("");
-  const preise = mk ? Object.entries(mk.preise||{}).map(([n,v])=>({name:seiteName(n), wert:v*100})) : [];
+// Lucas 23.10. („Poly-Overlay ansprechender, super zu lesen, intuitiv"): EIN Polymarket-Fenster für Markt- und
+// Fluss-Karten — Kopf, Kernaussage als Chips, Preis-Balken mit dem neuen Geld je Ausgang, ein Säulenbild der Käufe,
+// größte Käufe als Zeilen, Halter, andere Quellen. Aufbau wie das Betfair-Fenster.
+function polyFenster(key){
+  const f = (D.polyFluss?.maerkte||[]).find(x=>x.key===key), mk = (D.poly.maerkte||[]).find(x=>x.key===key);
+  const titel = f?.titel || mk?.spiel || key, sport = f?.sport || mk?.sport, liga = f?.liga || mk?.liga;
+  const live = f?.live, anpfiff = f?.anpfiff || mk?.anpfiff, vol = f?.usd || mk?.usd || 0;
+  const w30 = f?.fenster?.["30"] || {}, w10 = f?.fenster?.["10"] || {};
+  const lab = k => pmLabel(k, titel, sport);
+  const ws = {}; for(const w of D.poly.wallets||[]) ws[w.wallet] = w;
+  // Kopf
+  const kopf = `<div class="dk"><div class="dk-1">${sportIco(sport)}<span>${esc(ligaName(liga)||sport||"")}</span>${live?`<span class="dk-live">● live</span>`:anpfiff?`<span class="mk-zeit">${wann(anpfiff)}</span>`:""}</div>
+    <div class="dk-2"><b>${usd(vol)}</b> Volumen auf Polymarket</div></div>`;
+  // Preise je Ausgang + neues Geld netto (Ja minus Nein) je Ausgang
+  const pr = Object.entries(mk?.preise || f?.preise || {});
+  const s30 = w30.seiten||{}, netto = {}; for(const [k] of pr) netto[k] = (s30[k]||0) - (s30["gegen "+k]||0);
+  const remis = pr.find(([k])=>/^draw/i.test(k)), teams = pr.filter(x=>x!==remis), reihe = [teams[0], remis, teams[1], ...teams.slice(2)].filter(Boolean);
+  const lead = pr.reduce((a,x)=>x[1]>(a?.[1]??-1)?x:a, null)?.[0];
+  const nmax = Math.max(1, ...Object.values(netto).map(Math.abs));
+  const preisBalken = reihe.length ? `<div class="pk-bar pf-gross">${reihe.map(([k,v])=>`<div class="pk-s${k===lead?" an":""}" style="flex:${Math.max(v,.06)} 1 0">
+      <span class="pk-n">${esc(seiteName(k))}</span><b>${Math.round(v*100)}<small>¢</small></b><span class="pf-q">Quote ${v>0?q2(1/v):"–"}</span>
+      ${f?`<span class="pk-f ${netto[k]>0?"plus":netto[k]<0?"minus":""}" style="--w:${(Math.abs(netto[k]||0)/nmax*100).toFixed(0)}%">${netto[k]?(netto[k]>0?"+":"−")+usd(Math.abs(netto[k])):"·"} <small>30 Min</small></span>`:""}</div>`).join("")}</div>` : "";
+  // Chips
+  const c = [], neu = w30.neu || 0, nenn = neu >= Math.max(1000, 0.02*vol);
+  const se = (D.polySerien||[]).find(x=>x.id===key);
+  if(se) c.push(`<span class="dc bf" style="--f:var(--poly);color:var(--poly)">🔁 läuft: ${se.n}× in Folge · ${esc(lab(se.auswahl))} · ${usd(se.usd)}</span>`);
+  const pw = (D.poly.tradesPushes||[]).filter(p=>p.markt===key).slice(0,2);
+  for(const p of pw) c.push(`<span class="dc bf" style="--f:var(--poly);color:var(--poly)">📣 Wal-Push ${uhr(p.zeit)} · ${esc(seiteName(p.seite))} @ ${Math.round((p.preis||0)*100)} ¢${p.status==="won"?" ✓":p.status==="lost"?" ✗":""}</span>`);
+  if(lead) c.push(`<span class="dc stand">🏷 Favorit: <b>${esc(seiteName(lead))}</b> ${Math.round((mk?.preise||f?.preise||{})[lead]*100)} ¢</span>`);
+  if(f && neu>0) c.push(nenn ? `<span class="dc stark">⚡ +${usd(neu)} <small>gekauft in 30 Min</small></span>` : `<span class="dc leise">ruhig: +${usd(neu)} in 30 Min</span>`);
+  if(f && nenn && w30.auf) c.push(`<span class="dc">→ <b>${esc(lab(w30.auf))}</b> ${w30.anteil} % der Käufe</span>`);
+  const bel = (mk?.wale||[]).filter(w=>w.bewiesen);
+  if(bel.length){ const je = {}; for(const w of bel) je[w.seite] = (je[w.seite]||0) + w.usd; const top = Object.entries(je).sort((a,b)=>b[1]-a[1])[0];
+    c.push(`<span class="dc" style="--f:var(--poly)">🧠 ${bel.length} belegte Wale · ${esc(seiteName(top[0]))} ${usd(top[1])}</span>`); }
+  const t = (D.toepfe||[]).find(x=>x.q?.poly?.key===key);
+  if(t?.q?.betfair?.betrag) c.push(`<span class="dc" style="--f:var(--bf)">+ Betfair ${eur(t.q.betfair.betrag)}${t.q.betfair.auf?` <small>${t.q.betfair.anteil} % ${esc(k2n(t,t.q.betfair.auf))}</small>`:""}</span>`);
+  const vorn = c.filter(x=>x.includes("dc bf")), rest = c.filter(x=>!x.includes("dc bf"));
+  const chips = c.length ? `<div class="dcs">${[...vorn, ...rest].join("")}</div>` : "";
+  // Säulen der Käufe je 10 Min (4 h), die Seite mit den meisten Käufen in 30 Min kräftig, Rest grau
+  let saeulen = "";
+  const T = Object.entries(f?.takt||{});
+  if(T.length){ const N = Math.max(...T.map(([,v])=>v.length)), fokus = w30.auf && f.takt[w30.auf] ? w30.auf : T[0][0];
+    const summe = f.taktSumme && f.taktSumme.length===N ? f.taktSumme : Array.from({length:N},(_,i)=>T.reduce((a,[,v])=>a+(v[i]||0),0));
+    const fw = f.takt[fokus] || [], mx = Math.max(1, ...summe), ges = summe.reduce((a,b)=>a+b,0), fs = fw.reduce((a,b)=>a+b,0);
+    const bars = summe.map((x,i)=>{ const fx = Math.min(x, fw[i]||0); return `<i class="mitfokus" style="height:${x?Math.max(3,x/mx*100).toFixed(1):0}%" title="vor ${(N-1-i)*10} Min: ${usd(x)}${fx?`, davon ${usd(fx)} auf ${esc(lab(fokus))}`:""}">${fx&&x?`<b style="height:${(fx/x*100).toFixed(1)}%"></b>`:""}</i>`; }).join("");
+    saeulen = `<div class="sv"><h4>Käufe auf Polymarket <small>je 10 Min · letzte ${Math.round(N/6)} h</small></h4>
+      <div class="gs-kz"><span><b>+${usd(ges)}</b> gekauft</span>${w10.neu?`<span><b>+${usd(w10.neu)}</b> in 10 Min</span>`:""}</div>
+      <div class="gs-leg"><span><i class="f pfl"></i><b>${esc(lab(fokus))}</b> · ${usd(fs)}</span><span><i></i>übrige Seiten</span></div>
+      <div class="gs"><div class="gs-b pf-b" style="grid-template-columns:repeat(${N},1fr)">${bars}</div><div class="gs-x"><span style="left:0">vor ${Math.round(N/6)} h</span><span class="r">jetzt</span></div></div>
+      ${f.taktReichweiteMin && f.taktReichweiteMin < N*10-10 ? `<div class="kk-klein">Die Abfrage reicht nur ${f.taktReichweiteMin} Min zurück, links davon fehlen Daten.</div>` : ""}</div>`; }
+  // größte Käufe
+  const gross = (f?.gross||[]).length ? `<div><h4>Größte Käufe <small>ab $1.000, letzte 30 Min</small></h4><div class="pfk">${f.gross.map(g=>{ const b = ws[g.wallet]?.clvUg > 0;
+    return `<div class="pfk-z"><b class="pfk-b">${usd(g.usd)}</b><div class="pfk-m"><span><b>${esc(lab(g.auf))}</b> @ ${Math.round(g.preis*100)} ¢ <small>Quote ${g.preis>0?q2(1/g.preis):"–"}</small></span>
+      <small>vor ${g.vor} Min${g.wallet?` · <a href="https://polymarket.com/profile/${encodeURIComponent(g.wallet)}" target="_blank" rel="noopener">Wallet ${esc(g.wallet.slice(2,6))}</a>`:""}${b?` · <b style="color:var(--poly)">🧠 belegt</b>`:""}</small></div></div>`; }).join("")}</div></div>` : "";
+  // Halter je Seite (wie bisher, kompakt)
+  const W = mk?.wale||[], jeSeite = {}; for(const w of W) (jeSeite[w.seite] = jeSeite[w.seite] || []).push(w);
+  const maxS = Math.max(1, ...Object.values(jeSeite).map(l=>l.reduce((a,w)=>a+w.usd,0)));
+  const halter = W.length ? `<div><h4>Wo die großen Halter stehen</h4><div class="pd-w">${Object.entries(jeSeite).sort((a,b)=>b[1].reduce((x,w)=>x+w.usd,0)-a[1].reduce((x,w)=>x+w.usd,0)).map(([seite,l])=>{ const sum = l.reduce((a,w)=>a+w.usd,0);
+      return `<div class="pd-wz"><div class="pd-wl"><b>${esc(seiteName(seite))}</b><span>${usd(sum)} · ${l.length} Wallet${l.length>1?"s":""}</span></div>
+        <div class="pd-wb" style="width:${(sum/maxS*100).toFixed(1)}%">${l.sort((a,b)=>b.usd-a.usd).map(w=>`<a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" class="${w.bewiesen?"bel":""}" style="flex:${w.usd} 1 0" title="Wallet ${esc(w.wallet.slice(2,6))}: ${usd(w.usd)}${w.bewiesen?" · belegt":""}"></a>`).join("")}</div></div>`; }).join("")}
+      <div class="pd-leg"><span><i class="bel"></i>belegte Wallet (schlägt den Schlusskurs)</span><span><i></i>andere große Halter</span><span>je Stück eine Wallet</span></div></div></div>` : "";
+  const sp = t ? (D.radar.spiele||[]).find(x=>x.id===t.id) : null;
   return `<tr class="detail"><td colspan="5"><div class="det">
-    <div class="d-kopf">${sportIco(m.sport)} ${esc(ligaName(m.liga)||m.sport||"")} · ${m.live?`<span class="live">live</span>`:wann(m.anpfiff)} · ${usd(f.neu)} gekauft in 30 Min</div>
-    ${net?`<div><h4>Netto je Team, letzte 30 Min</h4>${netBlock}</div>`:""}
-    <div><h4>Käufe je Seite, letzte 30 Min</h4>${seiten||"–"}</div>
-    ${takt?`<div><h4>Takt der Käufe, letzte 4 Stunden (eine Säule je 10 Min)</h4>${takt}${reichweite}</div>`:""}
-    ${waleListe(waleVon(m.key).concat(waleVon(m.key+"-more-markets")))}
-    ${gross?`<div><h4>Größte Käufe (ab $1000)</h4><div class="mini-liste">${gross}</div></div>`:""}
-    ${preise.length?`<div><h4>Preis je Seite jetzt</h4><div class="mini-liste">${preise.map(p=>`<div><span>${esc(p.name)}</span><b>${Math.round(p.wert)} ¢ <span style="color:var(--text-3);font-weight:600">= Quote ${p.wert>0?q2(100/p.wert):"–"}</span></b></div>`).join("")}</div></div>`:""}
-    ${mk&&(mk.wale||[]).length?`<div><h4>Größte Halter</h4><div class="mini-liste">${mk.wale.slice(0,5).map(w=>`<div><span><a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener">${esc(w.wallet.slice(0,6))}…${esc(w.wallet.slice(-4))}</a>${w.bewiesen?` <span class="tag" style="background:${tint("var(--poly)",18)};color:var(--poly)">belegt</span>`:""}<br><span style="color:var(--text-3);font-size:12px">auf ${esc(seiteName(w.seite))}</span></span><b>${usd(w.usd)}</b></div>`).join("")}</div></div>`:""}
-    <div><a href="https://polymarket.com/event/${encodeURIComponent(m.key)}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;display:inline-block">Markt auf Polymarket öffnen</a></div>
+    ${kopf}${chips}${preisBalken}${saeulen}${gross}${halter}
+    ${sp?`<div><h4>Dasselbe Spiel auf Betfair</h4>${geldSaeulen(sp)||""}</div>`:""}
+    <div><a href="https://polymarket.com/event/${encodeURIComponent(key.replace(/-more-markets$/,""))}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;display:inline-block">Markt auf Polymarket öffnen</a></div>
   </div></td></tr>`;
 }
+const polyDetail = m => polyFenster(m.key);
+const polyFlussDetail = m => polyFenster(m.key);
 // Lucas 17.10. („1200 schon sehr low"): Fluss-Karte erst ab $5k auf eine Seite (Top-5 $20k), ≥60 % der Käufe
 const pmFlussOk = m => { const f = m.fenster?.["30"]; return !!f && f.usd >= (m.top5?20000:5000) && f.anteil >= 60; };
 function pmNetto(seiten, key){
