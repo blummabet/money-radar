@@ -1293,7 +1293,7 @@ def bf_ht_pushes(prices):
             lead = max(rs, key=lambda r: r.get("vol") or 0, default=None)
             if not lead or (lead.get("vol") or 0) / tot < 0.85:
                 continue
-            if isinstance(lead.get("odd"), (int, float)) and (lead["odd"] < 1.30 or lead["odd"] > 20):
+            if isinstance(lead.get("odd"), (int, float)) and (lead["odd"] < 1.35 or lead["odd"] > 20):   # Lucas 23.10.: ab 1,35
                 continue                  # über 20 (z. B. 100,00) ist der Markt praktisch entschieden — kein Signal
             if not best or tot > best["eur"]:
                 best = {**basis, "art": "ht", "markt": name, "eur": round(tot), "auf": lead.get("name"), "quote": lead.get("odd"),

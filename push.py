@@ -384,7 +384,11 @@ def bf_halbzeit(d):
             text = (f"⚫ <b>Betfair · Fix-Verdacht</b>\nmehr Geld auf die Halbzeit als aufs Spiel\n" + kopf
                     + f"💷 {e(_markt_de(a.get('markt')))}: <b>{geld(a.get('eur'))}</b>  vs  {e(_markt_de(a.get('ftMarkt')))}: {geld(a.get('ftEur'))}"
                       f" · <b>{str(a.get('faktor')).replace('.', ',')}×</b>\n"
-                    + _anteil_balken(auf, a.get("anteil"), quote.replace("<b>", "").replace("</b>", "") + (" · sehr einseitig" if (a.get("anteil") or 0) >= 90 else "")))
+                    + _anteil_balken(auf, a.get("anteil"), quote.replace("<b>", "").replace("</b>", "") + (" · sehr einseitig" if (a.get("anteil") or 0) >= 90 else ""))
+                    # Lucas 23.10.: bei niedriger Quote auf Über 0,5 spielt er die asiatische Linie 0,75 oder 1,0
+                    + ("💡 Quote niedrig → asiatisch Über 0,75 oder 1,0 (1. HZ)\n"
+                       if "0.5" in str(a.get("markt")) and str(a.get("auf") or "").lower().startswith("over")
+                       and isinstance(a.get("quote"), (int, float)) and a["quote"] < 1.35 else ""))
         else:
             seiten = " · ".join(f"{e(remis(_auswahl_de(x['name'])))} {x['anteil']} %" for x in a.get("seiten") or [])
             text = (f"🔵 <b>Betfair · Halbzeit-Geld (einseitig)</b>\n" + kopf

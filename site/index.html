@@ -2521,7 +2521,8 @@ function jetztFliesst(D, n=8){
 // Lucas 23.10.: „die drei Spiele, die gerade am meisten Sinn machen — so einen Score, gefiltert nach dem Liga-Schalter".
 // Punkte je Signal, jedes Signal ein farbiges Stück im Balken: Dauerzufluss, Push, neues Geld, Liga-Norm, Quote gedrückt,
 // auch auf Polymarket/Stake, Liga-Bilanz. Raus: entschieden, klar vorn, Geld unter Quote 1,20 (Absicherung).
-const T3_SIG = [["serie","🔁 Dauerzufluss","var(--bf)"],["push","📣 Push","var(--down)"],["neu","💶 neues Geld","var(--up)"],
+const t3Pushes = s => pushesZu(s).filter(x=>/Halbzeit|Fix/i.test(x.art||""));
+const T3_SIG = [["serie","🔁 Dauerzufluss","var(--bf)"],["push","📣 HZ-Push","var(--down)"],["neu","💶 neues Geld","var(--up)"],
   ["norm","× Liga-Norm","var(--pin)"],["quote","🔻 Quote gedrückt","var(--hz)"],["auch","+ Poly/Stake","var(--poly)"],["liga","Liga trägt","var(--stake)"]];
 function topDreiDaten(D){
   const LB = (D.ligaBilanz||{}).ligen||{};
@@ -2531,7 +2532,9 @@ function topDreiDaten(D){
     for(const m of md) for(const a of m.auswahl||[]){ if(a.name==="Rest" || (a.quote && a.quote<1.20) || !(a.neu>0)) continue;
       neu += a.neu; if(!top || a.neu>top.neu){ top = a; mk = m; } }
     if(se && se.quote>=1.20) p.serie = Math.min(4, 2.5 + (se.n-3)*0.5);
-    const pz = pushesZu(s); if(pz.length) p.push = Math.min(2, 1 + 0.5*(pz.length-1));
+    // Lucas 23.10.: Dauerzufluss-, Zufluss- und Live-Pushes entstehen aus genau den Signalen, die hier schon zählen —
+    // als eigenes Signal wäre das doppelt. Nur die Halbzeit-Pushes (eigene Märkte, eigene Regel) bringen etwas Neues.
+    const pz = t3Pushes(s); if(pz.length) p.push = Math.min(2, 1 + 0.5*(pz.length-1));
     if(neuNennenswert(s, neu)) p.neu = Math.min(3, Math.log2(neu/1000) + 1);
     if(s.xnorm>=1.5) p.norm = Math.min(2, (s.xnorm-1)*0.8);
     // Fokus: die Serie, sonst die Auswahl mit dem meisten neuen Geld
@@ -2584,7 +2587,7 @@ function topDrei(D){
     const alt = p.quote && fA.q60 ? `<s>${q2(fA.q60)}</s>` : "";
     const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>{ const t =
       k==="serie" ? `${se.n}× in Folge` : k==="neu" ? `+${eur(neu)} in ${s.fensterMin||30} Min` : k==="norm" ? `×${dez(s.xnorm)} der Liga` :
-      k==="quote" ? `Quote ${q2(fA.q60)} → ${q2(fA.quote)}` : k==="push" ? `Push ${uhr(pushesZu(s)[0].zeit)}` : k==="liga" ? `Liga trägt` :
+      k==="quote" ? `Quote ${q2(fA.q60)} → ${q2(fA.quote)}` : k==="push" ? `${/Fix/i.test(t3Pushes(s)[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(t3Pushes(s)[0].zeit)}` : k==="liga" ? `Liga trägt` :
       [ (D.auchWoanders||{})[s.id]?.poly?.usd>=1000 ? "Polymarket" : "", (D.auchWoanders||{})[s.id]?.stake?.usd>=1000 ? "Stake" : "" ].filter(Boolean).join(" + ")+" auch";
       return `<span class="t3-g" style="--f:${f}"><i></i>${t}</span>`; }).join("") + (lb?.urteil==="trägt nicht" ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>Liga trägt nicht</span>` : "");
     return `<div class="t3-k${gross?" eins":""}"${bk("t3|"+s.id, s.eur, "€")} ${klickSpiel({id:s.id, heim:s.heim, gast:s.gast})} style="--glow:${T3_SIG.find(([k])=>p[k])[2]}">
