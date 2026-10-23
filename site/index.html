@@ -1944,7 +1944,7 @@ function polyFenster(key){
   for(const p of pw) c.push(`<span class="dc bf" style="--f:var(--poly);color:var(--poly)">📣 Wal-Push ${uhr(p.zeit)} · ${esc(seiteName(p.seite))} @ ${Math.round((p.preis||0)*100)} ¢${p.status==="won"?" ✓":p.status==="lost"?" ✗":""}</span>`);
   if(lead) c.push(`<span class="dc stand">🏷 Favorit: <b>${esc(seiteName(lead))}</b> ${Math.round((mk?.preise||f?.preise||{})[lead]*100)} ¢</span>`);
   if(f && neu>0) c.push(nenn ? `<span class="dc stark">⚡ +${usd(neu)} <small>gekauft in 30 Min</small></span>` : `<span class="dc leise">ruhig: +${usd(neu)} in 30 Min</span>`);
-  if(f && nenn && w30.auf) c.push(`<span class="dc">→ <b>${esc(lab(w30.auf))}</b> ${w30.anteil} % der Käufe</span>`);
+  if(f && nenn && w30.auf) c.push(`<span class="dc" title="Von allen Käufen der letzten 30 Min gingen ${w30.anteil} % auf diese Seite">→ <b>${esc(lab(w30.auf))}</b> bekam ${usd(w30.usd)} von ${usd(neu)} <small>(${w30.anteil} %)</small></span>`);
   // ein einzelner Käufer macht den ganzen Schub aus → wichtig zu wissen (ein Wal ist kein Markt)
   const g0 = (f?.gross||[])[0];
   if(f && nenn && g0 && g0.usd >= 0.6*neu) c.push(`<span class="dc" style="--f:var(--bf)">👤 ${Math.round(100*g0.usd/neu)} % von einem Kauf (${usd(g0.usd)})</span>`);
