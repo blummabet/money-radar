@@ -1376,7 +1376,7 @@ async function teilen(id){
 }
 // Lucas 23.10. („schneller relevante Sachen lesen, intuitiv"): Spiel-Fenster neu sortiert — Kopf, Kernaussage als Chips,
 // Säulen, wohin das Geld floss, Märkte als Wand (Fläche = Geld), Quotenkurve nur offen, wenn sie sich bewegt hat.
-const kurzAus = (n, s) => /^(over|under) [\d.]+/i.test(n||"") ? (/^over/i.test(n)?"Über":"Unter") : n===s?.heim ? "1" : n===s?.gast ? "2" : /^(the )?draw$/i.test(n||"") ? "X" : auswahlDe(n);
+const kurzAus = (n, s) => /^(over|under) [\d.]+/i.test(n||"") ? (/^over/i.test(n)?"Über":"Unter") : ({h:"1", g:"2", x:"X"})[s ? seiteVon(s, n) : null] || auswahlDe(n);
 function dKopf(s){
   const zeit = s.live ? `<span class="dk-live">● ${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}</span>` : `<span class="mk-zeit">${wann(s.anpfiff)}</span>`;
   const norm = s.xnorm!=null ? `<span class="dk-n" style="color:${s.xnorm>=3?"var(--down)":s.xnorm>=1.5?"var(--bf)":"var(--text-2)"}">×${dez(s.xnorm)} der Liga</span>` : "";
@@ -1837,7 +1837,7 @@ function flussReihe(D, x, istLive, opt={}){
   const fl = opt.fl || (x.fluss||[])[0]; if(!fl) return "";
   const sp = spielInfo(x);
   const mv = (fl.marktVerteilung||[]).map(v=>({name:v[0], eur:v[1]||0, quote:v[2]}));
-  const rang = n => { n = String(n||""); if(/^over/i.test(n)||/^yes$/i.test(n)||n===x.heim) return 0; if(/draw/i.test(n)) return 1; if(/^under/i.test(n)||/^no$/i.test(n)||n===x.gast) return 2; return 3; };
+  const rang = n => { n = String(n||""); const sv = seiteVon(x, n); if(/^over/i.test(n)||/^yes$/i.test(n)||sv==="h") return 0; if(sv==="x") return 1; if(/^under/i.test(n)||/^no$/i.test(n)||sv==="g") return 2; return 3; };
   mv.sort((a,b)=>rang(a.name)-rang(b.name));
   const ges = mv.reduce((a,b)=>a+b.eur,0) || 1;
   const kurz = n => /^(over|under) [\d.]+/i.test(n||"") ? auswahlDe(n) : nm(auswahlDe(n));
@@ -2483,10 +2483,21 @@ function mwFamilie(n){
   if(/^Over\/Under|^Both teams/.test(n)) return "tore";
   return "rest";
 }
+// Lucas 23.10. (First Vienna – Floridsdorf stand als X · Heim · Gast): Betfair schreibt die Auswahl oft anders als das
+// Spiel („FIRST VIENNA FC" statt „First Vienna Fc 1894") — Abgleich deshalb tolerant über das erste markante Wort.
+function seiteVon(z, name){
+  const n = String(name||"");
+  if(/^(the )?draw$/i.test(n)) return "x";
+  if(n===z.heim) return "h"; if(n===z.gast) return "g";
+  const t = feedTeam(n), th = feedTeam(z.heim), tg = feedTeam(z.gast), nn = n.toLowerCase();
+  if(t && t===th) return "h"; if(t && t===tg) return "g";
+  if(th && nn.includes(th)) return "h"; if(tg && nn.includes(tg)) return "g";
+  return null;
+}
 function mwAuswahl(z){
   // feste Reihenfolge wie im Spiel-Detail: Über vor Unter, Ja vor Nein, Heim – Remis – Gast
-  const r = a => { const n = String(a[0]||""); if(/^over/i.test(n)||/^yes$/i.test(n)||n===z.heim) return 0;
-    if(/^under/i.test(n)||/^no$/i.test(n)) return 2; if(/draw/i.test(n)) return 1; if(n===z.gast) return 2; return 3; };
+  const r = a => { const n = String(a[0]||""), sv = seiteVon(z, n); if(/^over/i.test(n)||/^yes$/i.test(n)||sv==="h") return 0;
+    if(/^under/i.test(n)||/^no$/i.test(n)) return 2; if(sv==="x") return 1; if(sv==="g") return 2; return 3; };
   return (z.auswahl||[]).filter(a=>a[1]>0).slice().sort((a,b)=>r(a)-r(b));
 }
 function mwHeiss(z){ return (z.neu||0) >= Math.max(z.top5 ? 5000 : 1000, z.eur*0.04); }
@@ -2535,7 +2546,7 @@ function hitparade(D, n=15){
   const vor = alle.filter(z=>z.vor60!=null).slice().sort((a,b)=>b.vor60-a.vor60), rv = new Map(vor.map((z,i)=>[z.k,i+1]));
   const lab = (z, nme) => { const n_ = String(nme||"");
     if(/^over /i.test(n_)) return "Über"; if(/^under /i.test(n_)) return "Unter";
-    if(n_===z.heim) return "1"; if(n_===z.gast) return "2"; if(/^(the )?draw$/i.test(n_)) return "X";
+    const sv = seiteVon(z, n_); if(sv==="h") return "1"; if(sv==="g") return "2"; if(sv==="x") return "X";
     if(/^yes$/i.test(n_)) return "Ja"; if(/^no$/i.test(n_)) return "Nein"; return auswahlDe(n_); };
   const zeilen = alle.slice(0, n).map((z,i)=>{ const rang = i+1, alt = rv.get(z.k);
     const bew = !mc.messbar ? "" : alt==null ? `<em class="hb neu">neu</em>` : alt>rang ? `<em class="hb auf">▲${alt-rang}</em>` : alt<rang ? `<em class="hb ab">▼${rang-alt}</em>` : "";

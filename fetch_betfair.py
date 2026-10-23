@@ -202,6 +202,12 @@ def build_snapshot(ev, now=None):
         rr = {x["name"]: x["odd"] for x in mo["runners"]}   # name→odd für 1X2-Ableitung
         vol1x2 = mo["vol"]
         hw, dr, aw = rr.get(home), rr.get("The Draw"), rr.get(away)
+        # 23.10.: Auswahl anders geschrieben als das Spiel („FIRST VIENNA FC") → Betfair-Reihenfolge Heim, Gast, Remis
+        if (hw is None or aw is None) and len(mo["runners"]) == 3:
+            andere = [x for x in mo["runners"] if not str(x.get("name") or "").lower().endswith("draw")]
+            if len(andere) == 2:
+                hw = hw if hw is not None else andere[0].get("odd")
+                aw = aw if aw is not None else andere[1].get("odd")
         fair = devig_1x2(hw, dr, aw)
     return {
         "matchId": ev.get("match_id"), "home": home, "away": away,

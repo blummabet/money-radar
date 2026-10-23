@@ -54,6 +54,18 @@ def eintragen(buch, beleg, jetzt):
     buch.append({**beleg, "ts": jetzt.isoformat(), "status": "offen"})
 
 
+_STOP = {"al", "el", "fc", "sc", "cf", "ac", "as", "ud", "cd", "club", "de", "la", "le", "the", "real", "u19", "u21", "u23", "w", "team"}
+
+
+def _team(n):
+    """Erstes markantes Wort eines Teamnamens (23.10.: Betfair schreibt „FIRST VIENNA FC", das Spiel heißt „First Vienna Fc 1894")."""
+    import unicodedata
+    t = unicodedata.normalize("NFD", str(n or "")).encode("ascii", "ignore").decode().lower()
+    t = re.sub(r"\(.*?\)", " ", t)
+    w = [x for x in re.split(r"[^a-z0-9]+", t) if len(x) >= 3 and x not in _STOP]
+    return w[0] if w else ""
+
+
 # ── Abrechnung ───────────────────────────────────────────────────────────────────
 def gewonnen(markt, auswahl, heim, gast, ft, ht):
     """True/False, oder None wenn der Markt aus dem Stand nicht sicher abrechenbar ist. REIN."""
@@ -63,9 +75,9 @@ def gewonnen(markt, auswahl, heim, gast, ft, ht):
         return None
     h, g = stand
     if m in ("Match Odds", "Half Time"):
-        if a == heim:
+        if a == heim or (_team(a) and _team(a) == _team(heim) and _team(a) != _team(gast)):
             return h > g
-        if a == gast:
+        if a == gast or (_team(a) and _team(a) == _team(gast) and _team(a) != _team(heim)):
             return g > h
         if a.lower() in ("the draw", "draw"):
             return h == g
