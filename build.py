@@ -866,9 +866,25 @@ def sel_delta(snaps, minuten):
             for mk, sel in jetzt["sel"].items()}
 
 
+def quote_vor(snaps, minuten=60):
+    """{Markt: {Auswahl: Quote}} vom Schnappschuss etwa `minuten` vor dem letzten (für die Pfeile, Lucas 23.10.)."""
+    pts = [s for s in snaps if isinstance(s, dict) and isinstance(s.get("sel"), dict) and ts(s.get("ts"))]
+    if len(pts) < 2:
+        return {}
+    t_jetzt, vor = ts(pts[-1]["ts"]), None
+    for s in pts[:-1]:
+        if ts(s["ts"]) <= t_jetzt - timedelta(minutes=minuten):
+            vor = s
+    vor = vor or pts[0]
+    if t_jetzt - ts(vor["ts"]) < timedelta(minutes=15):
+        return {}
+    return {mk: {n: v[1] for n, v in sel.items() if isinstance(v, list) and len(v) > 1} for mk, sel in vor["sel"].items()}
+
+
 def maerkte_detail(m, snaps, minuten):
     """Die geldstärksten Märkte eines Spiels mit Geld + Quote je Auswahl und dem Zufluss je Auswahl."""
     dl = sel_delta(snaps, minuten)
+    qv = quote_vor(snaps)
     out = []
     for name, mk in sorted(((k, v) for k, v in (m.get("markets") or {}).items() if isinstance(v, dict)),
                            key=lambda kv: -float(kv[1].get("vol") or 0)):
@@ -890,7 +906,7 @@ def maerkte_detail(m, snaps, minuten):
         d = dl.get(name) or {}
         out.append({"name": name, "eur": round(vol), "neu": round(sum(max(0, x) for x in d.values())),
                     "auswahl": [{"name": r.get("name"), "eur": round(r.get("vol") or 0), "quote": r.get("odd"),
-                                 "neu": d.get(r.get("name"))} for r in rs]})
+                                 "neu": d.get(r.get("name")), "q60": (qv.get(name) or {}).get(r.get("name"))} for r in rs]})
     return out
 
 
@@ -2159,7 +2175,7 @@ def markt_charts(radar):
                            "markt": m["name"], "eur": m["eur"], "neu": m.get("neu"), "fenster": s.get("fensterMin"),
                            "fuehrt": ({"name": top.get("name"), "anteil": round(100 * (top.get("eur") or 0) / m["eur"]),
                                        "quote": top.get("quote")} if top and m["eur"] else None),
-                           "auswahl": [[a.get("name"), a.get("eur"), a.get("quote")] for a in m.get("auswahl") or []]})
+                           "auswahl": [[a.get("name"), a.get("eur"), a.get("quote"), a.get("q60")] for a in m.get("auswahl") or []]})
     try:
         buch = json.loads(MC_DATEI.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
