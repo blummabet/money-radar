@@ -2526,7 +2526,9 @@ const T3_SIG = [["serie","🔁 Dauerzufluss","var(--bf)"],["push","📣 HZ-Push"
   ["norm","× Liga-Norm","var(--pin)"],["quote","🔻 Quote gedrückt","var(--hz)"],["poly","🧠 Polymarket","var(--poly)"],["stake","🎰 Stake","var(--stake)"],["liga","Liga trägt","var(--text-2)"]];
 function topDreiDaten(D){
   const LB = (D.ligaBilanz||{}).ligen||{};
-  return lf(D.radar.spiele||[]).filter(s=>!s.entschieden && !s.klarVorn && !(s.live && s.live.min!=null && s.live.min>=85)).map(s=>{
+  const ou = n => (/^(over|under)/i.exec(String(n||""))||[])[1]?.toLowerCase();
+  const istBurst = g => /burst/i.test((g.arten||[g.art]).join(" ")) && g.zeit && Date.now()-new Date(g.zeit) < 3*36e5;
+  const bf = lf(D.radar.spiele||[]).filter(s=>!s.entschieden && !s.klarVorn && !(s.live && s.live.min!=null && s.live.min>=85)).map(s=>{
     const md = s.maerkteDetail||[], se = serieVon(D, s.id), p = {};
     let top = null, mk = null, neu = 0;
     for(const m of md) for(const a of m.auswahl||[]){ if(a.name==="Rest" || (a.quote && a.quote<1.20) || !(a.neu>0)) continue;
@@ -2540,25 +2542,62 @@ function topDreiDaten(D){
     // Fokus: die Serie, sonst die Auswahl mit dem meisten neuen Geld
     let fA = top, fM = mk;
     if(se){ const m = md.find(x=>x.name===se.markt), a = m && (m.auswahl||[]).find(x=>x.name===se.auswahl); if(a){ fA = a; fM = m; } }
+    if(!fA) return null;
     // live drückt jedes Tor und die ablaufende Zeit die Quote (Remis, Unter) — dort zählt der Drop nur bei 0:0 und nicht auf Remis/Unter
     const tore = s.live && s.live.stand ? (s.live.stand[0]||0)+(s.live.stand[1]||0) : 0;
-    const zeitDrop = fA && (seiteVon(s, fA.name)==="x" || /^under/i.test(fA.name));
-    if(fA && fA.q60 && fA.quote && fA.quote < fA.q60*0.97 && !(s.live && (tore>0 || zeitDrop))) p.quote = Math.min(2, (fA.q60/fA.quote-1)*100/5);
+    const zeitDrop = seiteVon(s, fA.name)==="x" || /^under/i.test(fA.name);
+    if(fA.q60 && fA.quote && fA.quote < fA.q60*0.97 && !(s.live && (tore>0 || zeitDrop))) p.quote = Math.min(2, (fA.q60/fA.quote-1)*100/5);
     // Lucas 23.10.: „auch wenn bei Stake ein Burst war? bei Poly ein gutes Wallet?" — je Quelle ein Feld:
     // belegter Wal bzw. Stake-Burst auf DIESELBE Seite = 2 Punkte, nur Geld dort in den letzten 30 Min = 1 Punkt
-    const aw = (D.auchWoanders||{})[s.id] || {}, fk = fA ? {h:"heim", g:"gast", x:"remis"}[seiteVon(s, fA.name)] : null;
+    const aw = (D.auchWoanders||{})[s.id] || {}, fk = {h:"heim", g:"gast", x:"remis"}[seiteVon(s, fA.name)];
     const wale = fk ? ((D.toepfe||[]).find(x=>x.id===s.id)?.wale||[]).filter(w=>w.bewiesen && w.k===fk) : [];
     if(wale.length) p.poly = 2; else if(aw.poly?.usd>=1000) p.poly = 1;
     const fkey = feedKey(s.heim, s.gast);
-    const ou = n => (/^(over|under)/i.exec(String(n||""))||[])[1]?.toLowerCase();
-    const gleicheSeite = g => fk ? {h:"heim", g:"gast", x:"remis"}[seiteVon(s, g.auswahl)] === fk : !!(fA && ou(fA.name) && ou(fA.name)===ou(g.auswahl));
-    const burst = fA ? (D.stake?.gruppen||[]).find(g=>/burst/i.test((g.arten||[g.art]).join(" ")) && g.zeit && Date.now()-new Date(g.zeit) < 3*36e5
-      && feedKey(...String(g.spiel||"").split(/\s+-\s+/)) === fkey && gleicheSeite(g)) : null;
+    const gleicheSeite = g => fk ? {h:"heim", g:"gast", x:"remis"}[seiteVon(s, g.auswahl)] === fk : !!(ou(fA.name) && ou(fA.name)===ou(g.auswahl));
+    const burst = (D.stake?.gruppen||[]).find(g=>istBurst(g) && feedKey(...String(g.spiel||"").split(/\s+-\s+/)) === fkey && gleicheSeite(g));
     if(burst) p.stake = 2; else if(aw.stake?.usd>=1000) p.stake = 1;
     const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
     const summe = Object.values(p).reduce((a,b)=>a+b,0) - (lb?.urteil==="trägt nicht" ? 1 : 0);
-    return {s, p, summe, n: Object.keys(p).length, fA, fM, neu, se, lb, wale, burst, aw};
-  }).filter(x=>x.n>=2 && x.summe>=3 && x.fA).sort((a,b)=>b.summe-a.summe).slice(0,3);
+    const g = {serie: se && `${se.n}× in Folge`, neu: `+${eur(neu)} in ${s.fensterMin||30} Min`, norm: `×${dez(s.xnorm)} der Liga`,
+      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
+      poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
+      stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
+    return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
+      kopf: `${flagge(s.land)} ${esc(ligaName(s.liga)||"")}`, live: s.live ? `${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}` : null,
+      anpfiff: s.anpfiff, heim: s.heim, gast: s.gast, auf: auswahlDe(fA.name), quote: fA.quote, alt: p.quote ? fA.q60 : null, markt: marktDe(fM?.name||""),
+      saeulen: s.saeulen?.w || [], wert: s.eur, einheit: "€", klick: klickSpiel({id:s.id, heim:s.heim, gast:s.gast})};
+  }).filter(Boolean);
+  // Lucas 23.10.: „E-Sport tauchen nie in den Top 3 auf, weil wir sie nur auf Polymarket haben" — Märkte ohne
+  // Betfair-Spiel (E-Sport, Tennis, Fußball ohne Betfair) mit ihren eigenen Signalen: Polymarket-Dauerzufluss,
+  // neues Geld netto auf eine Seite, belegter Wal, Stake-Burst. Die Betfair-Felder (Liga-Norm usw.) bleiben dunkel.
+  // dasselbe Spiel schon bei Betfair? Namen weichen ab („Al Ittihad Saudi Club" / „Al Ittihad") — ein Team gleich + Anpfiff ±3 h reicht
+  const bfTeams = (D.radar.spiele||[]).map(s=>({t:[feedTeam(s.heim), feedTeam(s.gast)], ko:s.anpfiff?+new Date(s.anpfiff):null}));
+  const beiBetfair = (h, g, ko) => { const a = feedTeam(h), b = feedTeam(g), k = ko ? +new Date(ko) : null;
+    return bfTeams.some(x=>(x.t.includes(a) || x.t.includes(b)) && (k==null || x.ko==null || Math.abs(x.ko-k) < 3*36e5)); };
+  const pm = ((D.polyFluss||{}).maerkte||[]).filter(top5Ok).filter(m=>!/-more-markets$/.test(m.key||"")).map(m=>{
+    const [heim, gast] = feedTeams(String(m.titel||"").replace(/^[A-Za-z0-9 .-]{2,24}: /,"")); if(!heim || !gast) return null;
+    const fkey = feedKey(heim, gast); if(beiBetfair(heim, gast, m.anpfiff)) return null;
+    const se = (D.polySerien||[]).find(x=>x.id===m.key), w = m.fenster?.["30"] || {}, p = {};
+    const fokus = se ? se.auswahl : (w.anteil>=60 ? w.auf : null); if(!fokus) return null;
+    const preis = (m.preise||{})[fokus] ?? se?.preis; const quote = preis ? 1/preis : se?.quote;
+    if(!quote || quote < 1.20) return null;
+    if(se && se.quote>=1.20) p.serie = Math.min(4, 2.5 + (se.n-3)*0.5);
+    const neu = ((w.seiten||{})[fokus]||0) - ((w.seiten||{})["gegen "+fokus]||0);
+    if(neu >= Math.max(2000, 0.03*(m.usd||0))) p.neu = Math.min(3, Math.log2(neu/1000) + 1);
+    const wale = ((D.poly.maerkte||[]).find(x=>x.key===m.key)?.wale||[]).filter(x=>x.bewiesen && x.seite===fokus);
+    if(wale.length) p.poly = 2;
+    const burst = (D.stake?.gruppen||[]).find(g=>istBurst(g) && feedKey(...String(g.spiel||"").split(/\s+-\s+/)) === fkey && feedTeam(g.auswahl)===feedTeam(fokus));
+    if(burst) p.stake = 2;
+    const summe = Object.values(p).reduce((a,b)=>a+b,0);
+    const titel = esc(pmTitel(m.titel));
+    return {key:"pm|"+m.key, p, summe, n:Object.keys(p).length, aus:"",
+      g: {serie: se && `${se.n}× in Folge`, neu: `+${usd(neu)} netto in 30 Min`, poly: `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,x)=>a+(x.usd||0),0))}`,
+          stake: burst && `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten`},
+      kopf: `${sportIco(m.sport)} ${esc(ligaName(m.liga)||m.sport||"")} · Polymarket`, live: m.live ? "live" : null, anpfiff: m.anpfiff,
+      heim, gast, auf: pmLabel(fokus, m.titel, m.sport), quote, alt: null, markt: `${Math.round((preis||1/quote)*100)} ¢`,
+      saeulen: se?.saeulen || (m.takt||{})[fokus] || [], wert: m.usd, einheit: "$", klick: klick(titel, ohneHuelle(polyFenster(m.key)))};
+  }).filter(Boolean);
+  return [...bf, ...pm].filter(x=>x.n>=2 && x.summe>=3).sort((a,b)=>b.summe-a.summe).slice(0,3);
 }
 // 23.10. abends (Lucas: „inhaltlich top, optisch muss das richtig geil werden"): jedes Spiel als Radar-Scheibe —
 // sieben Felder rundherum, je Signal eins; leuchtet ein Feld, zieht dieses Signal. Mitte = Punkte. Die Nr. 1 groß
@@ -2581,8 +2620,8 @@ function t3Scheibe(p, summe, gross){
     <svg viewBox="0 0 ${2*M} ${2*M}" width="${2*M}" height="${2*M}" aria-hidden="true">${kreise}${felder}${zeichen}</svg>
     <div class="t3-mitte"><b>${dez(summe)}</b>${gross?`<small>Punkte</small>`:""}</div></div>`;
 }
-function t3Saeulen(s){
-  const w = (s.saeulen?.w||[]).slice(-12); if(w.filter(x=>x>0).length < 2) return "";
+function t3Saeulen(werte){
+  const w = (werte||[]).slice(-12); if(w.filter(x=>x>0).length < 2) return "";
   const mx = Math.max(1, ...w);
   return `<div class="t3-sl" title="neues Geld je 10 Min, letzte 2 Stunden">${w.map((x,i)=>`<i style="height:${Math.max(4, x/mx*100).toFixed(0)}%"${i===w.length-1?' class="jetzt"':""}></i>`).join("")}</div>`;
 }
@@ -2591,23 +2630,18 @@ function topDrei(D){
   const modus = ligaModus==="ohne" ? "ohne Top-5" : ligaModus==="nur" ? "nur Top-5" : "alle Ligen";
   if(!T.length) return `<div class="t3-leer">${t3Scheibe({}, 0, false)}<div>Gerade kommen nirgends zwei Signale zusammen <small>(${modus})</small>. Sobald etwa Dauerzufluss und neues Geld auf dasselbe Spiel treffen, leuchtet es hier auf.</div></div>`;
   const erst = T3_ERST; T3_ERST = false;
-  const karte = ({s,p,summe,fA,fM,neu,se,lb,wale,burst,aw}, i) => {
-    const gross = i===0;
-    const zeit = s.live ? `<span class="t3-live"><i></i>${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}</span>` : `<span class="t3-zeit">${wann(s.anpfiff)}</span>`;
-    const alt = p.quote && fA.q60 ? `<s>${q2(fA.q60)}</s>` : "";
-    const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>{ const t =
-      k==="serie" ? `${se.n}× in Folge` : k==="neu" ? `+${eur(neu)} in ${s.fensterMin||30} Min` : k==="norm" ? `×${dez(s.xnorm)} der Liga` :
-      k==="quote" ? `Quote ${q2(fA.q60)} → ${q2(fA.quote)}` : k==="push" ? `${/Fix/i.test(t3Pushes(s)[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(t3Pushes(s)[0].zeit)}` : k==="liga" ? `Liga trägt` :
-      k==="poly" ? (wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : `Polymarket +${usd(aw.poly.usd)}`) :
-      k==="stake" ? (burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : `Stake +${usd(aw.stake.usd)}`) : n;
-      return `<span class="t3-g" style="--f:${f}"><i></i>${t}</span>`; }).join("") + (lb?.urteil==="trägt nicht" ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>Liga trägt nicht</span>` : "");
-    return `<div class="t3-k${gross?" eins":""}"${bk("t3|"+s.id, s.eur, "€")} ${klickSpiel({id:s.id, heim:s.heim, gast:s.gast})} style="--glow:${T3_SIG.find(([k])=>p[k])[2]}">
-      ${t3Scheibe(p, summe, gross)}
+  const karte = (x, i) => {
+    const gross = i===0, p = x.p;
+    const zeit = x.live ? `<span class="t3-live"><i></i>${x.live}</span>` : `<span class="t3-zeit">${wann(x.anpfiff)}</span>`;
+    const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>`<span class="t3-g" style="--f:${f}"><i></i>${esc(x.g[k]||n)}</span>`).join("")
+      + (x.aus ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>${x.aus}</span>` : "");
+    return `<div class="t3-k${gross?" eins":""}"${bk("t3|"+x.key, x.wert, x.einheit)} ${x.klick} style="--glow:${T3_SIG.find(([k])=>p[k])[2]}">
+      ${t3Scheibe(p, x.summe, gross)}
       <div class="t3-i">
-        <div class="t3-o"><span class="t3-nr">${i+1}</span><span class="t3-liga">${flagge(s.land)} ${esc(ligaName(s.liga)||"")}</span>${zeit}</div>
-        <div class="t3-t">${esc(s.heim)} <span>–</span> ${esc(s.gast)}</div>
-        <div class="t3-tipp"><span class="t3-auf">${esc(auswahlDe(fA.name))}</span>${fA.quote?`<span class="t3-q">${alt}${q2(fA.quote)}</span>`:""}<small>${esc(marktDe(fM?.name||""))}</small></div>
-        ${gross ? t3Saeulen(s) : ""}
+        <div class="t3-o"><span class="t3-nr">${i+1}</span><span class="t3-liga">${x.kopf}</span>${zeit}</div>
+        <div class="t3-t">${esc(x.heim)} <span>–</span> ${esc(x.gast)}</div>
+        <div class="t3-tipp"><span class="t3-auf">${esc(x.auf)}</span>${x.quote?`<span class="t3-q">${x.alt?`<s>${q2(x.alt)}</s>`:""}${q2(x.quote)}</span>`:""}<small>${esc(x.markt)}</small></div>
+        ${gross ? t3Saeulen(x.saeulen) : ""}
         <div class="t3-gs">${gruende}</div>
       </div></div>`; };
   return `<div class="t3${erst?" erst":""}">${T.map(karte).join("")}</div>
