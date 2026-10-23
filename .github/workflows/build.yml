@@ -148,6 +148,40 @@ jobs:
             .pin
             .push_state
           key: radar-${{ github.run_id }}-${{ github.run_attempt }}
+      # 23.10.: Jeder Lauf (und jeder Mac-Lauf) legt einen neuen Cache an — 3.560 Stück, 10,7 GB, über der Grenze von
+      # 10 GB. Dann räumt GitHub selbst ab und erwischte zeitweise den frischen Polymarket-Stand (Seite ohne Polymarket).
+      # Je Präfix bleiben die neuesten 8, der Rest geht weg (höchstens 400 je Lauf).
+      - name: Alte Caches aufräumen
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          repo, tok = os.environ["REPO"], os.environ["GH_TOKEN"]
+          def api(pfad, methode="GET"):
+              req = urllib.request.Request(f"https://api.github.com/repos/{repo}/actions/{pfad}", method=methode,
+                                           headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json"})
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  return json.loads(r.read() or b"{}") if methode == "GET" else None
+          alle, seite = [], 1
+          while seite <= 40:
+              d = api(f"caches?per_page=100&page={seite}&sort=created_at&direction=desc")
+              alle += d.get("actions_caches") or []
+              if len(d.get("actions_caches") or []) < 100: break
+              seite += 1
+          je, weg = {}, []
+          for c in alle:                                  # neueste zuerst
+              pre = c["key"].split("-")[0]
+              je[pre] = je.get(pre, 0) + 1
+              if je[pre] > 8: weg.append(c)
+          n = 0
+          for c in weg[-400:]:                            # die ältesten zuerst
+              try: api(f"caches/{c['id']}", "DELETE"); n += 1
+              except Exception: pass
+          print(f"Caches: {len(alle)} gesamt, {n} alte gelöscht, {len(weg) - n} bleiben für später")
+          PY
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
