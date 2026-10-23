@@ -18,6 +18,7 @@ die Schlussquote. bilanz.json fasst je Art zusammen; build.py liest sie im näch
 from __future__ import annotations
 
 import json
+import math
 import re
 import urllib.parse
 import urllib.request
@@ -31,7 +32,8 @@ PREISE = BASIS / ".bf" / "betfair_prices.json"
 ERGEBNISSE = BASIS / ".bf" / "ergebnisse.json"
 KOMMISSION = 0.02
 VERFALL_TAGE = 4          # nach 4 Tagen ohne Ergebnis: „unaufgelöst"
-BEHALTEN = 3000
+BEHALTEN = 6000           # 23.10.: Top-3-Messung kommt dazu
+POLY_ARTEN = ("pserie", "wal", "top3p")
 ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "Wal-Einstieg Polymarket", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht"}
 
 
@@ -149,11 +151,11 @@ def aktualisieren(buch, jetzt):
                 b["schlussTs"] = jetzt.isoformat()
 
     # 2) Ergebnis: ab ~2 h nach Anpfiff
-    warten = {str(b.get("id")) for b in buch if b.get("status") == "offen" and b.get("art") != "pserie"
+    warten = {str(b.get("id")) for b in buch if b.get("status") == "offen" and b.get("art") not in POLY_ARTEN
               and _ts(b.get("anpfiff")) and jetzt - _ts(b["anpfiff"]) > timedelta(hours=2)}
     erg = _ergebnisse(warten)
     for b in buch:
-        if b.get("status") != "offen" or b.get("art") == "pserie" or str(b.get("id")) not in warten:
+        if b.get("status") != "offen" or b.get("art") in POLY_ARTEN or str(b.get("id")) not in warten:
             continue
         ft, ht = erg.get(str(b["id"]), (None, None))
         if not ft:
@@ -242,7 +244,7 @@ def poly_kurse(buch, jetzt):
         return                                    # veralteter Scan misst nichts
     mk = d.get("maerkte") or {}
     for b in buch:
-        if b.get("art") not in ("pserie", "wal") or b.get("status") != "offen":
+        if b.get("art") not in POLY_ARTEN or b.get("status") != "offen":
             continue
         p = _poly_preis(mk.get(str(b.get("id"))), b.get("auswahl"))
         if not p or not 0.01 < p < 0.99:
@@ -284,6 +286,54 @@ def messung(buch):
     return {"ab": MESSUNG_AB, "preis": MESSUNG_PREIS, "ziel": MESSUNG_ZIEL, "sport": aus}
 
 
+TOP3_AB = "2026-10-23T17:45:00+00:00"        # Lucas 23.10. 19:43: „ja bitte" — ab hier vorwärts
+TOP3_ZIEL = 60
+
+
+def _gruppe(z):
+    """Kennzahlen einer Gruppe aus dem Buch: Treffer gegen Quote, Rendite mit Fehler, Schlussquote, Kurs 15 Min danach."""
+    fertig = [b for b in z if b.get("status") == "abgerechnet"]
+    n = len(fertig)
+    r = [b["r"] for b in fertig]
+    roi = sum(r) / n if n else None
+    se = (math.sqrt(sum((x - roi) ** 2 for x in r) / (n - 1)) / math.sqrt(n)) if n > 1 else None
+    clv = [b["quote"] / b["schluss"] - 1 for b in z if not b.get("live") and b.get("schluss") and b.get("quote")
+           and _ts(b.get("schlussTs")) and _ts(b.get("anpfiff")) and _ts(b["schlussTs"]) >= _ts(b["anpfiff"]) - timedelta(minutes=20)]
+    mo = [b["quote"] / b["nach15"] - 1 for b in z if b.get("nach15") and b.get("quote")]
+    return {"gesendet": len(z), "abgerechnet": n, "offen": sum(1 for b in z if b.get("status") == "offen"),
+            "treffer": round(100 * sum(1 for b in fertig if b["win"]) / n) if n else None,
+            "erwartet": round(100 * sum(1 / b["quote"] for b in fertig) / n) if n else None,
+            "roi": round(100 * roi, 1) if roi is not None else None, "fehler": round(100 * se, 1) if se is not None else None,
+            "clv": round(100 * sum(clv) / len(clv), 1) if clv else None, "clvN": len(clv),
+            "kurs15": round(100 * sum(mo) / len(mo), 1) if mo else None, "kurs15N": len(mo),
+            "_roi": roi, "_se": se, "_kante": bool((clv and sum(clv) > 0) or (mo and sum(mo) > 0))}
+
+
+def top3_messung(buch):
+    """Top 3 jetzt: jeder erste Einzug zur Quote in dem Moment — gesamt, je Platz, je Punkte, Betfair/Polymarket."""
+    ab = _ts(TOP3_AB)
+    z = [b for b in buch if b.get("art") in ("top3", "top3p") and _ts(b.get("ts")) and _ts(b["ts"]) >= ab]
+    gruppen = [("Alle", z), ("Platz 1 beim Einzug", [b for b in z if b.get("rang") == 1]),
+               ("Platz 2–3 beim Einzug", [b for b in z if (b.get("rang") or 9) > 1]),
+               ("Irgendwann Platz 1", [b for b in z if b.get("bestRang") == 1]),
+               ("ab 6 Punkte", [b for b in z if (b.get("punkte") or 0) >= 6]), ("unter 6 Punkte", [b for b in z if (b.get("punkte") or 0) < 6]),
+               ("Vor Anpfiff", [b for b in z if not b.get("live")]), ("Live", [b for b in z if b.get("live")]),
+               ("Betfair", [b for b in z if b.get("art") == "top3"]), ("Polymarket", [b for b in z if b.get("art") == "top3p"])]
+    aus = []
+    for name, g in gruppen:
+        k = _gruppe(g)
+        if name == "Alle":
+            gesamt = k
+        if k["gesendet"]:
+            aus.append({"name": name, **{x: v for x, v in k.items() if not x.startswith("_")}})
+    urteil = None
+    if gesamt["abgerechnet"] >= TOP3_ZIEL:
+        urteil = "bestanden" if gesamt["_roi"] - (gesamt["_se"] or 0) > 0 and gesamt["_kante"] else "nicht bestanden"
+    letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "markt", "auswahl", "quote", "rang", "punkte", "signale", "status", "win", "ts", "live", "sport")}
+              for b in reversed(z)][:15]
+    return {"ab": TOP3_AB, "ziel": TOP3_ZIEL, "urteil": urteil, "gruppen": aus, "letzte": letzte}
+
+
 def poly_abrechnen(buch, jetzt):
     """Polymarket-Pushes (Dauerzufluss „pserie", Wal-Einstiege „wal") über die nachgeschlagenen Ereignisse abrechnen."""
     try:
@@ -291,12 +341,12 @@ def poly_abrechnen(buch, jetzt):
     except Exception:  # noqa: BLE001
         evs = {}
     for b in buch:
-        if b.get("art") not in ("pserie", "wal") or b.get("status") != "offen" or not _ts(b.get("anpfiff")):
+        if b.get("art") not in POLY_ARTEN or b.get("status") != "offen" or not _ts(b.get("anpfiff")):
             continue
         ev = evs.get(str(b.get("id")))
         w = None
         if ev:
-            if b["art"] == "pserie":
+            if b["art"] in ("pserie", "top3p"):
                 w = _poly_ausgang(ev, b.get("auswahl"))
             else:
                 import poly_markt
@@ -334,14 +384,14 @@ def zusammenfassen(buch):
                  "wal": teile([b for b in buch if b.get("art") == "wal"])}
     letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "titel", "anzeige", "eur", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
-              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen")][:40]
+              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN][:40]
     # Lucas 20.10. („Übersichtskurve auf die neuen Betfair-Pushes, weil das zählt"): jeder Push als
     # [Zeit UTC, Rendite je Einheit, 1/0] — offen mit None. build.py baut daraus die Bilanz-Kurve.
     grenze = datetime.now(timezone.utc) - timedelta(days=60)
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,
@@ -357,7 +407,7 @@ def zusammenfassen(buch):
                      "w": (1 if b.get("win") else 0) if ab else None, "sport": b.get("sport"), "key": b.get("id"),
                      "seite": b.get("auswahl"), "anzeige": b.get("anzeige"), "titel": b.get("titel"), "preis": b.get("preis"),
                      "usd": b.get("usd"), "wallet": b.get("wallet"), "status": "won" if ab and b.get("win") else "lost" if ab else "pending"})
-    return {"messung": messung(buch), "walVerlauf": wale, "arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
+    return {"messung": messung(buch), "top3": top3_messung(buch), "walVerlauf": wale, "arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
 
 
 def _kennz(ab):

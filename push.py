@@ -913,6 +913,13 @@ def main() -> int:
                 if beleg and not trocken:
                     bilanz.eintragen(buch, beleg, JETZT)
     if not trocken:
+        try:                         # Lucas 23.10.: Top 3 jetzt mitschreiben und abrechnen (Messung, kein Push)
+            import top3
+            n3 = top3.eintragen(d, buch, JETZT)
+            if n3:
+                print(f"  top3: {n3} neu im Buch")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  top3: {exc}")
         try:
             bilanz.schreiben(bilanz.aktualisieren(buch, JETZT), JETZT)
         except Exception as exc:  # noqa: BLE001  — Auswertung darf das Pushen nie aufhalten

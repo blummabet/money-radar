@@ -528,7 +528,7 @@ def buch_ereignisse():
     keys = {}
     for b in buch:
         ko = _ts(b.get("anpfiff"))
-        if b.get("art") in ("pserie", "wal") and b.get("status") == "offen" and b.get("id") and ko \
+        if b.get("art") in ("pserie", "wal", "top3p") and b.get("status") == "offen" and b.get("id") and ko \
                 and JETZT - ko > timedelta(hours=2):
             keys[b["id"]] = ko
     neu = {}
