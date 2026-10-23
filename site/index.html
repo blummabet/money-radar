@@ -1373,10 +1373,11 @@ function teilenText(s){
 }
 async function teilen(id){
   const s = D.radar.spiele.find(x=>String(x.id)===String(id)); if(!s) return;
-  const text = teilenText(s), url = location.origin + location.pathname;
-  try{ if(navigator.share){ await navigator.share({text: text + "\n\n" + url}); return; } }catch(_){ return; }   // Abbrechen = nichts tun
-  try{ await navigator.clipboard.writeText(text + "\n\n" + url); }catch(_){}
-  window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, "_blank", "noopener");
+  // Lucas 23.10.: ohne Link — nur der Text
+  const text = teilenText(s);
+  try{ if(navigator.share){ await navigator.share({text}); return; } }catch(_){ return; }   // Abbrechen = nichts tun
+  try{ await navigator.clipboard.writeText(text); }catch(_){}
+  window.open(`https://t.me/share/url?url=${encodeURIComponent(text)}`, "_blank", "noopener");
 }
 // Lucas 23.10. („schneller relevante Sachen lesen, intuitiv"): Spiel-Fenster neu sortiert — Kopf, Kernaussage als Chips,
 // Säulen, wohin das Geld floss, Märkte als Wand (Fläche = Geld), Quotenkurve nur offen, wenn sie sich bewegt hat.
