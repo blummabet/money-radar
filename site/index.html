@@ -1049,6 +1049,7 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 @media (max-width:700px){ .hpb{grid-template-columns:40px minmax(0,1fr) minmax(0,calc(var(--n) * 58px));gap:5px} .hz-c b{font-size:12px} .hpb-t b{font-size:12.5px} }
 .dw-k.xs .dw-i{padding:0} .dw-k.xs .dw-i>*{display:none}
 .dw-k.k .dw-m{display:none} .dw-k.k .dw-i{padding:5px 6px} .dw-k.k .dw-f{font-size:11.5px} .dw-k.k .dw-f em{display:none}
+.dk-teilen{margin-left:auto;font:inherit;font-size:12.5px;font-weight:700;color:var(--text);background:var(--flaeche-2);border:1px solid var(--rand);border-radius:999px;padding:4px 12px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -1318,13 +1319,42 @@ function spielVerlauf(s){
   return `<div class="sv"><h4>Geld auf Betfair <small>${eur(r[0][1])} → <b>${eur(r[r.length-1][1])}</b>${zu>0?` · +${eur(zu)} seit ${x[0]}`:""}</small></h4>${geld}
     ${quoten?`<h4 style="margin-top:14px">Wahrscheinlichkeit laut Betfair-Quote</h4>${quoten}`:""}</div>`;
 }
+// Lucas 23.10.: „Teilen-Button im Overlay, damit ich's meinem Kumpel auf Telegram schicken kann, auch wenn kein Push kam"
+const flaggeEmoji = cc => /^[a-z]{2}$/i.test(cc||"") ? String.fromCodePoint(...[...cc.toUpperCase().replace("UK","GB")].map(c=>0x1F1A5+c.charCodeAt(0))) : "⚽";
+function teilenText(s){
+  const md = s.maerkteDetail || [], fm = s.fensterMin || 30, z = [];
+  const zeit = s.live ? `${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?" · "+s.live.stand.join(":"):""}` : wann(s.anpfiff);
+  z.push(`💰 Geldradar · Betfair`, `${flaggeEmoji(s.land)} ${s.heim} – ${s.gast}`, `${ligaName(s.liga)||s.liga||""} · ${zeit}`, "");
+  const fl = []; for(const m of md) for(const a of m.auswahl) if(a.neu>0 && !(a.quote && a.quote<1.15)) fl.push({m, a});
+  fl.sort((x,y)=>y.a.neu-x.a.neu);
+  const se = serieVon(D, s.id);
+  if(se) z.push(`🔁 ${se.n}× in Folge: ${eur(se.eur)} auf ${auswahlDe(se.auswahl)} @ ${q2(se.quote)} (${marktDe(se.markt)})`);
+  const t = fl[0], m = se ? md.find(x=>x.name===se.markt) || t?.m : t?.m;
+  if(t) z.push(`💶 +${eur(t.a.neu)} in ${fm} Min auf ${auswahlDe(t.a.name)} @ ${q2(t.a.quote)}${t.m.neu?` (${Math.round(t.a.neu/t.m.neu*100)} % des neuen Geldes im Markt)`:""}`);
+  const ta = t?.a; if(ta && ta.q60 && ta.quote && ta.quote < ta.q60*0.97) z.push(`🔻 Quote gedrückt: ${q2(ta.q60)} → ${q2(ta.quote)}`);
+  if(m){ const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1, br = Math.max(...m.auswahl.map(a=>auswahlDe(a.name).length));
+    z.push("", `🏦 ${marktDe(m.name)} (${eur(m.eur)} im Markt):`);
+    for(const a of m.auswahl.filter(a=>a.eur>0).slice(0,4)){ const n_ = Math.round(10*a.eur/ges);
+      z.push(`${auswahlDe(a.name).padEnd(br)} ${"▓".repeat(n_)}${"░".repeat(10-n_)} ${eur(a.eur)}${a.quote?` @ ${q2(a.quote)}`:""}`); } }
+  z.push("", `📊 ${eur(s.eur)} gematcht${s.xnorm!=null?` · ×${dez(s.xnorm)} der Liga`:""}`);
+  const lb = ((D.ligaBilanz||{}).ligen||{})[s.liga]; if(lb && lb.urteil!=="offen") z.push(`📚 Liga-Bilanz hohes Geld: ${lb.urteil} (${lb.hoch.treffer} % getroffen, Quote sagte ${lb.hoch.erwartet} %)`);
+  const a = (D.auchWoanders||{})[s.id]; if(a?.poly?.usd>=1000 || a?.stake?.usd>=1000) z.push(`➕ ${[a.poly?.usd>=1000?`Polymarket ${usd(a.poly.usd)}`:"", a.stake?.usd>=1000?`Stake ${usd(a.stake.usd)}`:""].filter(Boolean).join(" · ")} in 30 Min`);
+  return z.join("\n");
+}
+async function teilen(id){
+  const s = D.radar.spiele.find(x=>String(x.id)===String(id)); if(!s) return;
+  const text = teilenText(s), url = location.origin + location.pathname;
+  try{ if(navigator.share){ await navigator.share({text: text + "\n\n" + url}); return; } }catch(_){ return; }   // Abbrechen = nichts tun
+  try{ await navigator.clipboard.writeText(text + "\n\n" + url); }catch(_){}
+  window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, "_blank", "noopener");
+}
 // Lucas 23.10. („schneller relevante Sachen lesen, intuitiv"): Spiel-Fenster neu sortiert — Kopf, Kernaussage als Chips,
 // Säulen, wohin das Geld floss, Märkte als Wand (Fläche = Geld), Quotenkurve nur offen, wenn sie sich bewegt hat.
 const kurzAus = (n, s) => /^(over|under) [\d.]+/i.test(n||"") ? (/^over/i.test(n)?"Über":"Unter") : n===s?.heim ? "1" : n===s?.gast ? "2" : /^(the )?draw$/i.test(n||"") ? "X" : auswahlDe(n);
 function dKopf(s){
   const zeit = s.live ? `<span class="dk-live">● ${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}</span>` : `<span class="mk-zeit">${wann(s.anpfiff)}</span>`;
   const norm = s.xnorm!=null ? `<span class="dk-n" style="color:${s.xnorm>=3?"var(--down)":s.xnorm>=1.5?"var(--bf)":"var(--text-2)"}">×${dez(s.xnorm)} der Liga</span>` : "";
-  return `<div class="dk"><div class="dk-1">${flagge(s.land)}<span>${esc(ligaName(s.liga)||s.liga||"")}</span>${zeit}</div>
+  return `<div class="dk"><div class="dk-1">${flagge(s.land)}<span>${esc(ligaName(s.liga)||s.liga||"")}</span>${zeit}<button class="dk-teilen" data-teilen="${esc(String(s.id))}" aria-label="Teilen">↗ Teilen</button></div>
     <div class="dk-2"><b>${eur(s.eur)}</b> gematcht über alle Märkte ${norm}</div></div>`;
 }
 function dChips(s, fl, fm){
@@ -2783,6 +2813,7 @@ function aufklappen(tr){
 }
 document.addEventListener("click", e=>{
   if(e.target.closest("[data-zu]")){ drZu(); return; }
+  const tl = e.target.closest("[data-teilen]"); if(tl){ e.stopPropagation(); teilen(tl.dataset.teilen); return; }
   const lg = e.target.closest("[data-liga]"); if(lg){ ligaModus = lg.dataset.liga; try{ localStorage.setItem("radar-liga", ligaModus); }catch(_){} render(); return; }
   const dk = e.target.closest("[data-dr]"); if(dk && !e.target.closest("a")){ drOeffnen(dk.dataset.dr); return; }
   if(e.target.closest("#thema")){ const t = document.documentElement.dataset.theme==="hell" ? "dunkel" : "hell";
