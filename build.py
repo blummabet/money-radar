@@ -1170,6 +1170,10 @@ def halbzeit(prices):
                 continue
             rs = [r for r in v.get("runners") or [] if isinstance(r, dict) and (r.get("vol") or 0) > 0]
             top = max(rs, key=lambda r: r.get("vol") or 0) if rs else None
+            # Lucas 23.10. (Widzew – Górnik 31' 1:0, „HZ Unter 2,5 @ 1,10"): liegt das meiste Geld auf einer Quote unter
+            # 1,20, ist das Absicherung/Einsammeln, kein Halbzeit-Signal — der Markt zählt weder in Karte noch Summe.
+            if top and isinstance(top.get("odd"), (int, float)) and top["odd"] < 1.20:
+                continue
             maerkte.append({"name": name, "eur": round(vol),
                             "runner": [{"name": r.get("name"), "eur": round(r.get("vol") or 0), "quote": r.get("odd")} for r in rs][:8],
                             "auf": top.get("name") if top else None, "quote": top.get("odd") if top else None,
