@@ -1072,6 +1072,8 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .hzv-t{display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-2)} .hzv-t b{color:var(--text)}
 .hzv-b{height:8px;border-radius:4px;background:color-mix(in srgb, var(--bf) 25%, var(--flaeche-2));overflow:hidden}
 .hzv-b i{display:block;height:100%;background:var(--hz)}
+.dr-weiter{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;font:inherit;font-weight:800;font-size:15px;color:var(--text);background:var(--flaeche);border:1px solid var(--rand);border-radius:14px;padding:12px 14px;cursor:pointer}
+.dr-weiter span{font-size:12px;font-weight:600;color:var(--text-3)}
 </style>
 </head>
 <body>
@@ -1705,7 +1707,7 @@ function hzDetail(g){
     ${kopf}
     <div><h4>Geld auf die 1. Halbzeit <small>${eur(g.eur)} in den HZ-Märkten</small></h4><div class="hpbs">${zeilen}</div></div>
     ${vergl}
-    ${sp?`<div><h4>Das ganze Spiel</h4>${ohneHuelle(spielDetail(sp, false, true)).replace(/^<div class="det">/,'<div class="det" style="padding:0">')}</div>`:""}
+    ${sp?`<button class="dr-weiter" ${klickSpiel(sp)}>Ganzes Spiel ansehen <span>Säulen, Geldfluss, alle Märkte →</span></button>`:""}
   </div></td></tr>`;
 }
 function pinKarten(liste){
@@ -1824,6 +1826,7 @@ const klick = (titel, htmlFn) => `data-dr="${drKey(titel, htmlFn)}" tabindex="0"
 function drOeffnen(k){
   const d = DR[k]; if(!d) return;
   $("#dr-titel").innerHTML = d.titel; $("#dr-inhalt").innerHTML = d.html;
+  for(const el of [$("#dr-inhalt"), $("#dr-inhalt")?.parentElement]) if(el) el.scrollTop = 0;   // Wechsel im offenen Fenster: oben anfangen
   document.body.classList.add("dr-offen");
 }
 function drZu(){ document.body.classList.remove("dr-offen"); }
