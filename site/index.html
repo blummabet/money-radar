@@ -1451,7 +1451,7 @@ function quotenKurve(s){
   const kopf = `Wahrscheinlichkeit laut Betfair-Quote <span class="kk-klein">· ${beweg<3?"stabil":"bewegt"}, größte Änderung ${dez(beweg)} Prozentpunkte</span>`;
   return beweg >= 3 ? `<div><h4>${kopf}</h4>${bild}</div>` : `<details class="dq"><summary>${kopf}</summary>${bild}</details>`;
 }
-function spielDetail(s, ohneVerlauf){
+function spielDetail(s, ohneVerlauf, ohneKopf){
   const md = s.maerkteDetail || [], fm = s.fensterMin || 30;
   const PAL = ["var(--bf)","var(--pin)","var(--text-3)","var(--poly)","var(--stake)","var(--hz)"];
   const fl = [];
@@ -1464,7 +1464,7 @@ function spielDetail(s, ohneVerlauf){
     : `<details class="dq"><summary>Kaum neues Geld: nur +${eur(neu)} in ${fm} Min (${dez(100*neu/Math.max(1,s.eur))} % des Spiels) · trotzdem zeigen</summary>${flussSankey(fl, PAL)}</details>`;
   const saeulen = ohneVerlauf ? "" : (geldSaeulen(s) || "");
   return `<tr class="detail"><td colspan="6"><div class="det">
-    ${dKopf(s)}${s.live?liveStat(s.id,true):""}${dChips(s, fl, fm)}
+    ${ohneKopf?"":dKopf(s)}${s.live?liveStat(s.id,true):""}${dChips(s, fl, fm)}
     ${saeulen?`<div class="sv">${saeulen}</div>`:""}
     <div><h4>Wohin das neue Geld floss <small>letzte ${fm} Min</small></h4>${flussBlock}</div>
     <div><h4>Märkte</h4>${marktWand(s)||"–"}</div>
@@ -1704,7 +1704,7 @@ function hzDetail(g){
     ${kopf}
     <div><h4>Geld auf die 1. Halbzeit <small>${eur(g.eur)} in den HZ-Märkten</small></h4><div class="hpbs">${zeilen}</div></div>
     ${vergl}
-    ${sp?`<div><h4>Das ganze Spiel</h4>${ohneHuelle(spielDetail(sp)).replace(/^<div class="det">/,'<div class="det" style="padding:0">')}</div>`:""}
+    ${sp?`<div><h4>Das ganze Spiel</h4>${ohneHuelle(spielDetail(sp, false, true)).replace(/^<div class="det">/,'<div class="det" style="padding:0">')}</div>`:""}
   </div></td></tr>`;
 }
 function pinKarten(liste){
