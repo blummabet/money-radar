@@ -1029,17 +1029,17 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                     return letzt
                 stände = [sel_bis(g) for g in grenzen]
 
-                def vol(sl, mk, nm):
+                def sel_vol(sl, mk, nm):
                     v = ((sl or {}).get(mk) or {}).get(nm)
                     return float(v[0]) if isinstance(v, list) and v else 0.0
                 letzt = next((x for x in reversed(stände) if x), None) or {}
                 erst_ = next((x for x in stände if x), None) or {}
-                kand = sorted(((vol(letzt, mk, nm) - vol(erst_, mk, nm), mk, nm) for mk, d in letzt.items() if isinstance(d, dict) for nm in d),
+                kand = sorted(((sel_vol(letzt, mk, nm) - sel_vol(erst_, mk, nm), mk, nm) for mk, d in letzt.items() if isinstance(d, dict) for nm in d),
                               reverse=True)[:5]
                 for gesamt, mk, nm in kand:
                     if gesamt < 300:
                         continue
-                    w = [round(max(0, vol(stände[k + 1], mk, nm) - vol(stände[k], mk, nm))) if stände[k] and stände[k + 1] else None
+                    w = [round(max(0, sel_vol(stände[k + 1], mk, nm) - sel_vol(stände[k], mk, nm))) if stände[k] and stände[k + 1] else None
                          for k in range(36)]
                     teile.append({"markt": mk, "auswahl": nm, "w": w})
             if erster is not None:
