@@ -1047,6 +1047,8 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .hz-c em{font-style:normal;font-size:13px;font-weight:600;white-space:nowrap}
 .hq{font-style:normal;font-weight:800;margin-right:1px} .hq.ab{color:var(--down)} .hq.auf{color:var(--up)}
 @media (max-width:700px){ .hpb{grid-template-columns:40px minmax(0,1fr) minmax(0,calc(var(--n) * 58px));gap:5px} .hz-c b{font-size:12px} .hpb-t b{font-size:12.5px} }
+.dw-k.xs .dw-i{padding:0} .dw-k.xs .dw-i>*{display:none}
+.dw-k.k .dw-m{display:none} .dw-k.k .dw-i{padding:5px 6px} .dw-k.k .dw-f{font-size:11.5px} .dw-k.k .dw-f em{display:none}
 </style>
 </head>
 <body>
@@ -1205,9 +1207,12 @@ function flussSankey(fl, PAL){
   let teile = fl.filter(f=>f.neu/ges>=0.03).slice(0,7);
   const rest = ges - teile.reduce((x,f)=>x+f.neu,0);
   // nach Markt gruppieren, damit gleiche Farben nebeneinander liegen; innerhalb nach Betrag
-  const mOrd = [...new Set(teile.map(f=>f.markt))];
-  const farbe = m => m==="_rest" ? "var(--text-3)" : PAL[mOrd.indexOf(m)%PAL.length];
-  teile.sort((a,b)=>(mOrd.indexOf(a.markt)-mOrd.indexOf(b.markt))||(b.neu-a.neu));
+  // 23.10.: Geld zu Quoten unter 1,15 (Absicherung/Einsammeln) grau und hinten, nicht in Marktfarbe vorn
+  const tot = f => f.quote && f.quote < 1.15;
+  const mOrd = [...new Set(teile.filter(f=>!tot(f)).map(f=>f.markt))];
+  const farbe = (m, f) => m==="_rest" || (f && tot(f)) ? "var(--text-3)" : PAL[mOrd.indexOf(m)%PAL.length];
+  teile.sort((a,b)=>(tot(a)-tot(b)) || (mOrd.indexOf(a.markt)-mOrd.indexOf(b.markt))||(b.neu-a.neu));
+  const totSumme = fl.filter(tot).reduce((x,f)=>x+f.neu,0);
   if(rest/ges>=0.01) teile.push({markt:"_rest", name:"Übrige", neu:rest});
   const W = 340, xL = 0, bL = 10, xR = 150, bR = 7, SLOT = 34, GAP = 6;
   const hoch = 200;                                       // Höhe des linken Topfs
@@ -1218,16 +1223,16 @@ function flussSankey(fl, PAL){
   teile.forEach(f=>{
     const h = Math.max(2, f.neu/ges*hoch);
     const sl = Math.max(SLOT, h) ; const r0 = yS + (sl - Math.min(h, sl))/2, r1 = r0 + Math.min(h, sl);
-    const l0 = yL, l1 = yL + f.neu/ges*hoch, xm = (xL+bL+xR)/2, c = farbe(f.markt);
+    const l0 = yL, l1 = yL + f.neu/ges*hoch, xm = (xL+bL+xR)/2, c = farbe(f.markt, f);
     out += `<path d="M${xL+bL},${l0.toFixed(1)} C${xm},${l0.toFixed(1)} ${xm},${r0.toFixed(1)} ${xR},${r0.toFixed(1)} L${xR},${r1.toFixed(1)} C${xm},${r1.toFixed(1)} ${xm},${l1.toFixed(1)} ${xL+bL},${l1.toFixed(1)} Z" style="fill:${c}" opacity="${f.quote&&f.quote<1.2?.28:.55}"><title>${esc(auswahlDe(f.name))}: +${eur(f.neu)}</title></path>`;
     out += `<rect x="${xR}" y="${r0.toFixed(1)}" width="${bR}" height="${(r1-r0).toFixed(1)}" rx="2" style="fill:${c}"/>`;
     const ym = (r0+r1)/2, pct = Math.round(f.neu/ges*100);
     lab += `<text x="${xR+bR+8}" y="${(ym-3).toFixed(1)}" font-size="12" font-weight="700" fill="var(--text)">${esc((f.markt==="_rest"?"Übrige Märkte":auswahlDe(f.name)).slice(0,22))}${f.quote?` <tspan font-weight="500" fill="var(--text-3)">${q2(f.quote)}</tspan>`:""}</text>`
-         + `<text x="${xR+bR+8}" y="${(ym+11).toFixed(1)}" font-size="10.5" fill="var(--text-2)"><tspan style="fill:${c}" font-weight="700">+${eur(f.neu)}</tspan> · ${pct} %${f.markt!=="_rest"?` · ${esc(marktDe(f.markt).slice(0,16))}`:""}</text>`;
+         + `<text x="${xR+bR+8}" y="${(ym+11).toFixed(1)}" font-size="10.5" fill="var(--text-2)"><tspan style="fill:${c}" font-weight="700">+${eur(f.neu)}</tspan> · ${pct} %${f.markt!=="_rest"?` · ${tot(f)?"Absicherung":esc(marktDe(f.markt).slice(0,16))}`:""}</text>`;
     yL = l1; yS += sl + GAP;
   });
   const topf = `<rect x="${xL}" y="${(H-hoch)/2}" width="${bL}" height="${hoch}" rx="3" fill="var(--text-2)"/>`;
-  return `<div class="sankey-k"><span>Neues Geld</span><b>+${eur(ges)}</b></div>
+  return `<div class="sankey-k"><span>Neues Geld</span><b>+${eur(ges)}</b>${totSumme>=ges*0.1?`<span>davon ${eur(totSumme)} Absicherung (Quote unter 1,15)</span>`:""}</div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-width:520px" role="img" aria-label="Wohin das neue Geld floss">${topf}${out}${lab}</svg>`;
 }
 // Kleiner Linien-Graph fürs Detail: gestrecktes SVG + HTML-Beschriftung (lesbar auf dem Handy)
@@ -1279,7 +1284,9 @@ function geldSaeulen(s){
   const fokusSumme = fokus ? fokus.w.reduce((a,b)=>a+(b||0),0) : 0;
   const marken = [];
   if(S.ko!=null) marken.push(`<span class="gs-ko" style="left:${(S.ko/n*100).toFixed(2)}%"></span>`);
-  for(const t of S.tore||[]) marken.push(`<span class="gs-tor" style="left:${((t.i+0.5)/n*100).toFixed(2)}%">⚽ ${t.stand.join(":")}</span>`);
+  // 23.10.: zwei Tore dicht hintereinander überlagerten sich — nahe Tore zu einer Marke mit dem späteren Stand
+  const toreZ = []; for(const t of S.tore||[]){ const l = toreZ[toreZ.length-1]; if(l && t.i - l.i < 4){ l.i = t.i; l.stand = t.stand; l.n++; } else toreZ.push({...t, n:1}); }
+  for(const t of toreZ) marken.push(`<span class="gs-tor" style="left:${((t.i+0.5)/n*100).toFixed(2)}%">${"⚽".repeat(Math.min(t.n,2))} ${t.stand.join(":")}</span>`);
   // Achse: Anfang, Anpfiff (wenn im Fenster), jetzt — Zwischenzeiten nur, wenn sie nicht mit dem Anpfiff kollidieren
   const ticks = [[0, uhrVon(0)]];
   for(const i of [12, 24]) if(S.ko==null || Math.abs(i - S.ko) > 5) ticks.push([i, uhrVon(i)]);
@@ -1345,7 +1352,7 @@ function marktWand(s){
     const aus = m.auswahl.filter(a=>a.name!=="Rest"&&a.eur>0), ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1;
     const top = aus.reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null), tot = top && top.quote && top.quote<1.15;
     const f = tot ? "var(--text-3)" : MW_FAM.find(x=>x[0]===mwFamilie(m.name))[2];
-    const gr = r.w*r.h > W*H*0.18 ? "g" : r.w*r.h > W*H*0.07 ? "m" : "k";
+    const gr = r.w*r.h > W*H*0.18 ? "g" : r.w*r.h > W*H*0.07 ? "m" : r.w*r.h > W*H*0.025 && r.h > 34 ? "k" : "xs";
     return `<div class="dw-k ${gr}" style="left:${(r.x/W*100).toFixed(2)}%;top:${(r.y/H*100).toFixed(2)}%;width:${(r.w/W*100).toFixed(2)}%;height:${(r.h/H*100).toFixed(2)}%">
       <div class="dw-i${m.neu>0&&!tot?" heiss":""}" style="--f:${f}" title="${esc(marktDe(m.name))}: ${eur(m.eur)}${m.neu>0?`, +${eur(m.neu)} neu`:""}${tot?" — fast nur Absicherungsgeld (Quote unter 1,15)":""}">
         <div class="dw-m">${esc(marktDe(m.name))}</div>
