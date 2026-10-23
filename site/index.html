@@ -2593,7 +2593,7 @@ function hitparade(D, n=15){
     if(/^over /i.test(n_)) return "Über"; if(/^under /i.test(n_)) return "Unter";
     const sv = seiteVon(z, n_); if(sv==="h") return "1"; if(sv==="g") return "2"; if(sv==="x") return "X";
     if(/^yes$/i.test(n_)) return "Ja"; if(/^no$/i.test(n_)) return "Nein"; return auswahlDe(n_); };
-  const zeilen = alle.slice(0, n).map((z,i)=>{ const rang = i+1, alt = rv.get(z.k);
+  const zeilenAlle = alle.slice(0, 30).map((z,i)=>{ const rang = i+1, alt = rv.get(z.k);
     const bew = !mc.messbar ? "" : alt==null ? `<em class="hb neu">neu</em>` : alt>rang ? `<em class="hb auf">▲${alt-rang}</em>` : alt<rang ? `<em class="hb ab">▼${rang-alt}</em>` : "";
     const zeit = z.live ? `<b class="hb-live">${z.live.min!=null?z.live.min+"'":"live"}</b><b class="hb-live">${z.live.stand?.[0]??0}-${z.live.stand?.[1]??0}</b>` : `<span>${uhr(z.anpfiff)}</span>${tagKurz(z.anpfiff)!==tagKurz(new Date().toISOString())?`<small>${tagKurz(z.anpfiff)}</small>`:""}`;
     let au = mwAuswahl(z).filter(a=>a[0]!=="Rest");
@@ -2604,7 +2604,9 @@ function hitparade(D, n=15){
     return `<div class="hpb" style="--n:${au.length}" ${klickSpiel({id:z.id, heim:z.heim, gast:z.gast})}>
       <div class="hpb-z"><span class="hpb-r">${rang}${bew}</span>${zeit}</div>
       <div class="hpb-t"><small>${esc(marktDe(z.markt))}</small><b>${flagge(z.land)} ${esc(z.heim)}</b><b>${esc(z.gast)}</b></div>
-      <div class="hpb-c">${zellen}</div></div>`; }).join("");
+      <div class="hpb-c">${zellen}</div></div>`; });
+  // Lucas 23.10. (Vienna stand auf Platz 13, also knapp unter dem Strich): die weiteren Plätze bis 30 aufklappbar
+  const zeilen = zeilenAlle.slice(0, n).join("") + (zeilenAlle.length > n ? `</div>${liste(`Plätze ${n+1} bis ${zeilenAlle.length}`, "", `<div class="hpbs">${zeilenAlle.slice(n).join("")}</div>`)}<div>` : "");
   const hinweis = mc.messbar ? "" : `<div class="kk-klein" style="margin-bottom:8px">Auf- und Absteiger erscheinen, sobald eine Stunde Verlauf gesammelt ist.</div>`;
   return hinweis + `<div class="hpbs">${zeilen}</div><div class="kk-klein" style="margin-top:8px">Pfeil = Quote gegenüber vor etwa 1 Stunde (↓ gefallen = Geld kam rein) · umrahmt = meistes Geld</div>`;
 }
