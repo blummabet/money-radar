@@ -2550,8 +2550,10 @@ function topDreiDaten(D){
     const wale = fk ? ((D.toepfe||[]).find(x=>x.id===s.id)?.wale||[]).filter(w=>w.bewiesen && w.k===fk) : [];
     if(wale.length) p.poly = 2; else if(aw.poly?.usd>=1000) p.poly = 1;
     const fkey = feedKey(s.heim, s.gast);
-    const burst = fk ? (D.stake?.gruppen||[]).find(g=>/burst/i.test((g.arten||[g.art]).join(" ")) && g.zeit && Date.now()-new Date(g.zeit) < 3*36e5
-      && feedKey(...String(g.spiel||"").split(/\s+-\s+/)) === fkey && {h:"heim", g:"gast", x:"remis"}[seiteVon(s, g.auswahl)] === fk) : null;
+    const ou = n => (/^(over|under)/i.exec(String(n||""))||[])[1]?.toLowerCase();
+    const gleicheSeite = g => fk ? {h:"heim", g:"gast", x:"remis"}[seiteVon(s, g.auswahl)] === fk : !!(fA && ou(fA.name) && ou(fA.name)===ou(g.auswahl));
+    const burst = fA ? (D.stake?.gruppen||[]).find(g=>/burst/i.test((g.arten||[g.art]).join(" ")) && g.zeit && Date.now()-new Date(g.zeit) < 3*36e5
+      && feedKey(...String(g.spiel||"").split(/\s+-\s+/)) === fkey && gleicheSeite(g)) : null;
     if(burst) p.stake = 2; else if(aw.stake?.usd>=1000) p.stake = 1;
     const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
     const summe = Object.values(p).reduce((a,b)=>a+b,0) - (lb?.urteil==="trägt nicht" ? 1 : 0);
