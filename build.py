@@ -1098,7 +1098,10 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                       "ht": bool(li.get("is_ht"))} if dt_h < 0 else None),
             # Lucas 17.10. (Everton–Chelsea 90' 0:2, €1,6 Mio „Zufluss"): Geld auf ein entschiedenes
             # Spiel ist Abrechnungs-/Trading-Rauschen bei Quote 1,01–1,05, kein Signal.
-            "entschieden": bool(dt_h < 0 and isinstance(li.get("time"), (int, float)) and (li.get("time") >= 70 or (
+            # Lucas 24.10. (Gil Vicente – Porto 75' 0:1, €1 Mio, „find das nirgends"): ab der 70. Minute galt JEDES Spiel als
+            # entschieden und verschwand aus Wand, Hitparade und Top 3 — auch bei 0:1. Jetzt nur, wenn die Quote es sagt
+            # (eine Seite bei 1,10 oder darunter, ab der 30.) oder ab der 85. Minute.
+            "entschieden": bool(dt_h < 0 and isinstance(li.get("time"), (int, float)) and (li.get("time") >= 85 or (
                 li.get("time") >= 30 and min([q for q in (mo.get("hw"), mo.get("dr"), mo.get("aw")) if q] or [9]) <= 1.10))),
             # Lucas 18.10. (Salzburg 14' 1:0 @1,21 im Live-Zufluss): führt ein Team und steht es unter 1,40, ist das
             # Spiel für alle Live-Listen und -Pushes durch — dieselbe Grenze wie „Wo am meisten liegt".
