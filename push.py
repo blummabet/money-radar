@@ -232,7 +232,10 @@ def zufluss(d):
 def live(d):
     """Lucas 17.10.: „Ja, inplay will ich auch" — einseitiges neues Geld in laufenden Spielen (15 Min).
     Je Spiel + Markt + Auswahl nur einmal (12 h Pause), entschiedene Spiele kommen gar nicht in die Liste."""
+    tot = {str(s.get("id")) for s in (d.get("radar") or {}).get("spiele") or [] if s.get("entschieden") or s.get("klarVorn")}
     for z in d.get("liveZufluss") or []:
+        if str(z.get("id")) in tot:
+            continue                  # 24.10.: die Seite zeigt solche Spiele jetzt (Tor-Märkte), gepusht wird wie bisher nicht
         fl = (z.get("fluss") or [None])[0]
         if not fl or fl.get("eur", 0) < SCHWELLE[bool(z.get("top5"))][1]:
             continue
@@ -726,7 +729,10 @@ def _stufe(n):
 def serie(d):
     """Lucas 17.10.: wiederholter Zufluss auf dieselbe Auswahl („bei jedem Scan wieder 10.000") ist ein
     eigener KPI. Push ab 3 Abrufen in Folge, wieder bei 5, 8 und 12 — nicht bei jedem neuen Treffer."""
+    tot_s = {str(s.get("id")) for s in (d.get("radar") or {}).get("spiele") or [] if s.get("entschieden") or s.get("klarVorn")}
     for x in d.get("serien") or []:
+        if str(x.get("id")) in tot_s:
+            continue                  # 24.10.: auf der Seite sichtbar, gepusht wird wie bisher nicht
         if not _quote_ok(x.get("quote"), max([v for v in [x.get("quoteStart")] + [f.get("quoteVorher") for z_ in d.get("zufluss30") or []
                          if str(z_.get("id")) == str(x["id"]) for f in z_.get("fluss") or [] if f.get("auswahl") == x["auswahl"]]
                          if isinstance(v, (int, float))], default=None), bool(x.get("live"))):

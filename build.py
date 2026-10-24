@@ -1416,8 +1416,11 @@ def live_zufluss(radar):
         fl = [f for f in sp.get("flussLive") or [] if f["eur"] >= boden
               and not (f.get("quote") and f.get("quoteVorher")
                        and not (1 / 1.4 <= f["quote"] / f["quoteVorher"] <= 1.4))]
+        if sp.get("entschieden") or sp.get("klarVorn"):          # 24.10.: nur die Sieg-Märkte sind dann gesperrt
+            fl = [f for f in fl if f.get("markt") not in SIEG_MAERKTE]
+        fl = [f for f in fl if not _linie_durch(f.get("markt"), (sp.get("live") or {}).get("stand"))]
         d = fl[0]["eur"] if fl else None
-        if not sp.get("live") or sp.get("entschieden") or sp.get("klarVorn") or not d:
+        if not sp.get("live") or not d:
             continue
         out.append({k: sp.get(k) for k in ("id", "heim", "gast", "liga", "land", "anpfiff", "live", "eur", "xnorm",
                                             "quoten", "verteilung", "marktZufluss", "top5", "rang")} | {"zuflussEur": d, "fluss": fl})
@@ -1487,8 +1490,12 @@ def serien(takt, radar):
     out = []
     for mid, liste in takt.items():
         sp = spiele.get(str(mid))
-        if not sp or sp.get("entschieden") or sp.get("klarVorn"):
+        if not sp:
             continue
+        # Lucas 24.10. („der Sieg-Markt ist entschieden, aber auf Über 1,5 kann noch Geld kommen — das sollte man sehen"):
+        # entschieden/klar vorn sperrt nur noch die Sieg-Märkte, nicht das ganze Spiel. Tor-Linien, die schon durch sind,
+        # und Quoten unter 1,20 fallen je Markt raus.
+        sieg_tot = bool(sp.get("entschieden") or sp.get("klarVorn"))
         top5 = bool(sp.get("top5"))
         letzte_t = ts(liste[-1]["t"])
         if not letzte_t or JETZT - letzte_t > timedelta(minutes=25):
@@ -1519,6 +1526,8 @@ def serien(takt, radar):
                        "vorTor": round(sum(k[1] for k in kette if k[4] == st0)),
                        "nachTor": round(sum(k[1] for k in kette if k[4] != st0))}
             markt, auswahl = key.split("|", 1)
+            if (sieg_tot and markt in SIEG_MAERKTE) or _linie_durch(markt, (sp.get("live") or {}).get("stand")):
+                continue
             lv = sp.get("live") or {}
             if _ist_hz_markt(markt) and not lv.get("ht") and isinstance(lv.get("min"), (int, float)) and lv["min"] > 45:
                 continue                               # Halbzeit-Markt nach der Pause: abgerechnet
@@ -2188,15 +2197,17 @@ def _linie_durch(markt, stand):
     return (stand[0] or 0) + (stand[1] or 0) > int(m.group(1))
 
 
+SIEG_MAERKTE = ("Match Odds", "Half Time", "Draw no Bet")
+
+
 def markt_charts(radar):
     jetzt = {}
     zeilen = []
     for s in (radar or {}).get("spiele") or []:
-        if s.get("entschieden") or s.get("klarVorn"):
-            continue
+        sieg_tot = bool(s.get("entschieden") or s.get("klarVorn"))     # 24.10.: sperrt nur noch die Sieg-Märkte
         stand = (s.get("live") or {}).get("stand")
         for m in s.get("maerkteDetail") or []:
-            if (m.get("eur") or 0) < MC_MIN_EUR or _linie_durch(m.get("name"), stand):
+            if (m.get("eur") or 0) < MC_MIN_EUR or _linie_durch(m.get("name"), stand) or (sieg_tot and m.get("name") in SIEG_MAERKTE):
                 continue
             k = f"{s['id']}|{m['name']}"
             jetzt[k] = m["eur"]
