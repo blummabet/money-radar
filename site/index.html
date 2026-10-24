@@ -1147,6 +1147,9 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 @media (prefers-reduced-motion:reduce){ .t3-sweep,.t3.erst .t3-an,.t3-live i{animation:none} .t3-sweep{display:none} }
 .gs-b i.unbek{background:repeating-linear-gradient(135deg, color-mix(in srgb, var(--text-3) 45%, transparent) 0 3px, transparent 3px 6px) !important}
 .gs-leg i.u{background:repeating-linear-gradient(135deg, var(--text-3) 0 2px, transparent 2px 4px) !important}
+.sk-leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-3);margin:-2px 0 8px}
+.sk-leg span{display:inline-flex;align-items:center;gap:5px}
+.sk-leg i{width:14px;height:8px;border-radius:2px;background:var(--bf)}.sk-leg i.h{opacity:.25}
 /* Merkliste (24.10.) */
 .dk-knoepfe{margin-left:auto;display:flex;gap:6px}
 .dk-knoepfe .dk-teilen{margin-left:0}
@@ -1355,44 +1358,43 @@ function serienKarten(D, max, quelle){
     </div>`;}).join("")}</div>`;
 }
 function flussSankey(fl, PAL){
+  // Lucas 24.10. („zu viel nachdenken — reicht nicht der Fluss selbst?"): jedes Band ist so breit wie das Geld, das
+  // auf der Auswahl LIEGT (hell); der kräftige Teil darin ist das, was in diesem Fenster NEU dazukam. Ohne Zusatzleiste.
   const ges = fl.reduce((x,f)=>x+f.neu,0) || 1;
   let teile = fl.filter(f=>f.neu/ges>=0.03).slice(0,7);
   const rest = ges - teile.reduce((x,f)=>x+f.neu,0);
-  // nach Markt gruppieren, damit gleiche Farben nebeneinander liegen; innerhalb nach Betrag
   // 23.10.: Geld zu Quoten unter 1,15 (Absicherung/Einsammeln) grau und hinten, nicht in Marktfarbe vorn
   const tot = f => f.quote && f.quote < 1.15;
   const mOrd = [...new Set(teile.filter(f=>!tot(f)).map(f=>f.markt))];
   const farbe = (m, f) => m==="_rest" || (f && tot(f)) ? "var(--text-3)" : PAL[mOrd.indexOf(m)%PAL.length];
   teile.sort((a,b)=>(tot(a)-tot(b)) || (mOrd.indexOf(a.markt)-mOrd.indexOf(b.markt))||(b.neu-a.neu));
   const totSumme = fl.filter(tot).reduce((x,f)=>x+f.neu,0);
-  if(rest/ges>=0.01) teile.push({markt:"_rest", name:"Übrige", neu:rest});
-  // Lucas 24.10. („was schon drin war und was neu dazukam"): unter jedem Ziel eine Topf-Leiste — hell = lag schon
-  // drin, kräftig = das neue Geld aus dem Fluss. Länge im Vergleich der Ziele untereinander.
-  const maxE = Math.max(1, ...teile.filter(f=>f.markt!=="_rest" && f.eur).map(f=>f.eur));
-  const W = 340, xL = 0, bL = 10, xR = 150, bR = 7, SLOT = 48, GAP = 6;
-  const hoch = 200;                                       // Höhe des linken Topfs
-  const slots = teile.map(f=>Math.max(SLOT, f.neu/ges*hoch));
+  const drin = f => Math.max(f.neu, f.eur||0);           // was jetzt auf der Auswahl liegt (mindestens das Neue)
+  if(rest/ges>=0.01) teile.push({markt:"_rest", name:"Übrige", neu:rest, eur:rest});
+  const summe = teile.reduce((x,f)=>x+drin(f),0) || 1;
+  const W = 340, xL = 0, bL = 10, xR = 150, bR = 8, SLOT = 36, GAP = 6, hoch = 240;
+  const hh = teile.map(f=>Math.max(3, drin(f)/summe*hoch));
+  const slots = hh.map(h=>Math.max(SLOT, h));
   const H = Math.max(slots.reduce((x,v)=>x+v+GAP,0), hoch + 8);
-  const yOff = (H - slots.reduce((x,v)=>x+v+GAP,0) + GAP)/2;
-  let yL = (H-hoch)/2, yS = Math.max(0,yOff), out = "", lab = "";
-  teile.forEach(f=>{
-    const h = Math.max(2, f.neu/ges*hoch);
-    const sl = Math.max(SLOT, h) ; const r0 = yS + (sl - Math.min(h, sl))/2, r1 = r0 + Math.min(h, sl);
-    const l0 = yL, l1 = yL + f.neu/ges*hoch, xm = (xL+bL+xR)/2, c = farbe(f.markt, f);
-    out += `<path d="M${xL+bL},${l0.toFixed(1)} C${xm},${l0.toFixed(1)} ${xm},${r0.toFixed(1)} ${xR},${r0.toFixed(1)} L${xR},${r1.toFixed(1)} C${xm},${r1.toFixed(1)} ${xm},${l1.toFixed(1)} ${xL+bL},${l1.toFixed(1)} Z" style="fill:${c}" opacity="${f.quote&&f.quote<1.2?.28:.55}"><title>${esc(auswahlDe(f.name))}: +${eur(f.neu)}</title></path>`;
-    out += `<rect x="${xR}" y="${r0.toFixed(1)}" width="${bR}" height="${(r1-r0).toFixed(1)}" rx="2" style="fill:${c}"/>`;
-    const ym = (r0+r1)/2, pct = Math.round(f.neu/ges*100);
+  let yL = (H-hoch)/2, yS = Math.max(0, (H - slots.reduce((x,v)=>x+v+GAP,0) + GAP)/2), out = "", lab = "";
+  const band = (l0, l1, r0, r1) => { const xm = (xL+bL+xR)/2;
+    return `M${xL+bL},${l0.toFixed(1)} C${xm},${l0.toFixed(1)} ${xm},${r0.toFixed(1)} ${xR},${r0.toFixed(1)} L${xR},${r1.toFixed(1)} C${xm},${r1.toFixed(1)} ${xm},${l1.toFixed(1)} ${xL+bL},${l1.toFixed(1)} Z`; };
+  teile.forEach((f,i)=>{
+    const h = hh[i], sl = slots[i], d = drin(f), anteilNeu = Math.min(1, f.neu/d);
+    const r0 = yS + (sl - h)/2, r1 = r0 + h, l0 = yL, l1 = yL + h, c = farbe(f.markt, f);
+    const rn = r0 + h*anteilNeu, ln = l0 + h*anteilNeu;      // der neue Teil liegt oben im Band
+    out += `<path d="${band(l0,l1,r0,r1)}" style="fill:${c}" opacity=".18"><title>${esc(auswahlDe(f.name))}: ${eur(d)} drin</title></path>`
+         + `<path d="${band(l0,ln,r0,rn)}" style="fill:${c}" opacity="${tot(f)?.35:.75}"><title>${esc(auswahlDe(f.name))}: +${eur(f.neu)} neu</title></path>`
+         + `<rect x="${xR}" y="${r0.toFixed(1)}" width="${bR}" height="${h.toFixed(1)}" rx="2" style="fill:${c}" opacity=".3"/>`
+         + `<rect x="${xR}" y="${r0.toFixed(1)}" width="${bR}" height="${Math.max(1.5, rn-r0).toFixed(1)}" rx="2" style="fill:${c}"/>`;
+    const ym = r0 + h/2;
     lab += `<text x="${xR+bR+8}" y="${(ym-3).toFixed(1)}" font-size="12" font-weight="700" fill="var(--text)">${esc((f.markt==="_rest"?"Übrige Märkte":auswahlDe(f.name)).slice(0,22))}${f.quote?` <tspan font-weight="500" fill="var(--text-3)">${q2(f.quote)}</tspan>`:""}</text>`
-         + `<text x="${xR+bR+8}" y="${(ym+11).toFixed(1)}" font-size="10.5" fill="var(--text-2)"><tspan style="fill:${c}" font-weight="700">+${eur(f.neu)}</tspan> · ${pct} %${f.markt!=="_rest"?` · ${tot(f)?"Absicherung":esc(marktDe(f.markt).slice(0,16))}`:""}</text>`;
-    if(f.markt!=="_rest" && f.eur){ const L = 110, x0 = xR+bR+8, w = Math.max(3, f.eur/maxE*L), wn = Math.min(w, Math.max(2, Math.min(f.neu, f.eur)/f.eur*w));
-      lab += `<rect x="${x0}" y="${(ym+17).toFixed(1)}" width="${(w-wn).toFixed(1)}" height="6" rx="2" style="fill:${c}" opacity=".28"/>`
-           + `<rect x="${(x0+w-wn).toFixed(1)}" y="${(ym+17).toFixed(1)}" width="${wn.toFixed(1)}" height="6" rx="2" style="fill:${c}"/>`
-           + `<text x="${(x0+w+5).toFixed(1)}" y="${(ym+23).toFixed(1)}" font-size="10" fill="var(--text-3)">${eur(f.eur)} drin</text>`; }
+         + `<text x="${xR+bR+8}" y="${(ym+11).toFixed(1)}" font-size="10.5" fill="var(--text-2)"><tspan style="fill:${c}" font-weight="800">+${eur(f.neu)} neu</tspan>${f.markt!=="_rest"?` · ${eur(d)} drin · ${tot(f)?"Absicherung":esc(marktDe(f.markt).slice(0,14))}`:""}</text>`;
     yL = l1; yS += sl + GAP;
   });
   const topf = `<rect x="${xL}" y="${(H-hoch)/2}" width="${bL}" height="${hoch}" rx="3" fill="var(--text-2)"/>`;
   return `<div class="sankey-k"><span>Neues Geld</span><b>+${eur(ges)}</b>${totSumme>=ges*0.1?`<span>davon ${eur(totSumme)} Absicherung (Quote unter 1,15)</span>`:""}</div>
-    <div class="kk-klein" style="margin:-2px 0 6px">% = Anteil am neuen Geld · Leiste: hell = lag auf dieser Auswahl schon drin, kräftig = neu dazu</div>
+    <div class="sk-leg"><span><i class="h"></i>lag schon drin</span><span><i class="k"></i>neu dazu</span><span>Breite = Geld auf der Auswahl</span></div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-width:520px" role="img" aria-label="Wohin das neue Geld floss">${topf}${out}${lab}</svg>`;
 }
 // Kleiner Linien-Graph fürs Detail: gestrecktes SVG + HTML-Beschriftung (lesbar auf dem Handy)
