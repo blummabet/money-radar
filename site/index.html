@@ -1193,6 +1193,7 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .w2-i>*:not(.w2-p){position:relative}
 .w2-m{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .w2-a{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.w2-a small{color:var(--text-3)}
+.w2-pz{font-weight:700;color:var(--text-2);font-size:.85em;background:var(--panel);border-radius:5px;padding:0 4px}
 .w2-z{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .w2-f{margin-top:auto;display:flex;flex-wrap:wrap;gap:0 6px;align-items:baseline;font-weight:800;font-size:13.5px;white-space:nowrap}
 .w2-f em{font-style:normal;font-weight:900;color:var(--text);background:var(--panel);border-radius:6px;padding:0 5px;font-size:12.5px}
@@ -1813,7 +1814,10 @@ function marktWand2(s){
   const handy = innerWidth <= 700, W = 600, H = (handy ? 340 : 300) + (K.length + (weg.length?1:0) > 6 ? (handy ? 120 : 90) : 0);   // mehr Märkte → eine Reihe mehr Platz
   const R = treemap(kach.map(k=>Math.pow(k.eur, 0.6)), W, H);
   const gesNeu = kach.reduce((x,k)=>x+k.neu,0);
-  const kurz = n => /^(over|under) [\d.]+/i.test(n||"") ? (/^over/i.test(n)?"Über":"Unter") : nm(auswahlDe(n));
+  // Lucas 24.10. („Unter 62, Unter 60, Über 7 — komische Sachen"): bei Über/Unter stand nur „Unter" und gleich danach
+  // der Anteil — das las sich wie eine Linie. Jetzt die echte Linie in der Auswahl, der Anteil klar abgesetzt.
+  const kurz = n => /^(over|under) [\d.]+/i.test(n||"") ? (/^over/i.test(n)?"Über ":"Unter ") + String((/[\d.]+/.exec(n)||[""])[0]).replace(".",",") : nm(auswahlDe(n));
+  const kopfM = m => /^Over\/Under [\d.]+ Goals$/.test(m) ? "Tore" : /^First Half Goals/.test(m) ? "HZ-Tore" : marktDe(m);
   const html = kach.map((k,i)=>{ const r = R[i], A = r.w*r.h/(W*H);
     const gr = A > 0.22 ? "g" : A > 0.09 ? "m" : "k";
     const tot = k.m && totM(k.m), f = k.rest || tot ? "var(--text-3)" : MW_FAM.find(x=>x[0]===mwFamilie(k.m.name))[2];
@@ -1821,12 +1825,12 @@ function marktWand2(s){
     let mitte = "";
     if(k.m){ const aus = (k.m.auswahl||[]).filter(a=>a.name!=="Rest" && a.eur>0), ges = (k.m.auswahl||[]).reduce((x,a)=>x+(a.eur||0),0)||1;
       const top = aus.reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null), topN = aus.reduce((x,a)=>(a.neu||0)>(x?.neu||0)?a:x, null);
-      mitte = top ? `<div class="w2-a"><b>${esc(kurz(top.name))} ${Math.round(top.eur/ges*100)} %</b>${top.quote?` <small>@ ${q2(top.quote)}</small>`:""}</div>` : "";
+      mitte = top ? `<div class="w2-a"><b>${esc(kurz(top.name))}</b> <span class="w2-pz">${Math.round(top.eur/ges*100)} %</span>${top.quote?` <small>@ ${q2(top.quote)}</small>`:""}</div>` : "";
       if(gr!=="k" && topN && (topN.neu||0)>0) mitte += `<div class="w2-z">neu meist auf <b>${esc(kurz(topN.name))}</b>${topN.quote?` ${q2(topN.quote)}`:""}</div>`; }
     return `<div class="w2-k ${gr}" data-w2 tabindex="0" role="button" aria-expanded="false" style="left:${(r.x/W*100).toFixed(2)}%;top:${(r.y/H*100).toFixed(2)}%;width:${(r.w/W*100).toFixed(2)}%;height:${(r.h/H*100).toFixed(2)}%">
       <div class="w2-i" style="--f:${f}" title="${k.m?esc(marktDe(k.m.name)):`${k.rest.length} weitere Märkte`}: ${eur(k.eur)} drin${k.neu>0?`, davon +${eur(k.neu)} neu in ${fm} Min`:""}">
         <div class="w2-p" style="height:${pegel.toFixed(1)}%"></div>
-        <div class="w2-m">${k.m ? esc(marktDe(k.m.name)) + (tot?" · Absicherung":"") : `+${k.rest.length} weitere Märkte`}</div>
+        <div class="w2-m">${k.m ? esc(kopfM(k.m.name)) + (tot?" · Absicherung":"") : `+${k.rest.length} weitere Märkte`}</div>
         ${mitte}
         <div class="w2-f"><span>${eur(k.eur)}</span>${k.neu>0?`<em>+${eur(k.neu)}</em>`:""}</div>
         ${w2Detail(k, fm)}
