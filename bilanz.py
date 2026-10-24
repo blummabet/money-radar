@@ -181,7 +181,7 @@ def aktualisieren(buch, jetzt):
 
 
 # ── Polymarket (Lucas 20.10.: Dauerzufluss auf Polymarket ins Buch) ───────────────────────────────────────
-def _poly_ausgang(event, auswahl):
+def _poly_ausgang(event, auswahl, key=None):
     """True/False, wenn der Markt der Auswahl entschieden ist; None = noch offen / nicht zuordenbar; 'void' = 50:50.
     Etiketten wie in poly_fluss.seiten(): Ja-Nein-Märkte → Titel / „gegen Titel", sonst „Ausgang (Titel)" oder Ausgang."""
     mks = event.get("markets") or []
@@ -198,8 +198,12 @@ def _poly_ausgang(event, auswahl):
             lab = {o: f"{o} ({titel})" for o in outs}
         else:
             lab = {o: o for o in outs}
+        # 24.10. (E-Sport: 25 Pushes seit 22.10., keiner abgerechnet): der Sieger-Markt eines E-Sport-Ereignisses heißt
+        # „Match Winner" und steht neben vielen Spielmärkten — das Etikett wurde „Team (Match Winner)", der Push trägt
+        # aber den blanken Teamnamen. Der Hauptmarkt (Slug = Ereignis, oder Match Winner) zählt auch mit blankem Namen.
+        haupt = (key and mk.get("slug") == key) or titel.lower() in ("match winner", "moneyline", "winner")
         for i, o in enumerate(outs):
-            if lab.get(o) != auswahl or i >= len(preise):
+            if (lab.get(o) != auswahl and not (haupt and o == auswahl)) or i >= len(preise):
                 continue
             if not mk.get("closed"):
                 return None
@@ -347,7 +351,7 @@ def poly_abrechnen(buch, jetzt):
         w = None
         if ev:
             if b["art"] in ("pserie", "top3p"):
-                w = _poly_ausgang(ev, b.get("auswahl"))
+                w = _poly_ausgang(ev, b.get("auswahl"), str(b.get("id")))
             else:
                 import poly_markt
                 preise = poly_markt.aufloesung_ev(ev)
