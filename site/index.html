@@ -1392,7 +1392,7 @@ function flussSankey(fl, PAL){
   });
   const topf = `<rect x="${xL}" y="${(H-hoch)/2}" width="${bL}" height="${hoch}" rx="3" fill="var(--text-2)"/>`;
   return `<div class="sankey-k"><span>Neues Geld</span><b>+${eur(ges)}</b>${totSumme>=ges*0.1?`<span>davon ${eur(totSumme)} Absicherung (Quote unter 1,15)</span>`:""}</div>
-    <div class="kk-klein" style="margin:-2px 0 6px">Leiste unter jeder Auswahl: hell = lag schon drin, kräftig = neu dazu</div>
+    <div class="kk-klein" style="margin:-2px 0 6px">% = Anteil am neuen Geld · Leiste: hell = lag auf dieser Auswahl schon drin, kräftig = neu dazu</div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-width:520px" role="img" aria-label="Wohin das neue Geld floss">${topf}${out}${lab}</svg>`;
 }
 // Kleiner Linien-Graph fürs Detail: gestrecktes SVG + HTML-Beschriftung (lesbar auf dem Handy)
