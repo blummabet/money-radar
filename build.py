@@ -2031,6 +2031,21 @@ def liga_bilanz():
             "zeilen": len(buch)}
 
 
+def endstaende():
+    """Lucas 24.10. (Merkliste): Endstände der letzten 3 Tage je Betfair-Spiel — damit gemerkte Spiele nach Abpfiff
+    abgerechnet werden, auch wenn sie längst aus dem Abruf gefallen sind."""
+    try:
+        erg = json.loads((Path(__file__).resolve().parent / ".bf" / "ergebnisse.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+    out = {}
+    for mid, e in erg.items():
+        k = ts(e.get("ko"))
+        if e.get("ft") and k and JETZT - k < timedelta(days=3):
+            out[mid] = {"ft": e["ft"], "ht": e.get("ht")}
+    return out
+
+
 def push_bilanz():
     """Auswertung der neuen Pushes (bilanz.py schreibt sie nach jedem Push-Lauf in den Cache)."""
     try:
@@ -2258,6 +2273,7 @@ def main() -> int:
         "stakeSerien": stake_serien(hr),
         "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"], "stakeEigen": BF_EIGEN["st"],
         "bfPushes": betfair_pushes(push_bilanz()),
+        "endstaende": endstaende(),
         "halbzeit": halbzeit(prices),
         "bfHtPushes": bf_ht_pushes(prices),
         "pushBilanz": push_bilanz(),

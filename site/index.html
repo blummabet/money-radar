@@ -1145,6 +1145,35 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
   .t3-fuss em{margin-left:0;width:100%}
 }
 @media (prefers-reduced-motion:reduce){ .t3-sweep,.t3.erst .t3-an,.t3-live i{animation:none} .t3-sweep{display:none} }
+/* Merkliste (24.10.) */
+.dk-knoepfe{margin-left:auto;display:flex;gap:6px}
+.dk-knoepfe .dk-teilen{margin-left:0}
+.dk-merk{font:inherit;font-size:12.5px;font-weight:700;color:var(--text);background:var(--flaeche-2);border:1px solid var(--rand);border-radius:999px;padding:4px 12px;cursor:pointer}
+.dk-merk.an{color:#3a2a00;background:#f5c542;border-color:#f5c542}
+.mt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+.mt-l{font-size:12px;color:var(--text-3);font-weight:700}
+.mt-c{font:inherit;font-size:12.5px;font-weight:700;color:var(--text);background:var(--glas-a);border:1px solid var(--rand);border-radius:10px;padding:4px 9px;cursor:pointer}
+.mt-c small{color:var(--text-3);font-weight:600}
+.mt-c.an{border-color:#f5c542;box-shadow:inset 0 0 0 1px #f5c542;background:color-mix(in srgb, #f5c542 14%, transparent)}
+.merk-badge{font:inherit;font-size:13px;font-weight:800;color:#3a2a00;background:#f5c542;border:0;border-radius:999px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+.merk-badge[hidden]{display:none}
+.merk-panel[hidden]{display:none}
+.mzs{display:flex;flex-direction:column;gap:8px}
+.mz{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 40px 11px 14px;border-radius:14px;background:var(--glas-a);border:1px solid var(--rand);border-left:3px solid #f5c542;cursor:pointer}
+.mz.fertig{border-left-color:var(--text-3);opacity:.92}
+.mz-i{min-width:0;display:flex;flex-direction:column;gap:4px}
+.mz-t{font-weight:800;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mz-t span{color:var(--text-3);font-weight:600}
+.mz-tipp{font-size:12.5px;color:var(--text-2)}.mz-tipp b{color:var(--text)}.mz-tipp small{color:var(--text-3)}
+.mz-ab{color:var(--up)}.mz-auf{color:var(--down)}
+.mz-r{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
+.mz-plus{font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--text-2)}.mz-plus.pos{color:var(--up)}
+.mz-r small{font-size:11px;color:var(--text-3)}
+.mz-end{font-weight:900;color:var(--text)}
+.mz-warte{color:var(--text-3);font-weight:600}
+.mz-w{font-size:20px;font-weight:900;width:34px;height:34px;border-radius:50%;display:grid;place-items:center}
+.mz-w.ok{color:#06140d;background:var(--up)}.mz-w.no{color:#fff;background:var(--down)}
+.mz-x{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;border:0;background:transparent;color:var(--text-3);font-size:13px;cursor:pointer}
+.mz-x:hover{background:var(--panel-3);color:var(--text)}
 /* Auswertung: zugeklappter Block je Seite */
 .ausw{border:1px dashed var(--rand);border-radius:var(--r);padding:12px 16px}
 .ausw>summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
@@ -1179,7 +1208,7 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
   <div class="aside-fuss"><div style="margin-bottom:6px">Datenstand</div><div id="quellen"></div></div>
 </aside>
 <main>
-  <div class="kopf"><div><h1 id="titel">Übersicht</h1><div class="sub" id="untertitel"></div></div><div id="ligaschalter"></div><div class="rechts"><span class="puls" id="puls"></span><span id="stand">lädt</span></div><button class="thema-knopf" id="thema" aria-label="Hell oder dunkel"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button></div>
+  <div class="kopf"><div><h1 id="titel">Übersicht</h1><div class="sub" id="untertitel"></div></div><div id="ligaschalter"></div><button class="merk-badge" id="merkBadge" data-merkliste hidden aria-label="Deine gemerkten Spiele">★ <b>0</b></button><div class="rechts"><span class="puls" id="puls"></span><span id="stand">lädt</span></div><button class="thema-knopf" id="thema" aria-label="Hell oder dunkel"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button></div>
   <section class="seite an" id="s-start"></section>
   <section class="seite" id="s-feed"></section>
   <section class="seite" id="s-betfair"></section>
@@ -1480,11 +1509,115 @@ async function teilen(id){
 // Lucas 23.10. („schneller relevante Sachen lesen, intuitiv"): Spiel-Fenster neu sortiert — Kopf, Kernaussage als Chips,
 // Säulen, wohin das Geld floss, Märkte als Wand (Fläche = Geld), Quotenkurve nur offen, wenn sie sich bewegt hat.
 const kurzAus = (n, s) => /^(over|under) [\d.]+/i.test(n||"") ? (/^over/i.test(n)?"Über":"Unter") : ({h:"1", g:"2", x:"X"})[s ? seiteVon(s, n) : null] || auswahlDe(n);
+// ── Merkliste (Lucas 24.10.: „Spiele, die mich interessieren, reinlegen — und sehen, was seitdem passiert ist") ──
+// Liegt nur im Browser (localStorage): Handy und Laptop haben je ihre eigene Liste. Beim Merken ein Schnappschuss
+// (Geld, wo es lag, Quote) — die Liste zeigt danach, was SEITDEM dazukam, und rechnet nach Abpfiff ab.
+const MERK_KEY = "radar-merk";
+let MERK = []; try{ MERK = JSON.parse(localStorage.getItem(MERK_KEY)||"[]") || []; }catch(_){ MERK = []; }
+const merkSpeichern = () => { try{ localStorage.setItem(MERK_KEY, JSON.stringify(MERK)); }catch(_){} };
+const gemerkt = id => MERK.find(x=>x.id===String(id));
+const merkSpiel = id => (D?.radar?.spiele||[]).find(x=>String(x.id)===String(id));
+function merkFokus(s){
+  let best = null, bm = null;
+  for(const m of s.maerkteDetail||[]) for(const a of m.auswahl||[]) if(a.name!=="Rest" && !(a.quote && a.quote<1.15) && (!best || a.eur>best.eur)){ best = a; bm = m; }
+  return best ? {markt:bm.name, name:best.name, quote:best.quote, eur:best.eur} : null;
+}
+function merkAuswahlJetzt(s, t){
+  const m = (s?.maerkteDetail||[]).find(m=>m.name===t?.markt), a = m && (m.auswahl||[]).find(a=>a.name===t.name);
+  return a || null;
+}
+function tippGewonnen(markt, a, heim, gast, ft, ht){
+  const m = String(markt||""), n = String(a||"");
+  const st = (m==="Half Time" || m==="Half Time Score" || m.startsWith("First Half Goals")) ? ht : ft;
+  if(!st || st.length!==2 || st[0]==null) return null;
+  const [h, g] = st;
+  if(m==="Match Odds" || m==="Half Time"){ const sv = seiteVon({heim, gast}, n); return sv==="h" ? h>g : sv==="g" ? g>h : sv==="x" ? h===g : null; }
+  const lm = /^(?:Over\/Under|First Half Goals) (\d+\.5)/.exec(m);
+  if(lm){ const l = parseFloat(lm[1]); return /^over/i.test(n) ? h+g>l : /^under/i.test(n) ? h+g<l : null; }
+  if(m==="Both teams to Score?") return /^yes$/i.test(n) ? (h>0&&g>0) : /^no$/i.test(n) ? !(h>0&&g>0) : null;
+  const cs = /^(\d+)\s*-\s*(\d+)$/.exec(n); if(/Score/.test(m) && cs) return h===+cs[1] && g===+cs[2];
+  return null;
+}
+function merkUmschalten(id){
+  const i = MERK.findIndex(x=>x.id===String(id));
+  if(i>=0) MERK.splice(i,1);
+  else { const s = merkSpiel(id); if(!s) return;
+    MERK.unshift({id:String(s.id), heim:s.heim, gast:s.gast, liga:s.liga, land:s.land, anpfiff:s.anpfiff, t:new Date().toISOString(), eur0:s.eur||0, fokus:merkFokus(s), tipp:null}); }
+  merkSpeichern(); merkAnzeigen();
+}
+function merkTippSetzen(id, markt, name){
+  const x = gemerkt(id); if(!x) return;
+  if(x.tipp && x.tipp.markt===markt && x.tipp.name===name) x.tipp = null;
+  else { const a = merkAuswahlJetzt(merkSpiel(id), {markt, name}); x.tipp = {markt, name, quote:a?.quote||null}; }
+  merkSpeichern(); merkAnzeigen();
+}
+const merkKnopf = s => { const an = !!gemerkt(s.id);
+  return `<button class="dk-merk${an?" an":""}" data-merk="${esc(String(s.id))}" aria-pressed="${an}" aria-label="${an?"Aus der Merkliste nehmen":"Merken"}">${an?"★ Gemerkt":"☆ Merken"}</button>`; };
+function merkTipps(s){
+  const x = gemerkt(s.id); if(!x) return "";
+  const alle = []; for(const m of s.maerkteDetail||[]) for(const a of m.auswahl||[]) if(a.name!=="Rest" && a.quote && a.quote>=1.15) alle.push({m, a});
+  alle.sort((p,q)=>q.a.eur-p.a.eur);
+  return `<div class="mt"><span class="mt-l">Dein Tipp?</span>${alle.slice(0,6).map(({m,a})=>{ const an = x.tipp && x.tipp.markt===m.name && x.tipp.name===a.name;
+    return `<button class="mt-c${an?" an":""}" data-merktipp="${esc(s.id+"|"+m.name+"|"+a.name)}">${esc(auswahlDe(a.name))} <small>${esc(marktDe(m.name))} @ ${q2(a.quote)}</small></button>`; }).join("")}</div>`;
+}
+function merkZeile(x, voll){
+  const s = merkSpiel(x.id), e = (D.endstaende||{})[x.id], t = x.tipp || x.fokus;
+  let status, w = null;
+  if(e?.ft){ w = t ? tippGewonnen(t.markt, t.name, x.heim, x.gast, e.ft, e.ht) : null;
+    status = `<span class="mz-end">${e.ft.join(":")}</span>`; }
+  else if(s?.live) status = `<span class="t3-live"><i></i>${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}</span>`;
+  else if(new Date(x.anpfiff) > Date.now()) status = `<span class="t3-zeit">${wann(x.anpfiff)}</span>`;
+  else status = `<span class="mz-warte">wartet auf Endstand</span>`;
+  const plus = s ? (s.eur||0) - (x.eur0||0) : null;
+  const jetzt = s && t ? merkAuswahlJetzt(s, t) : null;
+  const fNow = s ? merkFokus(s) : null;
+  const gekippt = !x.tipp && fNow && x.fokus && (fNow.markt!==x.fokus.markt || fNow.name!==x.fokus.name);
+  const pz = s ? pushesZu(s).filter(p=>new Date(p.zeit) > new Date(x.t)) : [];
+  const se = s ? serieVon(D, s.id) : null;
+  const q0 = x.tipp ? x.tipp.quote : x.fokus?.quote, q1 = jetzt?.quote;
+  const qz = q0 ? `@ ${q2(q0)}${q1 && Math.abs(q1-q0)>=0.01 ? ` → <b class="${q1<q0?"mz-ab":"mz-auf"}">${q2(q1)}</b>` : ""}` : "";
+  const chips = [
+    se ? `<span class="t3-g" style="--f:var(--bf)"><i></i>🔁 ${se.n}× in Folge</span>` : "",
+    pz.length ? `<span class="t3-g" style="--f:var(--down)"><i></i>📣 ${pz.length} Push${pz.length>1?"es":""} seitdem</span>` : "",
+    gekippt ? `<span class="t3-g" style="--f:var(--hz)"><i></i>Geld jetzt vorn: ${esc(auswahlDe(fNow.name))}</span>` : "",
+    !s && !e?.ft && new Date(x.anpfiff) > Date.now() ? `<span class="t3-g" style="--f:var(--text-3)"><i></i>gerade nicht im Abruf</span>` : ""].join("");
+  const ergebnis = w==null ? "" : `<span class="mz-w ${w?"ok":"no"}">${w?"✓":"✗"}</span>`;
+  const geld = e?.ft ? ergebnis : plus!=null ? `<b class="mz-plus${plus>0?" pos":""}">${plus>=0?"+":"−"}${eur(Math.abs(plus))}</b><small>seit gemerkt</small>` : "";
+  return `<div class="mz${e?.ft?" fertig":""}"${s?bk("mk|"+x.id, s.eur, "€"):""} ${s?klickSpiel({id:s.id, heim:s.heim, gast:s.gast}):""}>
+    <div class="mz-i">
+      <div class="t3-o"><span class="t3-liga">${flagge(x.land)} ${esc(ligaName(x.liga)||"")}</span>${status}</div>
+      <div class="mz-t">${esc(x.heim)} <span>–</span> ${esc(x.gast)}</div>
+      ${t ? `<div class="mz-tipp">${x.tipp?"Dein Tipp":"Geld vorn"}: <b>${esc(auswahlDe(t.name))}</b> <small>${esc(marktDe(t.markt))}</small> ${qz}</div>` : ""}
+      ${chips ? `<div class="t3-gs">${chips}</div>` : ""}
+    </div>
+    <div class="mz-r">${geld}</div>
+    <button class="mz-x" data-merkweg="${esc(x.id)}" aria-label="Aus der Liste nehmen">✕</button></div>`;
+}
+function merkListe(voll){
+  // abgerechnete Spiele nach 3 Tagen raus
+  const vor = MERK.length; MERK = MERK.filter(x=>Date.now() - new Date(x.anpfiff) < 3*864e5); if(MERK.length!==vor) merkSpeichern();
+  if(!MERK.length) return `<div class="leer">Noch nichts gemerkt. Öffne ein Spiel und tippe oben auf „☆ Merken“.</div>`;
+  const ord = x => { const e = (D.endstaende||{})[x.id]; return e?.ft ? 2 : merkSpiel(x.id)?.live ? 0 : 1; };
+  const L = MERK.slice().sort((a,b)=>(ord(a)-ord(b)) || (new Date(a.anpfiff)-new Date(b.anpfiff)));
+  return `<div class="mzs">${(voll ? L : L.slice(0,4)).map(x=>merkZeile(x, voll)).join("")}</div>${!voll && L.length>4 ? `<button class="chip" data-merkliste style="margin-top:8px">Alle ${L.length} gemerkten Spiele</button>` : ""}`;
+}
+function merkOeffnen(){
+  $("#dr-titel").innerHTML = "★ Deine Spiele";
+  $("#dr-inhalt").innerHTML = `<div class="kk-klein" style="margin-bottom:10px">Nur auf diesem Gerät gespeichert · Geld und Quote im Vergleich zum Moment, als du gemerkt hast</div><div id="merk-dr">${merkListe(true)}</div>`;
+  document.body.classList.add("dr-offen");
+}
+function merkAnzeigen(){
+  const b = $("#merkBadge"); if(b){ b.hidden = !MERK.length; b.querySelector("b").textContent = MERK.length; }
+  document.querySelectorAll("[data-merk]").forEach(el=>{ const s = merkSpiel(el.dataset.merk); if(s) el.outerHTML = merkKnopf(s); });
+  document.querySelectorAll("[data-mk-tipps]").forEach(el=>{ const s = merkSpiel(el.dataset.mkTipps); if(s) el.innerHTML = merkTipps(s); });
+  const dr = $("#merk-dr"); if(dr) dr.innerHTML = merkListe(true);
+  const st = $("#merk-start"); if(st){ st.hidden = !MERK.length; st.querySelector(".merk-inhalt").innerHTML = merkListe(false); }
+}
 function dKopf(s){
   const zeit = s.live ? `<span class="dk-live">● ${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}</span>` : `<span class="mk-zeit">${wann(s.anpfiff)}</span>`;
   const norm = s.xnorm!=null ? `<span class="dk-n" style="color:${s.xnorm>=3?"var(--down)":s.xnorm>=1.5?"var(--bf)":"var(--text-2)"}">×${dez(s.xnorm)} der Liga</span>` : "";
-  return `<div class="dk"><div class="dk-1">${flagge(s.land)}<span>${esc(ligaName(s.liga)||s.liga||"")}</span>${zeit}<button class="dk-teilen" data-teilen="${esc(String(s.id))}" aria-label="Teilen">↗ Teilen</button></div>
-    <div class="dk-2"><b>${eur(s.eur)}</b> gematcht über alle Märkte ${norm}</div></div>`;
+  return `<div class="dk"><div class="dk-1">${flagge(s.land)}<span>${esc(ligaName(s.liga)||s.liga||"")}</span>${zeit}<span class="dk-knoepfe">${merkKnopf(s)}<button class="dk-teilen" data-teilen="${esc(String(s.id))}" aria-label="Teilen">↗ Teilen</button></span></div>
+    <div class="dk-2"><b>${eur(s.eur)}</b> gematcht über alle Märkte ${norm}</div><div data-mk-tipps="${esc(String(s.id))}">${merkTipps(s)}</div></div>`;
 }
 // Lucas 23.10. (Beitar Nahariya: „ich seh nicht, dass auf Über 2,5 alles liegt — und +€447 sieht im Flussdiagramm
 // dramatisch aus"): neues Geld zählt erst als Schub, wenn es nennenswert ist; sonst führt der STAND (wo das Geld liegt).
@@ -2680,6 +2813,7 @@ function seiteStart(D){
   const serienPanel = `<div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">immer wieder Geld auf dieselbe Auswahl</span></div>${serienKarten(D,4)}</div>`;
   const mobil = window.innerWidth < 860;
   return `<div class="grid">
+    <div class="panel c12 merk-panel" id="merk-start"${MERK.length?"":" hidden"}><div class="ph"><h3>★ Deine Spiele</h3><span class="hint">seit du sie gemerkt hast</span><button class="chip rechts" data-merkliste>Liste</button></div><div class="merk-inhalt">${MERK.length?merkListe(false):""}</div></div>
     <div class="panel c12 t3-panel"><div class="ph"><h3>Top 3 jetzt</h3><span class="hint">wo gerade die meisten Signale gleichzeitig ziehen</span></div>${topDrei(D)}</div>
     <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div>${feedListe(D,4)}</div>
     ${serienDa?serienPanel:""}
@@ -3177,6 +3311,7 @@ function render(blitz=false){
     poly:D.poly.maerkte.filter(belegt).length, stake:(D.stake.gruppen||D.stake.heute).length, hz:D.hz.heute.length, feed:lf(D.liveZufluss||[]).length||null}); }
   catch(e){ console.error(e); navAufbauen({}); }
   gehe(aktiv);
+  try{ merkAnzeigen(); }catch(e){ console.error(e); }
   requestAnimationFrame(()=>{ window.scrollTo(0, y); blitzen(blitz); });
 }
 function quellen(q){
@@ -3193,7 +3328,8 @@ let STAND = null;
 function standZeigen(){
   if(!D) return;
   const min = Math.max(0, Math.round((Date.now()-new Date(D.generatedAt))/60000));
-  const el = $("#stand"); el.textContent = min<=1 ? "gerade aktualisiert" : `Stand ${uhr(D.generatedAt)} · vor ${min} Min`;
+  const el = $("#stand"), kurz = innerWidth < 700;   // Handy: knapp, damit Merk-Stern und Thema-Knopf in eine Zeile passen
+  el.textContent = min<=1 ? (kurz ? "gerade neu" : "gerade aktualisiert") : kurz ? `${uhr(D.generatedAt)} · vor ${min<60?min+" Min":Math.round(min/60)+" h"}` : `Stand ${uhr(D.generatedAt)} · vor ${min} Min`;
   el.classList.toggle("frisch", min<=1);
 }
 async function laden(){
@@ -3224,6 +3360,10 @@ function aufklappen(tr){
 document.addEventListener("click", e=>{
   if(e.target.closest("[data-zu]")){ drZu(); return; }
   const tl = e.target.closest("[data-teilen]"); if(tl){ e.stopPropagation(); teilen(tl.dataset.teilen); return; }
+  const mk = e.target.closest("[data-merk]"); if(mk){ e.stopPropagation(); merkUmschalten(mk.dataset.merk); return; }
+  const mt = e.target.closest("[data-merktipp]"); if(mt){ e.stopPropagation(); const [i, m, ...n] = mt.dataset.merktipp.split("|"); merkTippSetzen(i, m, n.join("|")); return; }
+  const mw = e.target.closest("[data-merkweg]"); if(mw){ e.stopPropagation(); MERK = MERK.filter(x=>x.id!==mw.dataset.merkweg); merkSpeichern(); merkAnzeigen(); return; }
+  if(e.target.closest("[data-merkliste]")){ merkOeffnen(); return; }
   const lg = e.target.closest("[data-liga]"); if(lg){ ligaModus = lg.dataset.liga; try{ localStorage.setItem("radar-liga", ligaModus); }catch(_){} render(); return; }
   const dk = e.target.closest("[data-dr]"); if(dk && !e.target.closest("a")){ drOeffnen(dk.dataset.dr); return; }
   if(e.target.closest("#thema")){ const t = document.documentElement.dataset.theme==="hell" ? "dunkel" : "hell";
