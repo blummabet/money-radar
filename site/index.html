@@ -1145,6 +1145,8 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
   .t3-fuss em{margin-left:0;width:100%}
 }
 @media (prefers-reduced-motion:reduce){ .t3-sweep,.t3.erst .t3-an,.t3-live i{animation:none} .t3-sweep{display:none} }
+.gs-b i.unbek{background:repeating-linear-gradient(135deg, color-mix(in srgb, var(--text-3) 45%, transparent) 0 3px, transparent 3px 6px) !important}
+.gs-leg i.u{background:repeating-linear-gradient(135deg, var(--text-3) 0 2px, transparent 2px 4px) !important}
 /* Merkliste (24.10.) */
 .dk-knoepfe{margin-left:auto;display:flex;gap:6px}
 .dk-knoepfe .dk-teilen{margin-left:0}
@@ -1432,7 +1434,8 @@ function geldSaeulen(s){
   const warum = !fokus ? "" : grund && fokus.auswahl===grund.auswahl ? "Dauerzufluss" : pzz && fokus.auswahl===pzz.auswahl ? `Push ${uhr(pz.zeit)}` : flw && fokus.auswahl===flw.auswahl ? "Zufluss" : "meistes neues Geld";
   const live = i => S.ko!=null && i >= S.ko;
   const bars = v.map((x,i)=>{ const f = fokus ? Math.min(x||0, fokus.w[i]||0) : 0;
-    return `<i class="${x==null?"leer":""}${fokus?" mitfokus":live(i)?" lv":""}${i===top?" top":""}" style="height:${x?Math.max(3, x/mx*100).toFixed(1):0}%" title="${uhrVon(i)}–${uhrVon(i+1)}: ${x==null?"keine Daten":"+"+eur(x)+(fokus&&f?`, davon ${eur(f)} auf ${auswahlDe(fokus.auswahl)}`:"")}">${f&&x?`<b style="height:${(f/x*100).toFixed(1)}%"></b>`:""}</i>`; }).join("");
+    const unbek = fokus && x>0 && fokus.w[i]==null;      // 24.10.: für diese Säule ist die Aufteilung je Auswahl nicht gespeichert
+    return `<i class="${x==null?"leer":""}${unbek?" unbek":""}${fokus?" mitfokus":live(i)?" lv":""}${i===top?" top":""}" style="height:${x?Math.max(3, x/mx*100).toFixed(1):0}%" title="${uhrVon(i)}–${uhrVon(i+1)}: ${x==null?"keine Daten":"+"+eur(x)+(fokus&&f?`, davon ${eur(f)} auf ${auswahlDe(fokus.auswahl)}`:"")}">${f&&x?`<b style="height:${(f/x*100).toFixed(1)}%"></b>`:""}</i>`; }).join("");
   const fokusSumme = fokus ? fokus.w.reduce((a,b)=>a+(b||0),0) : 0;
   const marken = [];
   if(S.ko!=null) marken.push(`<span class="gs-ko" style="left:${(S.ko/n*100).toFixed(2)}%"></span>`);
@@ -1447,7 +1450,7 @@ function geldSaeulen(s){
   const st = (s.reihe||[]).length ? s.reihe[s.reihe.length-1][1] : s.eur;
   return `<h4>Neues Geld auf Betfair <small>je 10 Min · letzte 6 h</small></h4>
     <div class="gs-kz"><span><b>+${eur(ges)}</b> in 6 h, ganzes Spiel</span><span>größter Schub <b>+${eur(v[top])}</b> um ${uhrVon(top)}</span><span><b>${eur(st)}</b> gematcht</span></div>
-    ${fokus?`<div class="gs-leg"><span><i class="f"></i><b>${esc(auswahlDe(fokus.auswahl))}</b> ${esc(marktDe(fokus.markt))} · +${eur(fokusSumme)} <em>(${warum})</em></span><span><i></i>übrige Märkte</span></div>`:""}
+    ${fokus?`<div class="gs-leg"><span><i class="f"></i><b>${esc(auswahlDe(fokus.auswahl))}</b> ${esc(marktDe(fokus.markt))} · +${eur(fokusSumme)} <em>(${warum})</em></span><span><i></i>übrige Märkte</span>${v.some((x,i)=>x>0 && fokus.w[i]==null)?`<span><i class="u"></i>Aufteilung nicht gespeichert</span>`:""}</div>`:""}
     <div class="gs"><div class="gs-g">${linienY.map(y=>`<span style="bottom:${(y/mx*100).toFixed(2)}%"><em>${eur(y)}</em></span>`).join("")}</div><div class="gs-b">${bars}</div>${marken.join("")}<div class="gs-x">${achse}</div></div>`;
 }
 function spielVerlauf(s){

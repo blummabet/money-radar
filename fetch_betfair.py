@@ -361,9 +361,18 @@ def append_history(hist, snap, now=None, keep_h=HIST_KEEP_H, max_points=HIST_MAX
     for p in arr[:-MKV_KEEP_POINTS]:
         if isinstance(p, dict):
             p.pop("mkv", None)
-    for p in arr[:-SEL_KEEP_POINTS]:   # Auswahl-Volumina nur für die letzten ~40 Min
-        if isinstance(p, dict):
-            p.pop("sel", None)
+    # Auswahl-Volumina: 24.10. (Lucas, Kasımpaşa: „oben wirkt es, als käme viel mehr auf übrige Märkte") — die
+    # Geld-Säulen im Spiel-Fenster zeigen 6 h, die Aufteilung je Auswahl lag aber nur ~40 Min vor; alles davor stand
+    # grau als „übrige Märkte" da. Jetzt nach ZEIT: die letzten 6 h 15 Min bleiben (mindestens die letzten 9 Punkte).
+    grenze_sel = (now or _now()) - timedelta(hours=6, minutes=15)
+    for p in arr[:-SEL_KEEP_POINTS]:
+        if isinstance(p, dict) and "sel" in p:
+            try:
+                alt = datetime.fromisoformat(str(p.get("ts")).replace("Z", "+00:00")) < grenze_sel
+            except (TypeError, ValueError):
+                alt = True
+            if alt:
+                p.pop("sel", None)
     hist[mid] = arr
     return hist
 
