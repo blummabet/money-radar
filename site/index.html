@@ -1366,7 +1366,10 @@ function flussSankey(fl, PAL){
   teile.sort((a,b)=>(tot(a)-tot(b)) || (mOrd.indexOf(a.markt)-mOrd.indexOf(b.markt))||(b.neu-a.neu));
   const totSumme = fl.filter(tot).reduce((x,f)=>x+f.neu,0);
   if(rest/ges>=0.01) teile.push({markt:"_rest", name:"Übrige", neu:rest});
-  const W = 340, xL = 0, bL = 10, xR = 150, bR = 7, SLOT = 34, GAP = 6;
+  // Lucas 24.10. („was schon drin war und was neu dazukam"): unter jedem Ziel eine Topf-Leiste — hell = lag schon
+  // drin, kräftig = das neue Geld aus dem Fluss. Länge im Vergleich der Ziele untereinander.
+  const maxE = Math.max(1, ...teile.filter(f=>f.markt!=="_rest" && f.eur).map(f=>f.eur));
+  const W = 340, xL = 0, bL = 10, xR = 150, bR = 7, SLOT = 48, GAP = 6;
   const hoch = 200;                                       // Höhe des linken Topfs
   const slots = teile.map(f=>Math.max(SLOT, f.neu/ges*hoch));
   const H = Math.max(slots.reduce((x,v)=>x+v+GAP,0), hoch + 8);
@@ -1381,10 +1384,15 @@ function flussSankey(fl, PAL){
     const ym = (r0+r1)/2, pct = Math.round(f.neu/ges*100);
     lab += `<text x="${xR+bR+8}" y="${(ym-3).toFixed(1)}" font-size="12" font-weight="700" fill="var(--text)">${esc((f.markt==="_rest"?"Übrige Märkte":auswahlDe(f.name)).slice(0,22))}${f.quote?` <tspan font-weight="500" fill="var(--text-3)">${q2(f.quote)}</tspan>`:""}</text>`
          + `<text x="${xR+bR+8}" y="${(ym+11).toFixed(1)}" font-size="10.5" fill="var(--text-2)"><tspan style="fill:${c}" font-weight="700">+${eur(f.neu)}</tspan> · ${pct} %${f.markt!=="_rest"?` · ${tot(f)?"Absicherung":esc(marktDe(f.markt).slice(0,16))}`:""}</text>`;
+    if(f.markt!=="_rest" && f.eur){ const L = 110, x0 = xR+bR+8, w = Math.max(3, f.eur/maxE*L), wn = Math.min(w, Math.max(2, Math.min(f.neu, f.eur)/f.eur*w));
+      lab += `<rect x="${x0}" y="${(ym+17).toFixed(1)}" width="${(w-wn).toFixed(1)}" height="6" rx="2" style="fill:${c}" opacity=".28"/>`
+           + `<rect x="${(x0+w-wn).toFixed(1)}" y="${(ym+17).toFixed(1)}" width="${wn.toFixed(1)}" height="6" rx="2" style="fill:${c}"/>`
+           + `<text x="${(x0+w+5).toFixed(1)}" y="${(ym+23).toFixed(1)}" font-size="10" fill="var(--text-3)">${eur(f.eur)} drin</text>`; }
     yL = l1; yS += sl + GAP;
   });
   const topf = `<rect x="${xL}" y="${(H-hoch)/2}" width="${bL}" height="${hoch}" rx="3" fill="var(--text-2)"/>`;
   return `<div class="sankey-k"><span>Neues Geld</span><b>+${eur(ges)}</b>${totSumme>=ges*0.1?`<span>davon ${eur(totSumme)} Absicherung (Quote unter 1,15)</span>`:""}</div>
+    <div class="kk-klein" style="margin:-2px 0 6px">Leiste unter jeder Auswahl: hell = lag schon drin, kräftig = neu dazu</div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-width:520px" role="img" aria-label="Wohin das neue Geld floss">${topf}${out}${lab}</svg>`;
 }
 // Kleiner Linien-Graph fürs Detail: gestrecktes SVG + HTML-Beschriftung (lesbar auf dem Handy)
@@ -1690,7 +1698,7 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
   const md = s.maerkteDetail || [], fm = s.fensterMin || 30;
   const PAL = ["var(--bf)","var(--pin)","var(--text-3)","var(--poly)","var(--stake)","var(--hz)"];
   const fl = [];
-  for(const m of md) for(const a of m.auswahl) if(a.neu>0) fl.push({markt:m.name, name:a.name, neu:a.neu, quote:a.quote, anteil: m.neu? Math.round(a.neu/m.neu*100):null});
+  for(const m of md) for(const a of m.auswahl) if(a.neu>0) fl.push({markt:m.name, name:a.name, neu:a.neu, eur:a.eur, quote:a.quote, anteil: m.neu? Math.round(a.neu/m.neu*100):null});
   // Absicherungsgeld (Quote unter 1,15) ans Ende, sonst nach Betrag
   fl.sort((x,y)=>((x.quote&&x.quote<1.15)-(y.quote&&y.quote<1.15)) || (y.neu-x.neu));
   const neu = fl.reduce((a,x)=>a+x.neu,0);
