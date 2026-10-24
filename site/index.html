@@ -1189,7 +1189,7 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .w2-k{position:absolute;padding:2px;box-sizing:border-box}
 .w2-i{position:relative;height:100%;box-sizing:border-box;border-radius:10px;overflow:hidden;padding:8px 9px;display:flex;flex-direction:column;gap:2px;
   background:color-mix(in srgb, var(--f) 16%, var(--glas-a))}
-.w2-p{position:absolute;left:0;right:0;bottom:0;background:color-mix(in srgb, var(--f) 70%, transparent);pointer-events:none}
+.w2-p{position:absolute;left:0;right:0;top:0;background:color-mix(in srgb, var(--f) 55%, transparent);pointer-events:none}
 .w2-i>*:not(.w2-p){position:relative}
 .w2-m{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .w2-a{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.w2-a small{color:var(--text-3)}
@@ -1748,7 +1748,7 @@ function dChips(s, fl, fm){
 // darin je Auswahl ein Stück so breit wie ihr Geld — hell = lag schon drin, kräftig = neu in diesem Fenster.
 function geldJeMarkt(s){
   const fm = s.fensterMin || 30;
-  const md = (s.maerkteDetail||[]).filter(m=>m.eur>0);
+  const md = (s.maerkteDetail||[]).filter(m=>m.eur >= (s.top5 ? 5000 : 1000));
   if(!md.length) return "";
   const totM = m => { const top = (m.auswahl||[]).filter(a=>a.name!=="Rest").reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null); return !!(top && top.quote && top.quote<1.15); };
   const neuM = m => (m.auswahl||[]).reduce((x,a)=>x+Math.max(0,a.neu||0),0);
@@ -1774,17 +1774,19 @@ function geldJeMarkt(s){
 // Kästchen, die man nicht lesen konnte; das Zweifärbige passt"): Wand zurück, mit drei Änderungen —
 //  · Fläche nach Geld^0,6 statt linear: der große Markt bleibt klar der größte, die kleinen bleiben lesbar
 //  · höchstens 6 Kacheln, der Rest als eine Kachel „+N weitere"
-//  · jede Kachel ist ein Topf: hell = lag schon drin, von unten kräftig aufgefüllt = neu in diesem Fenster
+//  · jede Kachel ist ein Topf: unten hell = lag schon drin, oben kräftig = neu in diesem Fenster (24.10.: neu oben)
 function marktWand2(s){
   const fm = s.fensterMin || 30;
-  const md = (s.maerkteDetail||[]).filter(m=>m.eur>0).sort((a,b)=>b.eur-a.eur); if(!md.length) return "";
+  // Lucas 24.10.: kleine Märkte ausblenden — unter €1k, in Top-5-Spielen unter €5k
+  const min = s.top5 ? 5000 : 1000;
+  const md = (s.maerkteDetail||[]).filter(m=>m.eur>=min).sort((a,b)=>b.eur-a.eur); if(!md.length) return "";
   const neuM = m => (m.auswahl||[]).reduce((x,a)=>x+Math.max(0,a.neu||0),0);
   const totM = m => { const top = (m.auswahl||[]).filter(a=>a.name!=="Rest").reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null); return !!(top && top.quote && top.quote<1.15); };
-  let K = md.slice(0, 6), weg = md.slice(6);
-  if(weg.length === 1){ K = md.slice(0, 7); weg = []; }
+  let K = md.slice(0, 8), weg = md.slice(8);
+  if(weg.length === 1){ K = md.slice(0, 9); weg = []; }
   const kach = K.map(m=>({m, eur:m.eur, neu:neuM(m)}));
   if(weg.length) kach.push({rest:weg, eur:weg.reduce((x,m)=>x+m.eur,0), neu:weg.reduce((x,m)=>x+neuM(m),0)});
-  const handy = innerWidth <= 700, W = 600, H = handy ? 340 : 300;
+  const handy = innerWidth <= 700, W = 600, H = (handy ? 340 : 300) + (K.length + (weg.length?1:0) > 6 ? (handy ? 120 : 90) : 0);   // mehr Märkte → eine Reihe mehr Platz
   const R = treemap(kach.map(k=>Math.pow(k.eur, 0.6)), W, H);
   const gesNeu = kach.reduce((x,k)=>x+k.neu,0);
   const kurz = n => /^(over|under) [\d.]+/i.test(n||"") ? (/^over/i.test(n)?"Über":"Unter") : nm(auswahlDe(n));
@@ -1804,7 +1806,7 @@ function marktWand2(s){
         ${mitte}
         <div class="w2-f"><span>${eur(k.eur)}</span>${k.neu>0?`<em>+${eur(k.neu)}</em>`:""}</div>
       </div></div>`; }).join("");
-  return `<div class="gm-kopf">${gesNeu>0?`<b>+${eur(gesNeu)}</b> neu in ${fm} Min · `:""}<span class="gm-leg"><i class="a"></i>lag schon drin <i class="n"></i>neu dazu (füllt von unten)</span></div>
+  return `<div class="gm-kopf">${gesNeu>0?`<b>+${eur(gesNeu)}</b> neu in ${fm} Min · `:""}<span class="gm-leg"><i class="a"></i>lag schon drin <i class="n"></i>neu dazu (oben)</span></div>
     <div class="w2" style="height:${H}px">${html}</div>
     ${liste("Alle Märkte mit jeder Auswahl", "", `<div style="margin-top:10px">${geldJeMarkt(s)}</div>`)}`;
 }
