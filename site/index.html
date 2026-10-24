@@ -1198,6 +1198,27 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .w2-f em{font-style:normal;font-weight:900;color:var(--text);background:var(--panel);border-radius:6px;padding:0 5px;font-size:12.5px}
 .w2-k.g .w2-a{font-size:17px}.w2-k.g .w2-f{font-size:18px}
 .w2-k.k .w2-i{padding:6px 7px}.w2-k.k .w2-a{font-size:12px}.w2-k.k .w2-f{font-size:12px}
+/* Wand-Zoom (24.10.) */
+.w2-k{cursor:pointer;transition:left .38s cubic-bezier(.2,.8,.2,1), top .38s cubic-bezier(.2,.8,.2,1), width .38s cubic-bezier(.2,.8,.2,1), height .38s cubic-bezier(.2,.8,.2,1), opacity .25s, transform .25s}
+.w2.zoom .w2-k:not(.auf){opacity:0;transform:scale(.92);pointer-events:none}
+.w2.zoom .w2-k.auf{left:0 !important;top:0 !important;width:100% !important;height:100% !important;z-index:2}
+.w2-d{display:none}
+.w2-k.auf .w2-d{display:flex;flex-direction:column;flex:1;min-height:0;margin-top:6px;animation:w2ein .35s .15s both}
+.w2-k.auf .w2-p{opacity:.35}
+.w2-k.auf .w2-a,.w2-k.auf .w2-z{display:none}
+.w2-k.auf .w2-f{order:-1;margin-top:0}
+@keyframes w2ein{from{opacity:0;transform:translateY(6px)}}
+.w2-zu{font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:6px}
+.w2ts{flex:1;min-height:0;display:flex;gap:10px;align-items:stretch}
+.w2t{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11.5px;color:var(--text-2);text-align:center}
+.w2t-r{flex:1;width:100%;max-width:70px;display:flex;align-items:flex-end;min-height:40px}
+.w2t-t{width:100%;border-radius:8px 8px 4px 4px;background:color-mix(in srgb, var(--f) 30%, var(--panel));position:relative;overflow:hidden;animation:w2wachs .5s .2s cubic-bezier(.2,.8,.2,1) both;transform-origin:bottom}
+.w2t-t i{position:absolute;left:0;right:0;top:0;background:var(--f)}
+@keyframes w2wachs{from{transform:scaleY(0)}}
+.w2t b{font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-top:4px}
+.w2t em{font-style:normal;font-weight:900;color:var(--text)}
+.w2-dl{font-size:11px;color:var(--text-3);margin-top:6px}
+@media (prefers-reduced-motion:reduce){ .w2-k,.w2t-t,.w2-k.auf .w2-d{transition:none;animation:none} }
 /* Merkliste (24.10.) */
 .dk-knoepfe{margin-left:auto;display:flex;gap:6px}
 .dk-knoepfe .dk-teilen{margin-left:0}
@@ -1799,16 +1820,32 @@ function marktWand2(s){
       const top = aus.reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null), topN = aus.reduce((x,a)=>(a.neu||0)>(x?.neu||0)?a:x, null);
       mitte = top ? `<div class="w2-a"><b>${esc(kurz(top.name))} ${Math.round(top.eur/ges*100)} %</b>${top.quote?` <small>@ ${q2(top.quote)}</small>`:""}</div>` : "";
       if(gr!=="k" && topN && (topN.neu||0)>0) mitte += `<div class="w2-z">neu meist auf <b>${esc(kurz(topN.name))}</b>${topN.quote?` ${q2(topN.quote)}`:""}</div>`; }
-    return `<div class="w2-k ${gr}" style="left:${(r.x/W*100).toFixed(2)}%;top:${(r.y/H*100).toFixed(2)}%;width:${(r.w/W*100).toFixed(2)}%;height:${(r.h/H*100).toFixed(2)}%">
+    return `<div class="w2-k ${gr}" data-w2 tabindex="0" role="button" aria-expanded="false" style="left:${(r.x/W*100).toFixed(2)}%;top:${(r.y/H*100).toFixed(2)}%;width:${(r.w/W*100).toFixed(2)}%;height:${(r.h/H*100).toFixed(2)}%">
       <div class="w2-i" style="--f:${f}" title="${k.m?esc(marktDe(k.m.name)):`${k.rest.length} weitere Märkte`}: ${eur(k.eur)} drin${k.neu>0?`, davon +${eur(k.neu)} neu in ${fm} Min`:""}">
         <div class="w2-p" style="height:${pegel.toFixed(1)}%"></div>
         <div class="w2-m">${k.m ? esc(marktDe(k.m.name)) + (tot?" · Absicherung":"") : `+${k.rest.length} weitere Märkte`}</div>
         ${mitte}
         <div class="w2-f"><span>${eur(k.eur)}</span>${k.neu>0?`<em>+${eur(k.neu)}</em>`:""}</div>
+        ${w2Detail(k, fm)}
       </div></div>`; }).join("");
   return `<div class="gm-kopf">${gesNeu>0?`<b>+${eur(gesNeu)}</b> neu in ${fm} Min · `:""}<span class="gm-leg"><i class="a"></i>lag schon drin <i class="n"></i>neu dazu (oben)</span></div>
     <div class="w2" style="height:${H}px">${html}</div>
-    ${liste("Alle Märkte mit jeder Auswahl", "", `<div style="margin-top:10px">${geldJeMarkt(s)}</div>`)}`;
+    <div class="kk-klein" style="margin-top:6px">Kachel antippen = alle Auswahlen des Markts</div>`;
+}
+// Lucas 24.10. („Wall-Element anklicken → es wächst animiert und zeigt Details, die anderen verschwinden"):
+// je Auswahl ein eigener kleiner Topf — Höhe = Geld darauf, oben kräftig = neu, darunter Quote mit Pfeil (vs. ~1 h).
+function w2Detail(k, fm){
+  const kurz = n => /^(over|under) [\d.]+/i.test(n||"") ? (/^over/i.test(n)?"Über":"Unter") + " " + (/[\d.]+/.exec(n)||[""])[0].replace(".",",") : nm(auswahlDe(n));
+  const zeilen = k.m ? (k.m.auswahl||[]).filter(a=>(a.eur||0)>0).map(a=>({...a, markt:k.m.name}))
+    : k.rest.flatMap(m=>(m.auswahl||[]).filter(a=>(a.eur||0)>0).slice(0,1).map(a=>({...a, markt:m.name})));
+  if(!zeilen.length) return "";
+  const max = Math.max(1, ...zeilen.map(a=>Math.max(a.eur||0, a.neu||0))), ges = zeilen.reduce((x,a)=>x+(a.eur||0),0)||1;
+  const toepfe = zeilen.slice(0,6).map(a=>{ const d = Math.max(a.eur||0, a.neu||0), nn = Math.max(0, Math.min(d, a.neu||0));
+    const h = Math.max(6, d/max*100), oben = d ? nn/d*100 : 0, q = a.quote, q0 = a.q60;
+    const pf = q && q0 && Math.abs(q-q0)/q0 >= 0.02 ? (q<q0?`<i class="hq ab">↓</i>`:`<i class="hq auf">↑</i>`) : "";
+    return `<div class="w2t"><div class="w2t-r"><div class="w2t-t" style="height:${h.toFixed(1)}%"><i style="height:${oben.toFixed(1)}%"></i></div></div>
+      <b>${esc(k.rest ? marktDe(a.markt) : kurz(a.name))}</b><span>${q?`${pf}${q2(q)}`:"–"}</span><span>${eur(d)} · ${Math.round(d/ges*100)} %</span>${nn?`<em>+${eur(nn)}</em>`:""}</div>`; }).join("");
+  return `<div class="w2-d"><div class="w2-zu">← alle Märkte</div><div class="w2ts">${toepfe}</div><div class="w2-dl">Höhe = Geld auf der Auswahl · oben kräftig = neu in ${fm} Min · Pfeil = Quote gegenüber vor ~1 h</div></div>`;
 }
 function marktWand(s){
   const md = (s.maerkteDetail||[]).filter(m=>m.eur>0); if(!md.length) return "";
@@ -3519,6 +3556,9 @@ document.addEventListener("click", e=>{
   const mt = e.target.closest("[data-merktipp]"); if(mt){ e.stopPropagation(); const [i, m, ...n] = mt.dataset.merktipp.split("|"); merkTippSetzen(i, m, n.join("|")); return; }
   const mw = e.target.closest("[data-merkweg]"); if(mw){ e.stopPropagation(); MERK = MERK.filter(x=>x.id!==mw.dataset.merkweg); merkSpeichern(); merkAnzeigen(); return; }
   if(e.target.closest("[data-merkliste]")){ merkOeffnen(); return; }
+  const w2 = e.target.closest("[data-w2]"); if(w2){ const wand = w2.closest(".w2"), auf = !w2.classList.contains("auf");
+    wand.querySelectorAll(".w2-k.auf").forEach(x=>{ x.classList.remove("auf"); x.setAttribute("aria-expanded","false"); });
+    wand.classList.toggle("zoom", auf); if(auf){ w2.classList.add("auf"); w2.setAttribute("aria-expanded","true"); } return; }
   const lg = e.target.closest("[data-liga]"); if(lg){ ligaModus = lg.dataset.liga; try{ localStorage.setItem("radar-liga", ligaModus); }catch(_){} render(); return; }
   const dk = e.target.closest("[data-dr]"); if(dk && !e.target.closest("a")){ drOeffnen(dk.dataset.dr); return; }
   if(e.target.closest("#thema")){ const t = document.documentElement.dataset.theme==="hell" ? "dunkel" : "hell";
