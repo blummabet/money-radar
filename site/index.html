@@ -1357,6 +1357,7 @@ function serienKarten(D, max, quelle){
       ${saeulenSvg(istBf ? x.saeulen.slice(-24) : x.saeulen, farbe, 260, 38, istBf?5:10, istBf ? (x.tore||[]).map(t=>({...t, i:t.i-(x.saeulen.length-24)})) : [])}
     </div>`;}).join("")}</div>`;
 }
+let SK_ID = 0;
 function flussSankey(fl, PAL){
   // Lucas 24.10. („zu viel nachdenken — reicht nicht der Fluss selbst?"): jedes Band ist so breit wie das Geld, das
   // auf der Auswahl LIEGT (hell); der kräftige Teil darin ist das, was in diesem Fenster NEU dazukam. Ohne Zusatzleiste.
@@ -1382,19 +1383,20 @@ function flussSankey(fl, PAL){
   teile.forEach((f,i)=>{
     const h = hh[i], sl = slots[i], d = drin(f), anteilNeu = Math.min(1, f.neu/d);
     const r0 = yS + (sl - h)/2, r1 = r0 + h, l0 = yL, l1 = yL + h, c = farbe(f.markt, f);
-    const rn = r0 + h*anteilNeu, ln = l0 + h*anteilNeu;      // der neue Teil liegt oben im Band
-    out += `<path d="${band(l0,l1,r0,r1)}" style="fill:${c}" opacity=".18"><title>${esc(auswahlDe(f.name))}: ${eur(d)} drin</title></path>`
-         + `<path d="${band(l0,ln,r0,rn)}" style="fill:${c}" opacity="${tot(f)?.35:.75}"><title>${esc(auswahlDe(f.name))}: +${eur(f.neu)} neu</title></path>`
-         + `<rect x="${xR}" y="${r0.toFixed(1)}" width="${bR}" height="${h.toFixed(1)}" rx="2" style="fill:${c}" opacity=".3"/>`
-         + `<rect x="${xR}" y="${r0.toFixed(1)}" width="${bR}" height="${Math.max(1.5, rn-r0).toFixed(1)}" rx="2" style="fill:${c}"/>`;
+    // Lucas 24.10.: von links nach rechts — hell = lag schon drin, am Ende kräftig = neu dazu (wie ein Topf, der aufgefüllt wird)
+    const gid = "skg" + (++SK_ID);
+    out += `<defs><linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="${xL+bL}" x2="${xR}" y1="0" y2="0">
+        <stop offset="${(1-anteilNeu).toFixed(3)}" style="stop-color:${c}" stop-opacity=".2"/><stop offset="${(1-anteilNeu).toFixed(3)}" style="stop-color:${c}" stop-opacity="${tot(f)?.4:.85}"/></linearGradient></defs>`
+         + `<path d="${band(l0,l1,r0,r1)}" fill="url(#${gid})"><title>${esc(auswahlDe(f.name))}: ${eur(d)} drin, davon +${eur(f.neu)} neu</title></path>`
+         + `<rect x="${xR}" y="${r0.toFixed(1)}" width="${bR}" height="${h.toFixed(1)}" rx="2" style="fill:${c}"/>`;
     const ym = r0 + h/2;
     lab += `<text x="${xR+bR+8}" y="${(ym-3).toFixed(1)}" font-size="12" font-weight="700" fill="var(--text)">${esc((f.markt==="_rest"?"Übrige Märkte":auswahlDe(f.name)).slice(0,22))}${f.quote?` <tspan font-weight="500" fill="var(--text-3)">${q2(f.quote)}</tspan>`:""}${f.markt!=="_rest"?` <tspan font-size="10" font-weight="500" fill="var(--text-3)">${tot(f)?"Absicherung":esc(marktDe(f.markt).slice(0,12))}</tspan>`:""}</text>`
-         + `<text x="${xR+bR+8}" y="${(ym+11).toFixed(1)}" font-size="10.5" fill="var(--text-2)"><tspan style="fill:${c}" font-weight="800">+${eur(f.neu)} neu</tspan>${f.markt!=="_rest"?` · ${eur(d)} drin`:""}</text>`;
+         + `<text x="${xR+bR+8}" y="${(ym+11).toFixed(1)}" font-size="10.5" fill="var(--text-2)"><tspan style="fill:${c}" font-weight="800">+${eur(f.neu)} neu</tspan> <tspan fill="var(--text-3)">(${Math.round(f.neu/ges*100)} %)</tspan>${f.markt!=="_rest"?` · ${eur(d)} drin`:""}</text>`;
     yL = l1; yS += sl + GAP;
   });
   const topf = `<rect x="${xL}" y="${(H-hoch)/2}" width="${bL}" height="${hoch}" rx="3" fill="var(--text-2)"/>`;
   return `<div class="sankey-k"><span>Neues Geld</span><b>+${eur(ges)}</b>${totSumme>=ges*0.1?`<span>davon ${eur(totSumme)} Absicherung (Quote unter 1,15)</span>`:""}</div>
-    <div class="sk-leg"><span><i class="h"></i>lag schon drin</span><span><i class="k"></i>neu dazu</span><span>Breite = Geld auf der Auswahl</span></div>
+    <div class="sk-leg"><span><i class="h"></i>lag schon drin</span><span><i class="k"></i>neu dazu</span><span>Breite = Geld auf der Auswahl · % = Anteil am neuen Geld</span></div>
     <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-width:520px" role="img" aria-label="Wohin das neue Geld floss">${topf}${out}${lab}</svg>`;
 }
 // Kleiner Linien-Graph fürs Detail: gestrecktes SVG + HTML-Beschriftung (lesbar auf dem Handy)
