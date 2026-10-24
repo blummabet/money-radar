@@ -1166,6 +1166,24 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .zul.tot .zul-k b{color:var(--text-2)}
 .zul-rest{font-size:12.5px;color:var(--text-3)}.zul-rest b{color:var(--text-2)}
 .sk-leg i.k{background:var(--bf)}
+/* Geld je Markt (24.10.) */
+.gm-kopf{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13px;color:var(--text-2);margin-bottom:10px}
+.gm-kopf>b{font-size:16px;color:var(--text)}
+.gm-leg{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3)}
+.gm-leg i{width:14px;height:8px;border-radius:2px;background:var(--bf);display:inline-block}.gm-leg i.a{opacity:.25}.gm-leg i.n{margin-left:6px}
+.gms{display:flex;flex-direction:column;gap:14px}
+.gm-k{display:flex;align-items:baseline;gap:8px;font-size:13px;margin-bottom:5px}
+.gm-k b{font-weight:800}.gm-k small{color:var(--text-3)}.gm-k span{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums}
+.gm-k em{font-style:normal;font-weight:800;color:var(--f);font-variant-numeric:tabular-nums}
+.gm-b{display:flex;gap:2px;height:16px;min-width:60px}
+.gm-s{display:flex;height:100%;border-radius:4px;overflow:hidden;min-width:3px}
+.gm-s i{display:block;height:100%}
+.gm-s i.a{background:color-mix(in srgb, var(--f) 24%, transparent)}
+.gm-s i.n{background:var(--f)}
+.gm-n{display:flex;flex-wrap:wrap;gap:2px 14px;margin-top:5px;font-size:12px;color:var(--text-3)}
+.gm-n b{color:var(--text-2);font-weight:700}.gm-n em{font-style:normal;font-weight:800;color:var(--f)}
+.gm-n .hoch b{color:var(--text)}
+.gm.tot .gm-k b{color:var(--text-2)}
 /* Merkliste (24.10.) */
 .dk-knoepfe{margin-left:auto;display:flex;gap:6px}
 .dk-knoepfe .dk-teilen{margin-left:0}
@@ -1711,6 +1729,33 @@ function dChips(s, fl, fm){
   const vorn = c.filter(x=>x.includes('dc bf')), rest = c.filter(x=>!x.includes('dc bf'));
   return c.length ? `<div class="dcs">${[...vorn, ...rest].join("")}</div>` : "";
 }
+// Lucas 24.10. („brauch neuen Zufluss UND muss sehen, was auf dem Markt schon war — nicht alles dreifach"):
+// EIN Block statt Fluss-Leiter + Markt-Wand. Je Markt eine Zeile: Balkenlänge = Geld im Markt (im Vergleich der Märkte),
+// darin je Auswahl ein Stück so breit wie ihr Geld — hell = lag schon drin, kräftig = neu in diesem Fenster.
+function geldJeMarkt(s){
+  const fm = s.fensterMin || 30;
+  const md = (s.maerkteDetail||[]).filter(m=>m.eur>0);
+  if(!md.length) return "";
+  const totM = m => { const top = (m.auswahl||[]).filter(a=>a.name!=="Rest").reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null); return !!(top && top.quote && top.quote<1.15); };
+  const neuM = m => (m.auswahl||[]).reduce((x,a)=>x+Math.max(0,a.neu||0),0);
+  const L = md.slice().sort((a,b)=>(totM(a)-totM(b)) || (neuM(b)-neuM(a)) || (b.eur-a.eur));
+  const maxE = Math.max(1, ...L.map(m=>m.eur)), gesNeu = L.reduce((x,m)=>x+neuM(m),0);
+  const zeile = m => {
+    const tot = totM(m), f = tot ? "var(--text-3)" : MW_FAM.find(x=>x[0]===mwFamilie(m.name))[2];
+    const aus = (m.auswahl||[]).filter(a=>a.eur>0 || a.neu>0), ges = aus.reduce((x,a)=>x+Math.max(a.eur||0, a.neu||0),0) || 1, n = neuM(m);
+    const ord = aus.slice().sort((a,b)=>(b.eur||0)-(a.eur||0)), topNeu = aus.reduce((x,a)=>(a.neu||0)>(x?.neu||0)?a:x, null);
+    const stuecke = ord.map(a=>{ const d = Math.max(a.eur||0, a.neu||0), nn = Math.min(d, Math.max(0, a.neu||0));
+      return `<span class="gm-s" style="width:${(d/ges*100).toFixed(2)}%" title="${esc(auswahlDe(a.name))}: ${eur(d)} drin${nn?`, +${eur(nn)} neu`:""}"><i class="a" style="flex:${(d-nn).toFixed(0)}"></i>${nn?`<i class="n" style="flex:${nn.toFixed(0)}"></i>`:""}</span>`; }).join("");
+    const namen = ord.filter(a=>a.name!=="Rest").slice(0,3).map(a=>{ const d = Math.max(a.eur||0, a.neu||0);
+      return `<span class="${a===topNeu&&(a.neu||0)>0?"hoch":""}"><b>${esc(/^(over|under) [\d.]+/i.test(a.name||"") ? (/^over/i.test(a.name)?"Über":"Unter") : nm(auswahlDe(a.name)))}</b>${a.quote?` ${q2(a.quote)}`:""} · ${Math.round(d/ges*100)} %${(a.neu||0)>0?` <em>+${eur(a.neu)}</em>`:""}</span>`; }).join("");
+    return `<div class="gm${tot?" tot":""}" style="--f:${f}">
+      <div class="gm-k"><b>${esc(marktDe(m.name))}</b>${tot?`<small>Absicherung</small>`:""}<span>${eur(m.eur)}</span>${n>0?`<em>+${eur(n)} neu</em>`:""}</div>
+      <div class="gm-b" style="width:${Math.max(18, m.eur/maxE*100).toFixed(1)}%">${stuecke}</div>
+      <div class="gm-n">${namen}</div></div>`; };
+  const vorn = L.slice(0,5), rest = L.slice(5);
+  return `<div class="gm-kopf">${gesNeu>0?`<b>+${eur(gesNeu)}</b> neu in ${fm} Min · `:""}<span class="gm-leg"><i class="a"></i>lag schon drin <i class="n"></i>neu dazu</span></div>
+    <div class="gms">${vorn.map(zeile).join("")}</div>${rest.length?liste(`Weitere ${rest.length} Märkte`, "", `<div class="gms" style="margin-top:10px">${rest.map(zeile).join("")}</div>`):""}`;
+}
 function marktWand(s){
   const md = (s.maerkteDetail||[]).filter(m=>m.eur>0); if(!md.length) return "";
   const W = 600, H = Math.min(340, 120 + md.length*36), R = treemap(md.map(m=>m.eur), W, H);
@@ -1755,8 +1800,7 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
   return `<tr class="detail"><td colspan="6"><div class="det">
     ${ohneKopf?"":dKopf(s)}${s.live?liveStat(s.id,true):""}${dChips(s, fl, fm)}
     ${saeulen?`<div class="sv">${saeulen}</div>`:""}
-    <div><h4>Wohin das neue Geld floss <small>letzte ${fm} Min</small></h4>${flussBlock}</div>
-    <div><h4>Märkte</h4>${marktWand(s)||"–"}</div>
+    <div><h4>Geld je Markt <small>Balken = Geld im Markt · kräftig = neu in ${fm} Min</small></h4>${geldJeMarkt(s)||"–"}</div>
     ${ohneVerlauf?"":quotenKurve(s)}
   </div></td></tr>`;
 }
