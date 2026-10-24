@@ -1150,6 +1150,22 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .sk-leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-3);margin:-2px 0 8px}
 .sk-leg span{display:inline-flex;align-items:center;gap:5px}
 .sk-leg i{width:14px;height:8px;border-radius:2px;background:var(--bf)}.sk-leg i.h{opacity:.25}
+/* Zufluss-Leiter (24.10.) */
+.zls{display:flex;flex-direction:column;gap:12px;margin-top:4px}
+.zl{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:12px;row-gap:5px;align-items:center}
+.zl-k{min-width:0;display:flex;align-items:baseline;gap:6px;overflow:hidden;white-space:nowrap}
+.zl-k b{font-size:14px;font-weight:800;overflow:hidden;text-overflow:ellipsis}.zl-q{font-weight:600;color:var(--text-3);font-size:13px}.zl-k small{color:var(--text-3);font-size:11.5px;overflow:hidden;text-overflow:ellipsis}
+.zl-n{text-align:right;line-height:1}.zl-n b{font-size:16px;font-weight:900;color:var(--c);font-variant-numeric:tabular-nums}.zl-n small{margin-left:5px;font-size:11.5px;color:var(--text-3);font-weight:700}
+.zl-b{position:relative;height:14px;display:flex;align-items:center}
+.zl-b i{display:block;height:100%}
+.zl-b i.alt{background:color-mix(in srgb, var(--c) 22%, transparent);border-radius:4px 0 0 4px}
+.zl-b i.neu{background:var(--c);border-radius:0 4px 4px 0}
+.zl-b span{margin-left:8px;font-size:11.5px;color:var(--text-3);white-space:nowrap}
+.zl-w{justify-self:end;font-size:12px;font-weight:800;color:var(--text-2);background:var(--panel-3);border-radius:999px;padding:2px 8px;font-variant-numeric:tabular-nums}
+.zl-w.stark{color:#06140d;background:var(--up)}
+.zl.tot .zl-k b{color:var(--text-2)}
+.zl-rest{font-size:12.5px;color:var(--text-3)}.zl-rest b{color:var(--text-2)}
+.sk-leg i.k{background:var(--bf)}
 /* Merkliste (24.10.) */
 .dk-knoepfe{margin-left:auto;display:flex;gap:6px}
 .dk-knoepfe .dk-teilen{margin-left:0}
@@ -1356,6 +1372,32 @@ function serienKarten(D, max, quelle){
       ${istBf?`<div class="kk-klein">${esc(marktDe(x.markt))}${x.letzteVorMin!=null?`, zuletzt vor ${x.letzteVorMin} Min`:""}</div>`:istSt?`<div class="kk-klein">${esc(x.markt)}, ${x.wetten} Wetten ab $1000</div>`:""}
       ${saeulenSvg(istBf ? x.saeulen.slice(-24) : x.saeulen, farbe, 260, 38, istBf?5:10, istBf ? (x.tore||[]).map(t=>({...t, i:t.i-(x.saeulen.length-24)})) : [])}
     </div>`;}).join("")}</div>`;
+}
+// Lucas 24.10. („erkennt man immer noch nicht gut, sieht alles gleich aus"): statt Fluss-Bändern eine Leiter — eine
+// Zeile je Auswahl, alle Balken auf derselben Grundlinie. Hell = lag schon drin, kräftig am Ende = neu dazu,
+// rechts groß der neue Betrag und daneben, um wie viel der Topf gerade gewachsen ist (das eigentliche Signal).
+function zuflussLeiter(fl, PAL){
+  const ges = fl.reduce((x,f)=>x+f.neu,0) || 1;
+  const tot = f => f.quote && f.quote < 1.15;
+  let teile = fl.filter(f=>f.neu/ges>=0.03).slice(0,7);
+  const rest = ges - teile.reduce((x,f)=>x+f.neu,0);
+  const mOrd = [...new Set(teile.filter(f=>!tot(f)).map(f=>f.markt))];
+  const farbe = f => tot(f) ? "var(--text-3)" : PAL[mOrd.indexOf(f.markt)%PAL.length];
+  const drin = f => Math.max(f.neu, f.eur||0);
+  const maxD = Math.max(1, ...teile.map(drin));
+  const totSumme = fl.filter(tot).reduce((x,f)=>x+f.neu,0);
+  const zeile = f => { const d = drin(f), alt = Math.max(0, d-f.neu), w = d/maxD*100, wn = f.neu/maxD*100, c = farbe(f);
+    const wachs = alt > 0 ? Math.round(f.neu/alt*100) : null;
+    const stark = wachs!=null && wachs >= 20 && !tot(f);
+    return `<div class="zl${tot(f)?" tot":""}" style="--c:${c}">
+      <div class="zl-k"><b>${esc(auswahlDe(f.name))}</b>${f.quote?`<span class="zl-q">${q2(f.quote)}</span>`:""}<small>${tot(f)?"Absicherung":esc(marktDe(f.markt))}</small></div>
+      <div class="zl-n"><b>+${eur(f.neu)}</b><small>${Math.round(f.neu/ges*100)} %</small></div>
+      <div class="zl-b"><i class="alt" style="width:${(w-wn).toFixed(2)}%"></i><i class="neu" style="width:${Math.max(0.8, wn).toFixed(2)}%"></i><span>${eur(d)} drin</span></div>
+      <div class="zl-w${stark?" stark":""}">${wachs==null?"neu":`+${wachs} %`}</div>
+    </div>`; };
+  return `<div class="sankey-k"><span>Neues Geld</span><b>+${eur(ges)}</b>${totSumme>=ges*0.1?`<span>davon ${eur(totSumme)} Absicherung (Quote unter 1,15)</span>`:""}</div>
+    <div class="sk-leg"><span><i class="h"></i>lag schon drin</span><span><i class="k"></i>neu dazu</span><span>% klein = Anteil am neuen Geld · rechts = so stark wuchs der Topf</span></div>
+    <div class="zls">${teile.map(zeile).join("")}${rest/ges>=0.01?`<div class="zl-rest">Übrige Märkte <b>+${eur(rest)}</b> <small>${Math.round(rest/ges*100)} %</small></div>`:""}</div>`;
 }
 let SK_ID = 0;
 function flussSankey(fl, PAL){
@@ -1707,8 +1749,8 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
   fl.sort((x,y)=>((x.quote&&x.quote<1.15)-(y.quote&&y.quote<1.15)) || (y.neu-x.neu));
   const neu = fl.reduce((a,x)=>a+x.neu,0);
   const flussBlock = !fl.length ? `<div class="kk-klein">In den letzten ${fm} Minuten kam kein neues Geld dazu.</div>`
-    : neuNennenswert(s, neu) ? flussSankey(fl, PAL)
-    : `<details class="dq"><summary>Kaum neues Geld: nur +${eur(neu)} in ${fm} Min (${dez(100*neu/Math.max(1,s.eur))} % des Spiels) · trotzdem zeigen</summary>${flussSankey(fl, PAL)}</details>`;
+    : neuNennenswert(s, neu) ? zuflussLeiter(fl, PAL)
+    : `<details class="dq"><summary>Kaum neues Geld: nur +${eur(neu)} in ${fm} Min (${dez(100*neu/Math.max(1,s.eur))} % des Spiels) · trotzdem zeigen</summary>${zuflussLeiter(fl, PAL)}</details>`;
   const saeulen = ohneVerlauf ? "" : (geldSaeulen(s) || "");
   return `<tr class="detail"><td colspan="6"><div class="det">
     ${ohneKopf?"":dKopf(s)}${s.live?liveStat(s.id,true):""}${dChips(s, fl, fm)}
