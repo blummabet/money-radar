@@ -260,34 +260,57 @@ def poly_kurse(buch, jetzt):
             b["nach15"] = round(1 / p, 4)
 
 
+WAL_MESSUNG_AB = "2026-10-24T20:30:00+00:00"   # Lucas 24.10. („messen wir auch die guten Wallets mit?") — ab hier vorwärts
+WAL_MESSUNG_PREIS = (0.20, 0.80)              # = Quote 1,25 bis 5,0: keine Fast-Sicheren, keine Lottoscheine
+
+
+def _kachel(sp, z, ziel):
+    """Kennzahlen + Urteil einer Gruppe (z = Buchzeilen dieser Gruppe)."""
+    k = _gruppe(z)
+    urteil = None
+    if k["abgerechnet"] >= ziel:
+        urteil = "bestanden" if k["_roi"] - (k["_se"] or 0) > 0 and k["_kante"] else "nicht bestanden"
+    return {"sport": sp, **{x: v for x, v in k.items() if not x.startswith("_")}, "urteil": urteil}
+
+
+def _erste_und_folge(z):
+    """Lucas 24.10.: fürs Urteil zählt nur der ERSTE Push je Spiel + Seite (sonst zählt ein Spiel mit 3×/5×/8× dreifach).
+    Folge-Pushes werden extra geführt — und die ersten Pushes danach getrennt, ob noch einer kam („mehr kam = Aussage")."""
+    z = sorted(z, key=lambda b: b.get("ts") or "")
+    erst, folge, n_je = [], [], {}
+    for b in z:
+        k = (b.get("id"), b.get("auswahl"))
+        n_je[k] = n_je.get(k, 0) + 1
+        (folge if n_je[k] > 1 else erst).append(b)
+    mit = [b for b in erst if n_je[(b.get("id"), b.get("auswahl"))] > 1]
+    ohne = [b for b in erst if n_je[(b.get("id"), b.get("auswahl"))] == 1]
+    return erst, folge, mit, ohne
+
+
 def messung(buch):
-    """Die vorab festgelegte Regel für den Polymarket-Dauerzufluss, je Sport — Fortschritt bis 60 und Urteil."""
-    import math
+    """Die vorab festgelegten Regeln für Polymarket, je Sport — Fortschritt bis 60 und Urteil.
+    Dauerzufluss: Preis 34–59 ¢ ab 22.10. · Wal-Einstieg (belegte Wallets): Preis 20–80 ¢ ab 24.10. abends.
+    Gewertet wird je Spiel + Seite nur der erste Push."""
     ab = _ts(MESSUNG_AB)
     regel = [b for b in buch if b.get("art") == "pserie" and _ts(b.get("ts")) and _ts(b["ts"]) >= ab
              and b.get("preis") and MESSUNG_PREIS[0] <= b["preis"] <= MESSUNG_PREIS[1]]
     aus = []
     for sp in ("Fußball", "E-Sport", "Tennis"):
         z = [b for b in regel if (b.get("sport") or "Fußball") == sp]
-        fertig = [b for b in z if b.get("status") == "abgerechnet"]
-        n = len(fertig)
-        r = [b["r"] for b in fertig]
-        roi = sum(r) / n if n else None
-        se = (math.sqrt(sum((x - roi) ** 2 for x in r) / (n - 1)) / math.sqrt(n)) if n > 1 else None
-        clv = [b["quote"] / b["schluss"] - 1 for b in z if not b.get("live") and b.get("schluss") and b.get("quote")
-               and _ts(b.get("schlussTs")) and _ts(b.get("anpfiff")) and _ts(b["schlussTs"]) >= _ts(b["anpfiff"]) - timedelta(minutes=20)]
-        mo = [b["quote"] / b["nach15"] - 1 for b in z if b.get("nach15") and b.get("quote")]
-        urteil = None
-        if n >= MESSUNG_ZIEL:
-            kante = (clv and sum(clv) / len(clv) > 0) or (mo and sum(mo) / len(mo) > 0)
-            urteil = "bestanden" if roi - se > 0 and kante else "nicht bestanden"
-        aus.append({"sport": sp, "gesendet": len(z), "abgerechnet": n, "offen": sum(1 for b in z if b.get("status") == "offen"),
-                    "treffer": round(100 * sum(1 for b in fertig if b["win"]) / n) if n else None,
-                    "erwartet": round(100 * sum(1 / b["quote"] for b in fertig) / n) if n else None,
-                    "roi": round(100 * roi, 1) if roi is not None else None, "fehler": round(100 * se, 1) if se is not None else None,
-                    "clv": round(100 * sum(clv) / len(clv), 1) if clv else None, "clvN": len(clv),
-                    "kurs15": round(100 * sum(mo) / len(mo), 1) if mo else None, "kurs15N": len(mo), "urteil": urteil})
-    return {"ab": MESSUNG_AB, "preis": MESSUNG_PREIS, "ziel": MESSUNG_ZIEL, "sport": aus}
+        erst, folge, mit, ohne = _erste_und_folge(z)
+        k = _kachel(sp, erst, MESSUNG_ZIEL)
+        k["teile"] = [{"name": n, **{x: v for x, v in _gruppe(g).items() if not x.startswith("_")}}
+                      for n, g in (("Spiel bekam später noch einen Push", mit), ("nur ein Push", ohne), ("Folge-Pushes selbst", folge)) if g]
+        aus.append(k)
+    wab = _ts(WAL_MESSUNG_AB)
+    wr = [b for b in buch if b.get("art") == "wal" and _ts(b.get("ts")) and _ts(b["ts"]) >= wab
+          and b.get("preis") and WAL_MESSUNG_PREIS[0] <= b["preis"] <= WAL_MESSUNG_PREIS[1]]
+    wal = []
+    for sp in ("Fußball", "E-Sport", "Tennis"):
+        erst, _, _, _ = _erste_und_folge([b for b in wr if (b.get("sport") or "Fußball") == sp])
+        wal.append(_kachel(sp, erst, MESSUNG_ZIEL))
+    return {"ab": MESSUNG_AB, "preis": MESSUNG_PREIS, "ziel": MESSUNG_ZIEL, "sport": aus,
+            "wal": {"ab": WAL_MESSUNG_AB, "preis": WAL_MESSUNG_PREIS, "sport": wal}}
 
 
 TOP3_AB = "2026-10-23T17:45:00+00:00"        # Lucas 23.10. 19:43: „ja bitte" — ab hier vorwärts
