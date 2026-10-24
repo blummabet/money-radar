@@ -1750,7 +1750,7 @@ function geldJeMarkt(s){
       return `<span class="${a===topNeu&&(a.neu||0)>0?"hoch":""}"><b>${esc(/^(over|under) [\d.]+/i.test(a.name||"") ? (/^over/i.test(a.name)?"Über":"Unter") : nm(auswahlDe(a.name)))}</b>${a.quote?` ${q2(a.quote)}`:""} · ${Math.round(d/ges*100)} %${(a.neu||0)>0?` <em>+${eur(a.neu)}</em>`:""}</span>`; }).join("");
     return `<div class="gm${tot?" tot":""}" style="--f:${f}">
       <div class="gm-k"><b>${esc(marktDe(m.name))}</b>${tot?`<small>Absicherung</small>`:""}<span>${eur(m.eur)}</span>${n>0?`<em>+${eur(n)} neu</em>`:""}</div>
-      <div class="gm-b" style="width:${Math.max(18, m.eur/maxE*100).toFixed(1)}%">${stuecke}</div>
+      <div class="gm-b" style="width:${(22 + 78*Math.sqrt(m.eur/maxE)).toFixed(1)}%">${stuecke}</div>
       <div class="gm-n">${namen}</div></div>`; };
   const vorn = L.slice(0,5), rest = L.slice(5);
   return `<div class="gm-kopf">${gesNeu>0?`<b>+${eur(gesNeu)}</b> neu in ${fm} Min · `:""}<span class="gm-leg"><i class="a"></i>lag schon drin <i class="n"></i>neu dazu</span></div>
@@ -1800,7 +1800,7 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
   return `<tr class="detail"><td colspan="6"><div class="det">
     ${ohneKopf?"":dKopf(s)}${s.live?liveStat(s.id,true):""}${dChips(s, fl, fm)}
     ${saeulen?`<div class="sv">${saeulen}</div>`:""}
-    <div><h4>Geld je Markt <small>Balken = Geld im Markt · kräftig = neu in ${fm} Min</small></h4>${geldJeMarkt(s)||"–"}</div>
+    <div><h4>Geld je Markt <small>längerer Balken = mehr Geld im Markt · kräftig = neu in ${fm} Min</small></h4>${geldJeMarkt(s)||"–"}</div>
     ${ohneVerlauf?"":quotenKurve(s)}
   </div></td></tr>`;
 }
