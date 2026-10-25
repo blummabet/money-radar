@@ -451,11 +451,13 @@ def _kennz(ab):
             "roi": round(100 * sum(b["r"] for b in ab) / n, 1)}
 
 
-# Lucas 25.10.: nicht pauschal über alle Ligen urteilen. Die Größe einer Liga misst die Liga-Norm (übliches Betfair-Geld
-# je Spiel): groß ≈ Top-5 und Premier-League-Niveau, mittel ≈ 2. Bundesliga / Eredivisie / Superliga, klein ≈ Superettan,
-# Segunda Liga, 2. Ligen kleiner Länder. Ohne Norm = zu wenig Geld für eine Norm → ebenfalls klein.
+# Grenzen 25.10. aus der gelernten Verteilung (181 Ligen, Endstand-Median): groß ≈ 15 Ligen (EPL €6,1M, CL, Serie A,
+# La Liga, Bundesliga, Ligue 1, EL, Brasilien, 2. Bundesliga, Portugal, Türkei, Eredivisie), mittel bis zum Median
+# aller Ligen (€50k: Championship, MLS, Schweiz, Norwegen …), klein = untere Hälfte (Ungarn, Faröer, Reserven …).
+# Lucas 25.10.: nicht pauschal über alle Ligen urteilen. Ohne Ligagröße (weniger als 5 fertige Spiele mit ≥ €3k in
+# 60 Tagen) → klein: fast immer Ligen, in denen kaum Geld liegt.
 LIGA_STUFEN = ("groß", "mittel", "klein")
-LIGA_NAME = {"groß": "Große Ligen (Norm ≥ €40k)", "mittel": "Mittlere Ligen (€8k–40k)", "klein": "Kleine Ligen (< €8k)"}
+LIGA_NAME = {"groß": "Große Ligen (≥ €400k je Spiel)", "mittel": "Mittlere Ligen (€50k–400k)", "klein": "Kleine Ligen (< €50k)"}
 
 
 def ligagroesse(b):
@@ -466,7 +468,7 @@ def ligagroesse(b):
     n = b.get("ligaEur")
     if not n:
         return "klein"
-    return "groß" if n >= 40000 else "mittel" if n >= 8000 else "klein"
+    return "groß" if n >= 400000 else "mittel" if n >= 50000 else "klein"
 
 
 def teile(alle):
