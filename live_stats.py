@@ -228,6 +228,48 @@ def kandidaten(d):
     return [spiele[i] for i in rang]
 
 
+PRUEF = BASIS / ".bf" / "apif_pruefung.json"
+
+
+def apif_pruefung(fixtures):
+    """Lucas 25.10.: „welche Ligen sind bei uns dabei, und bietet API-Football Pinnacle-Quoten an?" — alle 6 h:
+    /leagues?current=true (Abdeckung je Liga), /odds/bookmakers, und für ein paar laufende/heutige Spiele /odds mit
+    Pinnacle. Kostet ~5 Abrufe je 6 h."""
+    try:
+        alt = json.loads(PRUEF.read_text(encoding="utf-8"))
+        if JETZT - (_zeit(alt.get("stand")) or JETZT - timedelta(days=1)) < timedelta(hours=6):
+            return alt
+    except Exception:  # noqa: BLE001
+        pass
+    ligen = (get("/leagues?current=true", timeout=30) or {}).get("response") or []
+    zeilen = []
+    for x in ligen:
+        lg, land = x.get("league") or {}, (x.get("country") or {}).get("name")
+        sz = next((s for s in x.get("seasons") or [] if s.get("current")), {}) or {}
+        cv = sz.get("coverage") or {}
+        fx = cv.get("fixtures") or {}
+        if lg.get("type") != "League" and lg.get("type") != "Cup":
+            continue
+        zeilen.append({"id": lg.get("id"), "name": lg.get("name"), "land": land, "typ": lg.get("type"),
+                       "statistik": bool(fx.get("statistics_fixtures")), "events": bool(fx.get("events")),
+                       "aufstellung": bool(fx.get("lineups")), "quoten": bool(cv.get("odds"))})
+    books = (get("/odds/bookmakers") or {}).get("response") or []
+    pin = next((b for b in books if "pinnacle" in str(b.get("name") or "").lower()), None)
+    probe = []
+    if pin:
+        for fx in (fixtures or [])[:3]:
+            fid = (fx.get("fixture") or {}).get("id")
+            r = (get(f"/odds?fixture={fid}&bookmaker={pin['id']}") or {}).get("response") or []
+            probe.append({"spiel": f"{((fx.get('teams') or {}).get('home') or {}).get('name')} – {((fx.get('teams') or {}).get('away') or {}).get('name')}",
+                          "liga": (fx.get("league") or {}).get("name"), "pinnacleQuoten": bool(r),
+                          "maerkte": [b.get("name") for bk in (r[0].get("bookmakers") or []) for b in bk.get("bets") or []][:12] if r else []})
+    aus = {"stand": JETZT.isoformat(), "ligen": len(zeilen), "mitStatistik": sum(1 for z in zeilen if z["statistik"]),
+           "mitQuoten": sum(1 for z in zeilen if z["quoten"]), "ohneStatistik": [f"{z['land']}: {z['name']}" for z in zeilen if not z["statistik"]][:400],
+           "buchmacher": [b.get("name") for b in books], "pinnacle": pin, "probe": probe}
+    PRUEF.write_text(json.dumps(aus, ensure_ascii=False), encoding="utf-8")
+    return aus
+
+
 def druck_radar(d, cache, live_ids, neue_ticks):
     """Für die Seite: die Live-Spiele nach Druck-Index, mit Verlauf (Grafik), Geld je 5 Min und dem Ticker."""
     spiele = {s["id"]: s for s in (d.get("radar") or {}).get("spiele") or []}
@@ -297,6 +339,10 @@ def main() -> int:
         if n >= 2 and offen:
             fixtures = (get("/fixtures?live=all") or {}).get("response") or []
             n -= 1
+            try:
+                d["apifPruefung"] = apif_pruefung(fixtures)
+            except Exception as exc:  # noqa: BLE001
+                print("live_stats: Prüfung", exc)
             for sp in offen:
                 if n <= 0:
                     break
