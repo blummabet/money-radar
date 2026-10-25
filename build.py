@@ -940,6 +940,14 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
     # taugt das nicht — dieselbe Liga wäre vor Anpfiff „klein" und live „groß". Ligagröße = Median des ENDSTANDS (l2):
     # wie viel Geld ein ganzes Spiel dieser Liga üblicherweise sieht. Gleiche Quelle, lernt mit (60 Tage rollierend).
     liga_eur = {k.rsplit("|", 1)[0]: v for k, v in medi.items() if k.endswith("|l2") and (v.get("n") or 0) >= 5}
+    # Lucas 25.10. (Strømmen – Strømsgodset, €100k in der 17. Minute, fehlte in „Über der Liga-Norm"): hat eine Liga für
+    # die aktuelle Phase noch keine 5 Spiele (z. B. weil die 1.-HZ-Werte heute neu gemessen werden), wird die Phasen-Norm
+    # aus ihrem Endstand geschätzt — mit dem typischen Verhältnis Phase/Endstand über alle Ligen, die beides haben.
+    def _verh(ph):
+        r = sorted(medi[f"{lg}|{ph}"]["med"] / v["med"] for lg, v in liga_eur.items()
+                   if (medi.get(f"{lg}|{ph}") or {}).get("n", 0) >= 5 and v.get("med"))
+        return r[len(r) // 2] if len(r) >= 10 else None
+    phase_verh = {ph: _verh(ph) for ph in ("p0", "p1", "l1")}
     # Lucas 17.10.: „ob da deine Daten wirklich stimmen". Neben dem Median die ganze Stichprobe:
     # wie viele Spiele dieser Liga hatten in derselben Phase WENIGER Geld als dieses jetzt.
     proben = {k: sorted(x[1] for x in v if isinstance(x, list) and len(x) > 1)
@@ -986,7 +994,9 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
         vol_norm = max(0.0, vol - min(tot, vol))
         ph = _phase(JETZT, kick, li.get("time") if not li.get("is_ht") else 45)
         b = medi.get(f"{m.get('league')}|{ph}") or {}
-        xnorm = round(vol_norm / b["med"], 1) if b.get("med") and (b.get("n") or 0) >= 5 else None
+        if (b.get("n") or 0) < 5 and phase_verh.get(ph) and (liga_eur.get(m.get("league")) or {}).get("med"):
+            b = {"med": round(liga_eur[m.get("league")]["med"] * phase_verh[ph]), "n": b.get("n") or 0, "geschaetzt": True}
+        xnorm = round(vol_norm / b["med"], 1) if b.get("med") and ((b.get("n") or 0) >= 5 or b.get("geschaetzt")) else None
         pr = proben.get(f"{m.get('league')}|{ph}") or []
         rang = {"weniger": sum(1 for x in pr if x < vol), "n": len(pr),
                 "max": pr[-1] if pr else None} if len(pr) >= 5 else None
@@ -1125,7 +1135,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                              and li.get("goal_v1") != li.get("goal_v2")
                              and isinstance(mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw"), (int, float))
                              and mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw") < 1.40),
-            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "normN": b.get("n"),
+            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "normN": b.get("n"), "normGeschaetzt": bool(b.get("geschaetzt")),
             "geldMin": geld_min,
             "ligaEur": (liga_eur.get(m.get("league")) or {}).get("med"), "ligaN": (liga_eur.get(m.get("league")) or {}).get("n"), "geldAuf": geld_auf, "totEur": round(tot), "phase": ph, "rang": rang,
             "d60": round(vol - vor60) if vor60 is not None else None,

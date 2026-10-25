@@ -3273,9 +3273,9 @@ function normPunkte(liste){
   return `<div class="np">${liste.map(s=>{ const x = s.xnorm||0;
     return `<div class="np-z" ${klick(esc(s.heim)+" – "+esc(s.gast), ohneHuelle(spielDetail(s)))}>
       <div class="np-l">${flagge(s.land)}<div style="min-width:0"><b>${esc(s.heim)} – ${esc(s.gast)}</b><small>${live(s)} · ${esc(ligaName(s.liga))}</small>${s.geldAuf&&s.geldAuf.anteil>=40?`<small class="np-auf">meist ${esc(auswahlDe(s.geldAuf.auswahl))}${s.geldAuf.quote?` @ ${q2(s.geldAuf.quote)}`:""} · ${s.geldAuf.anteil} %</small>`:""}</div></div>
-      <div class="np-t" title="üblich in dieser Liga: ${eur(s.normEur)}${s.normN?` (aus ${s.normN} Spielen)`:""}"><span class="np-1" style="left:${pos(1)}%"></span><i style="width:${pos(x)}%;background:${st(x)}"></i><b style="left:${pos(x)}%;background:${st(x)}">×${dez(x)}</b></div>
+      <div class="np-t" title="üblich in dieser Liga: ${eur(s.normEur)}${s.normGeschaetzt?" (geschätzt aus dem Endstand der Liga — für diese Phase noch keine 5 Spiele)":s.normN?` (aus ${s.normN} Spielen)`:""}"><span class="np-1" style="left:${pos(1)}%"></span><i style="width:${pos(x)}%;background:${st(x)}"></i><b style="left:${pos(x)}%;background:${st(x)}">${s.normGeschaetzt?"≈":""}×${dez(x)}</b></div>
       <div class="np-r"><b>${eur(s.eur)}</b>${s.d60>0?`<small>+${eur(s.d60)} in 1 h</small>`:""}</div></div>`; }).join("")}
-    <div class="np-leg"><span>Strich = übliches Geld in dieser Liga (×1) · Geld zu Quoten unter 1,15 zählt nicht mit</span></div></div>`;
+    <div class="np-leg"><span>Strich = übliches Geld in dieser Liga (×1) · ≈ = geschätzt, Liga hat für diese Phase noch zu wenige Spiele · Geld zu Quoten unter 1,15 zählt nicht mit</span></div></div>`;
 }
 function ligaKaestchen(lb){
   const L = Object.entries((lb||{}).ligen||{}).filter(([n])=>lf([{liga:n}]).length).map(([n,v])=>({n,...v}));
