@@ -151,7 +151,7 @@ def rangliste(d, jetzt):
             p["liga"] = 1
         summe = sum(p.values()) - (1 if lb.get("urteil") == "trägt nicht" else 0)
         aus.append({"art": "top3", "id": str(s.get("id")), "heim": s.get("heim"), "gast": s.get("gast"), "liga": s.get("liga"),
-                    "anpfiff": s.get("anpfiff"), "live": bool(lv), "top5": bool(s.get("top5")), "markt": (fM or {}).get("name"),
+                    "anpfiff": s.get("anpfiff"), "live": bool(lv), "top5": bool(s.get("top5")), "normEur": s.get("normEur"), "markt": (fM or {}).get("name"),
                     "auswahl": fA.get("name"), "quote": q, "eur": s.get("eur"), "punkte": round(summe, 2),
                     "signale": sorted(p), "n": len(p)})
 

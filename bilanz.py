@@ -345,7 +345,8 @@ def top3_messung(buch):
                ("Irgendwann Platz 1", [b for b in z if b.get("bestRang") == 1]),
                ("ab 6 Punkte", [b for b in z if (b.get("punkte") or 0) >= 6]), ("unter 6 Punkte", [b for b in z if (b.get("punkte") or 0) < 6]),
                ("Vor Anpfiff", [b for b in z if not b.get("live")]), ("Live", [b for b in z if b.get("live")]),
-               ("Betfair", [b for b in z if b.get("art") == "top3"]), ("Polymarket", [b for b in z if b.get("art") == "top3p"])]
+               ("Betfair", [b for b in z if b.get("art") == "top3"]), ("Polymarket", [b for b in z if b.get("art") == "top3p"]),
+               *[(LIGA_NAME[n], [b for b in z if b.get("art") == "top3" and ligagroesse(b) == n]) for n in LIGA_STUFEN]]
     aus = []
     for name, g in gruppen:
         k = _gruppe(g)
@@ -446,6 +447,22 @@ def _kennz(ab):
             "roi": round(100 * sum(b["r"] for b in ab) / n, 1)}
 
 
+# Lucas 25.10.: nicht pauschal über alle Ligen urteilen. Die Größe einer Liga misst die Liga-Norm (übliches Betfair-Geld
+# je Spiel): groß ≈ Top-5 und Premier-League-Niveau, mittel ≈ 2. Bundesliga / Eredivisie / Superliga, klein ≈ Superettan,
+# Segunda Liga, 2. Ligen kleiner Länder. Ohne Norm = zu wenig Geld für eine Norm → ebenfalls klein.
+LIGA_STUFEN = ("groß", "mittel", "klein")
+LIGA_NAME = {"groß": "Große Ligen (Norm ≥ €40k)", "mittel": "Mittlere Ligen (€8k–40k)", "klein": "Kleine Ligen (< €8k)"}
+
+
+def ligagroesse(b):
+    if "normEur" not in b:
+        return None                      # vor dem 25.10. mitgeschrieben — Ligagröße unbekannt
+    n = b.get("normEur")
+    if not n:
+        return "klein"
+    return "groß" if n >= 40000 else "mittel" if n >= 8000 else "klein"
+
+
 def teile(alle):
     """Lucas 19.10. („kannst du die Dauerfluss-Spiele auswerten? Ich spiel die ur oft"): dieselbe Bilanz in Teilen.
     Jede Stufe (3×, 5×, 8×, 12×) ist ein eigener Push — „je Spiel" zählt nur den ERSTEN Push je Spiel+Auswahl."""
@@ -467,6 +484,7 @@ def teile(alle):
         ("Quote unter 1,60", [b for b in ab if b["quote"] < 1.6]), ("Quote 1,60 bis 2,00", [b for b in ab if 1.6 <= b["quote"] <= 2.0]),
         ("Quote über 2,00", [b for b in ab if b["quote"] > 2.0]),
         ("Top-5-Ligen", [b for b in ab if b.get("top5")]), ("Andere Ligen", [b for b in ab if not b.get("top5")]),
+        *[(LIGA_NAME[n], [b for b in ab if ligagroesse(b) == n]) for n in LIGA_STUFEN],
     ]
     if any(b.get("sport") for b in ab):          # Polymarket: dazu je Sportart
         gruppen += [(sp, [b for b in ab if (b.get("sport") or "Fußball") == sp]) for sp in ("Fußball", "E-Sport", "Tennis")]

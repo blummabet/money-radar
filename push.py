@@ -947,6 +947,11 @@ def main() -> int:
                 gesehen[key] = JETZT.isoformat()
                 gesendet += 1
                 if beleg and not trocken:
+                    # Lucas 25.10. („kleine Ligen mit 30k sagen mehr als 1 Mio auf Chelsea — nicht pauschal auswerten"):
+                    # die Liga-Norm (übliches Geld je Spiel in dieser Liga) beim Push mitschreiben → Auswertung je Ligagröße
+                    sp_ = next((x for x in (d.get("radar") or {}).get("spiele") or [] if str(x.get("id")) == str(beleg.get("id"))), None)
+                    if sp_ and "normEur" not in beleg:
+                        beleg = {**beleg, "normEur": sp_.get("normEur"), "liga": beleg.get("liga") or sp_.get("liga")}
                     bilanz.eintragen(buch, beleg, JETZT)
     if not trocken:
         try:                         # Lucas 23.10.: Top 3 jetzt mitschreiben und abrechnen (Messung, kein Push)
