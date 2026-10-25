@@ -64,11 +64,17 @@ def _ms(s):
         return None
 
 
-def stage_of(ts_ms, kick_ms):
-    """Spielphase zu einem Zeitpunkt — identisch zu _stageOf in betfair-radar.js. REIN.
+HZ_ENDE_UHR_MIN = 63   # ohne Spielminute: 45' + Nachspielzeit + 15 Min Pause
 
-    p0 = mehr als 3h vor Anpfiff · p1 = letzte 3h davor · l1 = 1. Halbzeit · l2 = ab 45' ·
-    None = vorbei (oder Anpfiff unbekannt).
+
+def stage_of(ts_ms, kick_ms, minute=None):
+    """Spielphase zu einem Zeitpunkt. REIN.
+
+    p0 = mehr als 3h vor Anpfiff · p1 = letzte 3h davor · l1 = 1. Halbzeit BIS EINSCHLIESSLICH PAUSE ·
+    l2 = 2. Halbzeit · None = vorbei (oder Anpfiff unbekannt).
+    25.10.2026 (Lucas): vorher nach der Uhr — ab 45 Min nach Anpfiff galt „l2". Nachspielzeit und Pause wurden
+    damit gegen den ENDSTAND der Liga gemessen (×-Wert zur Pause viel zu niedrig), und die HZ-Norm endete vor
+    dem Pausengeld. Jetzt nach der Spielminute (Betwatch zeigt in der Pause 45'), ohne Minute nach der Uhr bis 63 Min.
     """
     if ts_ms is None or kick_ms is None:
         return None
@@ -76,7 +82,9 @@ def stage_of(ts_ms, kick_ms):
     if d >= 0:
         if d > LIVE_MAX_H * 3.6e6:
             return None
-        return "l2" if d > 45 * 60000 else "l1"
+        if isinstance(minute, (int, float)):
+            return "l2" if minute > 45 else "l1"
+        return "l2" if d > HZ_ENDE_UHR_MIN * 60000 else "l1"
     return "p1" if -d <= 3 * 3.6e6 else "p0"
 
 
@@ -153,7 +161,10 @@ def samples_from_history(history, leagues, now_ms):
                 kick = _ms(s["kickoff"])
         if kick is None:
             continue
-        cur = _stage_idx(stage_of(now_ms, kick))     # aktuelle Phase; alles davor ist fertig
+        # aktuelle Phase; alles davor ist fertig. Die Minute vom jüngsten Punkt (wenn er höchstens 15 Min alt ist).
+        letzte = next((s for s in reversed(snaps) if isinstance(s, dict) and _ms(s.get("ts"))), None)
+        min_jetzt = letzte.get("min") if letzte and now_ms - _ms(letzte["ts"]) < 15 * 60000 else None
+        cur = _stage_idx(stage_of(now_ms, kick, min_jetzt))
         best, last_ts = {}, {}
         for s in snaps:
             if not isinstance(s, dict):
@@ -162,7 +173,7 @@ def samples_from_history(history, leagues, now_ms):
             if ts is None or not isinstance(vol, (int, float)):
                 continue
             vol = float(vol) - totes_geld(s)
-            st = stage_of(ts, kick)
+            st = stage_of(ts, kick, s.get("min"))
             if st is None or _stage_idx(st) >= cur:   # laufende (und unbekannte) Phase: noch offen
                 continue
             if float(vol) > best.get(st, 0):
@@ -252,13 +263,18 @@ def main():
     leagues = league_map(_load(PRICES_FILE, {}), _load(RESULTS_FILE, {}))
     prev = _load(STATE_FILE, {})
     new = samples_from_history(history, leagues, now_ms)
-    buckets = merge_samples(prev.get("samples") or {}, new, now_ms)
+    alt = prev.get("samples") or {}
+    if prev.get("phasen") != "minute":
+        # 25.10.: die 1.-HZ-Werte wurden nach der Uhr (bis 45 Min nach Anpfiff) gemessen — ohne Nachspielzeit und
+        # Pause. Einmal verwerfen; die Historie (72 h) füllt die letzten drei Tage sofort mit den richtigen Werten.
+        alt = {k: v for k, v in alt.items() if not k.endswith("|l1")}
+    buckets = merge_samples(alt, new, now_ms)
     agg = aggregate(buckets)
     total = sum(v["n"] for v in agg.values())
     usable = sum(1 for v in agg.values() if v["n"] >= 4)
     # Stichproben und Ergebnis getrennt: das Dashboard laedt die Basis bei JEDEM Refresh — es soll
     # die Mediane bekommen (ein paar KB), nicht den ganzen Arbeitsstand (>100 KB).
-    STATE_FILE.write_text(json.dumps({"generatedAt": now.isoformat(), "samples": buckets},
+    STATE_FILE.write_text(json.dumps({"generatedAt": now.isoformat(), "phasen": "minute", "samples": buckets},
                                      ensure_ascii=False), encoding="utf-8")
     NORM_FILE.write_text(json.dumps({
         "generatedAt": now.isoformat(),

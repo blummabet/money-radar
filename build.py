@@ -777,13 +777,16 @@ def hz_chancen_buch(f):
 
 
 # ── Betfair über ALLE Ligen: Geld gegen die Liga-Norm ────────────────────────────
-def _phase(jetzt, kick):
-    """p0 >3h vor Anpfiff · p1 letzte 3h · l1 1. HZ · l2 ab 45' — wie betfair_league_norm.py."""
+def _phase(jetzt, kick, minute=None):
+    """p0 >3h vor Anpfiff · p1 letzte 3h · l1 1. HZ inkl. Pause · l2 2. HZ — wie liga_norm.stage_of.
+    25.10.: nach der Spielminute (vorher nach der Uhr: ab 45 Min nach Anpfiff schon gegen den Endstand gemessen)."""
     d = (jetzt - kick).total_seconds()
     if d >= 0:
         if d > 3.5 * 3600:
             return None
-        return "l2" if d > 45 * 60 else "l1"
+        if isinstance(minute, (int, float)):
+            return "l2" if minute > 45 else "l1"
+        return "l2" if d > 63 * 60 else "l1"
     return "p1" if -d <= 3 * 3600 else "p0"
 
 
@@ -981,7 +984,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
         geld_auf = {"markt": top_r[0], "auswahl": top_r[1].get("name"), "quote": top_r[1].get("odd"),
                     "anteil": round(100 * top_r[1]["vol"] / vol)} if top_r and vol else None
         vol_norm = max(0.0, vol - min(tot, vol))
-        ph = _phase(JETZT, kick)
+        ph = _phase(JETZT, kick, li.get("time") if not li.get("is_ht") else 45)
         b = medi.get(f"{m.get('league')}|{ph}") or {}
         xnorm = round(vol_norm / b["med"], 1) if b.get("med") and (b.get("n") or 0) >= 5 else None
         pr = proben.get(f"{m.get('league')}|{ph}") or []
