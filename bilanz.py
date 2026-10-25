@@ -34,7 +34,7 @@ KOMMISSION = 0.02
 VERFALL_TAGE = 4          # nach 4 Tagen ohne Ergebnis: „unaufgelöst"
 BEHALTEN = 6000           # 23.10.: Top-3-Messung kommt dazu
 POLY_ARTEN = ("pserie", "wal", "top3p")
-ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "Wal-Einstieg Polymarket", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht"}
+ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "Wal-Einstieg Polymarket", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht", "pinn": "Pinnacle + Geld"}
 
 
 def _ts(s):

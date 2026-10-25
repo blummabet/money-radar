@@ -1939,7 +1939,7 @@ function feedBilanz(D, art){
   const r = b.roi;
   return `<span class="fx-bil" title="${esc(b.name)}: ${b.abgerechnet} abgerechnet, ${b.treffer} % Treffer, Rendite ${r>0?"+":""}${dez(r)} %">${b.treffer} % · <b class="${r>=0?"auf":"ab"}">${r>0?"+":""}${dez(r,r!=null&&Math.abs(r)>=10?0:1)} %</b></span>`;
 }
-const PUSH_ART = {"Dauerzufluss":"serie","Zufluss vor Anpfiff":"zufluss","Live-Zufluss":"live","Halbzeit-Geld":"ht","Fix-Verdacht":"fix"};
+const PUSH_ART = {"Dauerzufluss":"serie","Zufluss vor Anpfiff":"zufluss","Live-Zufluss":"live","Halbzeit-Geld":"ht","Fix-Verdacht":"fix","Pinnacle + Geld":"pinn"};
 function feedEreignisse(D){
   const E = [], bfZeit = D.quellen?.betfair, pfZeit = D.polyFluss?.stand;
   const inSerie = (id, fl) => (D.serien||[]).some(x=>x.id===id && x.markt===fl.markt && x.auswahl===fl.auswahl);

@@ -414,8 +414,32 @@ def pinnacle(d):
     """Lucas 18.10.: Pinnacle-Drops aus dem eigenen Scan über alle Spiele — live (Team, das nicht führt,
     gewinnt ohne Tor) und frische Drops vor Anpfiff. Dasselbe Spiel + dieselbe Seite höchstens alle 3 h."""
     pd = d.get("pinnDrops") or {}
+    import top3
+    spiele = {str(s.get("id")): s for s in (d.get("radar") or {}).get("spiele") or []}
     for x, live in [(x, True) for x in pd.get("live") or []] + [(x, False) for x in pd.get("vor") or [] if x.get("frisch")]:
         if not x.get("quote") or x["quote"] < PINN_PUSH_MIN_QUOTE:
+            continue
+        # Lucas 25.10. („ein Pinnacle-Drop allein — keinen Plan, was ich damit mach. Sinn macht nur: Pinnacle dropt UND
+        # Betfair oder Poly zieht mit — dann ist bei dem Spiel was"): gepusht wird nur noch mit Bestätigung durch Geld.
+        sp = spiele.get(str(x.get("bfId") or ""))
+        if not sp:
+            continue
+        mo = next((m for m in sp.get("maerkteDetail") or [] if m.get("name") == "Match Odds"), None)
+        a = next((r for r in (mo or {}).get("auswahl") or []
+                  if top3.seite_von(sp.get("heim"), sp.get("gast"), r.get("name")) == x.get("ausgang")), None)
+        if not a:
+            continue
+        belege = []
+        neu = a.get("neu") or 0
+        top_neu = max([r.get("neu") or 0 for r in (mo or {}).get("auswahl") or []] or [0])
+        if neu >= max(1000, 0.03 * (sp.get("eur") or 0)) and neu >= top_neu:
+            belege.append(f"💶 Betfair: <b>+{geld(neu)}</b> neu auf {e(x['auf'])} in {sp.get('fensterMin') or 30} Min")
+        if a.get("q60") and a.get("quote") and a["quote"] < a["q60"] * 0.97:
+            belege.append(f"📉 Betfair-Quote zieht mit: {q2(a['q60'])} → <b>{q2(a['quote'])}</b>")
+        pm = ((d.get("auchWoanders") or {}).get(str(sp.get("id"))) or {}).get("poly") or {}
+        if (pm.get("usd") or 0) >= 1000 and top3.seite_von(sp.get("heim"), sp.get("gast"), pm.get("auf")) == x.get("ausgang"):
+            belege.append(f"🟣 Polymarket: <b>+{geld(pm['usd'], '$')}</b> auf {e(x['auf'])} in 30 Min")
+        if not belege:
             continue
         key = f"pd|{x['id']}|{x['ausgang']}|{'l' if live else 'v'}"
         kopf = (f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n<i>{e(x.get('liga'))}</i> · "
@@ -434,7 +458,13 @@ def pinnacle(d):
                     + f"🎯 <b>{e(x['auf'])}</b>: {q2(x['vonQuote'])} → <b>{q2(x['quote'])}</b>\n"
                     + f"<i>Chance {str(x['vonPct']).replace('.', ',')} → {str(x['nachPct']).replace('.', ',')} %, davon +{str(x['pp60']).replace('.', ',')} pp in der letzten Stunde</i>\n"
                     + (f"<code>{kurve}</code> <i>Pinnacle-Chance{' je 5 Min' if live else ''}</i>\n" if len(kurve) >= 3 else ""))
-        yield key, text, PINN_PAUSE_H
+        text += "\n<b>Das Geld zieht mit:</b>\n" + "\n".join(belege) + "\n"
+        q_bf = a.get("quote")
+        beleg = ({"art": "pinn", "id": str(sp.get("id")), "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga"),
+                  "anpfiff": sp.get("anpfiff"), "top5": bool(sp.get("top5")), "live": live, "markt": "Match Odds",
+                  "auswahl": a.get("name"), "quote": q_bf, "eur": neu}
+                 if isinstance(q_bf, (int, float)) and q_bf >= PINN_PUSH_MIN_QUOTE else None)
+        yield key, text, PINN_PAUSE_H, beleg
 
 
 def _poly_topf(d, markt):
