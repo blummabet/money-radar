@@ -1162,6 +1162,7 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .pr-teams .an{color:var(--g)}
 .pr-graf{grid-column:1/-1;margin-top:8px}
 .pr-graf svg{display:block;width:100%;height:auto;overflow:visible}
+.pr-leg{font-size:10.5px;color:var(--text-3);margin-top:2px}
 .pr-fakt{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;color:var(--text-3);margin-top:4px}
 .pr-fakt b{color:var(--text-2);font-weight:800}
 .pr-fakt .neu{color:var(--g)}
@@ -3080,38 +3081,53 @@ function druckRing(i){
   </svg><b>${i}</b><small>DRUCK</small></div>`;
 }
 function druckGrafik(x){
-  const W = 300, L = 4, B = 292, X = m => L + Math.min(95, Math.max(0, m))/95*B, MITTE = 32, HOCH = 26;
+  // Lucas 25.10. („was sind die orange-blauen Balken?"): je 5 Spielminuten ein Balken — wie viel xG ein Team in diesen
+  // 5 Minuten erspielt hat. Heim nach oben (orange), Gast nach unten (blau). Zwischen zwei Abrufen (~10 Min) wird das
+  // xG gleichmäßig verteilt; vor unserem ersten Abruf ist es nur ein Durchschnitt → blass.
+  const W = 300, L = 4, B = 292, X = m => L + Math.min(95, Math.max(0, m))/95*B, MITTE = 34, HOCH = 24, VOLL = 0.25;
   const v = (x.verlauf||[]).filter(p=>p[1]!=null && p[2]!=null).sort((a,b)=>a[0]-b[0]);
-  let balken = "", tore = "", vorher = [0, 0, 0, [0, 0]];
+  const fach = Array.from({length:19}, ()=>[0, 0]);
+  const erst = v.length ? v[0][0] : 0;
+  let vorher = [0, 0, 0, [0, 0]], tore = "";
   for(const p of v){
-    const dm = Math.max(1, p[0]-vorher[0]);
-    [[1,-1,"var(--bf)"],[2,1,"var(--pin)"]].forEach(([k,dir,f])=>{
-      const rate = Math.max(0, (p[k]-vorher[k]))/dm, h = Math.min(HOCH, rate/0.045*HOCH);
-      if(h < .6) return;
-      const x0 = X(vorher[0])+.8, w = Math.max(1.5, X(p[0])-X(vorher[0])-1.6), y = dir<0 ? MITTE-h : MITTE;
-      balken += `<rect x="${x0.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${f}" opacity="${(.35+.65*h/HOCH).toFixed(2)}"/>`;
-    });
-    const st = p[3], sv = vorher[3]||[0,0];
-    if(st && sv){
-      // Tor = Ball auf der Mittellinie, Ring in der Farbe des Teams, ein Strich zur eigenen Seite
-      [[0,"var(--bf)",-1,x.heim],[1,"var(--pin)",1,x.gast]].forEach(([k,f,dir,name])=>{ if((st[k]||0) > (sv[k]||0)){ const cx = X(p[0]).toFixed(1);
-        tore += `<g><title>Tor ${esc(name)} · ${st[0]}:${st[1]}</title><line x1="${cx}" x2="${cx}" y1="${MITTE}" y2="${MITTE+dir*(HOCH+2)}" stroke="${f}" stroke-width="1.4"/><circle cx="${cx}" cy="${MITTE}" r="4.6" fill="var(--panel)" stroke="${f}" stroke-width="2"/><circle cx="${cx}" cy="${MITTE}" r="1.6" fill="${f}"/></g>`; } });
+    const a = vorher[0], e = p[0], dm = Math.max(1, e - a);
+    for(let k = Math.floor(a/5); k*5 < e && k < 19; k++){
+      const ueber = Math.max(0, Math.min(e, k*5+5) - Math.max(a, k*5));
+      fach[k][0] += Math.max(0, p[1]-vorher[1]) * ueber/dm;
+      fach[k][1] += Math.max(0, p[2]-vorher[2]) * ueber/dm;
     }
+    const st = p[3], sv = vorher[3]||[0,0];
+    if(st && sv) [[0,"var(--bf)",-1,x.heim],[1,"var(--pin)",1,x.gast]].forEach(([k,f,dir,name])=>{ if((st[k]||0) > (sv[k]||0)){ const cx = X(p[0]).toFixed(1);
+      tore += `<g><title>Tor ${esc(name)} · ${st[0]}:${st[1]} (zwischen ${a}' und ${e}')</title><circle cx="${cx}" cy="${MITTE}" r="5" fill="var(--panel)" stroke="${f}" stroke-width="2.2"/><circle cx="${cx}" cy="${MITTE}" r="1.8" fill="${f}"/></g>`; } });
     vorher = p;
   }
+  const bis = x.min||0;
+  let balken = "";
+  fach.forEach(([hx, ax], k)=>{
+    if(k*5 >= bis) return;
+    const blass = (k+1)*5 <= erst, x0 = X(k*5)+.7, w = X(k*5+5)-X(k*5)-1.4;
+    [[hx,-1,"var(--bf)",x.heim],[ax,1,"var(--pin)",x.gast]].forEach(([val,dir,f,name])=>{
+      const h = Math.min(HOCH, val/VOLL*HOCH); if(h < .8) return;
+      balken += `<rect x="${x0.toFixed(1)}" y="${(dir<0 ? MITTE-h : MITTE).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${f}" opacity="${blass ? .3 : (.45+.55*h/HOCH).toFixed(2)}"><title>${k*5}.–${k*5+5}. Min: ${esc(name)} xG ${dez(val,2)}${blass?" (Durchschnitt bis zum ersten Abruf)":""}</title></rect>`;
+    });
+  });
   const gm = (x.geldMin||[]).filter(g=>g[1]>0), gmax = Math.max(0, ...gm.map(g=>g[1]));
-  const geld = gmax >= 300 ? gm.map(([b,e])=>{ const h = Math.max(1.2, Math.sqrt(e/gmax)*11);
-    return `<rect x="${(X(b)+.6).toFixed(1)}" y="${(84-h).toFixed(1)}" width="${(X(b+5)-X(b)-1.2).toFixed(1)}" height="${h.toFixed(1)}" rx="1" fill="var(--up)" opacity=".75"><title>${b}.–${b+5}. Min: +${eur(e)}</title></rect>`; }).join("") : "";
-  const jetzt = X(x.min||0);
-  return `<svg viewBox="0 0 ${W} 88" role="img" aria-label="Druck-Verlauf: xG je Minute, ${esc(x.heim)} oben, ${esc(x.gast)} unten${geld?", darunter neues Geld":""}">
+  const geld = gmax >= 300 ? gm.map(([b,e])=>{ const h = Math.max(1.2, Math.sqrt(e/gmax)*10);
+    return `<rect x="${(X(b)+.7).toFixed(1)}" y="${(86-h).toFixed(1)}" width="${(X(b+5)-X(b)-1.4).toFixed(1)}" height="${h.toFixed(1)}" rx="1" fill="var(--up)" opacity=".75"><title>${b}.–${b+5}. Min: +${eur(e)} neues Geld</title></rect>`; }).join("") : "";
+  const jetzt = X(bis), kurzN = n => esc(String(n||"").length > 14 ? String(n).slice(0,13)+"…" : n);
+  return `<svg viewBox="0 0 ${W} 90" role="img" aria-label="xG je 5 Minuten: ${esc(x.heim)} oben, ${esc(x.gast)} unten${geld?", darunter neues Geld":""}">
+    <text x="${L}" y="7" font-size="7.5" font-weight="800" fill="var(--bf)">▲ ${kurzN(x.heim)}</text>
+    <text x="${L}" y="${MITTE+HOCH+6}" font-size="7.5" font-weight="800" fill="var(--pin)">▼ ${kurzN(x.gast)}</text>
     <line x1="${L}" x2="${L+B}" y1="${MITTE}" y2="${MITTE}" stroke="var(--line)" stroke-width="1"/>
-    <line x1="${X(45)}" x2="${X(45)}" y1="3" y2="${MITTE+HOCH+2}" stroke="var(--line)" stroke-dasharray="2 3"/>
-    <text x="${X(45)+3}" y="9" font-size="8" fill="var(--text-3)" font-weight="700">HZ</text>
+    <line x1="${X(45)}" x2="${X(45)}" y1="10" y2="${MITTE+HOCH}" stroke="var(--line)" stroke-dasharray="2 3"/>
+    <text x="${X(45)}" y="${MITTE+HOCH+6}" font-size="7" fill="var(--text-3)" font-weight="700" text-anchor="middle">HZ</text>
+    <text x="${X(90)}" y="${MITTE+HOCH+6}" font-size="7" fill="var(--text-3)" font-weight="700" text-anchor="middle">90'</text>
     ${balken}${tore}
-    <line x1="${jetzt}" x2="${jetzt}" y1="3" y2="${MITTE+HOCH+2}" stroke="var(--g)" stroke-width="1.5"/>
-    <circle cx="${jetzt}" cy="${MITTE}" r="3" fill="var(--g)"><animate attributeName="r" values="3;5;3" dur="1.8s" repeatCount="indefinite"/></circle>
-    ${geld ? `<text x="${L}" y="71" font-size="7.5" fill="var(--text-3)" font-weight="700">GELD</text>${geld}` : ""}
-  </svg>`;
+    <line x1="${jetzt}" x2="${jetzt}" y1="10" y2="${MITTE+HOCH}" stroke="var(--g)" stroke-width="1.5"/>
+    <text x="${jetzt}" y="7" font-size="7.5" font-weight="900" fill="var(--g)" text-anchor="middle">${bis}'</text>
+    ${geld ? `<text x="${L}" y="74" font-size="7" fill="var(--text-3)" font-weight="700">GELD</text>${geld}` : ""}
+  </svg>
+  <div class="pr-leg">Balken = xG je 5 Min · ◎ Tor · ${geld?"grün = neues Betfair-Geld · ":""}blass = vor unserem ersten Abruf</div>`;
 }
 function druckKarte(x){
   const t = x.teams||{}, h = t.heim||{}, g = t.gast||{}, s = x.seite, d = t[s]||{};
