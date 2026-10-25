@@ -994,6 +994,7 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .np-auf{display:block;color:var(--text-2)!important;font-weight:600}
 .gs-b i.mitfokus{position:relative;background:color-mix(in srgb, var(--text-3) 30%, transparent);overflow:hidden}
 .gs-b i.mitfokus b{position:absolute;left:0;right:0;bottom:0;background:var(--bf);border-radius:2px 2px 1px 1px}
+.gs-b i.mitfokus u{position:absolute;left:0;right:0;background:var(--pin);border-radius:2px 2px 0 0;text-decoration:none}
 .gs-leg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--text-2);margin-top:6px}
 .gs-leg span{display:flex;align-items:center;gap:6px}
 .gs-leg i{width:10px;height:10px;border-radius:3px;background:color-mix(in srgb, var(--text-3) 30%, transparent)}
@@ -1593,9 +1594,14 @@ function geldSaeulen(s){
   const fokus = (ziel && T.find(t=>t.markt===ziel.markt && t.auswahl===ziel.auswahl)) || T[0] || null;
   const warum = !fokus ? "" : grund && fokus.auswahl===grund.auswahl ? "Dauerzufluss" : pzz && fokus.auswahl===pzz.auswahl ? `Push ${uhr(pz.zeit)}` : flw && fokus.auswahl===flw.auswahl ? "Zufluss" : "meistes neues Geld";
   const live = i => S.ko!=null && i >= S.ko;
-  const bars = v.map((x,i)=>{ const f = fokus ? Math.min(x||0, fokus.w[i]||0) : 0;
+  // Lucas 25.10. (Odra Opole: grauer €59k-Balken, „welcher Markt ist das?"): grau hieß „übrige Märkte", war aber zum
+  // größten Teil die GEGENSEITE desselben Markts (Unter 2,5). Jetzt die zweitstärkste Auswahl eigens (blau), grau nur noch der Rest.
+  const summe = t => (t.w||[]).reduce((a,b)=>a+(b||0),0);
+  const zweite = fokus ? T.filter(t=>t!==fokus).sort((a,b)=>summe(b)-summe(a))[0] : null;
+  const zw = zweite && summe(zweite) >= 0.1*ges ? zweite : null;
+  const bars = v.map((x,i)=>{ const f = fokus ? Math.min(x||0, fokus.w[i]||0) : 0, z2 = zw ? Math.min(Math.max(0, (x||0)-f), zw.w[i]||0) : 0;
     const unbek = fokus && x>0 && fokus.w[i]==null;      // 24.10.: für diese Säule ist die Aufteilung je Auswahl nicht gespeichert
-    return `<i class="${x==null?"leer":""}${unbek?" unbek":""}${fokus?" mitfokus":live(i)?" lv":""}${i===top?" top":""}" style="height:${x?Math.max(3, x/mx*100).toFixed(1):0}%" title="${uhrVon(i)}–${uhrVon(i+1)}: ${x==null?"keine Daten":"+"+eur(x)+(fokus&&f?`, davon ${eur(f)} auf ${auswahlDe(fokus.auswahl)}`:"")}">${f&&x?`<b style="height:${(f/x*100).toFixed(1)}%"></b>`:""}</i>`; }).join("");
+    return `<i class="${x==null?"leer":""}${unbek?" unbek":""}${fokus?" mitfokus":live(i)?" lv":""}${i===top?" top":""}" style="height:${x?Math.max(3, x/mx*100).toFixed(1):0}%" title="${uhrVon(i)}–${uhrVon(i+1)}: ${x==null?"keine Daten":"+"+eur(x)+(fokus&&f?`, davon ${eur(f)} auf ${auswahlDe(fokus.auswahl)}`:"")+(z2?`, ${eur(z2)} auf ${auswahlDe(zw.auswahl)}`:"")}">${f&&x?`<b style="height:${(f/x*100).toFixed(1)}%"></b>`:""}${z2&&x?`<u style="bottom:${(f/x*100).toFixed(1)}%;height:${(z2/x*100).toFixed(1)}%"></u>`:""}</i>`; }).join("");
   const fokusSumme = fokus ? fokus.w.reduce((a,b)=>a+(b||0),0) : 0;
   const marken = [];
   if(S.ko!=null) marken.push(`<span class="gs-ko" style="left:${(S.ko/n*100).toFixed(2)}%"></span>`);
@@ -1610,7 +1616,7 @@ function geldSaeulen(s){
   const st = (s.reihe||[]).length ? s.reihe[s.reihe.length-1][1] : s.eur;
   return `<h4>Neues Geld auf Betfair <small>je 10 Min · letzte 6 h</small></h4>
     <div class="gs-kz"><span><b>+${eur(ges)}</b> in 6 h, ganzes Spiel</span><span>größter Schub <b>+${eur(v[top])}</b> um ${uhrVon(top)}</span><span><b>${eur(st)}</b> gematcht</span></div>
-    ${fokus?`<div class="gs-leg"><span><i class="f"></i><b>${esc(auswahlDe(fokus.auswahl))}</b> ${esc(marktDe(fokus.markt))} · +${eur(fokusSumme)} <em>(${warum})</em></span><span><i></i>übrige Märkte</span>${v.some((x,i)=>x>0 && fokus.w[i]==null)?`<span><i class="u"></i>Aufteilung nicht gespeichert</span>`:""}</div>`:""}
+    ${fokus?`<div class="gs-leg"><span><i class="f"></i><b>${esc(auswahlDe(fokus.auswahl))}</b> ${esc(marktDe(fokus.markt))} · +${eur(fokusSumme)} <em>(${warum})</em></span>${zw?`<span><i style="background:var(--pin)"></i><b>${esc(auswahlDe(zw.auswahl))}</b> ${esc(marktDe(zw.markt))} · +${eur(summe(zw))}</span>`:""}<span><i></i>${zw?"Rest":"übrige Märkte"}</span>${v.some((x,i)=>x>0 && fokus.w[i]==null)?`<span><i class="u"></i>Aufteilung nicht gespeichert</span>`:""}</div>`:""}
     <div class="gs"><div class="gs-g">${linienY.map(y=>`<span style="bottom:${(y/mx*100).toFixed(2)}%"><em>${eur(y)}</em></span>`).join("")}</div><div class="gs-b">${bars}</div>${marken.join("")}<div class="gs-x">${achse}</div></div>`;
 }
 function spielVerlauf(s){
