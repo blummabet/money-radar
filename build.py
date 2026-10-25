@@ -1290,7 +1290,16 @@ def _bf_hz_offen(m, name=None):
     return True
 
 
-def bf_ht_pushes(prices):
+def _hz_liga(norm, liga, markt, eur):
+    """Lucas 25.10.: HZ-Geld nicht nur mit dem eigenen Spiel vergleichen, auch mit der Liga — üblicher Stand dieses
+    HZ-Markts bis Minute 30 (liga_norm.py, ab 5 Spielen). → {"ligaNorm", "xLiga", "ligaN"} oder {}."""
+    b = ((norm or {}).get("byLeagueStage") or {}).get(f"{liga}|hz:{markt}") or {}
+    if not b.get("med") or (b.get("n") or 0) < 5:
+        return {}
+    return {"ligaNorm": b["med"], "ligaN": b["n"], "xLiga": round(eur / b["med"], 1)}
+
+
+def bf_ht_pushes(prices, norm=None):
     out = []
     for m in (prices or {}).get("matches") or []:
         mk = m.get("markets") or {}
@@ -1318,6 +1327,7 @@ def bf_ht_pushes(prices):
                 continue                  # über 20 (z. B. 100,00) ist der Markt praktisch entschieden — kein Signal
             if not best or tot > best["eur"]:
                 best = {**basis, "art": "ht", "markt": name, "eur": round(tot), "auf": lead.get("name"), "quote": lead.get("odd"),
+                        **_hz_liga(norm, m.get("league"), name, tot),
                         "anteil": round(100 * (lead.get("vol") or 0) / tot),
                         "seiten": [{"name": r.get("name"), "anteil": round(100 * (r.get("vol") or 0) / tot)} for r in rs]}
         if best:
@@ -1352,6 +1362,7 @@ def bf_ht_pushes(prices):
         if fb and fb[2] >= 2 * ft_max:
             _, name, tot, lead = fb
             out.append({**basis, "art": "fix", "markt": name, "eur": round(tot), "ftEur": round(ft_max), "ftMarkt": ft_name,
+                        **_hz_liga(norm, m.get("league"), name, tot),
                         "faktor": round(tot / ft_max, 1), "auf": lead.get("name"), "quote": lead.get("odd"),
                         "anteil": round(100 * (lead.get("vol") or 0) / tot)})
     # beides am selben Spiel → nur der Fix-Verdacht (der ist die schärfere Aussage)
@@ -2303,7 +2314,7 @@ def main() -> int:
         "bfPushes": betfair_pushes(push_bilanz()),
         "endstaende": endstaende(),
         "halbzeit": halbzeit(prices),
-        "bfHtPushes": bf_ht_pushes(prices),
+        "bfHtPushes": bf_ht_pushes(prices, bf_norm),
         "pushBilanz": push_bilanz(),
         "verlauf": verlauf(push_bilanz(), burst, finder, tr_led),
         "ligaBilanz": liga_bilanz(),

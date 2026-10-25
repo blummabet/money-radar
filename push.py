@@ -369,6 +369,14 @@ def halbzeit(d):
         yield key, "".join(z), None
 
 
+def _hz_liga_zeile(a):
+    """Lucas 25.10.: der HZ-Markt gegen das, was in dieser Liga bis Minute 30 üblich darauf liegt."""
+    if not a.get("xLiga"):
+        return ""
+    return (f"📏 {str(a['xLiga']).replace('.', ',')}× so viel wie in dieser Liga üblich"
+            f" <i>(sonst {geld(a.get('ligaNorm'))} bis Min. 30)</i>\n")
+
+
 def bf_halbzeit(d):
     """Lucas 17.10.: die Betfair-HZ-Pushes aus dem alten Projekt („die sollen auch rein") —
     🔵 Halbzeit-Geld (einseitig) und ⚫ Fix-Verdacht. Erneut gemeldet erst, wenn das Geld um +50 % wuchs."""
@@ -387,6 +395,7 @@ def bf_halbzeit(d):
             text = (f"⚫ <b>Betfair · Fix-Verdacht</b>\nmehr Geld auf die Halbzeit als aufs Spiel\n" + kopf
                     + f"💷 {e(_markt_de(a.get('markt')))}: <b>{geld(a.get('eur'))}</b>  vs  {e(_markt_de(a.get('ftMarkt')))}: {geld(a.get('ftEur'))}"
                       f" · <b>{str(a.get('faktor')).replace('.', ',')}×</b>\n"
+                    + _hz_liga_zeile(a)
                     + _anteil_balken(auf, a.get("anteil"), quote.replace("<b>", "").replace("</b>", "") + (" · sehr einseitig" if (a.get("anteil") or 0) >= 90 else ""))
                     # Lucas 23.10.: bei niedriger Quote auf Über 0,5 spielt er die asiatische Linie 0,75 oder 1,0
                     + ("💡 Quote niedrig → asiatisch Über 0,75 oder 1,0 (1. HZ)\n"
@@ -396,6 +405,7 @@ def bf_halbzeit(d):
             seiten = " · ".join(f"{e(remis(_auswahl_de(x['name'])))} {x['anteil']} %" for x in a.get("seiten") or [])
             text = (f"🔵 <b>Betfair · Halbzeit-Geld (einseitig)</b>\n" + kopf
                     + f"💷 {e(_markt_de(a.get('markt')))}: <b>{geld(a.get('eur'))}</b> gematcht\n"
+                    + _hz_liga_zeile(a)
                     + _anteil_balken(auf, a.get("anteil"), quote.replace("<b>", "").replace("</b>", ""))
                     + (f"<i>{seiten}</i>\n" if seiten else ""))
         yield key, text, None, {"art": a.get("art"), "id": str(a.get("id")), "heim": a.get("heim"), "gast": a.get("gast"),

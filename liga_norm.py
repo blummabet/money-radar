@@ -97,6 +97,44 @@ def totes_geld(s):
     return tot
 
 
+# Lucas 25.10. (Fix-Push Sparta Prag B – Písek, HZ-Tore 0,5 €2,1k vs Sieg-Markt €556): „vergleichen wir das Spiel
+# mit sich selbst — ok, aber man kann die HZ auch mit der Liga vergleichen". Je Liga und HZ-Markt: wie viel Geld liegt
+# dort üblicherweise bis zur 30. Minute (dasselbe Fenster wie der Fix-Verdacht: vor Anpfiff bis Minute 30).
+HZ_NORM_MAERKTE = ("Half Time", "First Half Goals 0.5", "First Half Goals 1.5")
+HZ_NORM_BIS_MIN = 30
+HZ_NORM_MIN_EUR = 50
+
+
+def _markt_vol(s, markt):
+    mk = (s.get("sel") or {}).get(markt)
+    if not isinstance(mk, dict):
+        return None
+    return sum(float(v[0] or 0) for v in mk.values() if isinstance(v, list) and v)
+
+
+def hz_samples(eid, snaps, league, kick, now_ms):
+    """Je HZ-Markt der höchste Stand bis Minute 30 — erst, wenn das Spiel sicher darüber ist. REIN."""
+    if now_ms - kick < 40 * 60000:
+        return []
+    out = []
+    for markt in HZ_NORM_MAERKTE:
+        best, t_best = 0.0, None
+        for s in snaps:
+            if not isinstance(s, dict):
+                continue
+            ts = _ms(s.get("ts"))
+            mi = s.get("min")
+            if ts is None or (isinstance(mi, (int, float)) and mi > HZ_NORM_BIS_MIN) \
+                    or (mi is None and ts - kick > HZ_NORM_BIS_MIN * 60000):
+                continue
+            v = _markt_vol(s, markt)
+            if v is not None and v > best:
+                best, t_best = v, ts
+        if best >= HZ_NORM_MIN_EUR:
+            out.append({"league": league, "stage": "hz:" + markt, "vol": round(best), "eid": str(eid), "ts": t_best, "rein": True})
+    return out
+
+
 def samples_from_history(history, leagues, now_ms):
     """Je Event+Phase eine Stichprobe → [{"league","stage","vol","eid","ts"}]. REIN.
 
@@ -130,6 +168,7 @@ def samples_from_history(history, leagues, now_ms):
             if float(vol) > best.get(st, 0):
                 best[st] = float(vol)
             last_ts[st] = max(last_ts.get(st, ts), ts)
+        out += hz_samples(eid, snaps, league, kick, now_ms)
         for st, vol in best.items():
             if vol >= (MIN_EUR_VOR if st in ("p0", "p1") else MIN_EUR):
                 out.append({"league": league, "stage": st, "vol": round(vol),
