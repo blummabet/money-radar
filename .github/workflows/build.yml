@@ -1,7 +1,7 @@
 name: Geld-Radar bauen
 
-# Alle 5 Min: Betfair holt das Repo selbst (Betwatch, läuft auf GitHub-Servern), alles andere liest
-# es aus den JSON-Dateien des alten Projekts (blummabet/betting-dashboard). Dann Seite bauen,
+# Alle 5 Min: Betfair (Betwatch), Pinnacle, Ergebnisse, Liga-Norm, HZ-Finder laufen hier; Stake und Polymarket auf
+# dem Mac-Runner (stake.yml, poly-fluss.yml). Aus dem alten Projekt wird nichts gelesen. Dann Seite bauen,
 # Pushes in den Test-Channel, veröffentlichen. Nichts wird ins Repo committet: Betfair-Historie und
 # Push-Gedächtnis liegen im Actions-Cache.
 on:
@@ -60,20 +60,8 @@ jobs:
           path: .st
           key: stake-none
           restore-keys: stake-
-      # Einmalige Startwerte: nur wenn eine Datei im eigenen Gedächtnis FEHLT (erster Lauf / Cache verloren). Danach
-      # führt dieses Repo alles selbst; ist das alte Projekt weg, laufen diese Zeilen ins Leere und es geht ohne weiter.
-      - name: Startwerte einmalig übernehmen (nur fehlende Dateien)
-        run: |
-          mkdir -p .bf
-          RAW=https://raw.githubusercontent.com/blummabet/betting-dashboard/main
-          if [ ! -s .bf/betfair_history.json ]; then
-            curl -sf "$RAW/betfair_history.json" -o .bf/betfair_history.json || true
-            curl -sf "$RAW/betfair_prices.json" -o .bf/betfair_prices.json || true
-            touch -d '2 hours ago' .bf/betfair_prices.json 2>/dev/null || true
-          fi
-          for f in betfair_league_norm_state.json betfair_league_norm.json hz_finder.json hz_finder_seen.json team_archiv.json; do
-            [ -s ".bf/$f" ] || { curl -sf "$RAW/$f" -o ".bf/$f" && echo "Startwert übernommen: $f"; } || true
-          done
+      # 25.10. (Lucas: „neues Projekt sauber halten"): keine Startwerte mehr aus dem alten Projekt. Geht der Cache
+      # verloren, fängt das Gedächtnis leer an und lernt in wenigen Tagen neu — besser als alte, anders gerechnete Stände.
       # 20.10.2026 (Lucas: „muss autonom im neuen Projekt laufen"): Stake und Polymarket laufen in DIESEM Repo auf dem
       # Mac-Runner (stake.yml, poly-fluss.yml) — das alte Projekt wird nicht mehr angestoßen und nicht mehr gelesen.
       - name: Stake auf dem Mac anstoßen (jeder Lauf)

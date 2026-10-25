@@ -455,7 +455,7 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         ko = _ts(e.get("koTs")) or _ts(e.get("firstTs"))
         if ko and ko < grenze:
             del openp[ok]                              # nie aufgelöst gesehen → raus
-    return {"open": openp, "scores": scores, "updatedAt": JETZT.isoformat(), "reparatur": track.get("reparatur")}
+    return {"open": openp, "scores": scores, "updatedAt": JETZT.isoformat()}
 
 
 def aufloesung_ev(ev):
@@ -549,38 +549,10 @@ def buch_ereignisse():
 
 
 # ── Hauptlauf ────────────────────────────────────────────────────────────────────────────────────────────────
-REPARATUR = "2026-10-22"
-
-
-def reparatur_2210(track):
-    """Einmalig: die Wallet-Bilanzen seit der Übernahme (20.10.) sind durch den Anpfiff-Fehler verfälscht. Die
-    Bilanzen werden aus dem alten Projekt neu übernommen (es misst dieselben Wallets bis heute richtig); offene
-    Positionen bleiben. Ist das alte Projekt nicht erreichbar, werden die Schlusskurs-Felder geleert statt falsch
-    weitergeführt."""
-    if track.get("reparatur") == REPARATUR:
-        return track
-    try:   # 11 MB — eigener, längerer Abruf statt _get (12 s)
-        with urllib.request.urlopen("https://raw.githubusercontent.com/blummabet/betting-dashboard/main/poly_wallet_track.json", timeout=90) as r:
-            alt = json.loads(r.read())
-    except Exception:  # noqa: BLE001
-        alt = None
-    if isinstance(alt, dict) and isinstance(alt.get("scores"), dict) and len(alt["scores"]) > 1000:
-        track["scores"] = alt["scores"]
-        print(f"  poly_markt: Reparatur — {len(alt['scores'])} Wallet-Bilanzen aus dem alten Projekt neu übernommen")
-    else:
-        for sc in (track.get("scores") or {}).values():
-            for k in ("clvFenN", "clvFenSum", "clvSqSum"):
-                sc.pop(k, None)
-        print("  poly_markt: Reparatur — altes Projekt nicht erreichbar, Schlusskurs-Fenster geleert")
-    track["reparatur"] = REPARATUR
-    return track
-
-
 def main() -> int:
     BASIS.mkdir(exist_ok=True)
     try:
         track = json.loads(TRACK.read_text(encoding="utf-8"))
-        track = reparatur_2210(track)
     except Exception:  # noqa: BLE001
         track = {}
     bekannt = {w for w, s in (track.get("scores") or {}).items() if isinstance(s, dict) and (s.get("n") or 0) >= BEKANNT_AB_N}

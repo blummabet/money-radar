@@ -44,10 +44,6 @@ jobs:
             .push_state
           key: radar-none
           restore-keys: radar-
-      - name: Wallet-Buch einmalig übernehmen (nur wenn es fehlt)
-        run: |
-          mkdir -p .pm
-          [ -s .pm/poly_wallet_track.json ] || { curl -sf https://raw.githubusercontent.com/blummabet/betting-dashboard/main/poly_wallet_track.json -o .pm/poly_wallet_track.json && echo "Startwert übernommen"; } || true
       - name: Märkte, Wale, Wallet-Buch
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"

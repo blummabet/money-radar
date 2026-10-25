@@ -7,7 +7,7 @@ Seit 20.10.2026 eigenständig (Lucas: „muss autonom im neuen Projekt laufen, e
     .pm/ .pf/  Polymarket (poly_markt, poly_fluss)                                       — Mac-Runner, poly-fluss.yml
     .st/   Stake (stake/)                                                                — Mac-Runner, stake.yml
     .push_state/  Push-Buch (bilanz.py)                                                  — push.py
-Das alte Projekt wird nur noch mit RADAR_ALT=an gelesen (Notbehelf, standardmäßig aus).
+Aus dem alten Projekt wird nichts mehr gelesen (25.10.: auch der Notbehelf RADAR_ALT ist raus).
 
 Regeln:
 - Keine Picks, keine Empfehlung. Gezeigt wird, wo Geld liegt und wer es setzt.
@@ -18,15 +18,11 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import re
 import sys
-import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-RAW = "https://raw.githubusercontent.com/blummabet/betting-dashboard/main/"
-SRC = os.environ.get("RADAR_SRC", "").strip()
 BASIS = Path(__file__).resolve().parent
 OUT = BASIS / "site" / "data.json"
 
@@ -61,24 +57,9 @@ def stake_ok(z) -> bool:
     return not (z.get("kat") == "Tennis" and (liga.startswith("ATP") or liga.startswith("WTA")))
 
 
-def laden(name: str, default=None):
-    """Eine Datei der alten Pipeline. Fehlt sie oder ist sie kaputt: default + Notiz. Ohne RADAR_ALT=an: default."""
-    if not ALT:
-        return default
-    try:
-        if SRC:
-            return json.loads((Path(SRC) / name).read_text(encoding="utf-8"))
-        with urllib.request.urlopen(RAW + name, timeout=60) as r:
-            return json.loads(r.read().decode("utf-8"))
-    except Exception as exc:  # noqa: BLE001
-        FEHLER.append(f"{name}: {str(exc)[:120]}")
-        return default
-
-
 FEHLER: list[str] = []
-# Lucas 20.10.: „das muss autonom im neuen Projekt laufen". Ohne RADAR_ALT=an liest der Geldradar NICHTS mehr aus dem
-# alten Projekt — weder als Quelle noch als stiller Rückfall.
-ALT = os.environ.get("RADAR_ALT", "aus").strip().lower() == "an"
+# Lucas 20.10.: „das muss autonom im neuen Projekt laufen". 25.10. („neues Projekt sauber halten"): der Notbehelf
+# RADAR_ALT (Rückfall aufs alte Projekt) ist ganz raus — es gibt keinen Weg mehr, alte Dateien zu lesen.
 
 
 def eigen(name: str, ordner: str = ".bf", default=None, max_min: float | None = None):
@@ -97,24 +78,22 @@ BF_EIGEN = {"an": False, "pin": False, "st": False}
 
 
 def laden_bf(name: str, ordner: str = ".bf"):
-    """Aus dem EIGENEN 5-Min-Abruf (.bf/ Betfair, .pin/ Pinnacle), sonst die Datei des alten Projekts."""
+    """Aus dem EIGENEN Abruf (.bf/ Betfair, .pin/ Pinnacle, .st/ Stake). Älter als 40 Min: trotzdem der eigene Stand + Notiz."""
     lokal = Path(__file__).resolve().parent / ordner / name
     try:
         if lokal.exists() and (datetime.now().timestamp() - lokal.stat().st_mtime) < 40 * 60:
             d = json.loads(lokal.read_text(encoding="utf-8"))
             # Ein Pinnacle-Lauf ohne einen einzigen Anker (Schlüssel fehlt, API weg) ist kein Ergebnis.
             if name == "betfair_consensus.json" and not (d or {}).get("covered"):
-                raise ValueError("eigener Pinnacle-Lauf ohne Anker — nehme das alte Projekt")
+                raise ValueError("eigener Pinnacle-Lauf ohne Anker")
             BF_EIGEN[{".bf": "an", ".pin": "pin"}.get(ordner, ordner.strip("."))] = True
             return d
     except Exception as exc:  # noqa: BLE001
         FEHLER.append(f".bf/{name}: {str(exc)[:120]}")
-    if not ALT:                     # kein Rückfall aufs alte Projekt: lieber der eigene ältere Stand
-        try:
-            return json.loads(lokal.read_text(encoding="utf-8"))
-        except Exception:  # noqa: BLE001
-            return {}
-    return laden(name, {})
+    try:                            # lieber der eigene ältere Stand als gar nichts
+        return json.loads(lokal.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 def ts(s):
@@ -2294,7 +2273,7 @@ def main() -> int:
     offen_m = {k: v for k, v in upcoming.items() if v.get("whales")}
     wale = []                                     # öffentliche Wal-Pushes des alten Projekts gibt es nicht mehr
     tr_led, tr_rec = eigene_wal_pushes(push_bilanz())
-    # 18.10.: Stake kommt aus dem eigenen Mac-Lauf (.st/, stake.yml); ist der älter als 40 Min, aus dem alten Projekt
+    # 18.10.: Stake kommt aus dem eigenen Mac-Lauf (.st/, stake.yml)
     burst = laden_bf("stake_burst_ledger.json", ".st") or []
     hr = laden_bf("stake_highroller.json", ".st")      # einzelne Highroller-Wetten mit Zeitstempel (für die Serien)
     finder = eigen("hz_finder.json", default={})            # hz_finder.py (eigener Lauf)

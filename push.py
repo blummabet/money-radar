@@ -847,8 +847,9 @@ ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake)
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────
 # Lucas 17.10.: „Sind da Wächter notwendig?" — ja: Mac aus, Schlüssel abgelaufen, Betwatch down.
 # Stake fehlt bewusst: dessen Zeitstempel ist die letzte Meldung, nicht der letzte Abruf (nachts ruhig).
-WAECHTER = {"betfair": ("Betfair (Betwatch)", 30), "pinnacle": ("Pinnacle", 30), "hz": ("HZ-Finder (altes Projekt, Mac)", 45),
-            "polymarket": ("Polymarket-Wale (altes Projekt, Mac)", 120), "stakeAbruf": ("Stake-Abruf (Mac-Runner radar)", 30), "polyFluss": ("Polymarket-Fluss (Mac-Runner radar)", 40)}
+# 25.10.: HZ-Finder und Polymarket laufen längst im eigenen 5-Min-Takt (nicht mehr altes Projekt) — Namen und Grenzen angepasst
+WAECHTER = {"betfair": ("Betfair (Betwatch)", 30), "pinnacle": ("Pinnacle", 30), "hz": ("HZ-Finder", 30),
+            "polymarket": ("Polymarket-Wale (Mac)", 40), "stakeAbruf": ("Stake-Abruf (Mac)", 30), "polyFluss": ("Polymarket-Fluss (Mac)", 40)}
 
 
 def waechter(d, gesehen):

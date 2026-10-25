@@ -38,14 +38,6 @@ jobs:
           path: .st
           key: stake-${{ github.run_id }}
           restore-keys: stake-
-      - name: Beim ersten Mal Stand aus dem alten Projekt übernehmen
-        run: |
-          mkdir -p .st
-          RAW=https://raw.githubusercontent.com/blummabet/betting-dashboard/main
-          for f in stake_highroller stake_bet_ledger stake_query stake_kurse stake_league_norm stake_league_norm_state \
-                   stake_burst_ledger stake_burst_seen stake_burst_verworfen stake_auswertung stake_vorregistrierung freigabe_stand; do
-            [ -s ".st/$f.json" ] || curl -sf "$RAW/$f.json" -o ".st/$f.json" || true
-          done
       - name: Stake abrufen, abrechnen, Norm, Auswertung, Bursts erkennen
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"

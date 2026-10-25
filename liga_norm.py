@@ -46,6 +46,9 @@ NORM_FILE = BASE / "betfair_league_norm.json"           # nur die Mediane — DA
 WINDOW_DAYS = 60      # aelter als das faellt raus (Ligen aendern ihr Geldniveau ueber eine Saison)
 SAMPLE_CAP = 150      # je Liga|Phase hoechstens so viele Stichproben (neueste gewinnen)
 MIN_EUR = 3000        # Kleckerspiele verzerren den Median nach unten -> nicht als Basis zaehlen
+# Lucas 25.10.: vor Anpfiff liegen in kleinen Ligen oft erst €500–2.000 — mit €3.000 fielen genau diese Spiele raus,
+# die Norm kam zu hoch, ein kleines Spiel mit auffällig viel Geld sah unauffällig aus. Vor Anpfiff daher €500.
+MIN_EUR_VOR = 500
 LIVE_MAX_H = 3.5      # so lange nach Anpfiff gilt ein Spiel als laufend, danach vorbei
 STAGES = ("p0", "p1", "l1", "l2")
 
@@ -128,7 +131,7 @@ def samples_from_history(history, leagues, now_ms):
                 best[st] = float(vol)
             last_ts[st] = max(last_ts.get(st, ts), ts)
         for st, vol in best.items():
-            if vol >= MIN_EUR:
+            if vol >= (MIN_EUR_VOR if st in ("p0", "p1") else MIN_EUR):
                 out.append({"league": league, "stage": st, "vol": round(vol),
                             "eid": str(eid), "ts": last_ts.get(st), "rein": True})
     return out
