@@ -396,6 +396,35 @@ def poly_abrechnen(buch, jetzt):
             b["status"] = "unaufgelöst"
 
 
+DRUCK_ZIEL = 100
+
+
+def druck_messung(buch):
+    """Druck-Radar (Lucas 25.10.): Index ≥ 70 → „noch ein Tor" zur Quote in dem Moment. Gruppen vorab festgelegt (druck.py)."""
+    z = [b for b in buch if b.get("art") == "druck"]
+    gruppen = [("Alle", z), ("Index 70–84", [b for b in z if (b.get("index") or 0) < 85]),
+               ("Index ab 85", [b for b in z if (b.get("index") or 0) >= 85]),
+               ("xG gemessen", [b for b in z if b.get("quelle") == "xG"]), ("xG geschätzt", [b for b in z if b.get("quelle") != "xG"]),
+               ("Druck-Team liegt hinten", [b for b in z if b.get("lage") == "hinten"]),
+               ("Unentschieden", [b for b in z if b.get("lage") == "gleich"]),
+               ("Druck-Team führt", [b for b in z if b.get("lage") == "vorn"]),
+               ("mit frischem Geld", [b for b in z if b.get("geld")]), ("ohne frisches Geld", [b for b in z if not b.get("geld")]),
+               ("1. Halbzeit", [b for b in z if (b.get("min") or 0) <= 45]), ("2. Halbzeit", [b for b in z if (b.get("min") or 0) > 45]),
+               *[(LIGA_NAME[n], [b for b in z if ligagroesse(b) == n]) for n in LIGA_STUFEN]]
+    aus = []
+    gesamt = _gruppe(z)
+    for name, g in gruppen:
+        k = _gruppe(g)
+        if k["gesendet"]:
+            aus.append({"name": name, **{x: v for x, v in k.items() if not x.startswith("_")}})
+    urteil = None
+    if gesamt["abgerechnet"] >= DRUCK_ZIEL:
+        urteil = "bestanden" if gesamt["_roi"] - (gesamt["_se"] or 0) > 0 else "nicht bestanden"
+    letzte = [{k: b.get(k) for k in ("heim", "gast", "auswahl", "quote", "index", "min", "stand", "lage", "status", "win", "ts")}
+              for b in reversed(z)][:15]
+    return {"ziel": DRUCK_ZIEL, "urteil": urteil, "gruppen": aus, "letzte": letzte}
+
+
 def zusammenfassen(buch):
     aus = {}
     for art, name in ARTEN.items():
@@ -423,7 +452,7 @@ def zusammenfassen(buch):
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,
@@ -439,7 +468,7 @@ def zusammenfassen(buch):
                      "w": (1 if b.get("win") else 0) if ab else None, "sport": b.get("sport"), "key": b.get("id"),
                      "seite": b.get("auswahl"), "anzeige": b.get("anzeige"), "titel": b.get("titel"), "preis": b.get("preis"),
                      "usd": b.get("usd"), "wallet": b.get("wallet"), "status": "won" if ab and b.get("win") else "lost" if ab else "pending"})
-    return {"messung": messung(buch), "top3": top3_messung(buch), "walVerlauf": wale, "arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
+    return {"messung": messung(buch), "top3": top3_messung(buch), "druck": druck_messung(buch), "walVerlauf": wale, "arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
 
 
 def _kennz(ab):

@@ -17,6 +17,7 @@ nichts): eine falsche Statistik wäre schlimmer als keine. Fällt hier etwas aus
 from __future__ import annotations
 
 import json
+import math
 import os
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -34,6 +35,98 @@ ANPFIFF_TOLERANZ_MIN = 20
 STAT_FELDER = {"Shots on Goal": "aufsTor", "Total Shots": "schuesse", "Corner Kicks": "ecken",
                "Ball Possession": "ballbesitz", "expected_goals": "xg", "Dangerous Attacks": "gefAngriffe"}
 JETZT = datetime.now(timezone.utc)
+TICKER = BASIS / ".bf" / "druck_ticker.json"
+
+
+# ── Druck-Radar (Lucas 25.10.: „Spiele, wo es wirklich zur Sache geht — hoher xG-Wert und wenig Tore, auch wenn
+#    ein Team schon 1:0 führt und das andere viel xG hat") ─────────────────────────────────────────────────────
+# Je Team: xG minus eigene Tore (Druck ohne Ertrag) + was in den letzten ~15 Min dazukam (xG, Schüsse aufs Tor,
+# Ecken). Index 0–100 = 100 · (1 − e^(−Wert/1,2)): 1,0 Überhang + 0,4 xG in 15 Min ≈ 70. Das Spiel bekommt den
+# höheren Team-Wert. Ohne xG (nicht jede Liga hat es) ein Ersatz aus Schüssen: 0,06 je Schuss + 0,22 je Schuss
+# aufs Tor — so gekennzeichnet („geschätzt").
+def _xg(w):
+    if isinstance(w.get("xg"), (int, float)):
+        return float(w["xg"]), True
+    s, a = w.get("schuesse"), w.get("aufsTor")
+    if isinstance(s, (int, float)) or isinstance(a, (int, float)):
+        return round(0.06 * float(s or 0) + 0.22 * float(a or 0), 2), False
+    return None, False
+
+
+def _punkt(e):
+    st = e.get("statistik") or {}
+    h, g = st.get("heim") or {}, st.get("gast") or {}
+    xh, echt_h = _xg(h)
+    xa, echt_a = _xg(g)
+    return {"m": e.get("min"), "st": e.get("stand"), "xg": [xh, xa], "echt": bool(echt_h and echt_a),
+            "at": [h.get("aufsTor"), g.get("aufsTor")], "eck": [h.get("ecken"), g.get("ecken")],
+            "sch": [h.get("schuesse"), g.get("schuesse")]}
+
+
+def _zahl(v):
+    return float(v) if isinstance(v, (int, float)) else 0.0
+
+
+def druck_von(e):
+    """Index je Team und fürs Spiel aus dem jüngsten Punkt + dem Punkt ~15 Min davor. REIN."""
+    vl = e.get("verlauf") or []
+    if not vl:
+        return None
+    p = vl[-1]
+    m = p.get("m")
+    if not isinstance(m, (int, float)) or p["xg"][0] is None or p["xg"][1] is None:
+        return None
+    vor = [q for q in vl[:-1] if isinstance(q.get("m"), (int, float)) and 8 <= m - q["m"] <= 25]
+    q = min(vor, key=lambda q: abs(m - 15 - q["m"])) if vor else None
+    f = 15 / (m - q["m"]) if q else 0
+    stand = p.get("st") or [0, 0]
+    teams = {}
+    for i, seite in enumerate(("heim", "gast")):
+        xg = p["xg"][i]
+        ueber = max(0.0, xg - _zahl(stand[i]))
+        dxg = max(0.0, xg - _zahl(q["xg"][i])) * f if q and q["xg"][i] is not None else 0.0
+        dat = max(0.0, _zahl(p["at"][i]) - _zahl(q["at"][i])) * f if q else 0.0
+        deck = max(0.0, _zahl(p["eck"][i]) - _zahl(q["eck"][i])) * f if q else 0.0
+        wert = ueber + 1.2 * dxg + 0.12 * dat + 0.04 * deck
+        teams[seite] = {"xg": round(xg, 2), "tore": stand[i], "aufsTor": p["at"][i], "ecken": p["eck"][i],
+                        "dxg15": round(dxg, 2), "dat15": round(dat, 1), "deck15": round(deck, 1),
+                        "index": round(100 * (1 - math.exp(-wert / 1.2)))}
+    seite = max(teams, key=lambda k: teams[k]["index"])
+    return {"index": teams[seite]["index"], "seite": seite, "teams": teams, "min": m, "stand": stand,
+            "quelle": "xG" if p.get("echt") else "geschätzt", "frisch15": bool(q)}
+
+
+def _tick(t, sp, art, text, seite=None):
+    return {"t": JETZT.isoformat(), "m": t, "id": sp["id"], "art": art, "seite": seite, "text": text,
+            "spiel": f"{sp.get('heim')} – {sp.get('gast')}"}
+
+
+def ereignisse(sp, alt, neu, idx_alt, idx_neu):
+    """Ticker-Zeilen aus zwei aufeinanderfolgenden Punkten desselben Spiels. REIN."""
+    aus = []
+    if not alt or not isinstance(neu.get("m"), (int, float)) or not isinstance(alt.get("m"), (int, float)):
+        return aus
+    dm = neu["m"] - alt["m"]
+    if dm < 3 or dm > 30:
+        return aus
+    for i, seite in enumerate(("heim", "gast")):
+        team = sp.get(seite)
+        dat = _zahl(neu["at"][i]) - _zahl(alt["at"][i])
+        dxg = (neu["xg"][i] or 0) - (alt["xg"][i] or 0) if neu.get("echt") else 0
+        deck = _zahl(neu["eck"][i]) - _zahl(alt["eck"][i])
+        if (neu.get("st") or [0, 0])[i] is not None and (alt.get("st") or [0, 0])[i] is not None \
+                and _zahl(neu["st"][i]) > _zahl(alt["st"][i]):
+            aus.append(_tick(neu["m"], sp, "tor", f"Tor {team} · {neu['st'][0]}:{neu['st'][1]}", seite))
+        teile = ([f"{int(dat)} Schüsse aufs Tor"] if dat >= 3 else []) \
+            + ([f"xG +{dxg:.1f}".replace(".", ",")] if dxg >= 0.5 else []) + ([f"{int(deck)} Ecken"] if deck >= 3 else [])
+        if teile:
+            aus.append(_tick(neu["m"], sp, "druck", f"{team}: {' · '.join(teile)} in {int(dm)} Min", seite))
+    if idx_neu and idx_neu["index"] >= 70 and (not idx_alt or idx_alt.get("index", 0) < 70):
+        s = idx_neu["seite"]
+        t = idx_neu["teams"][s]
+        aus.append(_tick(neu["m"], sp, "index", f"Druck-Index {idx_neu['index']} · {sp.get(s)} xG {t['xg']:.1f} bei "
+                         f"{idx_neu['stand'][0]}:{idx_neu['stand'][1]}".replace(".", ","), s))
+    return aus
 
 
 def get(pfad, timeout=12):
@@ -132,6 +225,48 @@ def kandidaten(d):
     return [spiele[i] for i in rang]
 
 
+def druck_radar(d, cache, live_ids, neue_ticks):
+    """Für die Seite: die Live-Spiele nach Druck-Index, mit Verlauf (Grafik), Geld je 5 Min und dem Ticker."""
+    spiele = {s["id"]: s for s in (d.get("radar") or {}).get("spiele") or []}
+    zufl = {str(z.get("id")): z for z in d.get("liveZufluss") or []}
+    try:
+        ticker = json.loads(TICKER.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        ticker = {"zeilen": [], "geld": []}
+    aus = []
+    for i, e in cache.items():
+        sp = spiele.get(i)
+        dr = e.get("druck")
+        if i not in live_ids or not sp or not dr or JETZT - _zeit(e["ts"]) > timedelta(minutes=GUELTIG_MIN):
+            continue
+        z = zufl.get(i)
+        aus.append({"id": i, "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga"), "land": sp.get("land"),
+                    "top5": sp.get("top5"), **dr,
+                    "verlauf": [[q["m"], q["xg"][0], q["xg"][1], q.get("st")] for q in e.get("verlauf") or []
+                                if isinstance(q.get("m"), (int, float)) and q["xg"][0] is not None],
+                    "geldMin": sp.get("geldMin"), "eur": sp.get("eur"), "xnorm": sp.get("xnorm"),
+                    "zufluss": ({"eur": z.get("zuflussEur"), "markt": (z.get("fluss") or [{}])[0].get("markt"),
+                                 "auswahl": (z.get("fluss") or [{}])[0].get("auswahl"),
+                                 "quote": (z.get("fluss") or [{}])[0].get("quote")} if z else None)})
+        # Geld an einem Druck-Spiel → eigene Ticker-Zeile (je Spiel + Auswahl höchstens alle 15 Min)
+        if z and dr["index"] >= 40:
+            f0 = (z.get("fluss") or [{}])[0]
+            k = f"{i}|{f0.get('auswahl')}"
+            zuletzt = max((t for kk, t in ticker.get("geld") or [] if kk == k), default=None)
+            if not zuletzt or JETZT - _zeit(zuletzt) > timedelta(minutes=15):
+                tk = _tick(dr["min"], sp, "geld", f"+€{round((z.get('zuflussEur') or 0) / 1000, 1):g}k auf "
+                           f"{f0.get('auswahl')} @ {f0.get('quote')} · Druck {dr['index']}".replace(".", ","))
+                tk.update({"eur": z.get("zuflussEur"), "auswahl": f0.get("auswahl"), "quote": f0.get("quote"), "index": dr["index"]})
+                neue_ticks.append(tk)
+                ticker.setdefault("geld", []).append([k, JETZT.isoformat()])
+    aus.sort(key=lambda x: -x["index"])
+    grenze = JETZT - timedelta(minutes=120)
+    zeilen = [t for t in (ticker.get("zeilen") or []) + neue_ticks if (_zeit(t.get("t")) or grenze) > grenze]
+    ticker = {"zeilen": zeilen[-60:], "geld": [g for g in ticker.get("geld") or [] if (_zeit(g[1]) or grenze) > grenze]}
+    TICKER.write_text(json.dumps(ticker, ensure_ascii=False), encoding="utf-8")
+    return {"stand": JETZT.isoformat(), "spiele": aus[:12], "ticker": list(reversed(zeilen[-25:]))}
+
+
 def main() -> int:
     try:
         d = json.loads(DATEN.read_text(encoding="utf-8"))
@@ -145,6 +280,7 @@ def main() -> int:
     cache = {k: v for k, v in cache.items() if JETZT - (_zeit(v.get("ts")) or JETZT) < timedelta(hours=3)}
     kand = kandidaten(d)
     info = None
+    neue_ticks = []
     if kand and os.environ.get("APISPORTS_KEY"):
         n, info = budget()
         offen = [s for s in kand if JETZT - (_zeit((cache.get(s["id"]) or {}).get("ts")) or JETZT - timedelta(days=1)) > timedelta(minutes=FRISCH_MIN)]
@@ -163,14 +299,24 @@ def main() -> int:
                 n -= 1
                 st = statistik((r or {}).get("response"), hid)
                 if st:
-                    cache[sp["id"]] = {"ts": JETZT.isoformat(), "fixture": fid, "statistik": st,
-                                       "min": ((fx.get("fixture") or {}).get("status") or {}).get("elapsed"),
-                                       "stand": [(fx.get("goals") or {}).get("home"), (fx.get("goals") or {}).get("away")]}
+                    alt_e = cache.get(sp["id"]) or {}
+                    e = {"ts": JETZT.isoformat(), "fixture": fid, "statistik": st,
+                         "min": ((fx.get("fixture") or {}).get("status") or {}).get("elapsed"),
+                         "stand": [(fx.get("goals") or {}).get("home"), (fx.get("goals") or {}).get("away")],
+                         "verlauf": list(alt_e.get("verlauf") or [])[-30:]}
+                    p = _punkt(e)
+                    vorher = e["verlauf"][-1] if e["verlauf"] else None
+                    if not vorher or vorher.get("m") != p.get("m"):
+                        e["verlauf"].append(p)
+                    e["druck"] = druck_von(e)
+                    neue_ticks.extend(ereignisse(sp, vorher, p, alt_e.get("druck"), e["druck"]))
+                    cache[sp["id"]] = e
     CACHE.parent.mkdir(exist_ok=True)
     CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
     live_ids = {s["id"] for s in kand}
     d["liveStats"] = {k: v for k, v in cache.items() if k in live_ids and JETZT - _zeit(v["ts"]) < timedelta(minutes=GUELTIG_MIN)}
     d["liveStatsInfo"] = {"stand": JETZT.isoformat(), "kontingent": info, "n": len(d["liveStats"])}
+    d["druck"] = druck_radar(d, cache, live_ids, neue_ticks)
     DATEN.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"live_stats: {len(d['liveStats'])} Spiele mit Statistik, Kandidaten {len(kand)}, Kontingent {info}")
     return 0

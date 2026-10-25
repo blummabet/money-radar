@@ -972,6 +972,13 @@ def main() -> int:
                 print(f"  top3: {n3} neu im Buch")
         except Exception as exc:  # noqa: BLE001
             print(f"  top3: {exc}")
+        try:                         # Lucas 25.10.: Druck-Radar still mitmessen (Index ≥ 70 → „noch ein Tor")
+            import druck
+            nd = druck.eintragen(d, buch, JETZT)
+            if nd:
+                print(f"  druck: {nd} neu im Buch")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  druck: {exc}")
         try:
             bilanz.schreiben(bilanz.aktualisieren(buch, JETZT), JETZT)
         except Exception as exc:  # noqa: BLE001  — Auswertung darf das Pushen nie aufhalten

@@ -1011,6 +1011,19 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             if t and t >= JETZT - timedelta(hours=10) and isinstance(v, (int, float)):
                 mo_s = s.get("mo") or {}
                 reihe.append([t.strftime("%H:%M"), round(v), mo_s.get("hw"), mo_s.get("dr"), mo_s.get("aw"), int(t.timestamp() // 60)])
+        # Lucas 25.10. (Druck-Radar): live das neue Geld je 5 Spielminuten — liegt unter der Druck-Grafik
+        geld_min = None
+        if dt_h < 0:
+            bins, vorher = {}, None
+            for s in snaps:
+                mi, v = s.get("min"), s.get("totalVol")
+                if not isinstance(v, (int, float)):
+                    continue
+                if vorher is not None and isinstance(mi, (int, float)) and mi >= 0:
+                    b = int(min(mi, 90) // 5) * 5
+                    bins[b] = bins.get(b, 0) + max(0.0, v - vorher)
+                vorher = v
+            geld_min = [[b, round(x)] for b, x in sorted(bins.items())] or None
         # Lucas 20.10. („Balken statt Linie, kürzere Zeitachse, damit man sieht, wann Geld reingepumpt wurde"):
         # neues Geld je 10 Min über die letzten 6 h, dazu der Anpfiff und die Tore als Marken.
         saeulen = None
@@ -1113,6 +1126,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                              and isinstance(mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw"), (int, float))
                              and mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw") < 1.40),
             "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "normN": b.get("n"),
+            "geldMin": geld_min,
             "ligaEur": (liga_eur.get(m.get("league")) or {}).get("med"), "ligaN": (liga_eur.get(m.get("league")) or {}).get("n"), "geldAuf": geld_auf, "totEur": round(tot), "phase": ph, "rang": rang,
             "d60": round(vol - vor60) if vor60 is not None else None,
             # nur wenn der Vergleichspunkt nicht uralt ist (sonst wäre es kein 30-Min-Zufluss)
