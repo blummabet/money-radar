@@ -1020,10 +1020,10 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                 if not isinstance(v, (int, float)):
                     continue
                 if vorher is not None and isinstance(mi, (int, float)) and mi >= 0:
-                    b = int(min(mi, 90) // 5) * 5
-                    bins[b] = bins.get(b, 0) + max(0.0, v - vorher)
+                    fach = int(min(mi, 90) // 5) * 5
+                    bins[fach] = bins.get(fach, 0) + max(0.0, v - vorher)
                 vorher = v
-            geld_min = [[b, round(x)] for b, x in sorted(bins.items())] or None
+            geld_min = [[k, round(x)] for k, x in sorted(bins.items())] or None
         # Lucas 20.10. („Balken statt Linie, kürzere Zeitachse, damit man sieht, wann Geld reingepumpt wurde"):
         # neues Geld je 10 Min über die letzten 6 h, dazu der Anpfiff und die Tore als Marken.
         saeulen = None
