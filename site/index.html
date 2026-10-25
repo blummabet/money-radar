@@ -3156,12 +3156,13 @@ function druckMessungDetail(D){
       : `<div class="leer">${M.gruppen[0].gesendet} mitgeschrieben, noch keins abgerechnet.</div>`}`;
 }
 function druckPanel(D){
-  const S = lf((D.druck||{}).spiele||[]);
+  // erst ab Index 40 auf der Startseite — darunter ist es Rauschen (Lucas 25.10.: „too much?")
+  const S = lf((D.druck||{}).spiele||[]).filter(x=>x.index>=40);
   const tick = druckTicker(D, 8);
   if(!S.length && !tick) return "";
   const n = window.innerWidth < 700 ? 2 : window.innerWidth < 1100 ? 2 : 3;
   return `<div class="panel c12 pr-panel"><div class="ph"><h3>🔥 Druck-Radar</h3><span class="hint">wo live viel passiert, aber wenig reinfällt · xG ohne Tore + die letzten 15 Min</span></div>
-    ${S.length ? `<div class="pr">${S.slice(0,n).map(druckKarte).join("")}</div>` : `<div class="leer">Gerade kein Live-Spiel mit Statistik.</div>`}
+    ${S.length ? `<div class="pr">${S.slice(0,n).map(druckKarte).join("")}</div>` : `<div class="leer">Gerade kein Live-Spiel mit hohem Druck (Index ab 40).</div>`}
     ${tick}${druckMessung(D)}</div>`;
 }
 function topDrei(D){

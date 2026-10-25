@@ -281,9 +281,11 @@ def main() -> int:
     kand = kandidaten(d)
     info = None
     neue_ticks = []
+    diag = {"kandidaten": len(kand), "faellig": 0, "ohneZuordnung": [], "ohneStatistik": [], "abgerufen": 0, "budget": None}
     if kand and os.environ.get("APISPORTS_KEY"):
         n, info = budget()
         offen = [s for s in kand if JETZT - (_zeit((cache.get(s["id"]) or {}).get("ts")) or JETZT - timedelta(days=1)) > timedelta(minutes=FRISCH_MIN)]
+        diag["faellig"], diag["budget"] = len(offen), n
         if n >= 2 and offen:
             fixtures = (get("/fixtures?live=all") or {}).get("response") or []
             n -= 1
@@ -292,12 +294,16 @@ def main() -> int:
                     break
                 fx = zuordnen(sp, fixtures)
                 if not fx:
+                    diag["ohneZuordnung"].append(f"{sp.get('heim')} – {sp.get('gast')}")
                     continue
                 fid = (fx.get("fixture") or {}).get("id")
                 hid = ((fx.get("teams") or {}).get("home") or {}).get("id")
                 r = get("/fixtures/statistics?fixture=%s" % fid)
                 n -= 1
+                diag["abgerufen"] += 1
                 st = statistik((r or {}).get("response"), hid)
+                if not st:
+                    diag["ohneStatistik"].append(f"{sp.get('heim')} – {sp.get('gast')}")
                 if st:
                     alt_e = cache.get(sp["id"]) or {}
                     e = {"ts": JETZT.isoformat(), "fixture": fid, "statistik": st,
@@ -315,7 +321,7 @@ def main() -> int:
     CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
     live_ids = {s["id"] for s in kand}
     d["liveStats"] = {k: v for k, v in cache.items() if k in live_ids and JETZT - _zeit(v["ts"]) < timedelta(minutes=GUELTIG_MIN)}
-    d["liveStatsInfo"] = {"stand": JETZT.isoformat(), "kontingent": info, "n": len(d["liveStats"])}
+    d["liveStatsInfo"] = {"stand": JETZT.isoformat(), "kontingent": info, "n": len(d["liveStats"]), "diag": diag}
     d["druck"] = druck_radar(d, cache, live_ids, neue_ticks)
     DATEN.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"live_stats: {len(d['liveStats'])} Spiele mit Statistik, Kandidaten {len(kand)}, Kontingent {info}")
