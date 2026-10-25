@@ -9,7 +9,7 @@ Seite lesen von dort.
 
 Kontingent: der Schlüssel ist derselbe wie im alten Projekt (HZ-Finder). /status kostet nichts und sagt,
 wie viel heute schon verbraucht ist. Je Lauf gönnen wir uns höchstens 60 % dessen, was bis Mitternacht
-(UTC) pro Lauf übrig ist, und nie mehr als 20 Abrufe — der Rest bleibt fürs alte Projekt.
+(UTC) pro Lauf übrig ist, und nie mehr als 40 Abrufe (25.10.: vorher 20, solange der HZ-Finder des alten Projekts mitlief).
 
 Zuordnung Betfair → API-Football bewusst ENG (betfair_name_bridge, Anpfiff ±20 Min, bei zwei Kandidaten
 nichts): eine falsche Statistik wäre schlimmer als keine. Fällt hier etwas aus, läuft alles andere weiter.
@@ -26,7 +26,7 @@ BASIS = Path(__file__).resolve().parent
 DATEN = BASIS / "site" / "data.json"
 CACHE = BASIS / ".bf" / "live_stats.json"
 BASE_URL = "https://v3.football.api-sports.io"
-MAX_JE_LAUF = 20         # Kontingent 75.000/Tag (Stand 19.10.) — 20 × 288 Läufe ≈ 5.800
+MAX_JE_LAUF = 40         # 25.10.: HZ-Finder im alten Projekt abgedreht → 40 × 288 ≈ 11.500 von 75.000/Tag (60-%-Regel bremst weiter)
 ANTEIL = 0.6
 FRISCH_MIN = 9          # jünger als das → nicht neu abrufen
 GUELTIG_MIN = 25        # älter als das → nicht mehr zeigen
