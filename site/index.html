@@ -1992,7 +1992,7 @@ function fxZeile(D, e){
   return `<div class="fx-z" style="--f:${FARBE[e.q]}">${fxForm(e)}
     <div class="fx-m"><div class="fx-a">${esc(e.aus||"")}${e.quote?` <span class="fx-q">@ ${q2(e.quote)}</span>`:""}${st}</div>
       <div class="fx-meta"><span class="fx-ico" style="color:${FARBE[e.q]}">${ICO[e.q]}</span>${drop}${esc(meta)}</div></div>
-    <div class="fx-b">${e.wert?esc(e.b):""}${e.bil?feedBilanz(D, e.bil):""}</div></div>`;
+    <div class="fx-b">${e.wert?esc(e.b):""}</div></div>`;
 }
 // Ereignisse → Spiel-Geschichten
 function feedGeschichten(D){
@@ -2973,7 +2973,7 @@ function t3Messung(D){
   return `<div class="t3-mess" data-geh="feed" role="button" tabindex="0" title="Details im Feed unter der Bilanz">
     <span class="t3-mess-t">🧪 ${M.urteil ? (M.urteil==="bestanden"?"✓ bestanden":"✗ nicht bestanden") : "Messung"}</span>
     <span class="t3-mess-b"><i style="width:${ant.toFixed(1)}%;background:${f}"></i></span>
-    <span><b>${a.abgerechnet}</b> von ${M.ziel} abgerechnet${a.offen?` · ${a.offen} offen`:""}</span>
+    <span>${a.abgerechnet>=M.ziel ? `<b>${a.abgerechnet}</b> abgerechnet · Ziel ${M.ziel} erreicht` : `<b>${a.abgerechnet}</b> von ${M.ziel} abgerechnet`}${a.offen?` · ${a.offen} offen`:""}</span>
     ${a.abgerechnet ? `<span>Treffer <b>${a.treffer} %</b> (Quote sagte ${a.erwartet} %)</span><span>Rendite <b style="color:${a.roi>=0?"var(--up)":"var(--down)"}">${pz(a.roi)}</b></span>` : ""}
     ${a.clvN ? `<span>Schlussquote ${pz(a.clv)}</span>` : ""}</div>`;
 }
