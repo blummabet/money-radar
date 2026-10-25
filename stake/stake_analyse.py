@@ -55,8 +55,7 @@ sys.path.insert(0, str(BASE))
 import stake_highroller_fetch as SH
 import stake_liga_stufe as LS   # Spielklasse je Liga — eine Tabelle, ein Ort
 from stake_seltenheit import seltenheit
-from sharp_gate import wilson_lb
-from freigabe import untergrenze
+from statistik import untergrenze, wilson_lb   # 25.10.: statt freigabe.py / sharp_gate.py des alten Projekts
 
 LEDGER_FILE = BASE / "stake_bet_ledger.json"
 NORM_FILE = BASE / "stake_league_norm.json"

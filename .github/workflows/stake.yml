@@ -38,17 +38,27 @@ jobs:
           path: .st
           key: stake-${{ github.run_id }}
           restore-keys: stake-
-      - name: Stake abrufen, abrechnen, Norm, Auswertung, Bursts erkennen
+      - name: Stake abrufen, Bursts erkennen, abrechnen, Norm, Auswertung
+        env:
+          # 25.10.: Die Deckel je Lauf (4 / 2 / 2 / 3) stammen aus dem alten Projekt gegen Telegram-Flut. Hier sendet
+          # niemand (telegram_trades.py ist ein Stub) — der Deckel warf nur noch Bursts weg: push:false im Buch, nie auf
+          # der Seite, nie gepusht. Gesendet wird von push.py, je Spiel gebündelt.
+          STAKE_BURST_MAX: '50'
+          STAKE_SPIEL_MAX: '50'
+          STAKE_TOR_MAX: '50'
+          STAKE_KLEIN_MAX: '50'
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           PY=python3
           for p in /opt/homebrew/bin/python3.11 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.13; do [ -x "$p" ] && { PY="$p"; break; }; done
           cd stake
+          # 25.10.: Bursts direkt nach dem Abruf erkennen — Abrechnung, Norm und Auswertung danach (bis zu 3 Min,
+          # die Erkennung nimmt Norm und Auswertung vom letzten Lauf, 5 Min alt). Vorher wartete jeder Burst darauf.
           "$PY" stake_highroller_fetch.py 2>&1 | tail -15 | tee ../st.log || echo "⚠️ Stake-Abruf fehlgeschlagen"
+          "$PY" stake_burst_push.py      || echo "⚠️ Burst-Erkennung fehlgeschlagen"
           "$PY" stake_settle.py          || echo "⚠️ Abrechnung fehlgeschlagen"
           "$PY" stake_league_norm.py     || echo "⚠️ Liga-Norm fehlgeschlagen"
           "$PY" stake_analyse.py         || echo "⚠️ Auswertung fehlgeschlagen"
-          "$PY" stake_burst_push.py      || echo "⚠️ Burst-Erkennung fehlgeschlagen"
       - name: Gedächtnis sichern
         if: always()
         uses: actions/cache/save@v4

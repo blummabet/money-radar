@@ -128,7 +128,12 @@ STABLE = {"usdt", "usdc", "busd", "dai", "usd", "tusd", "usdp"}
 # E-Sport, Tennis und so"). Anlass: Stake sperrte Cricket, liess aber Kampfsport durch
 # (Inoue – Nasukawa stand in „Stake · größtes Geld"), Poly genau umgekehrt. Ab jetzt EINE Liste
 # fuer beide Plattformen; tests/test_sperrliste_eine_fuer_alle.py haelt alle Kopien gleich.
-GESPERRT = {"US-Sport", "Kampfsport", "Cricket"}
+# 25.10.2026 (Geldradar): Lucas' Regel ist eine FREIGABE-Liste — nur Fußball, E-Sport, Tennis; eSoccer raus. Die Sperrliste
+# des alten Projekts ließ Tischtennis, Volleyball, Handball, Darts … durch; die belegten in der Burst-Erkennung Plätze
+# und fielen erst auf der Seite weg. Gesperrt ist jetzt alles außer den drei (weiter gesammelt, nur ausgeblendet).
+ERLAUBT = {"Fußball", "E-Sport", "Tennis"}
+GESPERRT = {"US-Sport", "Kampfsport", "Cricket", "Golf", "Motorsport", "Tischtennis", "Volleyball", "Handball", "Darts",
+            "Snooker", "Rugby", "Badminton", "eSoccer", "Sonstige"}
 # Gesperrte LIGEN innerhalb einer erlaubten Sportart — als Muster ueber den Liganamen.
 # 04.10.2026 (Lucas: „ATP auch, was keiner braucht") fuer die Pushes; 08.10.2026 („ATP und WTA
 # können wir da draus nehmen") auch fuer die Stake-Kacheln der Uebersicht. ITF bleibt.
@@ -159,7 +164,7 @@ def sperr_grund(w: dict):
     und das kannte nur die Kategorien. Seitdem EINE Prüfung für Kategorie UND Liga hier.
     """
     kat = w.get("kat") or sport_kategorie(w.get("sport"), w.get("liga"))
-    if kat in GESPERRT:
+    if kat in GESPERRT or kat not in ERLAUBT:
         return kat
     if _LIGEN_RX.search(str(w.get("liga") or "")):
         return "Liga gesperrt (ATP/WTA)"
@@ -172,7 +177,7 @@ _KAT_SLUG = {
     "icehockey": "US-Sport", "american-football": "US-Sport", "americanfootball": "US-Sport",
     "counter-strike": "E-Sport", "league-of-legends": "E-Sport", "dota-2": "E-Sport",
     "dota2": "E-Sport", "valorant": "E-Sport", "rainbow-six": "E-Sport",
-    "starcraft": "E-Sport", "fifa": "E-Sport", "efootball-bots": "E-Sport",
+    "starcraft": "E-Sport", "fifa": "eSoccer", "efootball-bots": "eSoccer",   # 25.10.: eSoccer ist kein E-Sport
     "call-of-duty": "E-Sport", "rocket-league": "E-Sport", "king-of-glory": "E-Sport",
     "mma": "Kampfsport", "boxing": "Kampfsport",
     "golf": "Golf", "motorsport": "Motorsport", "formula-1": "Motorsport",
