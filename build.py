@@ -930,6 +930,22 @@ def _ist_hz_markt(name) -> bool:
     return n in ("Half Time", "Half Time Score") or n.startswith("First Half Goals")
 
 
+def _norm_pruefung(norm_state):
+    eigen_ab = datetime(2026, 10, 20, tzinfo=timezone.utc).timestamp() * 1000
+    je, ligen = {}, {}
+    for k, rows in ((norm_state or {}).get("samples") or {}).items():
+        liga, ph = k.rsplit("|", 1)
+        ts = [r[0] for r in rows if isinstance(r, list) and r and isinstance(r[0], (int, float))]
+        z = je.setdefault(ph, {"n": 0, "seit20": 0})
+        z["n"] += len(ts)
+        z["seit20"] += sum(1 for t in ts if t >= eigen_ab)
+        if ts:
+            ligen.setdefault(liga, {})[ph] = [len(ts), sum(1 for t in ts if t >= eigen_ab),
+                                              datetime.fromtimestamp(min(ts) / 1000, timezone.utc).strftime("%d.%m.")]
+    gross = sorted(ligen, key=lambda l: -sum(v[0] for v in ligen[l].values()))[:12]
+    return {"phasen": je, "ligen": {l: ligen[l] for l in gross}}
+
+
 def betfair_radar(prices, bf_hist, norm, norm_state=None):
     """Jedes Spiel im Betfair-Abruf (auch Slowakei 2, Finnland, China …), gemessen an seiner Liga.
 
@@ -1154,7 +1170,10 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             # die gelernte Ligagröße aller Ligen (Endstand-Median, n ≥ 5) — für die Auswertung nach Ligagröße
             "ligaGroesse": {k: {"eur": v.get("med"), "n": v.get("n")} for k, v in sorted(liga_eur.items(), key=lambda x: -(x[1].get("med") or 0))},
             "normStand": {"stichproben": (norm or {}).get("n"), "buckets": (norm or {}).get("buckets"),
-                          "nutzbar": (norm or {}).get("usable"), "stand": (norm or {}).get("generatedAt")}}
+                          "nutzbar": (norm or {}).get("usable"), "stand": (norm or {}).get("generatedAt"),
+                          # Lucas 25.10. („schau dir das mit EPL an, ob das noch wo so ist"): je Phase wie viele Spiele,
+                          # das älteste und wie viele seit dem eigenen Abruf (20.10.) — so sieht man, wo Spiele verloren gehen
+                          "pruefung": _norm_pruefung(norm_state)}}
 
 
 HZ_MAERKTE = ("Half Time", "First Half Goals 0.5", "First Half Goals 1.5", "First Half Goals 2.5", "Half Time Score")
