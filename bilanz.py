@@ -348,6 +348,9 @@ def top3_messung(buch):
                ("Betfair", [b for b in z if b.get("art") == "top3"]), ("Polymarket", [b for b in z if b.get("art") == "top3p"]),
                # Lucas 25.10.: mehrere Märkte eines Spiels gleichgerichtet bespielt — ab Regel 2 erfasst
                ("🧩 Mehrere Märkte gleichgerichtet", [b for b in z if "maerkte" in (b.get("signale") or [])]),
+               ("📊 Druck stützt die Richtung", [b for b in z if "druck" in (b.get("signale") or [])]),
+               ("ohne Druck-Signal (ab Regel 3)", [b for b in z if b.get("art") == "top3" and (b.get("regel") or 1) >= 3
+                                                   and "druck" not in (b.get("signale") or [])]),
                ("ohne mehrere Märkte (ab 25.10.)", [b for b in z if b.get("art") == "top3" and (b.get("regel") or 1) >= 2
                                                     and "maerkte" not in (b.get("signale") or [])]),
                *[(LIGA_NAME[n], [b for b in z if b.get("art") == "top3" and ligagroesse(b) == n]) for n in LIGA_STUFEN]]

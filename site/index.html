@@ -2915,7 +2915,7 @@ function jetztFliesst(D, n=8){
 // auch auf Polymarket/Stake, Liga-Bilanz. Raus: entschieden, klar vorn, Geld unter Quote 1,20 (Absicherung).
 const t3Pushes = s => pushesZu(s).filter(x=>/Halbzeit|Fix/i.test(x.art||""));
 const T3_SIG = [["serie","🔁 Dauerzufluss","var(--bf)"],["push","📣 HZ-Push","var(--down)"],["neu","💶 neues Geld","var(--up)"],
-  ["norm","× Liga-Norm","var(--pin)"],["quote","🔻 Quote gedrückt","var(--hz)"],["poly","🧠 Polymarket","var(--poly)"],["stake","🎰 Stake","var(--stake)"],["maerkte","🧩 Mehrere Märkte","var(--up)"],["liga","Liga trägt","var(--text-2)"]];
+  ["norm","× Liga-Norm","var(--pin)"],["quote","🔻 Quote gedrückt","var(--hz)"],["poly","🧠 Polymarket","var(--poly)"],["stake","🎰 Stake","var(--stake)"],["maerkte","🧩 Mehrere Märkte","var(--up)"],["druck","📊 Druck","var(--hz)"],["liga","Liga trägt","var(--text-2)"]];
 // Lucas 25.10.: „wenn parallel mehrere Märkte eines Spiels bespielt werden — Heimsieg, aber auch Über, HZ-Sieg, HZ-Über —
 // ist das ein gutes Zeichen, natürlich keine Kontramärkte". Gezählt werden Familien, nicht Linien (Über 2,5 + Über 3,5 = eine).
 // Ein Markt zählt, wenn ≥ 60 % seines neuen Geldes auf eine Auswahl gehen (≥ €2k Top-5, sonst ≥ €500). Läuft irgendwo Geld
@@ -2977,10 +2977,14 @@ function topDreiDaten(D){
     const gleicheSeite = g => fk ? {h:"heim", g:"gast", x:"remis"}[seiteVon(s, g.auswahl)] === fk : !!(ou(fA.name) && ou(fA.name)===ou(g.auswahl));
     const burst = (D.stake?.gruppen||[]).find(g=>istBurst(g) && feedKey(...String(g.spiel||"").split(/\s+-\s+/)) === fkey && gleicheSeite(g));
     if(burst) p.stake = 2; else if(aw.stake?.usd>=1000) p.stake = 1;
+    // Lucas 25.10. (Sturm – Ried): Druck-Radar stützt die Richtung des Geldes — muss zu top3.py passen
+    const dr = ((D.druck||{}).spiele||[]).find(x=>String(x.id)===String(s.id));
+    const drPasst = dr && dr.index>=40 && (fk===dr.seite || ou(fA.name)==="over");
+    if(drPasst) p.druck = dr.index>=70 ? 2 : 1;
     const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
     const summe = Object.values(p).reduce((a,b)=>a+b,0) - (lb?.urteil==="trägt nicht" ? 1 : 0);
     const g = {serie: se && `${se.n}× in Folge`, neu: `+${eur(neu)} in ${s.fensterMin||30} Min`, norm: `×${dez(s.xnorm)} der Liga`,
-      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, maerkte: mm.length && "🧩 " + mm.map(k=>T3_FAM[k]).join(" + "), push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
+      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, maerkte: mm.length && "🧩 " + mm.map(k=>T3_FAM[k]).join(" + "), druck: drPasst && `📊 Druck ${dr.index} · xG ${dez(dr.teams[dr.seite].xg)}`, push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
       poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
       stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
     return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
@@ -3023,8 +3027,8 @@ function topDreiDaten(D){
 // 23.10. abends (Lucas: „inhaltlich top, optisch muss das richtig geil werden"): jedes Spiel als Radar-Scheibe —
 // je Signal ein Feld rundherum (25.10.: + 🧩 mehrere Märkte), je Signal eins; leuchtet ein Feld, zieht dieses Signal. Mitte = Punkte. Die Nr. 1 groß
 // mit Radar-Sweep und Geld-Säulen der letzten 2 h, Nr. 2 und 3 kompakt daneben.
-const T3_ICO = ["🔁","📣","💶","📏","🔻","🧠","🎰","🧩","🏆"];
-const T3_MAX = {serie:4, push:2, neu:3, norm:2, quote:2, poly:2, stake:2, maerkte:2, liga:1};
+const T3_ICO = ["🔁","📣","💶","📏","🔻","🧠","🎰","🧩","📊","🏆"];
+const T3_MAX = {serie:4, push:2, neu:3, norm:2, quote:2, poly:2, stake:2, maerkte:2, druck:2, liga:1};
 let T3_ERST = true;
 function t3Scheibe(p, summe, gross){
   const R = gross ? 62 : 30, sw = gross ? 13 : 7, M = R + sw, u = 2*Math.PI*R, n = T3_SIG.length, spalt = gross ? 7 : 5, len = u/n - spalt;
@@ -3189,7 +3193,7 @@ function topDrei(D){
   const karte = (x, i) => {
     const gross = i===0, p = x.p;
     const zeit = x.live ? `<span class="t3-live"><i></i>${x.live}</span>` : `<span class="t3-zeit">${wann(x.anpfiff)}</span>`;
-    const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>`<span class="t3-g${k==="maerkte"?" hl":""}" style="--f:${f}"><i></i>${esc(x.g[k]||n)}</span>`).join("")
+    const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>`<span class="t3-g${k==="maerkte"||k==="druck"?" hl":""}" style="--f:${f}"><i></i>${esc(x.g[k]||n)}</span>`).join("")
       + (x.aus ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>${x.aus}</span>` : "");
     return `<div class="t3-k${gross?" eins":""}"${bk("t3|"+x.key, x.wert, x.einheit)} ${x.klick} style="--glow:${T3_SIG.find(([k])=>p[k])[2]}">
       ${t3Scheibe(p, x.summe, gross)}

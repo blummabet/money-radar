@@ -128,6 +128,7 @@ def rangliste(d, jetzt):
     toepfe = {str(t.get("id")): t for t in d.get("toepfe") or []}
     auch = d.get("auchWoanders") or {}
     gruppen = (d.get("stake") or {}).get("gruppen") or []
+    druck = {str(x.get("id")): x for x in (d.get("druck") or {}).get("spiele") or []}
     aus = []
     for s in (d.get("radar") or {}).get("spiele") or []:
         lv = s.get("live") or None
@@ -191,6 +192,11 @@ def rangliste(d, jetzt):
             p["stake"] = 2
         elif ((aw.get("stake") or {}).get("usd") or 0) >= 1000:
             p["stake"] = 1
+        # Lucas 25.10. (Sturm – Ried, 23': xG 0,77 : 0, Schüsse 9 : 0, Geld auf Sturm): das Druck-Radar stützt die
+        # Richtung des Geldes → Punkte. Druck-Team = Seite der Auswahl, oder Auswahl ist ein Über. Ab Index 40: 1, ab 70: 2.
+        dr = druck.get(str(s.get("id")))
+        if dr and (dr.get("index") or 0) >= 40 and (fk == dr.get("seite") or _ou(fA.get("name")) == "over"):
+            p["druck"] = 2 if dr["index"] >= 70 else 1
         lb = LB.get(s.get("liga")) or {}
         if lb.get("urteil") == "trägt":
             p["liga"] = 1
@@ -256,7 +262,7 @@ def eintragen(d, buch, jetzt):
             b["bestPunkte"] = max(b.get("bestPunkte") or 0, x["punkte"])
             continue
         b = {**x, "rang": rang, "bestRang": rang, "bestPunkte": x["punkte"], "ts": jetzt.isoformat(), "status": "offen",
-             "regel": 2}   # Regel 2 ab 25.10.: + Signal „mehrere Märkte gleichgerichtet"
+             "regel": 3}   # Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
         buch.append(b)
         offen[k] = b
         neu += 1
