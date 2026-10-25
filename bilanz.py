@@ -459,9 +459,11 @@ LIGA_NAME = {"groß": "Große Ligen (Norm ≥ €40k)", "mittel": "Mittlere Lige
 
 
 def ligagroesse(b):
-    if "normEur" not in b:
-        return None                      # vor dem 25.10. mitgeschrieben — Ligagröße unbekannt
-    n = b.get("normEur")
+    # 25.10. nachgeschärft: nach der Ligagröße (Endstand-Median der Liga), NICHT nach normEur — das ist der Median der
+    # Phase, in der gepusht wurde, und machte dieselbe Liga vor Anpfiff „klein" und live „groß".
+    if "ligaEur" not in b:
+        return None                      # vor dem 25.10. ~10:30 mitgeschrieben — Ligagröße unbekannt
+    n = b.get("ligaEur")
     if not n:
         return "klein"
     return "groß" if n >= 40000 else "mittel" if n >= 8000 else "klein"

@@ -937,6 +937,11 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
     abgeschlossene Phasen). Eine laufende Phase ist noch nicht fertig — ×Norm ist also eher zu niedrig.
     """
     medi = (norm or {}).get("byLeagueStage") or {}
+    # Lucas 25.10. („wichtig, dass die Liga-Norm richtig funktioniert und weiter lernt"): normEur ist der Median der
+    # PHASE, in der das Spiel gerade steht (p0 = Stand 3 h vor Anpfiff … l2 = Endstand). Für „wie groß ist diese Liga"
+    # taugt das nicht — dieselbe Liga wäre vor Anpfiff „klein" und live „groß". Ligagröße = Median des ENDSTANDS (l2):
+    # wie viel Geld ein ganzes Spiel dieser Liga üblicherweise sieht. Gleiche Quelle, lernt mit (60 Tage rollierend).
+    liga_eur = {k.rsplit("|", 1)[0]: v for k, v in medi.items() if k.endswith("|l2") and (v.get("n") or 0) >= 5}
     # Lucas 17.10.: „ob da deine Daten wirklich stimmen". Neben dem Median die ganze Stichprobe:
     # wie viele Spiele dieser Liga hatten in derselben Phase WENIGER Geld als dieses jetzt.
     proben = {k: sorted(x[1] for x in v if isinstance(x, list) and len(x) > 1)
@@ -1109,7 +1114,8 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                              and li.get("goal_v1") != li.get("goal_v2")
                              and isinstance(mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw"), (int, float))
                              and mo.get("hw" if li.get("goal_v1") > li.get("goal_v2") else "aw") < 1.40),
-            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "normN": b.get("n"), "geldAuf": geld_auf, "totEur": round(tot), "phase": ph, "rang": rang,
+            "eur": round(vol), "xnorm": xnorm, "normEur": b.get("med"), "normN": b.get("n"),
+            "ligaEur": (liga_eur.get(m.get("league")) or {}).get("med"), "ligaN": (liga_eur.get(m.get("league")) or {}).get("n"), "geldAuf": geld_auf, "totEur": round(tot), "phase": ph, "rang": rang,
             "d60": round(vol - vor60) if vor60 is not None else None,
             # nur wenn der Vergleichspunkt nicht uralt ist (sonst wäre es kein 30-Min-Zufluss)
             "d30": round(vol - vor30) if vor30 is not None and t30 and t30 >= JETZT - timedelta(minutes=50) else None,
@@ -1144,7 +1150,11 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
     drin = {id(s) for s in oben}
     spiele = oben + [s for s in spiele[120:] if aktiv(s)][:80]
     return {"spiele": spiele, "stunden": std, "ligen": ligen,
-            "summeEur": round(sum(s["eur"] for s in spiele))}
+            "summeEur": round(sum(s["eur"] for s in spiele)),
+            # die gelernte Ligagröße aller Ligen (Endstand-Median, n ≥ 5) — für die Auswertung nach Ligagröße
+            "ligaGroesse": {k: {"eur": v.get("med"), "n": v.get("n")} for k, v in sorted(liga_eur.items(), key=lambda x: -(x[1].get("med") or 0))},
+            "normStand": {"stichproben": (norm or {}).get("n"), "buckets": (norm or {}).get("buckets"),
+                          "nutzbar": (norm or {}).get("usable"), "stand": (norm or {}).get("generatedAt")}}
 
 
 HZ_MAERKTE = ("Half Time", "First Half Goals 0.5", "First Half Goals 1.5", "First Half Goals 2.5", "Half Time Score")
