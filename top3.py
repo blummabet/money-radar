@@ -103,7 +103,10 @@ def rangliste(d, jetzt):
                 neu += a["neu"]
                 if not top or a["neu"] > top["neu"]:
                     top, mk = a, m
-        if se and (se.get("quote") or 0) >= 1.20:
+        # 25.10.: steigt die Quote während der Serie um mehr als 5 %, zählt der Dauerzufluss nicht (Geld ohne Richtung,
+        # der Preis widerspricht) — wie in topDreiDaten() in site/index.html
+        gegen = bool(se and se.get("quoteStart") and se.get("quote") and se["quote"] > se["quoteStart"] * 1.05)
+        if se and (se.get("quote") or 0) >= 1.20 and not gegen:
             p["serie"] = min(4, 2.5 + (se["n"] - 3) * 0.5)
         pz = [x for x in pushes if x.get("heim") == s.get("heim") and x.get("gast") == s.get("gast") and _ts(x.get("zeit"))
               and jetzt - _ts(x["zeit"]) < timedelta(hours=6) and re.search("Halbzeit|Fix", str(x.get("art") or ""), re.I)]
@@ -210,7 +213,8 @@ def eintragen(d, buch, jetzt):
             b["bestRang"] = min(b.get("bestRang") or rang, rang)
             b["bestPunkte"] = max(b.get("bestPunkte") or 0, x["punkte"])
             continue
-        b = {**x, "rang": rang, "bestRang": rang, "bestPunkte": x["punkte"], "ts": jetzt.isoformat(), "status": "offen"}
+        b = {**x, "rang": rang, "bestRang": rang, "bestPunkte": x["punkte"], "ts": jetzt.isoformat(), "status": "offen",
+             "regel": 2}          # Regel 2 ab 25.10.: Dauerzufluss zählt nicht, wenn die Quote dagegen läuft
         buch.append(b)
         offen[k] = b
         neu += 1

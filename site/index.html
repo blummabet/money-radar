@@ -2869,7 +2869,11 @@ function topDreiDaten(D){
     let top = null, mk = null, neu = 0;
     for(const m of md) for(const a of m.auswahl||[]){ if(a.name==="Rest" || (a.quote && a.quote<1.20) || !(a.neu>0)) continue;
       neu += a.neu; if(!top || a.neu>top.neu){ top = a; mk = m; } }
-    if(se && se.quote>=1.20) p.serie = Math.min(4, 2.5 + (se.n-3)*0.5);
+    // 25.10. (Prüfbericht Urawa: 85 % des Geldes, aber Quote 1,76 → 2,36): gematchtes Geld hat keine Richtung, nur der
+    // Preis hat eine. Steigt die Quote während der Serie um mehr als 5 %, nimmt der Markt das Geld nicht als Urteil an —
+    // dann gibt der Dauerzufluss keine Punkte und steht durchgestrichen als Gegenzeichen da.
+    const gegenSerie = !!(se && se.quoteStart && se.quote && se.quote > se.quoteStart*1.05);
+    if(se && se.quote>=1.20 && !gegenSerie) p.serie = Math.min(4, 2.5 + (se.n-3)*0.5);
     // Lucas 23.10.: Dauerzufluss-, Zufluss- und Live-Pushes entstehen aus genau den Signalen, die hier schon zählen —
     // als eigenes Signal wäre das doppelt. Nur die Halbzeit-Pushes (eigene Märkte, eigene Regel) bringen etwas Neues.
     const pz = t3Pushes(s); if(pz.length) p.push = Math.min(2, 1 + 0.5*(pz.length-1));
@@ -2898,7 +2902,7 @@ function topDreiDaten(D){
       quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
       poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
       stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
-    return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
+    return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: [lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "", gegenSerie ? `${se.n}× Geld, aber Quote ${q2(se.quoteStart)} → ${q2(se.quote)}` : ""].filter(Boolean).join(" · "),
       kopf: `${flagge(s.land)} ${esc(ligaName(s.liga)||"")}`, live: s.live ? `${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}` : null,
       anpfiff: s.anpfiff, heim: s.heim, gast: s.gast, auf: auswahlDe(fA.name), quote: fA.quote, alt: p.quote ? fA.q60 : null, markt: marktDe(fM?.name||""),
       saeulen: s.saeulen?.w || [], wert: s.eur, einheit: "€", klick: klickSpiel({id:s.id, heim:s.heim, gast:s.gast})};
