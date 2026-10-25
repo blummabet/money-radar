@@ -2100,7 +2100,7 @@ function seiteFeed(D){
   return `<div class="grid"><div class="panel c12">
     <div class="chips feedchips">${FEED_ARTEN.map(([k,n])=>{ const c = alle.filter(passt[k]).length; return c||k==="alle" ? `<button class="chip${k===filterFeed?" an":""}" data-feed="${k}">${n} <span style="opacity:.6">${c}</span></button>` : ""; }).join("")}</div>
     ${teile || `<div class="leer">Hier ist gerade nichts.</div>`}
-  </div><div class="panel c12" id="bilanzpanel">${bilanzKopf()}${bilanzPanel(D)}${bilanzLeiste(D)}${t3MessungDetail(D)}${druckMessungDetail(D)}</div></div>`;
+  </div><div class="panel c12" id="bilanzpanel">${bilanzKopf()}${bilanzPanel(D)}${bilanzLeiste(D)}${t3MessungDetail(D)}${druckMessungDetail(D)}${normMessungDetail(D)}</div></div>`;
 }
 // Lucas 21.10.: statt sieben großer Kacheln über dem Feed eine Zeile je Push-Art — Rendite als Balken um die Null
 function bilanzLeiste(D){
@@ -3175,6 +3175,25 @@ function druckMessungDetail(D){
     ${G.length ? istSoll(G.map(g=>({name:esc(g.name), unter:`${g.abgerechnet} abgerechnet${g.fehler!=null?` · ± ${dez(g.fehler)} %`:""}`, ist:g.treffer, soll:g.erwartet, roi:g.roi})))
       : `<div class="leer">${M.gruppen[0].gesendet} mitgeschrieben, noch keins abgerechnet.</div>`}`;
 }
+// Lucas 25.10.: „wenn über der Norm Geld fließt — wie oft folgt das Ergebnis dem Geld?" (norm_mess.py, stille Messung)
+function normMessung(D){
+  const N = D.pushBilanz?.norm; if(!N) return "";
+  const z = (art, name) => { const a = ((N[art]||{}).gruppen||[]).find(g=>g.name==="Alle"); if(!a) return "";
+    const pz = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
+    return `<span><b>${name}</b> ${a.abgerechnet}/${N[art].ziel}${a.abgerechnet?` · Treffer <b>${a.treffer} %</b> (Quote ${a.erwartet} %) · <b style="color:${a.roi>=0?"var(--up)":"var(--down)"}">${pz(a.roi)}</b>`:a.offen?` · ${a.offen} offen`:""}</span>`; };
+  const t = z("norm","Richtung") + z("normMeist","meistes Geld");
+  return t ? `<div class="t3-mess" data-geh="feed" role="button" tabindex="0" title="Details im Feed unter der Bilanz"><span class="t3-mess-t">🧪 Folgt das Ergebnis dem Geld?</span>${t}</div>` : `<div class="t3-mess"><span class="t3-mess-t">🧪 Messung läuft</span><span>jedes Spiel ab ×2 der Liga wird mitgeschrieben</span></div>`;
+}
+function normMessungDetail(D){
+  const N = D.pushBilanz?.norm; if(!N) return "";
+  const block = (art, titel, erkl) => { const M = N[art]; if(!M || !(M.gruppen||[]).length) return "";
+    const G = M.gruppen.filter(g=>g.abgerechnet), pz = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
+    return `<h4 style="margin:18px 0 6px">🧪 ${titel}</h4><div class="kk-klein" style="margin-bottom:8px">${erkl} · ab ×2 der Liga, einmal je Spiel (vor Anpfiff oder live bis 75') · Ziel ${M.ziel}</div>
+      ${G.length ? istSoll(G.map(g=>({name:esc(g.name), unter:`${g.abgerechnet} abgerechnet${g.fehler!=null?` · ± ${dez(g.fehler)} %`:""}${g.clvN?` · Schlussquote ${pz(g.clv)}`:""}`, ist:g.treffer, soll:g.erwartet, roi:g.roi})))
+        : `<div class="leer">${M.gruppen[0].gesendet} mitgeschrieben, noch keins abgerechnet.</div>`}`; };
+  return block("norm", "Über der Liga-Norm: Richtung des Geldes", "Sieg-Markt, die Auswahl mit mehr Geld als ihre Quote erwarten lässt")
+    + block("normMeist", "Über der Liga-Norm: meistes Geld im Spiel", "die Auswahl mit dem meisten Geld, egal welcher Markt");
+}
 function druckPanel(D){
   // erst ab Index 40 auf der Startseite — darunter ist es Rauschen (Lucas 25.10.: „too much?")
   const S = lf((D.druck||{}).spiele||[]).filter(x=>x.index>=40);
@@ -3429,7 +3448,7 @@ function seiteBetfair(D){
   return `<div class="grid">
     <div class="panel c12 kz-panel">${bfKennzahlen(D, alle)}</div>
     ${voll.map(([t,h,html])=>`<div class="panel c12"><div class="ph"><h3>${t}</h3><span class="hint">${h}</span></div>${html}</div>`).join("")}
-    <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">wie viel mehr Geld als in dieser Liga üblich</span></div>${normPunkte(norm)}</div>
+    <div class="panel c7"><div class="ph"><h3>Über der Liga-Norm</h3><span class="hint">wie viel mehr Geld als in dieser Liga üblich</span></div>${normPunkte(norm)}${normMessung(D)}</div>
     <div class="panel c5"><div class="ph"><h3>Halbzeit-Geld</h3><span class="hint">Geld auf die 1. Halbzeit</span></div>${hzKarten(hzl.slice(0,4))}${hzl.length>4?liste("Alle Halbzeit-Spiele als Liste",hzl.length,hzTabelle(hzl,"hz-bf")):""}</div>
     <div class="panel c12"><div class="ph"><h3>Hitparade der Märkte</h3><span class="hint">Platz nach Geld im Markt · ▲▼ = Plätze seit 1 h</span></div>${hitparade(D, window.innerWidth<700?10:15)}</div>
     <div class="panel c12">${liste(`Alle ${alle.length} Spiele aus ${D.radar.ligen} Ligen als Liste`, "", `<div id="bf-alle">${bfAlleInhalt(alle)}</div>`)}</div>

@@ -429,6 +429,35 @@ def druck_messung(buch):
     return {"ziel": DRUCK_ZIEL, "urteil": urteil, "gruppen": aus, "letzte": letzte}
 
 
+NORM_ZIEL = 100
+
+
+def norm_messung(buch):
+    """Über der Liga-Norm (Lucas 25.10.): ab ×2 der Liga — folgt das Ergebnis dem Geld? Zwei Lesarten (norm_mess.py)."""
+    aus = {}
+    for art in ("norm", "normMeist"):
+        z = [b for b in buch if b.get("art") == art]
+        x = lambda b: b.get("xnorm") or 0
+        gruppen = [("Alle", z), ("×2 bis 3", [b for b in z if x(b) < 3]), ("×3 bis 5", [b for b in z if 3 <= x(b) < 5]),
+                   ("ab ×5", [b for b in z if x(b) >= 5]),
+                   ("vor Anpfiff", [b for b in z if not b.get("live")]), ("live", [b for b in z if b.get("live")]),
+                   *[(LIGA_NAME[n], [b for b in z if ligagroesse(b) == n]) for n in LIGA_STUFEN],
+                   ("Top-5-Ligen", [b for b in z if b.get("top5")]), ("andere Ligen", [b for b in z if not b.get("top5")])]
+        if art == "norm":
+            gruppen.append(("Überhang ab 10 Punkten", [b for b in z if (b.get("ueberhang") or 0) >= 10]))
+        g_aus = []
+        gesamt = _gruppe(z)
+        for name, g in gruppen:
+            k = _gruppe(g)
+            if k["gesendet"]:
+                g_aus.append({"name": name, **{kk: v for kk, v in k.items() if not kk.startswith("_")}})
+        urteil = None
+        if gesamt["abgerechnet"] >= NORM_ZIEL:
+            urteil = "bestanden" if gesamt["_roi"] - (gesamt["_se"] or 0) > 0 and gesamt["_kante"] else "nicht bestanden"
+        aus[art] = {"ziel": NORM_ZIEL, "urteil": urteil, "gruppen": g_aus}
+    return aus
+
+
 def zusammenfassen(buch):
     aus = {}
     for art, name in ARTEN.items():
@@ -456,7 +485,7 @@ def zusammenfassen(buch):
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "norm", "normMeist"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,
@@ -472,7 +501,7 @@ def zusammenfassen(buch):
                      "w": (1 if b.get("win") else 0) if ab else None, "sport": b.get("sport"), "key": b.get("id"),
                      "seite": b.get("auswahl"), "anzeige": b.get("anzeige"), "titel": b.get("titel"), "preis": b.get("preis"),
                      "usd": b.get("usd"), "wallet": b.get("wallet"), "status": "won" if ab and b.get("win") else "lost" if ab else "pending"})
-    return {"messung": messung(buch), "top3": top3_messung(buch), "druck": druck_messung(buch), "walVerlauf": wale, "arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
+    return {"messung": messung(buch), "top3": top3_messung(buch), "druck": druck_messung(buch), "norm": norm_messung(buch), "walVerlauf": wale, "arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
 
 
 def _kennz(ab):

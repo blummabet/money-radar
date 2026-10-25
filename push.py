@@ -979,6 +979,13 @@ def main() -> int:
                 print(f"  druck: {nd} neu im Buch")
         except Exception as exc:  # noqa: BLE001
             print(f"  druck: {exc}")
+        try:                         # Lucas 25.10.: „über der Liga-Norm" still mitmessen — folgt das Ergebnis dem Geld?
+            import norm_mess
+            nn = norm_mess.eintragen(d, buch, JETZT)
+            if nn:
+                print(f"  norm: {nn} neu im Buch")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  norm: {exc}")
         try:
             bilanz.schreiben(bilanz.aktualisieren(buch, JETZT), JETZT)
         except Exception as exc:  # noqa: BLE001  — Auswertung darf das Pushen nie aufhalten
