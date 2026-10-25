@@ -2859,7 +2859,32 @@ function jetztFliesst(D, n=8){
 // auch auf Polymarket/Stake, Liga-Bilanz. Raus: entschieden, klar vorn, Geld unter Quote 1,20 (Absicherung).
 const t3Pushes = s => pushesZu(s).filter(x=>/Halbzeit|Fix/i.test(x.art||""));
 const T3_SIG = [["serie","🔁 Dauerzufluss","var(--bf)"],["push","📣 HZ-Push","var(--down)"],["neu","💶 neues Geld","var(--up)"],
-  ["norm","× Liga-Norm","var(--pin)"],["quote","🔻 Quote gedrückt","var(--hz)"],["poly","🧠 Polymarket","var(--poly)"],["stake","🎰 Stake","var(--stake)"],["liga","Liga trägt","var(--text-2)"]];
+  ["norm","× Liga-Norm","var(--pin)"],["quote","🔻 Quote gedrückt","var(--hz)"],["poly","🧠 Polymarket","var(--poly)"],["stake","🎰 Stake","var(--stake)"],["maerkte","🧩 Mehrere Märkte","var(--up)"],["liga","Liga trägt","var(--text-2)"]];
+// Lucas 25.10.: „wenn parallel mehrere Märkte eines Spiels bespielt werden — Heimsieg, aber auch Über, HZ-Sieg, HZ-Über —
+// ist das ein gutes Zeichen, natürlich keine Kontramärkte". Gezählt werden Familien, nicht Linien (Über 2,5 + Über 3,5 = eine).
+// Ein Markt zählt, wenn ≥ 60 % seines neuen Geldes auf eine Auswahl gehen (≥ €2k Top-5, sonst ≥ €500). Läuft irgendwo Geld
+// dagegen (Heim + Auswärts, Über + Unter) → kein Signal. Muss zu mehrere_maerkte() in top3.py passen.
+const T3_FAM = {sieg:"Sieg", hz:"HZ-Sieg", tore:"Tore", hzt:"HZ-Tore", btts:"Beide treffen"};
+function t3Richtung(s, markt, name){
+  const m = String(markt||""), fam = ({"Match Odds":"sieg","Draw no Bet":"sieg","Half Time":"hz","Both teams to Score?":"btts"})[m]
+    || (/^First Half Goals/.test(m) ? "hzt" : /^Over\/Under .* Goals/.test(m) ? "tore" : null);
+  if(fam==="sieg" || fam==="hz"){ const k = seiteVon(s, name); return k ? [fam, "seite", k] : null; }
+  if(fam==="btts") return [fam, "tore", name==="Yes" ? "over" : "under"];
+  const o = (/^(over|under)/i.exec(String(name||""))||[])[1]?.toLowerCase();
+  return fam && o ? [fam, "tore", o] : null;
+}
+function t3MehrereMaerkte(s, fA, fM){
+  const schwelle = s.top5 ? 2000 : 500, fam = {}, richt = [];
+  for(const m of s.maerkteDetail||[]){
+    const aa = (m.auswahl||[]).filter(a=>a.name!=="Rest" && a.neu>0); if(!aa.length) continue;
+    const a = aa.reduce((x,y)=>y.neu>x.neu?y:x), ges = aa.reduce((x,y)=>x+y.neu,0), rr = t3Richtung(s, m.name, a.name);
+    if(!rr || a.neu<schwelle || a.neu<0.6*ges || (a.quote && a.quote<1.20)) continue;
+    if(!(rr[0] in fam)) fam[rr[0]] = a.name; richt.push(rr);
+  }
+  const f = t3Richtung(s, fM?.name, fA?.name); if(f) richt.push(f);
+  const gegen = ["seite","tore"].some(t=>new Set(richt.filter(x=>x[1]===t).map(x=>x[2])).size>1);
+  return gegen || Object.keys(fam).length<2 ? [] : Object.keys(fam).sort();
+}
 function topDreiDaten(D){
   const LB = (D.ligaBilanz||{}).ligen||{};
   const ou = n => (/^(over|under)/i.exec(String(n||""))||[])[1]?.toLowerCase();
@@ -2882,6 +2907,7 @@ function topDreiDaten(D){
     let fA = top, fM = mk;
     if(se){ const m = md.find(x=>x.name===se.markt), a = m && (m.auswahl||[]).find(x=>x.name===se.auswahl); if(a){ fA = a; fM = m; } }
     if(!fA) return null;
+    const mm = t3MehrereMaerkte(s, fA, fM); if(mm.length) p.maerkte = Math.min(2, 1 + 0.5*(mm.length-2));
     // live drückt jedes Tor und die ablaufende Zeit die Quote (Remis, Unter) — dort zählt der Drop nur bei 0:0 und nicht auf Remis/Unter
     const tore = s.live && s.live.stand ? (s.live.stand[0]||0)+(s.live.stand[1]||0) : 0;
     const zeitDrop = seiteVon(s, fA.name)==="x" || /^under/i.test(fA.name);
@@ -2898,7 +2924,7 @@ function topDreiDaten(D){
     const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
     const summe = Object.values(p).reduce((a,b)=>a+b,0) - (lb?.urteil==="trägt nicht" ? 1 : 0);
     const g = {serie: se && `${se.n}× in Folge`, neu: `+${eur(neu)} in ${s.fensterMin||30} Min`, norm: `×${dez(s.xnorm)} der Liga`,
-      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
+      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, maerkte: mm.length && mm.map(k=>T3_FAM[k]).join(" + "), push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
       poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
       stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
     return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
@@ -2939,10 +2965,10 @@ function topDreiDaten(D){
   return [...bf, ...pm].filter(x=>x.n>=2 && x.summe>=3).sort((a,b)=>b.summe-a.summe).slice(0,3);
 }
 // 23.10. abends (Lucas: „inhaltlich top, optisch muss das richtig geil werden"): jedes Spiel als Radar-Scheibe —
-// sieben Felder rundherum, je Signal eins; leuchtet ein Feld, zieht dieses Signal. Mitte = Punkte. Die Nr. 1 groß
+// je Signal ein Feld rundherum (25.10.: + 🧩 mehrere Märkte), je Signal eins; leuchtet ein Feld, zieht dieses Signal. Mitte = Punkte. Die Nr. 1 groß
 // mit Radar-Sweep und Geld-Säulen der letzten 2 h, Nr. 2 und 3 kompakt daneben.
-const T3_ICO = ["🔁","📣","💶","📏","🔻","🧠","🎰","🏆"];
-const T3_MAX = {serie:4, push:2, neu:3, norm:2, quote:2, poly:2, stake:2, liga:1};
+const T3_ICO = ["🔁","📣","💶","📏","🔻","🧠","🎰","🧩","🏆"];
+const T3_MAX = {serie:4, push:2, neu:3, norm:2, quote:2, poly:2, stake:2, maerkte:2, liga:1};
 let T3_ERST = true;
 function t3Scheibe(p, summe, gross){
   const R = gross ? 62 : 30, sw = gross ? 13 : 7, M = R + sw, u = 2*Math.PI*R, n = T3_SIG.length, spalt = gross ? 7 : 5, len = u/n - spalt;

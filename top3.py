@@ -79,6 +79,48 @@ def _teams_aus_titel(titel):
     return teile[:2] if len(teile) >= 2 else (None, None)
 
 
+# Lucas 25.10.: „wenn parallel mehrere Märkte eines Spiels bespielt werden — Heimsieg, aber auch Über, HZ-Sieg, HZ-Über —
+# ist das ein gutes Zeichen. Natürlich keine Kontramärkte." Gezählt werden FAMILIEN, nicht Linien: Über 2,5 + Über 3,5 ist
+# eine Idee, nicht zwei. Ein Markt zählt, wenn sein neues Geld klar auf eine Seite geht (≥ 60 % des neuen Geldes dort,
+# ≥ €2k in Top-5-Ligen, sonst ≥ €500). Geht Geld irgendwo GEGEN die Richtung (Heim + Auswärts, Über + Unter) → kein Signal.
+FAMILIE = {"Match Odds": "sieg", "Draw no Bet": "sieg", "Half Time": "hz", "Both teams to Score?": "btts"}
+
+
+def _richtung(heim, gast, markt, name):
+    m = str(markt or "")
+    fam = FAMILIE.get(m) or ("hzt" if m.startswith("First Half Goals") else "tore" if re.search(r"Over/Under .* Goals", m) else None)
+    if fam in ("sieg", "hz"):
+        k = seite_von(heim, gast, name)
+        return (fam, "seite", k) if k else None
+    if fam == "btts":
+        return (fam, "tore", "over" if str(name) == "Yes" else "under")
+    if fam:
+        o = _ou(name)
+        return (fam, "tore", o) if o else None
+    return None
+
+
+def mehrere_maerkte(s, fA, fM):
+    """Familien mit gleichgerichtetem neuem Geld — [] wenn weniger als zwei oder etwas dagegen läuft."""
+    schwelle = 2000 if s.get("top5") else 500
+    fam, richt = {}, set()
+    for m in s.get("maerkteDetail") or []:
+        aa = [a for a in m.get("auswahl") or [] if a.get("name") != "Rest" and (a.get("neu") or 0) > 0]
+        if not aa:
+            continue
+        a = max(aa, key=lambda x: x["neu"])
+        r = _richtung(s.get("heim"), s.get("gast"), m.get("name"), a.get("name"))
+        if not r or a["neu"] < schwelle or a["neu"] < 0.6 * sum(x["neu"] for x in aa) or (a.get("quote") and a["quote"] < 1.20):
+            continue
+        fam.setdefault(r[0], a.get("name"))
+        richt.add(r[1:])
+    f = _richtung(s.get("heim"), s.get("gast"), (fM or {}).get("name"), (fA or {}).get("name"))
+    if f:
+        richt.add(f[1:])
+    gegen = any(len({w for t, w in richt if t == typ}) > 1 for typ in ("seite", "tore"))
+    return [] if gegen or len(fam) < 2 else sorted(fam)
+
+
 def rangliste(d, jetzt):
     LB = (d.get("ligaBilanz") or {}).get("ligen") or {}
     serien = d.get("serien") or []
@@ -121,6 +163,9 @@ def rangliste(d, jetzt):
                 fA, fM = a, m
         if not fA:
             continue
+        mm = mehrere_maerkte(s, fA, fM)
+        if mm:
+            p["maerkte"] = min(2, 1 + 0.5 * (len(mm) - 2))
         stand = (lv or {}).get("stand") or [0, 0]
         tore = (stand[0] or 0) + (stand[1] or 0) if lv else 0
         fk = seite_von(s.get("heim"), s.get("gast"), fA.get("name"))
@@ -153,7 +198,7 @@ def rangliste(d, jetzt):
         aus.append({"art": "top3", "id": str(s.get("id")), "heim": s.get("heim"), "gast": s.get("gast"), "liga": s.get("liga"),
                     "anpfiff": s.get("anpfiff"), "live": bool(lv), "top5": bool(s.get("top5")), "normEur": s.get("normEur"), "markt": (fM or {}).get("name"),
                     "auswahl": fA.get("name"), "quote": q, "eur": s.get("eur"), "punkte": round(summe, 2),
-                    "signale": sorted(p), "n": len(p)})
+                    "signale": sorted(p), "n": len(p), "familien": mm})
 
     # Polymarket-Märkte ohne Betfair-Spiel (E-Sport, Tennis, Fußball, den Betfair nicht führt)
     bf_teams = [((team(s.get("heim")), team(s.get("gast"))), _ts(s.get("anpfiff"))) for s in (d.get("radar") or {}).get("spiele") or []]
@@ -211,7 +256,7 @@ def eintragen(d, buch, jetzt):
             b["bestPunkte"] = max(b.get("bestPunkte") or 0, x["punkte"])
             continue
         b = {**x, "rang": rang, "bestRang": rang, "bestPunkte": x["punkte"], "ts": jetzt.isoformat(), "status": "offen",
-             "regel": 1}
+             "regel": 2}   # Regel 2 ab 25.10.: + Signal „mehrere Märkte gleichgerichtet"
         buch.append(b)
         offen[k] = b
         neu += 1
