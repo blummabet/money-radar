@@ -284,7 +284,12 @@ def main() -> int:
     diag = {"kandidaten": len(kand), "faellig": 0, "ohneZuordnung": [], "ohneStatistik": [], "abgerufen": 0, "budget": None}
     if kand and os.environ.get("APISPORTS_KEY"):
         n, info = budget()
-        offen = [s for s in kand if JETZT - (_zeit((cache.get(s["id"]) or {}).get("ts")) or JETZT - timedelta(days=1)) > timedelta(minutes=FRISCH_MIN)]
+        # 25.10.: Ligen ohne Statistik bei API-Football (z. B. 3. Ligen, Reserven, Hongkong-Pokal) nicht jeden Lauf neu
+        # fragen — 30 Min Pause, dann noch einmal (manche liefern erst ab einer gewissen Minute)
+        ohne = (cache.get("_ohneStatistik") or {}).get("ids") or {}
+        ohne = {k: t for k, t in ohne.items() if JETZT - (_zeit(t) or JETZT) < timedelta(minutes=30)}
+        offen = [s for s in kand if s["id"] not in ohne
+                 and JETZT - (_zeit((cache.get(s["id"]) or {}).get("ts")) or JETZT - timedelta(days=1)) > timedelta(minutes=FRISCH_MIN)]
         diag["faellig"], diag["budget"] = len(offen), n
         if n >= 2 and offen:
             fixtures = (get("/fixtures?live=all") or {}).get("response") or []
@@ -304,6 +309,7 @@ def main() -> int:
                 st = statistik((r or {}).get("response"), hid)
                 if not st:
                     diag["ohneStatistik"].append(f"{sp.get('heim')} – {sp.get('gast')}")
+                    ohne[sp["id"]] = JETZT.isoformat()
                 if st:
                     alt_e = cache.get(sp["id"]) or {}
                     e = {"ts": JETZT.isoformat(), "fixture": fid, "statistik": st,
@@ -317,6 +323,8 @@ def main() -> int:
                     e["druck"] = druck_von(e)
                     neue_ticks.extend(ereignisse(sp, vorher, p, alt_e.get("druck"), e["druck"]))
                     cache[sp["id"]] = e
+    if kand and os.environ.get("APISPORTS_KEY"):
+        cache["_ohneStatistik"] = {"ts": JETZT.isoformat(), "ids": ohne}
     CACHE.parent.mkdir(exist_ok=True)
     CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
     live_ids = {s["id"] for s in kand}
