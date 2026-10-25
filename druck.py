@@ -56,7 +56,7 @@ def eintragen(d, buch, jetzt):
                      "index": x["index"], "seite": s, "min": x["min"], "stand": st, "quelle": x.get("quelle"),
                      "lage": "hinten" if eig < geg else "gleich" if eig == geg else "vorn",
                      "geld": bool(x.get("zufluss")), "xgTeam": x["teams"][s]["xg"],
-                     "ts": jetzt.isoformat(), "status": "offen", "regel": 1})
+                     "ts": jetzt.isoformat(), "status": "offen", "regel": 2})   # Regel 2 ab 25.10. 17:20: Tore im Fenster abgezogen
         schon.add(i)
         neu += 1
     return neu

@@ -84,8 +84,11 @@ def druck_von(e):
     for i, seite in enumerate(("heim", "gast")):
         xg = p["xg"][i]
         ueber = max(0.0, xg - _zahl(stand[i]))
-        dxg = max(0.0, xg - _zahl(q["xg"][i])) * f if q and q["xg"][i] is not None else 0.0
-        dat = max(0.0, _zahl(p["at"][i]) - _zahl(q["at"][i])) * f if q else 0.0
+        # Lucas 25.10. (Porto B 1:0, Index 75 mit xG 0,9): das Tor selbst steckte im xG und im Schuss aufs Tor der
+        # letzten 15 Min — Druck, der schon „bezahlt" ist. Tore im Fenster ziehen deshalb je 1 xG und 1 Schuss aufs Tor ab.
+        tore_fenster = max(0.0, _zahl(stand[i]) - _zahl((q.get("st") or [0, 0])[i])) if q else 0.0
+        dxg = max(0.0, xg - _zahl(q["xg"][i]) - tore_fenster) * f if q and q["xg"][i] is not None else 0.0
+        dat = max(0.0, _zahl(p["at"][i]) - _zahl(q["at"][i]) - tore_fenster) * f if q else 0.0
         deck = max(0.0, _zahl(p["eck"][i]) - _zahl(q["eck"][i])) * f if q else 0.0
         wert = ueber + 1.2 * dxg + 0.12 * dat + 0.04 * deck
         teams[seite] = {"xg": round(xg, 2), "tore": stand[i], "aufsTor": p["at"][i], "ecken": p["eck"][i],

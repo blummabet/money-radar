@@ -405,7 +405,8 @@ DRUCK_ZIEL = 100
 def druck_messung(buch):
     """Druck-Radar (Lucas 25.10.): Index ≥ 70 → „noch ein Tor" zur Quote in dem Moment. Gruppen vorab festgelegt (druck.py)."""
     z = [b for b in buch if b.get("art") == "druck"]
-    gruppen = [("Alle", z), ("Index 70–84", [b for b in z if (b.get("index") or 0) < 85]),
+    gruppen = [("Alle", z), ("ab Regel 2 (Tore im Fenster abgezogen)", [b for b in z if (b.get("regel") or 1) >= 2]),
+               ("Index 70–84", [b for b in z if (b.get("index") or 0) < 85]),
                ("Index ab 85", [b for b in z if (b.get("index") or 0) >= 85]),
                ("xG gemessen", [b for b in z if b.get("quelle") == "xG"]), ("xG geschätzt", [b for b in z if b.get("quelle") != "xG"]),
                ("Druck-Team liegt hinten", [b for b in z if b.get("lage") == "hinten"]),
