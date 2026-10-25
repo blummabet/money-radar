@@ -935,7 +935,8 @@ def referenz(w: dict, norm: dict, ebmed: dict):
     st = stufe(w.get("ligaSlug"), w.get("sport"), w.get("ligaId"))
     if not st:
         return None, "unbekannt"
-    n = (norm or {}).get(w.get("liga")) or {}
+    # 25.10.2026: Norm nach Turnier-ID („id:<ligaId>"), sonst nach Name
+    n = ((norm or {}).get("id:%s" % w["ligaId"]) if w.get("ligaId") else None) or (norm or {}).get(w.get("liga")) or {}
     if n.get("basis") == "gelernt" and n.get("median"):
         return float(n["median"]), "liga"
     m = (ebmed or {}).get(st)

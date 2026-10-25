@@ -631,6 +631,14 @@ def seite(w) -> str | None:
     return teams[0] if trifft_a else teams[1]
 
 
+def _norm_fuer(norm, w):
+    """25.10.2026: Norm nach Turnier-ID („id:<ligaId>"), sonst nach Name — wie stake_league_norm.norm_fuer."""
+    norm = norm or {}
+    if w.get("ligaId") and ("id:%s" % w["ligaId"]) in norm:
+        return norm["id:%s" % w["ligaId"]]
+    return norm.get(str(w.get("liga") or ""))
+
+
 def liga_norm(pfad=None) -> dict:
     """{Liganame: Median-Einsatz}. Fehlt die Datei oder die Liga, gibt es keinen Faktor —
     und ohne Faktor kein Push. Fehlende Information ist hier bewusst eine Sperre und kein
@@ -714,7 +722,7 @@ def spiel_bursts(wetten, min_n=None, fenster_s=None, min_usd=None, min_faktor=No
             summe = sum(float(x["einsatzUsd"]) for x in g)
             if summe < min_usd:
                 continue
-            med = norm.get(str(g[0].get("liga") or ""))
+            med = _norm_fuer(norm, g[0])   # 25.10.: nach Turnier-ID, nicht nach Name
             if not med:
                 continue                  # keine Norm = kein Faktor = kein Urteil
             faktor = summe / (med * len(g))
@@ -912,7 +920,7 @@ def tor_bursts(wetten, min_n=None, fenster_s=None, min_usd=None, min_faktor=None
             summe = sum(float(x["einsatzUsd"]) for x in g)
             if summe < min_usd:
                 continue
-            med = norm.get(str(g[0].get("liga") or ""))
+            med = _norm_fuer(norm, g[0])   # 25.10.: nach Turnier-ID, nicht nach Name
             if not med:
                 continue                  # keine Norm = kein Faktor = kein Urteil
             faktor = summe / (med * len(g))
@@ -1411,7 +1419,7 @@ def kleine_liga(wetten, norm=None, ebene_median=None, now=None, min_faktor=None,
     aus = []
     for aid, g in gruppen.items():
         erste, eb = g[0]
-        ref, basis = norm.get(str(erste.get("liga"))), "liga"
+        ref, basis = _norm_fuer(norm, erste), "liga"
         if not ref:
             ref, basis = ebene_median.get(eb), "ebene"
         if not ref and eb == "reserve":

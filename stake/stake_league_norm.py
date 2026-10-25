@@ -107,16 +107,55 @@ def taugt(w: dict) -> bool:
     return _ms(w.get("ts")) is not None
 
 
+# 25.10.2026 (Geldradar, Altlast): die Norm war nach dem ANZEIGENAMEN der Liga verschlüsselt — „Premier League",
+# „Pro League", „Super League" gibt es in mehreren Ländern, die teilten sich eine Norm. Jetzt nach der Turnier-ID von
+# Stake („id:<ligaId>"), der Name nur noch als Rückfall für Wetten ohne ID.
+def schluessel(w: dict) -> str:
+    return "id:%s" % w["ligaId"] if w.get("ligaId") else str(w.get("liga") or "")
+
+
+def norm_fuer(norm: dict, w: dict):
+    """Der Norm-Eintrag einer Wette: erst nach Turnier-ID, dann nach Name (alte Stände, Wetten ohne ID)."""
+    norm = norm or {}
+    if w.get("ligaId") and ("id:%s" % w["ligaId"]) in norm:
+        return norm["id:%s" % w["ligaId"]]
+    return norm.get(str(w.get("liga") or ""))
+
+
+def _umschluesseln(proben: dict, wetten: list) -> dict:
+    """Einmalig: Namens-Reihen auf die ID umhängen, wo der Name eindeutig EINE Liga ist; mehrdeutige Namen
+    (eine Reihe aus mehreren Ligen gemischt) verwerfen — die lernen unter ihren IDs neu."""
+    ids = {}
+    for w in wetten:
+        if w.get("liga") and w.get("ligaId"):
+            ids.setdefault(str(w["liga"]), set()).add(str(w["ligaId"]))
+    aus = {k: v for k, v in proben.items() if k.startswith("id:")}
+    for name, reihe in proben.items():
+        if name.startswith("id:"):
+            continue
+        s = ids.get(name)
+        if not s:
+            aus[name] = reihe                      # nicht im Ledger gesehen — bleibt als Rückfall
+        elif len(s) == 1:
+            k = "id:" + next(iter(s))
+            bekannt = {p[2] for p in aus.get(k) or []}
+            aus[k] = (aus.get(k) or []) + [p for p in reihe if p[2] not in bekannt]
+        # mehrdeutig: weg
+    return aus
+
+
 def nachtragen(state: dict, wetten: list, jetzt: datetime = None) -> dict:
     """Neue Wetten in den Stichprobenstand einarbeiten. Dedupliziert über die Wett-ID —
     derselbe Lauf zweimal ändert nichts."""
     jetzt = jetzt or datetime.now(timezone.utc)
     proben = dict(state.get("samples") or {})
+    if state.get("schluessel") != "id":
+        proben = _umschluesseln(proben, wetten)
     zugang = 0
     for w in wetten:
         if not taugt(w):
             continue
-        liga = w["liga"]
+        liga = schluessel(w)
         reihe = list(proben.get(liga) or [])
         if any(p[2] == w["id"] for p in reihe):
             continue
@@ -138,7 +177,7 @@ def nachtragen(state: dict, wetten: list, jetzt: datetime = None) -> dict:
             del proben[liga]
 
     return {"generatedAt": jetzt.isoformat().replace("+00:00", "Z"),
-            "zugangLetzterLauf": zugang, "samples": proben}
+            "zugangLetzterLauf": zugang, "schluessel": "id", "samples": proben}
 
 
 def norm_bauen(state: dict) -> dict:
