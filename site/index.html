@@ -1125,6 +1125,9 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .t3-gs{display:flex;flex-wrap:wrap;gap:4px 12px}
 .t3-g{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--text-2)}
 .t3-g i{width:8px;height:8px;border-radius:2px;background:var(--f)}
+/* Lucas 25.10.: mehrere Märkte gleichgerichtet = Zusatz, kein Gate — aber sichtbar hervorgehoben */
+.t3-g.hl{color:var(--text);background:color-mix(in srgb,var(--f) 16%,transparent);padding:2px 8px 2px 6px;border-radius:999px}
+.t3-g.hl i{display:none}
 .t3-g.aus{color:var(--text-3);text-decoration:line-through}
 .t3-k:not(.eins) .t3-gs{gap:3px 9px} .t3-k:not(.eins) .t3-g{font-size:11.5px}
 .t3-fuss{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:10px;font-size:11.5px;color:var(--text-3)}
@@ -2924,7 +2927,7 @@ function topDreiDaten(D){
     const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
     const summe = Object.values(p).reduce((a,b)=>a+b,0) - (lb?.urteil==="trägt nicht" ? 1 : 0);
     const g = {serie: se && `${se.n}× in Folge`, neu: `+${eur(neu)} in ${s.fensterMin||30} Min`, norm: `×${dez(s.xnorm)} der Liga`,
-      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, maerkte: mm.length && mm.map(k=>T3_FAM[k]).join(" + "), push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
+      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, maerkte: mm.length && "🧩 " + mm.map(k=>T3_FAM[k]).join(" + "), push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
       poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
       stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
     return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
@@ -3020,7 +3023,7 @@ function topDrei(D){
   const karte = (x, i) => {
     const gross = i===0, p = x.p;
     const zeit = x.live ? `<span class="t3-live"><i></i>${x.live}</span>` : `<span class="t3-zeit">${wann(x.anpfiff)}</span>`;
-    const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>`<span class="t3-g" style="--f:${f}"><i></i>${esc(x.g[k]||n)}</span>`).join("")
+    const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>`<span class="t3-g${k==="maerkte"?" hl":""}" style="--f:${f}"><i></i>${esc(x.g[k]||n)}</span>`).join("")
       + (x.aus ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>${x.aus}</span>` : "");
     return `<div class="t3-k${gross?" eins":""}"${bk("t3|"+x.key, x.wert, x.einheit)} ${x.klick} style="--glow:${T3_SIG.find(([k])=>p[k])[2]}">
       ${t3Scheibe(p, x.summe, gross)}
