@@ -824,8 +824,13 @@ def serie(d):
             ander = next((t for t in teams if t and t != mg.group(1) and mg.group(1) not in t and t not in mg.group(1)), None)
             lab = (ander if (x.get("sport") or "Fußball") != "Fußball" and ander
                    else f"{mg.group(1)} gewinnt nicht" + (f" ({ander} oder Remis)" if ander else ""))
+        # Lucas 26.10. (Nemiga – Aurora: erst $37k auf Nemiga vor Anpfiff, 40 Min später live $117k auf Aurora — „passt
+        # das?"): kam auf denselben Markt in den letzten 3 h schon ein Dauerzufluss auf die ANDERE Seite, steht das dabei.
+        gegen = _poly_gegenrichtung(x)
         text = (f"🔁 <b>Dauerzufluss</b> · Polymarket · <b>{x['n']}× in Folge</b>\n"
-                f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n\n"
+                f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n"
+                + (f"↔️ <b>Gegenrichtung</b>: vor {gegen['vorMin']} Min kam der Dauerzufluss auf <b>{e(gegen['anzeige'])}</b>"
+                   f" @ {gegen['preis']} ¢ — jetzt kippt das Geld\n" if gegen else "") + "\n"
                 f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min auf <b>{e(lab)}</b>"
                 f" @ {round(x['preis'] * 100)} ¢ = Quote <b>{q2(x['quote'])}</b>\n"
                 + _anteil_balken(lab, x.get("anteil"), " der Käufe")
@@ -836,7 +841,8 @@ def serie(d):
         yield key, text, None, {"art": "pserie", "id": x["id"], "titel": x.get("titel"), "heim": None, "gast": None,
                                 "liga": x.get("liga"), "sport": x.get("sport") or "Fußball", "anpfiff": x.get("anpfiff"),
                                 "markt": "Polymarket", "auswahl": x["auswahl"], "anzeige": lab, "quote": x["quote"],
-                                "preis": x.get("preis"), "live": bool(x.get("live")), "top5": bool(x.get("top5")), "n": x["n"]}
+                                "preis": x.get("preis"), "live": bool(x.get("live")), "top5": bool(x.get("top5")), "n": x["n"],
+                                "gegenrichtung": bool(gegen)}
     for x in d.get("stakeSerien") or []:
         if isinstance(x.get("quote"), (int, float)) and x["quote"] < SERIE_PUSH_MIN_QUOTE:
             continue
@@ -849,6 +855,23 @@ def serie(d):
                 + _anteil_balken(x['auswahl'], x.get("anteil"), " der großen Wetten")
                 + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n")
         yield key, text, None
+
+
+def _poly_gegenrichtung(x):
+    """Letzter Polymarket-Dauerzufluss auf denselben Markt, aber eine ANDERE Auswahl, in den letzten 3 h — oder None."""
+    try:
+        import bilanz
+        buch = bilanz.laden()
+    except Exception:  # noqa: BLE001
+        return None
+    for b in reversed(buch):
+        t = ts(b.get("ts"))
+        if not t or JETZT - t > timedelta(hours=3):
+            continue
+        if b.get("art") == "pserie" and b.get("id") == x.get("id") and b.get("auswahl") != x.get("auswahl"):
+            return {"vorMin": round((JETZT - t).total_seconds() / 60), "anzeige": b.get("anzeige") or b.get("auswahl"),
+                    "preis": round((b.get("preis") or 0) * 100)}
+    return None
 
 
 ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake)
