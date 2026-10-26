@@ -1121,7 +1121,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             "id": str(m.get("matchId")), "heim": m.get("home"), "gast": m.get("away"),
             "liga": m.get("league"), "land": m.get("country"), "anpfiff": m.get("kickoff"),
             "live": ({"min": li.get("time"), "stand": [li.get("goal_v1"), li.get("goal_v2")],
-                      "ht": bool(li.get("is_ht"))} if dt_h < 0 else None),
+                      "ht": bool(li.get("is_ht")), "minGeschaetzt": bool(li.get("minGeschaetzt"))} if dt_h < 0 else None),
             # Lucas 17.10. (Everton–Chelsea 90' 0:2, €1,6 Mio „Zufluss"): Geld auf ein entschiedenes
             # Spiel ist Abrechnungs-/Trading-Rauschen bei Quote 1,01–1,05, kein Signal.
             # Lucas 24.10. (Gil Vicente – Porto 75' 0:1, €1 Mio, „find das nirgends"): ab der 70. Minute galt JEDES Spiel als
@@ -2296,9 +2296,36 @@ def markt_charts(radar):
     return {"messbar": bool(vor), "seit": buch[0]["t"] if buch else None, "maerkte": zeilen[:120]}
 
 
+def minuten_pruefen(prices, bf_hist):
+    """Lucas 26.10. (Zakynthos – Pyrgos: 53 Min nach Anpfiff stand „13'"): Betwatch meldet die Spielminute manchmal
+    nicht weiter. Steht die Minute seit ≥ 10 Min still, obwohl laut Uhr Zeit vergangen ist, gilt die Uhr: bis 47 Min
+    nach Anpfiff = Minute, bis 62 = Pause (45'), danach Uhr − 15 (max. 90). Läuft sie nur hinterher, aber weiter
+    (später angepfiffen), bleibt die gemeldete Minute. Korrigierte Spiele tragen liveInfo.minGeschaetzt."""
+    n = 0
+    for m in (prices or {}).get("matches") or []:
+        li = m.get("liveInfo") or {}
+        t, ko = li.get("time"), ts(m.get("kickoff"))
+        if not isinstance(t, (int, float)) or not ko or li.get("finished") or li.get("is_ht"):
+            continue
+        uhr = (JETZT - ko).total_seconds() / 60
+        schaetz = uhr if uhr <= 47 else 45 if uhr <= 62 else min(90, uhr - 15)
+        if schaetz - t < 10:
+            continue
+        pts = [p for p in (bf_hist or {}).get(str(m.get("matchId"))) or [] if isinstance(p, dict) and ts(p.get("ts"))]
+        alt = [p for p in pts if JETZT - ts(p["ts"]) >= timedelta(minutes=10)]
+        if alt and isinstance(alt[-1].get("min"), (int, float)) and alt[-1]["min"] >= t:    # seit 10 Min keine Bewegung
+            li["timeBetwatch"], li["time"], li["minGeschaetzt"] = t, int(schaetz), True
+            if 47 < uhr <= 62:
+                li["is_ht"] = True
+            n += 1
+    if n:
+        FEHLER.append(f"Spielminute bei {n} Spiel(en) nach der Uhr geschätzt (Betwatch-Minute stand still)")
+
+
 def main() -> int:
     prices = laden_bf("betfair_prices.json")
     bf_hist = laden_bf("betfair_history.json")
+    minuten_pruefen(prices, bf_hist)
     bf_norm = eigen("betfair_league_norm.json", default={})            # liga_norm.py
     bf_norm_state = eigen("betfair_league_norm_state.json", default={})
     consensus = laden_bf("betfair_consensus.json", ".pin")
