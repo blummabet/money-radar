@@ -119,6 +119,11 @@ jobs:
         env:
           APISPORTS_KEY: ${{ secrets.APISPORTS_KEY }}
         run: timeout 90 python3 live_stats.py || echo "Live-Statistik fehlgeschlagen, Seite und Pushes laufen ohne"
+      # 26.10.: 30-h-Test — Pinnacle bei API-Football gegen die Odds API (pin_vergleich.py), danach nur noch Auswertung
+      - name: Pinnacle-Vergleich API-Football gegen Odds API (Test)
+        env:
+          APISPORTS_KEY: ${{ secrets.APISPORTS_KEY }}
+        run: timeout 60 python3 pin_vergleich.py || echo "Pinnacle-Vergleich fehlgeschlagen"
       - name: Pushes in den Test-Channel
         if: github.event_name != 'push'
         continue-on-error: true   # ein Fehler beim Pushen darf die Seite nicht vom Veröffentlichen abhalten
