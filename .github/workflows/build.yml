@@ -192,20 +192,18 @@ jobs:
         run: |
           rest=$(( 300 - ($(date +%s) - START) ))
           [ $rest -gt 0 ] && sleep $rest
-          andere=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?per_page=10" \
-            --jq "[.workflow_runs[] | select(.id != ${{ github.run_id }}) | select(.event != \"push\") | select(.status==\"in_progress\") | select((now - (.run_started_at | fromdateiso8601)) < 900)] | length")
-          # 19.10. (GitHub-Störung 15:49 UTC): ein Lauf, der seit über 15 Min „läuft", ist ein Geist (Schritte fertig, Status hängt)
-          # und darf die Kette nicht blockieren.
-          # 18.10.: wartende Läufe zählen NICHT mehr. Ein wartender Lauf kann von einem späteren (z. B. einem Push-Lauf
-          # nach einem Commit) verdrängt werden — dann riss die Kette (13:03–14:03 keine Pushes). Doppelt anstoßen ist
-          # harmlos: die Gruppe „pages" hält höchstens EINEN wartenden Lauf, ein neuer ersetzt den alten.
-          if [ "$andere" = "0" ]; then
-            # 20.10. (17:05 UTC): der Anstoß schlug einmal fehl, der angelegte Lauf blieb als Geist „queued" hängen und die
-            # Kette stand 17 Min. Darum bis zu dreimal versuchen.
-            for v in 1 2 3; do
-              gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main && { echo "nächster Lauf angestoßen"; break; }
-              echo "Anstoß fehlgeschlagen (Versuch $v)"; sleep 15
+          # 26.10. (Kette stand 14:23–17:28 UTC, 3 h ohne Pushes; Zeitplan und Wächter feuerten in der Zeit nicht):
+          # IMMER anstoßen (die Gruppe „pages" hält höchstens einen wartenden Lauf, doppelt ist harmlos) und danach
+          # PRÜFEN, ob GitHub wirklich einen neuen Lauf angelegt hat — sonst bis zu dreimal neu.
+          for v in 1 2 3; do
+            seit=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main || { echo "Anstoß fehlgeschlagen (Versuch $v)"; sleep 10; continue; }
+            for w in 1 2 3 4 5 6; do
+              sleep 10
+              neu=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?per_page=10" \
+                --jq "[.workflow_runs[] | select(.id != ${{ github.run_id }}) | select(.created_at >= \"$seit\")] | length")
+              [ "$neu" != "0" ] && { echo "nächster Lauf angelegt (Versuch $v)"; exit 0; }
             done
-          else
-            echo "es läuft/wartet schon ein Lauf ($andere) — keine zweite Kette"
-          fi
+            echo "kein neuer Lauf sichtbar nach Versuch $v"
+          done
+          echo "::warning::Kette: kein neuer Lauf angelegt — Zeitplan/Wächter müssen übernehmen"
