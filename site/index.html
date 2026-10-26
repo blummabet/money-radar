@@ -869,6 +869,38 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .zr-b i span{font-size:12px;font-weight:700;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .zr-b i span b{font-weight:800}
 @media (max-width:860px){ .zrl{grid-template-columns:1fr} }
+/* Lucas 26.10.: Quellen-Bild im „Wo am meisten liegt"-Fenster */
+.qx{display:flex;flex-direction:column;gap:2px;background:var(--flaeche);border:1px solid var(--rand);border-radius:16px;padding:12px 10px 8px}
+.qx-r{display:grid;grid-template-columns:86px repeat(var(--n), minmax(0,1fr));align-items:center;gap:4px;padding:6px 0;border-top:1px solid var(--line)}
+.qx-h,.qx-alle{border-top:0}.qx-h{padding:0 0 4px}
+.qx-alle{align-items:start;padding-bottom:10px;margin-bottom:2px;border-bottom:1px dashed var(--line)}
+.qx-z{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;text-align:center}
+.qx-h .qx-z b{font-size:13px;font-weight:800;color:var(--text-2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qx-h .qx-z.lead b{color:var(--text)}
+.qx-h .qx-z small{font-size:11.5px;color:var(--text-3);font-weight:600}
+.qx-l{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+.qx-l b{font-size:12.5px;font-weight:800;color:var(--f,var(--text));white-space:nowrap}
+.qx-l small{font-size:11.5px;color:var(--text-3);font-weight:700}
+.qx-k{position:relative;width:62px;height:52px;display:grid;place-items:center}
+.qx-alle .qx-k{height:66px} .qx-alle .qx-l{align-self:center}
+.qx-k i{position:absolute;left:50%;top:50%;width:var(--d);height:var(--d);transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb, var(--f) 20%, transparent);border:1.5px solid color-mix(in srgb, var(--f) 45%, transparent)}
+.qx-k.an i{background:var(--f);border-color:var(--f);box-shadow:0 0 18px color-mix(in srgb, var(--f) 45%, transparent)}
+.qx-k b{position:relative;font-size:12.5px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}
+.qx-k b small{font-size:9px;margin-left:1px}
+.qx-k.an b{color:var(--bg)}
+.qx-alle .qx-k b{font-size:15px}
+.qx-z em{font-style:normal;font-size:11px;font-weight:700;color:var(--text-3);white-space:nowrap}
+.qx-z em{display:flex;flex-direction:column;align-items:center;line-height:1.25} .qx-z em i{font-style:normal;font-weight:800;font-size:12px;padding:0} .qx-z em i.mehr{color:var(--up)} .qx-z em i.weniger{color:var(--down)}
+.qx-leer{color:var(--text-3)}
+.qx-ohne{font-size:12px;color:var(--text-3);justify-self:stretch}
+.qx-r.quer{background:color-mix(in srgb, var(--bf) 7%, transparent);border-radius:10px}
+.qx-urteil{border-radius:12px;padding:10px 12px;font-size:13.5px;font-weight:600}
+.qx-urteil.ok{background:color-mix(in srgb, var(--up) 12%, transparent)}
+.qx-urteil.nein{background:color-mix(in srgb, var(--bf) 14%, transparent)}
+.qx-woher{font-size:12px;color:var(--text-3)} .qx-woher summary{cursor:pointer;font-weight:700}
+.qx-woher div{margin-top:4px}
+.qx-knoepfe{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+@media (max-width:420px){ .qx-r{grid-template-columns:66px repeat(var(--n), minmax(0,1fr))} .qx-k{width:52px} }
 /* Lucas 21.10.: „Wo am meisten liegt" als Duell — halbe Höhe, Spuren je Quelle statt Chips und Text */
 .toepfe.duos{grid-template-columns:repeat(3,minmax(0,1fr))}
 .toepfe.duos .eins{grid-column:1/-1}
@@ -2733,19 +2765,47 @@ function topfKarte(t, i, maxGes){
   </div>`;
 }
 const quellenLegende = () => `<span class="legende">${Object.values(QUELLE).map(q=>`<span><i style="background:${q.f}"></i>${q.n}</span>`).join("")}</span>`;
+// Lucas 26.10. („großer zusammengeklebter Haufen Infos, die ganze Betfair-Ansicht stört — lieber als optischer Hingucker
+// die Quellen, und der Rest per Knopf wie bei der Halbzeit"): das Fenster zeigt jetzt EIN Bild — je Quelle eine Zeile,
+// je Ausgang ein Kreis (Fläche = Anteil des Geldes dieser Quelle). Stehen die kräftigen Kreise in einer Spalte, sind
+// sich die Quellen einig. Betfair im Detail (Säulen, Geldfluss, Märkte) liegt hinter einem Knopf.
 function topfDetail(t){
   const sp = (D.radar.spiele||[]).find(x=>x.id===t.id);
-  const bloecke = Object.entries(t.q||{}).map(([qn,q])=>{
-    const teile = Object.entries(q.seiten||{}).map(([k,v])=>({name:seitenName(t,k), wert:v}));
-    const ges = teile.reduce((a,x)=>a+x.wert,0);
-    const zeilen = teile.sort((a,b)=>b.wert-a.wert).map(x=>`<div class="dz"><div class="dz-l"><b>${esc(nm(x.name))}</b></div><div class="dz-bar"><i style="width:${(x.wert/Math.max(1,ges)*100).toFixed(1)}%;background:${QUELLE[qn].f}"></i></div><div class="dz-r">${geldIn(qn,x.wert)}<small>${Math.round(x.wert/Math.max(1,ges)*100)} %</small></div></div>`).join("");
-    const was = qn==="betfair" ? "gematcht über alle Märkte; Seiten aus dem Sieg-Markt" : qn==="poly" ? `Volumen gesamt; Seiten aus ${q.seitenAus==="Käufe 4 h"?"den Käufen der letzten 4 Stunden":"dem Geld in offenen Positionen"}` : `${q.wetten} Einzelwetten ab $1000 in den letzten 12 h; Seiten aus Sieg-Märkten`;
-    const link = qn==="poly" && q.key ? `<a href="https://polymarket.com/event/${encodeURIComponent(q.key)}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;display:inline-block;margin-top:8px">Auf Polymarket öffnen</a>` : "";
-    return `<div><h4 style="color:${QUELLE[qn].f}">${QUELLE[qn].n}: ${geldIn(qn,q.betrag)}</h4><div class="kk-klein" style="margin-bottom:6px">${was}</div>${zeilen||`<div class="kk-klein">keine Aufteilung nach Seiten</div>`}${link}</div>`;
-  }).join("");
-  const urteil = t.einig===true ? `<div class="tp-banner ok">Alle Quellen mit klarer Meinung sehen dieselbe Seite vorn: <b>${esc(seitenName(t, Object.values(t.meinungen)[0]))}</b></div>`
-    : t.einig===false ? `<div class="tp-banner nein">Die Quellen widersprechen sich: ${Object.entries(t.meinungen).map(([qn,k])=>`${QUELLE[qn].n} → <b>${esc(seitenName(t,k))}</b>`).join(", ")}</div>` : "";
-  return `<tr class="detail"><td colspan="6"><div class="det">${sp?spielVerlauf(sp):""}${urteil}${bloecke}${waleListe(t.wale)}${sp?ohneHuelle(spielDetail(sp,true)).replace(/^<div class="det">/,'<div class="det"><h4 style="margin-top:6px">Betfair im Detail</h4>'):""}</div></td></tr>`;
+  const keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
+  const sw = t.seiten||{}, gesS = keys.reduce((a,k)=>a+(sw[k]||0),0);
+  const lead = gesS ? keys.reduce((a,k)=>(sw[k]||0)>(sw[a]||0)?k:a, keys[0]) : null;
+  const bq = t.q?.betfair?.quoten || {}, pp = t.q?.poly?.preise || {};
+  const quote = k => bq[k] || (pp[k] ? 1/pp[k] : null);
+  const impl = (()=>{ const inv = keys.map(k=>quote(k) ? 1/quote(k) : null); if(inv.some(v=>v==null)) return null; const su = inv.reduce((a,b)=>a+b,0); return Object.fromEntries(keys.map((k,i)=>[k, inv[i]/su*100])); })();
+  const kreis = (anteil, farbe, an, gross) => { const d = Math.round((gross?20:14) + Math.sqrt(Math.max(0,anteil)) * (gross?4.4:3.8));
+    return `<span class="qx-k${an?" an":""}" style="--d:${d}px;--f:${farbe}"><i></i><b>${Math.round(anteil)}<small>%</small></b></span>`; };
+  const zelle = (inhalt, k, extra="") => `<div class="qx-z${k===lead?" lead":""}" ${extra}>${inhalt}</div>`;
+  const kopfZ = `<div class="qx-r qx-h"><span></span>${keys.map(k=>zelle(`<b>${esc(k2n(t,k))}</b>${quote(k)?`<small>@ ${q2(quote(k))}</small>`:""}`, k)).join("")}</div>`;
+  const alle = gesS ? `<div class="qx-r qx-alle"><span class="qx-l"><b>Zusammen</b><small>${eur(t.gesamt)}</small></span>${keys.map(k=>{ const a = (sw[k]||0)/gesS*100, d = impl ? a - impl[k] : null;
+      return zelle(`${kreis(a, "var(--text)", k===lead, true)}${impl?`<em title="so viel Geld ließe die Quote erwarten">Quote ${Math.round(impl[k])} %${d!=null&&Math.abs(d)>=5?`<i class="${d>0?"mehr":"weniger"}">${d>0?"▲":"▼"} ${Math.round(Math.abs(d))} pp</i>`:""}</em>`:""}`, k); }).join("")}</div>` : "";
+  const qs = Object.entries(t.q||{}).filter(([,q])=>q.betrag>0).sort((a,b)=>b[1].betrag-a[1].betrag);
+  const zeilen = qs.map(([qn,q])=>{ const se = q.seiten||{}, g = keys.reduce((a,k)=>a+(se[k]||0),0);
+    const top = g ? keys.reduce((a,k)=>(se[k]||0)>(se[a]||0)?k:a, keys[0]) : null, quer = top && lead && top!==lead && q.meinung!==false;
+    return `<div class="qx-r${quer?" quer":""}" style="--f:${QUELLE[qn].f}"><span class="qx-l"><b>${QUELLE[qn].n}${quer?` <span title="setzt auf eine andere Seite als die Mehrheit">↯</span>`:""}</b><small>${geldIn(qn,q.betrag)}</small></span>
+      ${g ? keys.map(k=>zelle(se[k]>0?kreis(se[k]/g*100, QUELLE[qn].f, k===top):`<span class="qx-leer">–</span>`, k, `title="${esc(QUELLE[qn].n)} auf ${esc(k2n(t,k))}: ${geldIn(qn,se[k]||0)}"`)).join("")
+          : `<div class="qx-z qx-ohne" style="grid-column:span ${keys.length}">nur Volumen, keine Aufteilung nach Seiten</div>`}</div>`; }).join("");
+  const urteil = t.einig===true ? `<div class="qx-urteil ok">✓ Alle Quellen mit klarer Meinung sehen <b>${esc(seitenName(t, Object.values(t.meinungen)[0]))}</b> vorn</div>`
+    : t.einig===false ? `<div class="qx-urteil nein">⚡ Uneinig: ${Object.entries(t.meinungen).map(([qn,k])=>`${QUELLE[qn].n} → <b>${esc(seitenName(t,k))}</b>`).join(", ")}</div>` : "";
+  const woher = qs.map(([qn,q])=> `<div><b style="color:${QUELLE[qn].f}">${QUELLE[qn].n}</b>: ${qn==="betfair" ? "gematcht über alle Märkte, Seiten aus dem Sieg-Markt" : qn==="poly" ? `Volumen gesamt, Seiten aus ${q.seitenAus==="Käufe 4 h"?"den Käufen der letzten 4 Stunden":"dem Geld in offenen Positionen"}` : `${q.wetten} Einzelwetten ab $1000 in den letzten 12 h, Seiten aus Sieg-Märkten`}</div>`).join("");
+  // Kopf ohne Betfair-Zahlen (die stehen hinter dem Knopf) — Merken/Teilen bleiben
+  const kopf = `<div class="dk"><div class="dk-1">${t.land?flagge(t.land):sportIco(t.sport)}<span>${esc(ligaName(t.liga)||t.liga||t.sport||"")}</span>${t.live?`<span class="dk-live">● ${t.live.min!=null?t.live.min+"'":"live"}${t.live.stand?.[0]!=null?" · "+t.live.stand.join(":"):""}</span>`:t.laeuft?`<span class="dk-live">● läuft</span>`:`<span class="mk-zeit">${wann(t.anpfiff)}</span>`}${sp?`<span class="dk-knoepfe">${merkKnopf(sp)}<button class="dk-teilen" data-teilen="${esc(String(sp.id))}" aria-label="Teilen">↗ Teilen</button></span>`:""}</div></div>`;
+  const pq = t.q?.poly;
+  return `<tr class="detail"><td colspan="6"><div class="det">
+    ${kopf}
+    <div class="qx" style="--n:${keys.length}">${kopfZ}${alle}${zeilen}</div>
+    ${urteil}
+    <details class="qx-woher"><summary>Woher die Zahlen kommen</summary>${woher}<div>Kreisfläche = Anteil am Geld dieser Quelle · kräftig = ihre Hauptseite · ▲▼ = so viel mehr/weniger Geld, als die Quote erwarten lässt</div></details>
+    ${waleListe(t.wale)}
+    <div class="qx-knoepfe">
+      ${sp?`<button class="dr-weiter" ${klickSpiel(sp)}>Betfair im Detail <span>Säulen, Geldfluss, alle Märkte →</span></button>`:""}
+      ${pq?.key?`<a class="dr-weiter" href="https://polymarket.com/event/${encodeURIComponent(pq.key)}" target="_blank" rel="noopener" style="text-decoration:none">Auf Polymarket öffnen <span>Markt und Orderbuch →</span></a>`:""}
+    </div>
+  </div></td></tr>`;
 }
 // Lucas 18.10.: laufende Spiele zugeklappt ans Ende — eine Zeile, Aufteilung ZUM ANPFIFF (live verzerrt der
 // Handel auf den Führenden den Anteil). Führt ein Team unter Quote 1,40, ist das Spiel schon raus (build.py).
