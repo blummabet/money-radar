@@ -2363,6 +2363,8 @@ def main() -> int:
     pdz = daten.get("pinnDrops") or {}
     (OUT.parent / "stand.json").write_text(json.dumps({
         "generatedAt": daten["generatedAt"], "quellen": daten["quellen"],
+        # Lucas 26.10. (Odds API kostet >100 €/Monat — ersetzbar durch API-Football?): Verbrauch sichtbar machen
+        "oddsKontingent": {**((consensus or {}).get("oddsKontingent") or {}), "stand": (consensus or {}).get("generatedAt")},
         "pinnScan": {"stand": pdz.get("stand"), "spiele": pdz.get("n"), "vor": len(pdz.get("vor") or []),
                      "live": len(pdz.get("live") or []),
                      "beispiele": [f"{x['liga']}: {x['auf']} +{x['pp']} pp" for x in (pdz.get("live") or []) + (pdz.get("vor") or [])][:6]},
