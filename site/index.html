@@ -3816,10 +3816,22 @@ function standZeigen(){
   el.textContent = min<=1 ? (kurz ? "gerade neu" : "gerade aktualisiert") : kurz ? `${uhr(D.generatedAt)} · vor ${min<60?min+" Min":Math.round(min/60)+" h"}` : `Stand ${uhr(D.generatedAt)} · vor ${min} Min`;
   el.classList.toggle("frisch", min<=1);
 }
+// Lucas 26.10. („teilweise 10 Min nichts neu"): das CDN hält data.json bis 10 Min und ignoriert ?t=. Erst den Zeiger
+// holen (zufälliger Pfad → 404.html frisch vom Ursprung, ~1 KB), dann die Datei genau dieses Stands (nie gecacht).
+let ZEIGER = null;
+async function frischeDaten(){
+  try{
+    const z = await fetch("z/"+Date.now()+Math.random().toString(36).slice(2), {cache:"no-store"});
+    const m = /data-stand="(d\/\d+\.json)"/.exec(await z.text());
+    if(m){ if(m[1]===ZEIGER && D) return null; const r = await fetch(m[1]); if(r.ok){ const neu = await r.json(); ZEIGER = m[1]; return neu; } }
+  }catch(_){}
+  const r = await fetch("data.json?t="+Date.now(), {cache:"no-store"});
+  return r.json();
+}
 async function laden(){
   try{
-    const r = await fetch("data.json?t="+Date.now(), {cache:"no-store"});
-    const neu = await r.json();
+    const neu = await frischeDaten();
+    if(!neu){ standZeigen(); return; }
     if(STAND && neu.generatedAt===STAND){ standZeigen(); return; }
     const erstes = !STAND; STAND = neu.generatedAt; D = neu;
     quellen(D.quellen||{});
@@ -3873,9 +3885,10 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape") drZu(); if(e.key=
 document.addEventListener("keydown", e=>{ if(e.key==="Enter"){ const tr=e.target.closest?.("tr.zeile"); if(tr) aufklappen(tr); } });
 try{ const s = localStorage.getItem("radar-seite2"); if(s && SEITEN.some(x=>x[0]===s)) aktiv = s; }catch(_){}
 laden();
-setInterval(laden, 60*1000);
+setInterval(laden, 30*1000);   // der Zeiger ist ~1 KB, die Daten kommen nur bei neuem Stand
 setInterval(standZeigen, 20*1000);
 document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) laden(); });
+addEventListener("pageshow", ()=>laden()); addEventListener("focus", ()=>laden());
 document.addEventListener("pointermove", ev=>{ if(ev.target.closest && ev.target.closest(".bc-flaeche")) bcZeigen(ev); else document.querySelectorAll(".bc-hair,.bc-tip").forEach(x=>x.style.opacity=0); });
 </script>
 </body>

@@ -175,6 +175,24 @@ jobs:
               except Exception: pass
           print(f"Caches: {len(alle)} gesamt, {n} alte gelöscht, {len(weg) - n} bleiben für später")
           PY
+      # 26.10.2026 (Lucas: „teilweise 10 Min nichts neu, obwohl 5 Min"): das Pages-CDN (Fastly) hält data.json bis
+      # 10 Min und ignoriert ?t=… — gemessen in Wien: neue Query, trotzdem HIT mit age > 0. Deshalb bekommt jeder Stand
+      # eine EIGENE Datei d/<stand>.json (nie zuvor abgefragt → kommt frisch vom Ursprung), und der Zeiger darauf
+      # steht in 404.html: eine Abfrage auf einen zufälligen Pfad ist immer ein MISS und liefert den aktuellen Zeiger.
+      - name: Frische-Zeiger (eigene Datei je Stand)
+        run: |
+          python3 - <<'PY'
+          import json, re, shutil
+          from pathlib import Path
+          d = json.loads(Path("site/data.json").read_text(encoding="utf-8"))
+          stempel = re.sub(r"[^0-9]", "", d.get("generatedAt", ""))[:14] or "0"
+          Path("site/d").mkdir(exist_ok=True)
+          shutil.copy("site/data.json", f"site/d/{stempel}.json")
+          Path("site/404.html").write_text(f"""<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Geldradar</title>
+          <style>body{{font:16px system-ui,sans-serif;background:#0f141c;color:#e8edf5;display:grid;place-items:center;min-height:100vh;margin:0}}a{{color:#ffb547}}</style></head>
+          <body data-stand="d/{stempel}.json"><p>Diese Seite gibt es nicht. <a href="/money-radar/">Zum Geldradar</a></p></body></html>""", encoding="utf-8")
+          print("Zeiger:", stempel)
+          PY
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
