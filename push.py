@@ -833,8 +833,10 @@ def serie(d):
                    f" @ {gegen['preis']} ¢ — jetzt kippt das Geld\n" if gegen else "") + "\n"
                 f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min auf <b>{e(lab)}</b>"
                 f" @ {round(x['preis'] * 100)} ¢ = Quote <b>{q2(x['quote'])}</b>\n"
-                + _anteil_balken(lab, x.get("anteil"), " der Käufe")
-                + "<i>alle Polymarket-Käufe in diesem Markt, nicht nur Wale</i>\n"
+                # Lucas 26.10. („erst 92 %, dann 97 % auf die andere Seite — wie geht das?"): der Anteil gilt nur für DIESES
+                # Zeitfenster, nicht für den ganzen Markt — steht jetzt dabei, samt Summe aller Käufe darin
+                + _anteil_balken(lab, x.get("anteil"), f" der Käufe in diesen {x['dauerMin']} Min")
+                + f"<i>alle Polymarket-Käufe in diesem Markt in dem Zeitraum: {geld(round(x['usd'] * 100 / max(1, x.get('anteil') or 100)), '$')}, nicht nur Wale</i>\n"
                 + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
         # Lucas 20.10.: Polymarket-Dauerzufluss ins Buch — Preis zum Push, abgerechnet über das Gamma-Ereignis
