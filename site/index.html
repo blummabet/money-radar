@@ -1832,7 +1832,7 @@ function dChips(s, fl, fm){
   const c = [], neu = fl.reduce((a,x)=>a+x.neu,0);
   // wo das meiste Geld liegt (Stand, ohne Absicherungsgeld)
   let best = null;
-  for(const m of s.maerkteDetail||[]){ const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1;
+  for(const m of s.maerkteDetail||[]){ if(marktEntschieden(s, m.name)) continue; const ges = m.auswahl.reduce((x,a)=>x+a.eur,0)||1;
     for(const a of m.auswahl) if(a.name!=="Rest" && !(a.quote && a.quote<1.15) && (!best || a.eur>best.a.eur)) best = {m, a, ant: Math.round(a.eur/ges*100)}; }
   if(best) c.push(`<span class="dc stand">🏦 meistes Geld: <b>${esc(auswahlDe(best.a.name))}</b> ${best.ant} % · ${eur(best.a.eur)}${best.a.quote?` <small>@ ${q2(best.a.quote)}</small>`:""}</span>`);
   if(neu>0) c.push(neuNennenswert(s, neu) ? `<span class="dc stark">⚡ +${eur(neu)} <small>in ${fm} Min</small></span>` : `<span class="dc leise">ruhig: +${eur(neu)} in ${fm} Min</span>`);
@@ -1888,11 +1888,23 @@ function geldJeMarkt(s){
 //  · Fläche nach Geld^0,6 statt linear: der große Markt bleibt klar der größte, die kleinen bleiben lesbar
 //  · höchstens 6 Kacheln, der Rest als eine Kachel „+N weitere"
 //  · jede Kachel ist ein Topf: unten hell = lag schon drin, oben kräftig = neu in diesem Fenster (24.10.: neu oben)
+// Lucas 27.10. (Agniputhra 74' 1:2: „Über 1,5 als größte Kachel macht bei 1:2 keinen Sinn"): Märkte, die der
+// Spielstand schon entschieden hat, sind Abrechnung, kein Signal — raus aus Wand, Chips und Geldfluss.
+function marktEntschieden(s, markt){
+  if(!s || !s.live || !s.live.stand || s.live.stand[0]==null) return false;
+  const h = s.live.stand[0]||0, g = s.live.stand[1]||0, tore = h + g, m = String(markt||"");
+  let x = /^Over\/Under (\d+\.5) Goals$/.exec(m); if(x) return tore > parseFloat(x[1]);
+  x = /^First Half Goals (\d+\.5)$/.exec(m); if(x && s.live.min!=null && s.live.min<=45) return tore > parseFloat(x[1]);
+  if(/^Both teams to Score/i.test(m)) return h>0 && g>0;
+  return false;
+}
 function marktWand2(s){
   const fm = s.fensterMin || 30;
   // Lucas 24.10.: kleine Märkte ausblenden — unter €1k, in Top-5-Spielen unter €5k
   const min = s.top5 ? 5000 : 1000;
-  const md = (s.maerkteDetail||[]).filter(m=>m.eur>=min).sort((a,b)=>b.eur-a.eur); if(!md.length) return "";
+  const durch = (s.maerkteDetail||[]).filter(m=>m.eur>=min && marktEntschieden(s, m.name));
+  const durchZeile = durch.length ? `<div class="kk-klein" style="margin-top:6px">Schon entschieden und ausgeblendet: ${durch.map(m=>`${esc(marktDe(m.name))} ${eur(m.eur)}`).join(", ")}</div>` : "";
+  const md = (s.maerkteDetail||[]).filter(m=>m.eur>=min && !marktEntschieden(s, m.name)).sort((a,b)=>b.eur-a.eur); if(!md.length) return durchZeile;
   const neuM = m => (m.auswahl||[]).reduce((x,a)=>x+Math.max(0,a.neu||0),0);
   const totM = m => { const top = (m.auswahl||[]).filter(a=>a.name!=="Rest").reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null); return !!(top && top.quote && top.quote<1.15); };
   let K = md.slice(0, 8), weg = md.slice(8);
@@ -1925,7 +1937,7 @@ function marktWand2(s){
       </div></div>`; }).join("");
   return `<div class="gm-kopf">${gesNeu>0?`<b>+${eur(gesNeu)}</b> neu in ${fm} Min · `:""}<span class="gm-leg"><i class="a"></i>lag schon drin <i class="n"></i>neu dazu (oben)</span></div>
     <div class="w2" style="height:${H}px">${html}</div>
-    <div class="kk-klein" style="margin-top:6px">Kachel antippen = alle Auswahlen des Markts</div>`;
+    <div class="kk-klein" style="margin-top:6px">Kachel antippen = alle Auswahlen des Markts</div>${durchZeile}`;
 }
 // Lucas 24.10. („Wall-Element anklicken → es wächst animiert und zeigt Details, die anderen verschwinden"):
 // je Auswahl ein eigener kleiner Topf — Höhe = Geld darauf, oben kräftig = neu, darunter Quote mit Pfeil (vs. ~1 h).
@@ -1975,7 +1987,7 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
   const md = s.maerkteDetail || [], fm = s.fensterMin || 30;
   const PAL = ["var(--bf)","var(--pin)","var(--text-3)","var(--poly)","var(--stake)","var(--hz)"];
   const fl = [];
-  for(const m of md) for(const a of m.auswahl) if(a.neu>0) fl.push({markt:m.name, name:a.name, neu:a.neu, eur:a.eur, quote:a.quote, anteil: m.neu? Math.round(a.neu/m.neu*100):null});
+  for(const m of md) if(!marktEntschieden(s, m.name)) for(const a of m.auswahl) if(a.neu>0) fl.push({markt:m.name, name:a.name, neu:a.neu, eur:a.eur, quote:a.quote, anteil: m.neu? Math.round(a.neu/m.neu*100):null});
   // Absicherungsgeld (Quote unter 1,15) ans Ende, sonst nach Betrag
   fl.sort((x,y)=>((x.quote&&x.quote<1.15)-(y.quote&&y.quote<1.15)) || (y.neu-x.neu));
   const neu = fl.reduce((a,x)=>a+x.neu,0);
