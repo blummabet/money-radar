@@ -25,7 +25,8 @@ import re
 import unicodedata
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 PRICES_FILE    = "betfair_prices.json"
 DIRECTION_FILE = "betfair_direction.json"
@@ -1543,7 +1544,15 @@ def zaehle_keys(events_by_key: dict) -> dict:
             "events": sum(len(v) for v in d.values() if hasattr(v, "__len__"))}
 
 
-def _kontingent_merken(resp):
+def _kontingent_merken(resp, art="h2h"):
+    # 28.10.2026 (Lucas: „wie viele Abrufe brauchen die Cards wirklich, wie viel der Rest?"): je Lauf die Kosten
+    # mitzählen (x-requests-last). Zusammen mit dem Gesamtzähler „used" trennt das unseren Verbrauch vom alten Projekt.
+    try:
+        k = int(float(resp.headers.get("x-requests-last") or 0))
+        KONTINGENT["lauf"] = int(KONTINGENT.get("lauf") or 0) + k
+        KONTINGENT["lauf_" + art] = int(KONTINGENT.get("lauf_" + art) or 0) + k
+    except (TypeError, ValueError):
+        pass
     for kopf, feld in (("x-requests-used", "used"), ("x-requests-remaining", "remaining")):
         v = resp.headers.get(kopf)
         if v is None:
@@ -1552,6 +1561,36 @@ def _kontingent_merken(resp):
             KONTINGENT[feld] = int(float(v))
         except (TypeError, ValueError):
             pass
+
+
+VERBRAUCH = Path(__file__).resolve().parent / ".pin" / "odds_verbrauch.json"
+
+
+def verbrauch_loggen(k, jetzt=None, pfad=None):
+    """Je Lauf (Zeit, Gesamtzähler, unsere Kosten) anhängen, 7 Tage halten und die letzten 24 h auswerten:
+    gesamt = Anstieg des Zählers, neu = Summe unserer Läufe, alt = Rest (altes Projekt + alles andere)."""
+    pfad = pfad or VERBRAUCH
+    jetzt = jetzt or datetime.now(timezone.utc)
+    try:
+        log = json.loads(pfad.read_text(encoding="utf-8"))
+    except Exception:
+        log = []
+    if k.get("used") is not None:
+        log.append([jetzt.isoformat(), int(k["used"]), int(k.get("lauf") or 0)])
+    grenze = (jetzt - timedelta(days=7)).isoformat()
+    log = [x for x in log if x[0] >= grenze]
+    try:
+        pfad.parent.mkdir(exist_ok=True)
+        pfad.write_text(json.dumps(log), encoding="utf-8")
+    except Exception:
+        pass
+    tag = [x for x in log if x[0] >= (jetzt - timedelta(hours=24)).isoformat()]
+    if len(tag) < 2:
+        return {"tag": None}
+    gesamt = tag[-1][1] - tag[0][1]
+    neu = sum(x[2] for x in tag[1:])
+    std = (datetime.fromisoformat(tag[-1][0]) - datetime.fromisoformat(tag[0][0])).total_seconds() / 3600
+    return {"tag": {"stunden": round(std, 1), "gesamt": gesamt, "neu": neu, "rest": gesamt - neu, "laeufe": len(tag) - 1}}
 
 
 def fetch_odds(sport_key):
@@ -1606,6 +1645,7 @@ def fetch_totals(sport_key):
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "cocobet-consensus"})
         with urllib.request.urlopen(req, timeout=ODDS_TIMEOUT_S) as r:
+            _kontingent_merken(r, "totals")
             data = json.load(r)
         return data if isinstance(data, list) else []
     except Exception as e:
@@ -1933,7 +1973,7 @@ def main():
            "oddsTotals": dict(zaehle_keys(totals_by_key),
                               gewollt=len(_tot_keys),
                               ausgelassen=max(0, len(_tot_keys) - len(totals_by_key))),
-           "oddsKontingent": dict(KONTINGENT),
+           "oddsKontingent": dict(KONTINGENT, **verbrauch_loggen(KONTINGENT)),
            "ankerQuote": (round(sum(1 for g in games if g.get("pinn")) / len(games), 3)
                           if games else None),
            "games": games}
