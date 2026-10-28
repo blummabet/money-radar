@@ -760,6 +760,22 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .ls{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:11.5px;color:var(--text-3);margin-top:4px}
 .ls b,.jf-l .ls b{display:inline;color:var(--text);font-weight:700;font-size:inherit;white-space:nowrap}
 .jf-l .ls span{display:inline}
+/* Lucas 28.10.: Live-Statistik im Spiel-Fenster als Duell-Zeilen */
+.lsg{background:var(--flaeche);border:1px solid var(--rand);border-radius:16px;padding:12px 14px 6px}
+.lsg-kopf{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;font-size:13px;font-weight:800;margin-bottom:6px}
+.lsg-kopf .h{color:var(--pin);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lsg-kopf .g{color:var(--hz);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lsg-kopf em{font-style:normal;font-size:12px;font-weight:700;color:var(--text-3)}
+.lsr{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;row-gap:4px;padding:6px 0}
+.lsr+.lsr{border-top:1px solid var(--line)}
+.lsr-n{text-align:center;font-size:12px;color:var(--text-3);font-weight:600}
+.lsr b{font-size:16px;font-weight:700;color:var(--text-2);font-variant-numeric:tabular-nums}
+.lsr-g{text-align:right}
+.lsr.h .lsr-h{color:var(--pin);font-weight:900} .lsr.g .lsr-g{color:var(--hz);font-weight:900}
+.lsr-bar{grid-column:1 / -1;display:flex;gap:3px;height:6px}
+.lsr-bar i{border-radius:3px;min-width:3px}
+.lsr-bar i.h{background:color-mix(in srgb, var(--pin) 30%, transparent)} .lsr-bar i.g{background:color-mix(in srgb, var(--hz) 30%, transparent)}
+.lsr.h .lsr-bar i.h{background:var(--pin)} .lsr.g .lsr-bar i.g{background:var(--hz)}
 .ls-k{color:var(--text-2);font-weight:700}
 .ls-b{flex:1 0 60px;max-width:120px;height:6px;border-radius:3px;background:color-mix(in srgb, var(--hz) 35%, var(--panel-3));overflow:hidden}
 .ls-b i{display:block;height:100%;background:var(--pin)}
@@ -2956,6 +2972,17 @@ function liveStat(id, gross){
   const xg = h.xg!=null && g.xg!=null ? (h.xg+g.xg>0 ? h.xg/(h.xg+g.xg)*100 : 50) : null;
   const zeile = [paar("xg","xG",v=>dez(v,2)), paar("aufsTor","aufs Tor"), paar("ecken","Ecken"), gross?paar("schuesse","Schüsse"):"", gross?paar("ballbesitz","Ballbesitz",v=>Math.round(v)+" %"):""].filter(Boolean).join("");
   if(!zeile) return "";
+  // Lucas 28.10. („Statistik-Bereich schöner, damit schneller erkennbar"): im Spiel-Fenster je Kennzahl eine Zeile —
+  // Heim-Wert · Name · Gast-Wert, darunter ein geteilter Balken; die stärkere Seite kräftig.
+  if(gross){
+    const sp = (D.radar.spiele||[]).find(y=>String(y.id)===String(id)) || {};
+    const reihe = (f, lab, fmt=v=>v) => { if(h[f]==null || g[f]==null) return "";
+      const a = +h[f]||0, b = +g[f]||0, su = a+b, pa = su>0 ? a/su*100 : 50, vorn = a>b ? "h" : b>a ? "g" : "";
+      return `<div class="lsr ${vorn}"><b class="lsr-h">${fmt(h[f])}</b><span class="lsr-n">${lab}</span><b class="lsr-g">${fmt(g[f])}</b>
+        <div class="lsr-bar"><i class="h" style="width:${pa.toFixed(1)}%"></i><i class="g" style="width:${(100-pa).toFixed(1)}%"></i></div></div>`; };
+    const zeilen = [reihe("xg","xG",v=>dez(v,2)), reihe("aufsTor","Aufs Tor"), reihe("schuesse","Schüsse"), reihe("ecken","Ecken"), reihe("ballbesitz","Ballbesitz",v=>Math.round(v)+" %")].join("");
+    return `<div class="lsg"><div class="lsg-kopf"><span class="h">${esc(sp.heim||"Heim")}</span><em>📊 ${x.min?x.min+"'":"live"}</em><span class="g">${esc(sp.gast||"Gast")}</span></div>${zeilen}</div>`;
+  }
   return `<div class="ls${gross?" gross":""}"><span class="ls-k">📊${x.min?` ${x.min}'`:""}</span>${zeile}${xg!=null?`<div class="ls-b" title="xG-Anteil"><i style="width:${xg.toFixed(0)}%"></i></div>`:""}</div>`;
 }
 // Lucas 19.10.: dasselbe Spiel bekam in den letzten 30 Min auch auf Polymarket / Stake Geld → kleiner Chip, sonst nichts
