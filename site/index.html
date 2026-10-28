@@ -1863,7 +1863,7 @@ function geldJeMarkt(s){
   const fm = s.fensterMin || 30;
   const md = (s.maerkteDetail||[]).filter(m=>m.eur >= (s.top5 ? 5000 : 1000));
   if(!md.length) return "";
-  const totM = m => { const top = (m.auswahl||[]).filter(a=>a.name!=="Rest").reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null); return !!(top && top.quote && top.quote<1.15); };
+  const totM = m => { if(m.abs) return true; const top = (m.auswahl||[]).filter(a=>a.name!=="Rest").reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null); return !!(top && top.quote && top.quote<1.15); };
   const neuM = m => (m.auswahl||[]).reduce((x,a)=>x+Math.max(0,a.neu||0),0);
   const L = md.slice().sort((a,b)=>(totM(a)-totM(b)) || (neuM(b)-neuM(a)) || (b.eur-a.eur));
   const maxE = Math.max(1, ...L.map(m=>m.eur)), gesNeu = L.reduce((x,m)=>x+neuM(m),0);
@@ -1904,9 +1904,11 @@ function marktWand2(s){
   const min = s.top5 ? 5000 : 1000;
   const durch = (s.maerkteDetail||[]).filter(m=>m.eur>=min && marktEntschieden(s, m.name));
   const durchZeile = durch.length ? `<div class="kk-klein" style="margin-top:6px">Schon entschieden und ausgeblendet: ${durch.map(m=>`${esc(marktDe(m.name))} ${eur(m.eur)}`).join(", ")}</div>` : "";
-  const md = (s.maerkteDetail||[]).filter(m=>m.eur>=min && !marktEntschieden(s, m.name)).sort((a,b)=>b.eur-a.eur); if(!md.length) return durchZeile;
+  // Lucas 28.10. („20k rein, aber nur eine Kachel"): Märkte mit Kleinstquote (< 1,10) kommen als graue Absicherungs-Kachel dazu
+  const abs = (s.maerkteAbs||[]).filter(m=>m.eur>=min && !marktEntschieden(s, m.name)).map(m=>({...m, abs:true}));
+  const md = [...(s.maerkteDetail||[]).filter(m=>m.eur>=min && !marktEntschieden(s, m.name)), ...abs].sort((a,b)=>b.eur-a.eur); if(!md.length) return durchZeile;
   const neuM = m => (m.auswahl||[]).reduce((x,a)=>x+Math.max(0,a.neu||0),0);
-  const totM = m => { const top = (m.auswahl||[]).filter(a=>a.name!=="Rest").reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null); return !!(top && top.quote && top.quote<1.15); };
+  const totM = m => { if(m.abs) return true; const top = (m.auswahl||[]).filter(a=>a.name!=="Rest").reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null); return !!(top && top.quote && top.quote<1.15); };
   let K = md.slice(0, 8), weg = md.slice(8);
   if(weg.length === 1){ K = md.slice(0, 9); weg = []; }
   const kach = K.map(m=>({m, eur:m.eur, neu:neuM(m)}));

@@ -863,8 +863,10 @@ def quote_vor(snaps, minuten=60):
     return {mk: {n: v[1] for n, v in sel.items() if isinstance(v, list) and len(v) > 1} for mk, sel in vor["sel"].items()}
 
 
-def maerkte_detail(m, snaps, minuten):
-    """Die geldstärksten Märkte eines Spiels mit Geld + Quote je Auswahl und dem Zufluss je Auswahl."""
+def maerkte_detail(m, snaps, minuten, nur_abs=False):
+    """Die geldstärksten Märkte eines Spiels mit Geld + Quote je Auswahl und dem Zufluss je Auswahl.
+    nur_abs=True: stattdessen die Märkte, die hier wegen Kleinstquote (< 1,10) rausfallen — Lucas 28.10. („da kamen
+    20k rein, man sieht aber nur eine Kachel"): die Wand zeigt sie grau als Absicherung, damit kein Geld verschwindet."""
     dl = sel_delta(snaps, minuten)
     qv = quote_vor(snaps)
     out = []
@@ -882,7 +884,7 @@ def maerkte_detail(m, snaps, minuten):
         # Lucas 18.10.: „Über/Unter 7,5 @1,01 — wertlos, brauch ich nicht". Ein Markt, dessen meistgesetzte
         # Auswahl unter 1,10 steht (oder schon entschieden ist), sagt nichts mehr → nicht zeigen.
         quoten = [r.get("odd") for r in mk.get("runners") or [] if isinstance(r, dict) and isinstance(r.get("odd"), (int, float)) and r.get("odd") > 1]
-        if quoten and min(quoten) < 1.10:
+        if (bool(quoten) and min(quoten) < 1.10) != nur_abs:
             continue
         rs = sorted((r for r in mk.get("runners") or [] if isinstance(r, dict) and (r.get("vol") or 0) > 0),
                     key=lambda r: -(r.get("vol") or 0))
@@ -1146,6 +1148,8 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             "marktZufluss": markt_zufluss(snaps),
             "maerkteDetail": [x for x in maerkte_detail(m, snaps, 30 if dt_h > 0 else 15)
                               if not (hz_vorbei and _ist_hz_markt(x.get("name")))],
+            "maerkteAbs": [x for x in maerkte_detail(m, snaps, 30 if dt_h > 0 else 15, nur_abs=True)
+                           if not (hz_vorbei and _ist_hz_markt(x.get("name")))][:4],
             "fensterMin": 30 if dt_h > 0 else 15,
             "flussVorher": auswahl_zufluss(snaps, 30, 3000) if dt_h > 0 else [],
             # Lucas 18.10. (Valladolid 54' 1:2: „+€21k auf Über 0,5 HZ-Tore @ 2,02"): ein Halbzeit-Markt ist nach der
