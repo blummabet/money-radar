@@ -19,6 +19,7 @@ import html
 import json
 import os
 import sys
+import re
 import urllib.parse
 import urllib.error
 import urllib.request
@@ -479,7 +480,7 @@ def pinnacle(d):
 
 def _poly_topf(d, markt):
     """Das Spiel aus „Wo am meisten liegt", in dem dieser Polymarket-Markt steckt (Betfair/Pinnacle/Stake daneben)."""
-    basis = str(markt or "").replace("-more-markets", "").replace("-exact-score", "")
+    basis = re.sub(r"^(.*?\d{4}-\d{2}-\d{2})-.+$", r"\1", str(markt or ""))   # jeder Nebenmarkt → das Spiel (29.10.)
     return next((g for g in d.get("toepfe") or [] if ((g.get("q") or {}).get("poly") or {}).get("key") == basis), None)
 
 
@@ -515,10 +516,13 @@ def wale(d):
         w = wallets.get(o.get("wallet")) or {}
         g = _poly_topf(d, o.get("markt"))
         k = _seite_von(g, o) if g else None
-        nebenmarkt = str(o.get("markt") or "").endswith(("-more-markets", "-exact-score"))
+        neben_m = re.match(r"^.*?\d{4}-\d{2}-\d{2}-(.+)$", str(o.get("markt") or ""))
+        nebenmarkt = bool(neben_m)
         seite = remis(_pm_label(o.get("seite")) if nebenmarkt else o.get("seite"))
         if nebenmarkt and seite in ("Over", "Under"):
             seite = "Über" if seite == "Over" else "Unter"      # Linie liefert der Track nicht mit
+            if "corners" in neben_m.group(1):
+                seite += " (Ecken)"
         preis = o.get("jetzt") if o.get("jetzt") is not None else o.get("preis")
         ein = o.get("einstieg") or o.get("preis")
         usd = float(o.get("usd") or 0)
@@ -617,7 +621,7 @@ def wale(d):
                         t.append(f"⚠️ {len(gegen)} dagegen ({geld(sum(x['usd'] for x in gegen), '$')})")
                     zeilen.append("   " + " · ".join(t))
 
-        mk = urllib.parse.quote(str(o.get("markt") or "").replace("-more-markets", "").replace("-exact-score", ""))
+        mk = urllib.parse.quote(re.sub(r"^(.*?\d{4}-\d{2}-\d{2})-.+$", r"\1", str(o.get("markt") or "")))
         zeilen.append("")
         zeilen.append(f'<a href="https://polymarket.com/event/{mk}">Markt öffnen</a> · '
                       f'<a href="https://polymarket.com/profile/{e(o.get("wallet"))}">Wallet ansehen</a>')

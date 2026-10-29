@@ -210,7 +210,7 @@ def rangliste(d, jetzt):
     bf_teams = [((team(s.get("heim")), team(s.get("gast"))), _ts(s.get("anpfiff"))) for s in (d.get("radar") or {}).get("spiele") or []]
     pm_maerkte = {m.get("key"): m for m in (d.get("poly") or {}).get("maerkte") or []}
     for m in (d.get("polyFluss") or {}).get("maerkte") or []:
-        if re.search(r"-more-markets$", str(m.get("key") or "")):
+        if re.search(r"\d{4}-\d{2}-\d{2}-.+$", str(m.get("key") or "")):   # jeder Nebenmarkt (29.10.: auch -total-corners)
             continue
         heim, gast = _teams_aus_titel(m.get("titel"))
         if not heim:

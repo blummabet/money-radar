@@ -3109,7 +3109,7 @@ function topDreiDaten(D){
   const bfTeams = (D.radar.spiele||[]).map(s=>({t:[feedTeam(s.heim), feedTeam(s.gast)], ko:s.anpfiff?+new Date(s.anpfiff):null}));
   const beiBetfair = (h, g, ko) => { const a = feedTeam(h), b = feedTeam(g), k = ko ? +new Date(ko) : null;
     return bfTeams.some(x=>(x.t.includes(a) || x.t.includes(b)) && (k==null || x.ko==null || Math.abs(x.ko-k) < 3*36e5)); };
-  const pm = ((D.polyFluss||{}).maerkte||[]).filter(top5Ok).filter(m=>!/-more-markets$/.test(m.key||"")).map(m=>{
+  const pm = ((D.polyFluss||{}).maerkte||[]).filter(top5Ok).filter(m=>!/\d{4}-\d{2}-\d{2}-.+$/.test(m.key||"")).map(m=>{   // 29.10.: jeder Nebenmarkt (auch -total-corners)
     const [heim, gast] = feedTeams(String(m.titel||"").replace(/^[A-Za-z0-9 .-]{2,24}: /,"")); if(!heim || !gast) return null;
     const fkey = feedKey(heim, gast); if(beiBetfair(heim, gast, m.anpfiff)) return null;
     const se = (D.polySerien||[]).find(x=>x.id===m.key), w = m.fenster?.["30"] || {}, p = {};

@@ -37,6 +37,22 @@ def sport_ok(sport) -> bool:
     return (sport or "Fußball") in SPORTARTEN
 
 
+# Lucas 29.10. (Wal-Push „$17k auf Over · Over – Under" — war in Wahrheit ECKEN bei Frosinone – Lecce): Polymarket
+# hängt Nebenmärkte als Suffix hinter das Datum („…-2026-10-29-total-corners"). Nur „-more-markets"/„-exact-score"
+# waren bekannt; alles andere wurde als eigenes Spiel mit den Teams „Over"/„Under" geführt.
+POLY_NEBEN = {"more-markets": "Tore/Handicap", "exact-score": "Ergebnis", "total-corners": "Ecken",
+              "halftime-result": "Halbzeit", "btts": "Beide treffen", "total-goals": "Tore", "spread": "Handicap"}
+
+
+def poly_neben(key):
+    """(Basis-Schlüssel bis zum Datum, Nebenmarkt-Name oder None)."""
+    m = re.match(r"^(.*?\d{4}-\d{2}-\d{2})-(.+)$", str(key or ""))
+    if not m:
+        return str(key or ""), None
+    suf = m.group(2)
+    return m.group(1), POLY_NEBEN.get(suf) or next((v for k, v in POLY_NEBEN.items() if suf.startswith(k)), suf.replace("-", " "))
+
+
 def poly_key_ok(key) -> bool:
     """Lucas 17.10.: auch bei Polymarket kein ATP/WTA, ITF bleibt."""
     return not str(key or "").startswith(("atp-", "wta-"))
@@ -552,9 +568,9 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
 
     def name_fuer(key):
         key = str(key or "")
-        for suf, zusatz in (("-more-markets", ", Tore/Handicap"), ("-exact-score", ", Ergebnis")):
-            if key.endswith(suf):
-                return name_fuer(key[: -len(suf)]) + zusatz
+        basis, neben = poly_neben(key)
+        if neben:
+            return name_fuer(basis) + ", " + neben
         if key in titel:
             return titel[key]
         q = quelle.get(key) or quelle.get(str(key).replace("-more-markets", "")) or {}
@@ -1890,7 +1906,7 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
         if isinstance(m, dict) and key.endswith("-more-markets"):
             mm_vol[key[:-len("-more-markets")]] = float(m.get("totalUsd") or 0)
     for key, m in (poly_alle or {}).items():
-        if not isinstance(m, dict) or key.endswith(("-more-markets", "-exact-score")) or not poly_key_ok(key):
+        if not isinstance(m, dict) or poly_neben(key)[1] or not poly_key_ok(key):
             continue
         if not sport_ok(m.get("sport")):
             continue
