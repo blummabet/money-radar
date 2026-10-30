@@ -188,6 +188,8 @@ jobs:
           stempel = re.sub(r"[^0-9]", "", d.get("generatedAt", ""))[:14] or "0"
           Path("site/d").mkdir(exist_ok=True)
           shutil.copy("site/data.json", f"site/d/{stempel}.json")
+          if Path("site/statistik.json").exists():
+              shutil.copy("site/statistik.json", f"site/d/{stempel}-s.json")   # 30.10.: Statistik-Seite, gleicher Zeiger
           Path("site/404.html").write_text(f"""<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Geldradar</title>
           <style>body{{font:16px system-ui,sans-serif;background:#0f141c;color:#e8edf5;display:grid;place-items:center;min-height:100vh;margin:0}}a{{color:#ffb547}}</style></head>
           <body data-stand="d/{stempel}.json"><p>Diese Seite gibt es nicht. <a href="/money-radar/">Zum Geldradar</a></p></body></html>""", encoding="utf-8")

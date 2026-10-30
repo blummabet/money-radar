@@ -2199,6 +2199,62 @@ def eigene_wal_pushes(buch):
 VERLAUF_TAGE = 60
 
 
+
+# Lucas 30.10. („Statistiken optisch besser aufbereiten — nach Kategorien, Woche, Monat einstellbar"): jede gepushte
+# Wette seit Start als kompakte Zeile in einer EIGENEN Datei (site/statistik.json, wird erst beim Öffnen der Seite geladen).
+STAT_ARTEN = {"serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal"}
+
+
+def statistik(burst, finder):
+    zeilen = []
+    try:
+        buch = json.loads((BASIS / ".push_state" / "buch.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        buch = []
+    for b in buch:
+        if b.get("art") not in STAT_ARTEN or b.get("status") not in ("abgerechnet", "offen") or not ts(b.get("ts")):
+            continue
+        ab = b.get("status") == "abgerechnet"
+        q, sl = b.get("quote"), b.get("schluss")
+        clv = None
+        if (not b.get("live") and isinstance(q, (int, float)) and isinstance(sl, (int, float)) and sl > 1
+                and ts(b.get("schlussTs")) and ts(b.get("anpfiff")) and ts(b["schlussTs"]) >= ts(b["anpfiff"]) - timedelta(minutes=20)):
+            clv = round(100 * (q / sl - 1), 1)
+        titel = b.get("anzeige") or b.get("titel") or (f"{b.get('heim')} – {b.get('gast')}" if b.get("heim") else "")
+        zeilen.append([ts(b["ts"]).strftime("%Y-%m-%dT%H:%M"), b["art"],
+                       round(float(b["r"]), 3) if ab and isinstance(b.get("r"), (int, float)) else None,
+                       (1 if b.get("win") else 0) if ab else None,
+                       round(float(q), 2) if isinstance(q, (int, float)) else None, clv,
+                       b.get("liga") or b.get("sport") or "", 1 if b.get("top5") else 0, 1 if b.get("live") else 0,
+                       str(titel)[:60], str(b.get("auswahl") or "")[:40]])
+    for z in burst or []:
+        if not isinstance(z, dict) or not z.get("push") or not stake_ok(z) or not ts(z.get("sentAt")):
+            continue
+        r = z.get("rendite")
+        ab = z.get("status") == "abgerechnet" and isinstance(r, (int, float))
+        if not ab and z.get("status") != "pending":
+            continue
+        zeilen.append([ts(z["sentAt"]).strftime("%Y-%m-%dT%H:%M"), "stake", round(float(r), 3) if ab else None, int(r > 0) if ab else None,
+                       z.get("quote") if isinstance(z.get("quote"), (int, float)) else None, None, z.get("liga") or z.get("kat") or "",
+                       0, 1 if z.get("phase") == "live" else 0, str(z.get("event") or "")[:60], str(z.get("seite") or "")[:40]])
+    for e in (finder or {}).get("eintraege") or []:
+        if not ts(e.get("gebuchtAt")):
+            continue
+        w = e.get("wetten") or {}
+        for gruppe, wette, name in (("tore", "over05", "Tor in der 2. HZ"), ("heim", "heim", "Heimsieg")):
+            if gruppe not in (e.get("gruppen") or []):
+                continue
+            x = w.get(wette) or {}
+            ab = isinstance(x.get("r"), (int, float))
+            if not ab and e.get("ft"):
+                continue
+            zeilen.append([ts(e["gebuchtAt"]).strftime("%Y-%m-%dT%H:%M"), "hz", round(float(x["r"]), 3) if ab else None,
+                           int(bool(x.get("win"))) if ab else None, x.get("quote") if isinstance(x.get("quote"), (int, float)) else None,
+                           None, e.get("league") or e.get("liga") or "", 0, 1, f"{e.get('home') or ''} – {e.get('away') or ''}"[:60], name])
+    zeilen.sort(key=lambda z: z[0])
+    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    return len(zeilen)
+
 def verlauf(bf_buch, burst, finder, tr_led):
     """Jede gepushte Wette der letzten 60 Tage als [zeit, quelle, rendite, ergebnis] — Grundlage für die
     Bilanz-Kurve und den Strichcode im Frontend. rendite: Gewinn je 1 Einheit Einsatz (None = offen),
@@ -2406,6 +2462,10 @@ def main() -> int:
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(daten, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    try:
+        print("statistik:", statistik(burst, finder), "Zeilen")
+    except Exception as exc:  # noqa: BLE001 — die Statistik darf den Bau nie kippen
+        print("statistik:", exc)
     # kleine Kennzahlen-Datei: zum schnellen Prüfen von außen, ohne die ganze data.json zu laden
     pdz = daten.get("pinnDrops") or {}
     (OUT.parent / "stand.json").write_text(json.dumps({

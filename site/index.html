@@ -460,7 +460,7 @@ main{padding:22px 28px 60px;min-width:0}
   .kk-reihe svg{width:52px;height:52px}
   .nz{grid-template-columns:minmax(0,1fr) 72px 70px;gap:8px;padding:8px 2px}
   .drawer{top:auto;width:100vw;max-height:85vh;border-left:0;border-top:1px solid var(--line);border-radius:18px 18px 0 0;transform:translateY(102%)}
-  .unten-nav{display:grid;grid-template-columns:repeat(7,1fr);position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(13,19,32,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .unten-nav{display:grid;grid-template-columns:repeat(8,1fr);position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(13,19,32,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
   .unten-nav button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--text-3);padding:6px 0}
   .unten-nav button .dot{width:18px;height:4px;border-radius:2px;opacity:.35}
   .unten-nav button.an{color:var(--text)}
@@ -760,6 +760,45 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .ls{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:11.5px;color:var(--text-3);margin-top:4px}
 .ls b,.jf-l .ls b{display:inline;color:var(--text);font-weight:700;font-size:inherit;white-space:nowrap}
 .jf-l .ls span{display:inline}
+/* Lucas 30.10.: Statistik-Seite */
+.st-filter{display:flex;flex-direction:column;gap:10px}
+.st-seg{flex-wrap:wrap;border-radius:14px;max-width:100%}
+.st-reihe{display:flex;flex-wrap:wrap;gap:8px}
+.st-chips{display:flex;flex-direction:column;gap:8px}
+.st-qg{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.st-ql{font-size:11.5px;font-weight:800;color:var(--text-3);min-width:96px}
+.st-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--text-3);border-radius:999px;padding:5px 10px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.st-chip i{width:8px;height:8px;border-radius:50%;background:var(--f);opacity:.35}
+.st-chip small{font-size:11.5px;font-weight:800}
+.st-chip.an{color:var(--text);border-color:color-mix(in srgb, var(--f) 55%, var(--line));background:color-mix(in srgb, var(--f) 12%, var(--panel))}
+.st-chip.an i{opacity:1}
+.st-alle{align-self:flex-start;background:none;border:0;color:var(--text-3);font:inherit;font-size:12px;font-weight:700;text-decoration:underline;cursor:pointer;padding:0}
+.st-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.st-kpi{display:flex;flex-direction:column;gap:1px;min-width:0}
+.st-kpi b{font-size:24px;font-weight:900;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.st-kpi span{font-size:12px;font-weight:700;color:var(--text-2)}
+.st-kpi small{font-size:11px;color:var(--text-3)}
+.st-kurve{position:relative;height:200px;margin:4px 0 22px 34px}
+.st-kurve svg{width:100%;height:100%;display:block;overflow:visible}
+.st-ky span{position:absolute;left:-34px;transform:translateY(-50%);font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.st-kx span{position:absolute;bottom:-20px;transform:translateX(-50%);font-size:11px;color:var(--text-3);white-space:nowrap}
+.st-kx span:first-child{transform:none} .st-kx span:last-child{transform:translateX(-100%)}
+.st-z{display:grid;grid-template-columns:minmax(0,1.8fr) 52px 74px 66px 58px;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px;font-variant-numeric:tabular-nums}
+.st-z>span{text-align:right;display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}
+.st-z>span:first-child{text-align:left;align-items:flex-start}
+.st-z small{font-size:11px;color:var(--text-3);font-weight:600}
+.st-z.st-k{border-top:0;padding-top:0;font-size:11.5px;font-weight:700;color:var(--text-3)}
+.st-zn{flex-direction:row!important;align-items:center!important;gap:7px;font-weight:700}
+.st-zn i{width:9px;height:9px;border-radius:50%;flex:none}
+.st-zn small{margin-left:4px}
+.st-eh{font-weight:900}
+.st-z[data-stnur]{cursor:pointer} .st-z[data-stnur]:hover{background:var(--hover)}
+.st-l{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+.st-lp{width:10px;height:10px;border-radius:3px;background:var(--text-3)} .st-lp.w{background:var(--up)} .st-lp.l{background:var(--down)} .st-lp.o{background:none;border:1.5px solid var(--text-3)}
+.st-lt{display:flex;flex-direction:column;min-width:0} .st-lt small{color:var(--text-3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-l>span:last-child{font-weight:800;font-variant-numeric:tabular-nums}
+@media (max-width:700px){ .st-kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .st-kpis .st-kpi:first-child{grid-column:1 / -1} .st-kpi b{font-size:21px}
+  .st-z{grid-template-columns:minmax(0,1fr) 38px 62px 58px 46px;gap:6px;font-size:12.5px} .st-ql{min-width:0;width:100%} .st-zn small{display:none} }
 /* Lucas 28.10.: Live-Statistik im Spiel-Fenster als Duell-Zeilen */
 .lsg{background:var(--flaeche);border:1px solid var(--rand);border-radius:14px;padding:8px 12px 4px}
 .lsg-kopf{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;font-size:12px;font-weight:800;margin-bottom:2px}
@@ -1393,6 +1432,7 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
   <section class="seite" id="s-poly"></section>
   <section class="seite" id="s-stake"></section>
   <section class="seite" id="s-hz"></section>
+  <section class="seite" id="s-statistik"></section>
 </main>
 </div>
 <nav class="unten-nav" id="untennav" aria-label="Bereiche"></nav>
@@ -3807,13 +3847,143 @@ function seiteHz(D){
   </div>`;
 }
 
+// ── Statistik (Lucas 30.10.: „Statistiken optisch besser aufbereiten — nach Kategorien, Woche, Monat einstellbar") ──
+// Eigene Datei statistik.json, erst beim Öffnen geladen. Jede Zeile ein gepushter Tipp:
+// [zeit UTC, art, rendite je Einheit|null, 1/0|null, quote, clv %, liga, top5, live, titel, auswahl]
+const STAT_K = {
+  serie:["Dauerzufluss","Betfair","var(--bf)"], zufluss:["Zufluss vor Anpfiff","Betfair","color-mix(in srgb, var(--bf) 70%, var(--text))"],
+  live:["Live-Zufluss","Betfair","color-mix(in srgb, var(--bf) 55%, var(--down))"], ht:["Halbzeit-Geld","Betfair","color-mix(in srgb, var(--bf) 50%, var(--hz))"],
+  fix:["Fix-Verdacht","Betfair","var(--down)"], pinn:["Pinnacle + Geld","Pinnacle","var(--pin)"],
+  pserie:["Poly-Dauerzufluss","Polymarket","var(--poly)"], wal:["Wal-Einstieg","Polymarket","color-mix(in srgb, var(--poly) 60%, var(--text))"],
+  stake:["Burst","Stake","var(--stake)"], hz:["HZ 0:0","Halbzeit-Finder","var(--hz)"]};
+const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche"};
+const MONAT = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+async function statLaden(){
+  if(ST.daten || ST.laden) return; ST.laden = true;
+  try{
+    const quelle = ZEIGER ? ZEIGER.replace(/\.json$/, "-s.json") : null;
+    let r = quelle ? await fetch(quelle) : null;
+    if(!r || !r.ok) r = await fetch("statistik.json?t="+Date.now(), {cache:"no-store"});
+    ST.daten = await r.json(); ST.fehler = null;
+  }catch(e){ ST.fehler = String(e.message||e); }
+  ST.laden = false;
+  try{ $("#s-statistik").innerHTML = seiteStatistik(); }catch(e){ console.error(e); }
+}
+const stLokal = z => new Date(z+"Z");
+function stMontag(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x; }
+function stZeitraeume(Z){
+  const jetzt = new Date(), mo = stMontag(jetzt), r = [["7","7 Tage"],["30","30 Tage"],["woche","Diese Woche"],["vorwoche","Letzte Woche"]];
+  const monate = [...new Set(Z.map(z=>{ const d = stLokal(z[0]); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }))].sort().reverse();
+  for(const m of monate.slice(0,4)) r.push(["m"+m, MONAT[+m.slice(5)-1]]);
+  r.push(["alle","Alles"]);
+  return {liste:r, mo};
+}
+function stImZeitraum(z, zeit, mo){
+  const d = stLokal(z[0]);
+  if(zeit==="alle") return true;
+  if(zeit==="7" || zeit==="30") return d >= Date.now() - (+zeit)*864e5;
+  if(zeit==="woche") return d >= mo;
+  if(zeit==="vorwoche") return d >= new Date(+mo - 7*864e5) && d < mo;
+  if(zeit[0]==="m"){ return d.getFullYear()===+zeit.slice(1,5) && d.getMonth()+1===+zeit.slice(6,8); }
+  return true;
+}
+function stKennz(Z){
+  const ab = Z.filter(z=>z[2]!=null), n = ab.length, e = ab.reduce((a,z)=>a+z[2],0);
+  const mq = ab.filter(z=>z[4]>1), cl = Z.filter(z=>z[5]!=null);
+  return {n, offen:Z.length-n, einheiten:e, roi: n ? 100*e/n : null, treffer: n ? 100*ab.filter(z=>z[3]===1).length/n : null,
+    erwartet: mq.length ? 100*mq.reduce((a,z)=>a+1/z[4],0)/mq.length : null, clv: cl.length ? cl.reduce((a,z)=>a+z[5],0)/cl.length : null, clvN:cl.length};
+}
+const stVz = (v, n=1) => { if(v==null) return "–"; const r = +Number(v).toFixed(n); return (r>0?"+":r<0?"−":"")+dez(Math.abs(r), n); };
+const stFarbe = v => v==null ? "var(--text-3)" : v>0 ? "var(--up)" : v<0 ? "var(--down)" : "var(--text-2)";
+function seiteStatistik(){
+  if(!ST.daten){ statLaden(); return `<div class="panel"><div class="leer">${ST.fehler?`Statistik konnte nicht geladen werden (${esc(ST.fehler)}).`:"Statistik wird geladen …"}</div></div>`; }
+  const alle = ST.daten.zeilen||[];
+  const katsDa = Object.keys(STAT_K).filter(k=>alle.some(z=>z[1]===k));
+  if(!ST.kat) ST.kat = new Set(katsDa);
+  const {liste:zr, mo} = stZeitraeume(alle);
+  const basis = alle.filter(z=>stImZeitraum(z, ST.zeit, mo) && (ST.wann==="alle" || (ST.wann==="live") === !!z[8]) && (ST.liga==="alle" || (ST.liga==="top5") === !!z[7]));
+  const Z = basis.filter(z=>ST.kat.has(z[1]));
+  const K = stKennz(Z);
+  const seg = (feld, opts) => `<div class="seg st-seg">${opts.map(([v,n])=>`<button class="${ST[feld]===v?"an":""}" data-st="${feld}" data-v="${v}">${n}</button>`).join("")}</div>`;
+  // Kategorien als Chips, gruppiert nach Quelle
+  const quellen = [...new Set(katsDa.map(k=>STAT_K[k][1]))];
+  const chips = quellen.map(q=>`<div class="st-qg"><span class="st-ql">${q}</span>${katsDa.filter(k=>STAT_K[k][1]===q).map(k=>{ const kz = stKennz(basis.filter(z=>z[1]===k));
+      return `<button class="st-chip${ST.kat.has(k)?" an":""}" data-stk="${k}" style="--f:${STAT_K[k][2]}"><i></i>${STAT_K[k][0]}<small style="color:${ST.kat.has(k)?stFarbe(kz.einheiten):"inherit"}">${kz.n?stVz(kz.einheiten):"·"}</small></button>`; }).join("")}</div>`).join("");
+  const alleAn = katsDa.every(k=>ST.kat.has(k));
+  // Kopfzahlen
+  const kpi = (wert, name, sub, farbe) => `<div class="st-kpi"><b style="color:${farbe||"var(--text)"}">${wert}</b><span>${name}</span>${sub?`<small>${sub}</small>`:""}</div>`;
+  const kopf = `<div class="st-kpis">
+    ${kpi(stVz(K.einheiten,2), "Einheiten", "1 Einheit je Tipp", stFarbe(K.einheiten))}
+    ${kpi(K.roi==null?"–":stVz(K.roi)+" %", "Rendite", "je Tipp", stFarbe(K.roi))}
+    ${kpi(K.treffer==null?"–":dez(K.treffer,0)+" %", "Treffer", K.erwartet!=null?`Quote sagte ${dez(K.erwartet,0)} %`:"", K.treffer!=null&&K.erwartet!=null?stFarbe(K.treffer-K.erwartet):null)}
+    ${kpi(String(K.n), "Abgerechnet", K.offen?`${K.offen} offen`:"")}
+    ${kpi(K.clv==null?"–":stVz(K.clv)+" %", "Schlusskurs", K.clvN?`${K.clvN} mit Schlussquote`:"nur vor Anpfiff", stFarbe(K.clv))}
+  </div>`;
+  // Kurve: Einheiten kumuliert je Tag
+  const ab = Z.filter(z=>z[2]!=null);
+  let kurve = `<div class="leer">Im gewählten Ausschnitt ist noch nichts abgerechnet.</div>`;
+  if(ab.length >= 2){
+    const tage = {}; for(const z of ab){ const d = stLokal(z[0]).toLocaleDateString("sv-SE"); tage[d] = (tage[d]||0) + z[2]; }
+    const t0 = new Date(Object.keys(tage).sort()[0]), tl = [];
+    // Kurve endet mit dem Zeitraum (letzte Woche / ein Monat), sonst heute
+    let ende = new Date();
+    if(ST.zeit==="vorwoche") ende = new Date(+mo - 864e5);
+    else if(ST.zeit[0]==="m"){ const me = new Date(+ST.zeit.slice(1,5), +ST.zeit.slice(6,8), 0); if(me < ende) ende = me; }
+    for(let t=new Date(t0); t.toLocaleDateString("sv-SE")<=ende.toLocaleDateString("sv-SE"); t.setDate(t.getDate()+1)) tl.push(t.toLocaleDateString("sv-SE"));
+    let s = 0; const pkt = tl.map(d=>s += (tage[d]||0));
+    const lo = Math.min(0,...pkt), hi = Math.max(0,...pkt), sp = (hi-lo)||1, W = 1000, H = 220, n = pkt.length;
+    const x = i => n>1 ? i/(n-1)*W : W/2, y = v => H - (v-lo)/sp*H;
+    const pfad = pkt.map((v,i)=>`${i?"L":"M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+    const f = pkt.at(-1) >= 0 ? "var(--up)" : "var(--down)";
+    const xl = [...new Set([0, Math.round((n-1)/2), n-1])];
+    kurve = `<div class="st-kurve"><div class="st-ky"><span style="top:${(y(hi)/H*100).toFixed(1)}%">${stVz(hi,0)}</span><span style="top:${(y(0)/H*100).toFixed(1)}%">0</span>${lo<0?`<span style="top:${(y(lo)/H*100).toFixed(1)}%">${stVz(lo,0)}</span>`:""}</div>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" class="bc-null"/>
+      <path d="${pfad}L${x(n-1)},${y(0)}L0,${y(0)}Z" style="fill:${f};opacity:.12"/><path d="${pfad}" class="bc-l" style="stroke:${f}"/></svg>
+      <div class="st-kx">${xl.map(i=>`<span style="left:${(x(i)/W*100).toFixed(1)}%">${new Date(tl[i]).toLocaleDateString("de-AT",{day:"numeric",month:"short"})}</span>`).join("")}</div></div>`;
+  }
+  // Tabellen
+  const zeile = (name, kz, farbe, attr="") => `<div class="st-z" ${attr}><span class="st-zn">${farbe?`<i style="background:${farbe}"></i>`:""}${name}</span>
+      <span>${kz.n}${kz.offen?`<small>+${kz.offen}</small>`:""}</span>
+      <span>${kz.treffer==null?"–":dez(kz.treffer,0)+" %"}<small>${kz.erwartet==null?"":dez(kz.erwartet,0)+" %"}</small></span>
+      <span style="color:${stFarbe(kz.roi)}">${kz.roi==null?"–":stVz(kz.roi)+" %"}</span>
+      <span class="st-eh" style="color:${stFarbe(kz.einheiten)}">${kz.n?stVz(kz.einheiten,1):"–"}</span></div>`;
+  const tkopf = erst => `<div class="st-z st-k"><span>${erst}</span><span>Tipps</span><span>Treffer<small>Quote sagte</small></span><span>Rendite</span><span class="st-eh">Einh.</span></div>`;
+  const jeKat = katsDa.filter(k=>ST.kat.has(k)).map(k=>({k, kz:stKennz(Z.filter(z=>z[1]===k))})).filter(x=>x.kz.n+x.kz.offen>0).sort((a,b)=>b.kz.einheiten-a.kz.einheiten)
+    .map(({k,kz})=>zeile(`${STAT_K[k][0]}<small>${STAT_K[k][1]}</small>`, kz, STAT_K[k][2], `data-stnur="${k}" role="button" tabindex="0" title="nur diese Kategorie"`)).join("");
+  const schl = z => { const d = stLokal(z[0]); if(ST.gruppe==="monat") return [d.getFullYear()*100+d.getMonth(), `${MONAT[d.getMonth()]} ${d.getFullYear()}`];
+    const m = stMontag(d), so = new Date(+m + 6*864e5); return [+m, `${m.toLocaleDateString("de-AT",{day:"numeric",month:"numeric"})}–${so.toLocaleDateString("de-AT",{day:"numeric",month:"numeric"})}`]; };
+  const grp = {}; for(const z of Z){ const [k,n] = schl(z); (grp[k] ||= {n, z:[]}).z.push(z); }
+  const jeZeit = Object.entries(grp).sort((a,b)=>b[0]-a[0]).map(([,g])=>zeile(g.n, stKennz(g.z))).join("");
+  const baender = [[0,1.5,"unter 1,50"],[1.5,2,"1,50 – 1,99"],[2,3,"2,00 – 2,99"],[3,99,"ab 3,00"]];
+  const jeQuote = baender.map(([a,b,n])=>({n, kz:stKennz(Z.filter(z=>z[4]>=a && z[4]<b))})).filter(x=>x.kz.n+x.kz.offen).map(x=>zeile(x.n, x.kz)).join("");
+  const zuletzt = Z.slice(-12).reverse().map(z=>`<div class="st-l"><span class="st-lp ${z[3]===1?"w":z[3]===0?"l":"o"}"></span><span class="st-lt"><b>${esc(z[10]||"")}</b>${z[4]?` @ ${q2(z[4])}`:""}<small>${esc(z[9]||"")} · ${STAT_K[z[1]]?.[0]||z[1]} · ${stLokal(z[0]).toLocaleDateString("de-AT",{day:"numeric",month:"short"})}</small></span><span style="color:${stFarbe(z[2])}">${z[2]==null?"offen":stVz(z[2],2)}</span></div>`).join("");
+  return `<div class="grid">
+    <div class="panel c12 st-filter">
+      ${seg("zeit", zr)}
+      <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}</div>
+      <div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div>
+    </div>
+    <div class="panel c12">${kopf}${kurve}</div>
+    <div class="panel c12"><div class="ph"><h3>Je Kategorie</h3><span class="hint">antippen = nur diese</span></div>${jeKat?tkopf("Kategorie")+jeKat:`<div class="leer">Keine Tipps im Ausschnitt.</div>`}</div>
+    <div class="panel c6"><div class="ph"><h3>Je ${ST.gruppe==="monat"?"Monat":"Woche"}</h3>${seg("gruppe", [["woche","Woche"],["monat","Monat"]])}</div>${jeZeit?tkopf(ST.gruppe==="monat"?"Monat":"Woche")+jeZeit:`<div class="leer">–</div>`}</div>
+    <div class="panel c6"><div class="ph"><h3>Nach Quote</h3></div>${jeQuote?tkopf("Quote")+jeQuote:`<div class="leer">–</div>`}</div>
+    <div class="panel c12"><div class="ph"><h3>Zuletzt</h3><span class="hint">die 12 neuesten im Ausschnitt</span></div>${zuletzt||`<div class="leer">–</div>`}</div>
+  </div>`;
+}
+function statKlick(e){
+  const s = e.target.closest("[data-st]"); if(s){ ST[s.dataset.st] = s.dataset.v; return true; }
+  const k = e.target.closest("[data-stk]"); if(k){ const v = k.dataset.stk; ST.kat.has(v) ? ST.kat.delete(v) : ST.kat.add(v); return true; }
+  const n = e.target.closest("[data-stnur]"); if(n){ ST.kat = new Set([n.dataset.stnur]); return true; }
+  const a = e.target.closest("[data-stalle]"); if(a){ const da = Object.keys(STAT_K).filter(k=>(ST.daten?.zeilen||[]).some(z=>z[1]===k)); ST.kat = da.every(k=>ST.kat.has(k)) ? new Set() : new Set(da); return true; }
+  return false;
+}
 const SEITEN = [["start","Übersicht","var(--text)"],["feed","Feed","var(--down)"],["betfair","Betfair","var(--bf)"],["pinnacle","Pinnacle","var(--pin)"],
-  ["poly","Polymarket","var(--poly)"],["stake","Stake","var(--stake)"],["hz","HZ 0:0","var(--hz)"]];
-const UNTER = {start:"Wo gerade das Geld liegt, quer über alle Quellen", betfair:"Jedes Spiel im Abruf, gemessen an seiner Liga", pinnacle:"Wohin die schärfste Quote zieht", poly:"Wer setzt, und wer davon nachweislich gut ist", stake:"Serien großer Einsätze", hz:"Spiele, die zur Pause anders laufen als erwartet", feed:"Alles, was gerade passiert, neueste zuerst"};
+  ["poly","Polymarket","var(--poly)"],["stake","Stake","var(--stake)"],["hz","HZ 0:0","var(--hz)"],["statistik","Statistik","var(--up)"]];
+const UNTER = {start:"Wo gerade das Geld liegt, quer über alle Quellen", betfair:"Jedes Spiel im Abruf, gemessen an seiner Liga", pinnacle:"Wohin die schärfste Quote zieht", poly:"Wer setzt, und wer davon nachweislich gut ist", stake:"Serien großer Einsätze", hz:"Spiele, die zur Pause anders laufen als erwartet", statistik:"Wie unsere Pushes abschneiden, nach Kategorie und Zeitraum", feed:"Alles, was gerade passiert, neueste zuerst"};
 let aktiv = "start";
 function navAufbauen(z){
   $("#navliste").innerHTML = SEITEN.map(([k,n,f])=>`<button class="nav${k===aktiv?" an":""}" data-geh="${k}"><span class="dot" style="background:${f}"></span>${n}${z[k]?`<span class="cnt">${z[k]}</span>`:""}</button>`).join("");
-  $("#untennav").innerHTML = SEITEN.map(([k,n,f])=>`<button class="${k===aktiv?"an":""}" data-geh="${k}"><span class="dot" style="background:${f}"></span>${n.replace("Polymarket","Poly").replace("Übersicht","Start")}</button>`).join("");
+  $("#untennav").innerHTML = SEITEN.map(([k,n,f])=>`<button class="${k===aktiv?"an":""}" data-geh="${k}"><span class="dot" style="background:${f}"></span>${n.replace("Polymarket","Poly").replace("Übersicht","Start").replace("Statistik","Stats")}</button>`).join("");
 }
 function gehe(k){
   aktiv = k;
@@ -3841,6 +4011,7 @@ function render(blitz=false){
   sicher("#s-poly", ()=>seitePoly(D));
   sicher("#s-stake", ()=>seiteStake(D));
   sicher("#s-hz", ()=>seiteHz(D));
+  sicher("#s-statistik", seiteStatistik);
   try{ navAufbauen({betfair:D.radar.spiele.filter(s=>s.xnorm>=1.5).length, pinnacle:((D.pinnDrops||{}).live||[]).length+((D.pinnDrops||{}).vor||[]).filter(s=>s.frisch).length,
     poly:D.poly.maerkte.filter(belegt).length, stake:(D.stake.gruppen||D.stake.heute).length, hz:D.hz.heute.length, feed:lf(D.liveZufluss||[]).length||null}); }
   catch(e){ console.error(e); navAufbauen({}); }
@@ -3920,6 +4091,7 @@ document.addEventListener("click", e=>{
   const bt = e.target.closest("[data-bt]"); if(bt){ bilanzTage = +bt.dataset.bt; $("#bilanzpanel").innerHTML = bilanzKopf()+bilanzPanel(D)+bilanzLeiste(D)+t3MessungDetail(D); return; }
   const bq = e.target.closest("[data-bq]"); if(bq){ bilanzAn = bilanzAn===bq.dataset.bq ? null : bq.dataset.bq; $("#bilanzpanel").innerHTML = bilanzKopf()+bilanzPanel(D)+bilanzLeiste(D)+t3MessungDetail(D); return; }
   const g = e.target.closest("[data-geh]"); if(g){ gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
+  if(e.target.closest("#s-statistik") && statKlick(e)){ $("#s-statistik").innerHTML = seiteStatistik(); return; }
   const rg = e.target.closest("[data-rang]"); if(rg){ filterRang = rg.dataset.rang; neuBauen("#s-poly", seitePoly(D)); return; }
   const sp = e.target.closest("[data-sport]"); if(sp){ filterSport = sp.dataset.sport; neuBauen("#s-poly", seitePoly(D)); return; }
   const hf = e.target.closest("[data-hzf]"); if(hf){ hzFilter = hf.dataset.hzf; $("#hz-stats").innerHTML = hzStatsListe(D.hz.chancenBuch||{}); return; }
