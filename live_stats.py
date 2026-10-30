@@ -33,7 +33,9 @@ FRISCH_MIN = 9          # jünger als das → nicht neu abrufen
 GUELTIG_MIN = 25        # älter als das → nicht mehr zeigen
 ANPFIFF_TOLERANZ_MIN = 20
 STAT_FELDER = {"Shots on Goal": "aufsTor", "Total Shots": "schuesse", "Corner Kicks": "ecken",
-               "Ball Possession": "ballbesitz", "expected_goals": "xg", "Dangerous Attacks": "gefAngriffe"}
+               "Ball Possession": "ballbesitz", "expected_goals": "xg", "Dangerous Attacks": "gefAngriffe",
+               # 30.10. (Lucas: „Schüsse im Strafraum — schau, ob die geliefert werden"): erst messen, wie oft sie da sind
+               "Shots insidebox": "strafraum", "Shots outsidebox": "draussen"}
 JETZT = datetime.now(timezone.utc)
 TICKER = BASIS / ".bf" / "druck_ticker.json"
 
@@ -396,6 +398,13 @@ def main() -> int:
                     diag["ohneStatistik"].append(f"{sp.get('heim')} – {sp.get('gast')}")
                     ohne[sp["id"]] = JETZT.isoformat()
                 if st:
+                    # Abdeckung: in wie vielen Abrufen gibt es echtes xG, Strafraum-Schüsse, beides (48 h)
+                    ab = cache.get("_abdeckung") or {"z": []}
+                    hat = lambda f: all(isinstance((st.get(k) or {}).get(f), (int, float)) for k in ("heim", "gast"))
+                    ab["z"] = [z for z in ab.get("z") or [] if JETZT - (_zeit(z[0]) or JETZT) < timedelta(hours=48)] \
+                        + [[JETZT.isoformat(), int(hat("xg")), int(hat("strafraum"))]]
+                    ab["ts"] = JETZT.isoformat()
+                    cache["_abdeckung"] = ab
                     alt_e = cache.get(sp["id"]) or {}
                     e = {"ts": JETZT.isoformat(), "fixture": fid, "statistik": st,
                          "min": ((fx.get("fixture") or {}).get("status") or {}).get("elapsed"),
@@ -414,7 +423,10 @@ def main() -> int:
     CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
     live_ids = {s["id"] for s in kand}
     d["liveStats"] = {k: v for k, v in cache.items() if k in live_ids and JETZT - _zeit(v["ts"]) < timedelta(minutes=GUELTIG_MIN)}
-    d["liveStatsInfo"] = {"stand": JETZT.isoformat(), "kontingent": info, "n": len(d["liveStats"]), "diag": diag}
+    abz = (cache.get("_abdeckung") or {}).get("z") or []
+    d["liveStatsInfo"] = {"stand": JETZT.isoformat(), "kontingent": info, "n": len(d["liveStats"]), "diag": diag,
+                          "abdeckung48h": {"abrufe": len(abz), "xg": sum(z[1] for z in abz), "strafraum": sum(z[2] for z in abz),
+                                           "strafraumOhneXg": sum(1 for z in abz if z[2] and not z[1])}}
     d["druck"] = druck_radar(d, cache, live_ids, neue_ticks)
     DATEN.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"live_stats: {len(d['liveStats'])} Spiele mit Statistik, Kandidaten {len(kand)}, Kontingent {info}")
