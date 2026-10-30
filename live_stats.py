@@ -35,7 +35,10 @@ ANPFIFF_TOLERANZ_MIN = 20
 STAT_FELDER = {"Shots on Goal": "aufsTor", "Total Shots": "schuesse", "Corner Kicks": "ecken",
                "Ball Possession": "ballbesitz", "expected_goals": "xg", "Dangerous Attacks": "gefAngriffe",
                # 30.10. (Lucas: „Schüsse im Strafraum — schau, ob die geliefert werden"): erst messen, wie oft sie da sind
-               "Shots insidebox": "strafraum", "Shots outsidebox": "draussen"}
+               "Shots insidebox": "strafraum", "Shots outsidebox": "draussen",
+               # 30.10. (Lucas: „alle relevanten Daten"): Rote Karten (Überzahl ändert alles), geblockte Schüsse,
+               # Paraden des Gegner-Torwarts (= Schüsse, die wirklich gefährlich waren)
+               "Red Cards": "rot", "Blocked Shots": "geblockt", "Goalkeeper Saves": "paraden"}
 JETZT = datetime.now(timezone.utc)
 TICKER = BASIS / ".bf" / "druck_ticker.json"
 
@@ -402,7 +405,7 @@ def main() -> int:
                     ab = cache.get("_abdeckung") or {"z": []}
                     hat = lambda f: all(isinstance((st.get(k) or {}).get(f), (int, float)) for k in ("heim", "gast"))
                     ab["z"] = [z for z in ab.get("z") or [] if JETZT - (_zeit(z[0]) or JETZT) < timedelta(hours=48)] \
-                        + [[JETZT.isoformat(), int(hat("xg")), int(hat("strafraum"))]]
+                        + [[JETZT.isoformat(), int(hat("xg")), int(hat("strafraum")), int(hat("gefAngriffe")), int(hat("rot") or hat("paraden"))]]
                     ab["ts"] = JETZT.isoformat()
                     cache["_abdeckung"] = ab
                     alt_e = cache.get(sp["id"]) or {}
@@ -426,7 +429,8 @@ def main() -> int:
     abz = (cache.get("_abdeckung") or {}).get("z") or []
     d["liveStatsInfo"] = {"stand": JETZT.isoformat(), "kontingent": info, "n": len(d["liveStats"]), "diag": diag,
                           "abdeckung48h": {"abrufe": len(abz), "xg": sum(z[1] for z in abz), "strafraum": sum(z[2] for z in abz),
-                                           "strafraumOhneXg": sum(1 for z in abz if z[2] and not z[1])}}
+                                           "strafraumOhneXg": sum(1 for z in abz if z[2] and not z[1]),
+                                           "gefAngriffe": sum(z[3] for z in abz if len(z) > 3), "karten": sum(z[4] for z in abz if len(z) > 4)}}
     d["druck"] = druck_radar(d, cache, live_ids, neue_ticks)
     DATEN.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"live_stats: {len(d['liveStats'])} Spiele mit Statistik, Kandidaten {len(kand)}, Kontingent {info}")
