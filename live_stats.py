@@ -67,9 +67,29 @@ def _zahl(v):
     return float(v) if isinstance(v, (int, float)) else 0.0
 
 
+def _proxy(q, i):
+    s, a = (q.get("sch") or [None, None])[i], (q.get("at") or [None, None])[i]
+    if not isinstance(s, (int, float)) and not isinstance(a, (int, float)):
+        return None
+    return round(0.06 * _zahl(s) + 0.22 * _zahl(a), 2)
+
+
+def einheitlich(vl):
+    """Lucas 30.10. (Druck-Check): liefert API-Football xG nicht in jedem Abruf, mischte die Reihe echte xG mit dem
+    Schuss-Schätzer (CSKA: 0,28 → 0,06 → 0,40). Ein Sprung zwischen den beiden Maßstäben ist kein Druck. Ist auch nur ein
+    Punkt geschätzt, rechnet die ganze Reihe mit dem Schätzer. REIN."""
+    if all(q.get("echt") for q in vl):
+        return vl, True
+    aus = []
+    for q in vl:
+        x = [_proxy(q, 0), _proxy(q, 1)]
+        aus.append({**q, "xg": [x[0] if x[0] is not None else q["xg"][0], x[1] if x[1] is not None else q["xg"][1]], "echt": False})
+    return aus, False
+
+
 def druck_von(e):
     """Index je Team und fürs Spiel aus dem jüngsten Punkt + dem Punkt ~15 Min davor. REIN."""
-    vl = e.get("verlauf") or []
+    vl, echt = einheitlich(e.get("verlauf") or [])
     if not vl:
         return None
     p = vl[-1]
@@ -96,7 +116,7 @@ def druck_von(e):
                         "index": round(100 * (1 - math.exp(-wert / 1.2)))}
     seite = max(teams, key=lambda k: teams[k]["index"])
     return {"index": teams[seite]["index"], "seite": seite, "teams": teams, "min": m, "stand": stand,
-            "quelle": "xG" if p.get("echt") else "geschätzt", "frisch15": bool(q)}
+            "quelle": "xG" if echt else "geschätzt", "frisch15": bool(q)}
 
 
 def _tick(t, sp, art, text, seite=None):
@@ -104,9 +124,14 @@ def _tick(t, sp, art, text, seite=None):
             "spiel": f"{sp.get('heim')} – {sp.get('gast')}"}
 
 
-def ereignisse(sp, alt, neu, idx_alt, idx_neu):
-    """Ticker-Zeilen aus zwei aufeinanderfolgenden Punkten desselben Spiels. REIN."""
+def ereignisse(sp, alt, neu, idx_alt, idx_neu, verlauf=None):
+    """Ticker-Zeilen aus zwei aufeinanderfolgenden Punkten desselben Spiels. REIN.
+    30.10. (El Gounah „xG +0,8 in 8 Min" — direkt nach dem eigenen 0:1): API-Football trägt das xG eines Tors oft erst
+    im nächsten Abruf nach. Tore der letzten ~15 Min ziehen deshalb je 1 xG ab, wie im Index."""
     aus = []
+    vor15 = [q for q in (verlauf or []) if isinstance(q.get("m"), (int, float)) and isinstance(neu.get("m"), (int, float))
+             and 0 < neu["m"] - q["m"] <= 25]
+    basis_st = (min(vor15, key=lambda q: q["m"]).get("st") if vor15 else None) or (alt or {}).get("st") or [0, 0]
     if not alt or not isinstance(neu.get("m"), (int, float)) or not isinstance(alt.get("m"), (int, float)):
         return aus
     dm = neu["m"] - alt["m"]
@@ -115,7 +140,8 @@ def ereignisse(sp, alt, neu, idx_alt, idx_neu):
     for i, seite in enumerate(("heim", "gast")):
         team = sp.get(seite)
         dat = _zahl(neu["at"][i]) - _zahl(alt["at"][i])
-        dxg = (neu["xg"][i] or 0) - (alt["xg"][i] or 0) if neu.get("echt") else 0
+        tore15 = max(0.0, _zahl((neu.get("st") or [0, 0])[i]) - _zahl(basis_st[i]))
+        dxg = (neu["xg"][i] or 0) - (alt["xg"][i] or 0) - tore15 if neu.get("echt") and alt.get("echt") else 0
         deck = _zahl(neu["eck"][i]) - _zahl(alt["eck"][i])
         if (neu.get("st") or [0, 0])[i] is not None and (alt.get("st") or [0, 0])[i] is not None \
                 and _zahl(neu["st"][i]) > _zahl(alt["st"][i]):
@@ -287,7 +313,7 @@ def druck_radar(d, cache, live_ids, neue_ticks):
         z = zufl.get(i)
         aus.append({"id": i, "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga"), "land": sp.get("land"),
                     "top5": sp.get("top5"), **dr,
-                    "verlauf": [[q["m"], q["xg"][0], q["xg"][1], q.get("st")] for q in e.get("verlauf") or []
+                    "verlauf": [[q["m"], q["xg"][0], q["xg"][1], q.get("st")] for q in einheitlich(e.get("verlauf") or [])[0]
                                 if isinstance(q.get("m"), (int, float)) and q["xg"][0] is not None],
                     "geldMin": sp.get("geldMin"), "eur": sp.get("eur"), "xnorm": sp.get("xnorm"),
                     "zufluss": ({"eur": z.get("zuflussEur"), "markt": (z.get("fluss") or [{}])[0].get("markt"),
@@ -299,9 +325,19 @@ def druck_radar(d, cache, live_ids, neue_ticks):
             k = f"{i}|{f0.get('auswahl')}"
             zuletzt = max((t for kk, t in ticker.get("geld") or [] if kk == k), default=None)
             if not zuletzt or JETZT - _zeit(zuletzt) > timedelta(minutes=15):
+                # 30.10. („+€4,3k auf CSKA · Druck 79" — die 79 waren Spartaks Druck): der Index der Seite, auf die das Geld geht
+                aw = str(f0.get("auswahl") or "")
+                k_s = "heim" if aw == sp.get("heim") else "gast" if aw == sp.get("gast") else None
+                if k_s:
+                    i_s = dr["teams"][k_s]["index"]
+                    zusatz = f"Druck {sp.get(k_s)} {i_s}" if i_s >= 40 else f"gegen den Druck ({sp.get(dr['seite'])} {dr['index']})"
+                elif aw.lower().startswith("over"):
+                    i_s, zusatz = dr["index"], f"Druck {dr['index']}"
+                else:
+                    i_s, zusatz = dr["index"], f"gegen den Druck ({sp.get(dr['seite'])} {dr['index']})"
                 tk = _tick(dr["min"], sp, "geld", f"+€{round((z.get('zuflussEur') or 0) / 1000, 1):g}k auf "
-                           f"{f0.get('auswahl')} @ {f0.get('quote')} · Druck {dr['index']}".replace(".", ","))
-                tk.update({"eur": z.get("zuflussEur"), "auswahl": f0.get("auswahl"), "quote": f0.get("quote"), "index": dr["index"]})
+                           f"{f0.get('auswahl')} @ {f0.get('quote')} · {zusatz}".replace(".", ","))
+                tk.update({"eur": z.get("zuflussEur"), "auswahl": f0.get("auswahl"), "quote": f0.get("quote"), "index": i_s})
                 neue_ticks.append(tk)
                 ticker.setdefault("geld", []).append([k, JETZT.isoformat()])
     aus.sort(key=lambda x: -x["index"])
@@ -370,7 +406,7 @@ def main() -> int:
                     if not vorher or vorher.get("m") != p.get("m"):
                         e["verlauf"].append(p)
                     e["druck"] = druck_von(e)
-                    neue_ticks.extend(ereignisse(sp, vorher, p, alt_e.get("druck"), e["druck"]))
+                    neue_ticks.extend(ereignisse(sp, vorher, p, alt_e.get("druck"), e["druck"], e["verlauf"][:-1]))
                     cache[sp["id"]] = e
     if kand and os.environ.get("APISPORTS_KEY"):
         cache["_ohneStatistik"] = {"ts": JETZT.isoformat(), "ids": ohne}
