@@ -210,7 +210,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          rest=$(( 300 - ($(date +%s) - START) ))
+          # 30.10. (Lucas: „21:14 · vor 8 Min"): GitHub ließ die Jobs ~5 Min auf einen Runner warten. Gezählt wurde der
+          # 5-Min-Takt ab JOB-Start — Wartezeit + 5 Min = 10 Min je Stand. Jetzt ab Anlage des Laufs: wer lange in der
+          # Schlange stand, stößt den nächsten sofort an, dessen Wartezeit läuft dann parallel zu uns.
+          angelegt=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}" --jq .created_at 2>/dev/null)
+          basis=$(date -d "${angelegt:-@$START}" +%s 2>/dev/null || echo $START)
+          rest=$(( 300 - ($(date +%s) - basis) ))
+          echo "Lauf angelegt ${angelegt:-?}, Rest bis 5 Min: ${rest}s"
           [ $rest -gt 0 ] && sleep $rest
           # 26.10. (Kette stand 14:23–17:28 UTC, 3 h ohne Pushes; Zeitplan und Wächter feuerten in der Zeit nicht):
           # IMMER anstoßen (die Gruppe „pages" hält höchstens einen wartenden Lauf, doppelt ist harmlos) und danach
