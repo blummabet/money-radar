@@ -247,6 +247,13 @@ def live(d):
         lv = z.get("live") or {}
         st = lv.get("stand") or [0, 0]
         key = f"lz|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
+        # Lucas 30.10. (RKC – Almere 70' 0:1, „+€17k auf Almere — und wieso kommt dann die Push?"): derselbe Filter wie beim
+        # Dauerzufluss — Geld auf das Team, das schon führt, wird nicht gepusht, nur still gemessen (art „liveFuehrt").
+        k_l = 0 if fl.get("auswahl") == z.get("heim") else 1 if fl.get("auswahl") == z.get("gast") else None
+        if k_l is not None and st[0] is not None and st[1] is not None and st[k_l] > st[1 - k_l]:
+            yield (f"lf|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}", None, None,
+                   {**_beleg("liveFuehrt", z, fl, live=True), "stand": st, "minute": lv.get("min"), "lage": "vorn"})
+            continue
         q, qv = fl.get("quote"), fl.get("quoteVorher")
         drop = _drop_zeile(q, qv)
         richtung = "" if drop else (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""

@@ -35,7 +35,8 @@ VERFALL_TAGE = 4          # nach 4 Tagen ohne Ergebnis: „unaufgelöst"
 BEHALTEN = 6000           # 23.10.: Top-3-Messung kommt dazu
 POLY_ARTEN = ("pserie", "wal", "top3p")
 ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "Wal-Einstieg Polymarket", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht", "pinn": "Pinnacle + Geld",
-         "serieFuehrt": "Live-Dauerzufluss auf den Führenden (nicht gepusht, ab 30.10.)"}
+         "serieFuehrt": "Live-Dauerzufluss auf den Führenden (nicht gepusht, ab 30.10.)",
+         "liveFuehrt": "Live-Zufluss auf den Führenden (nicht gepusht, ab 30.10.)"}
 
 
 def _ts(s):
@@ -490,14 +491,14 @@ def zusammenfassen(buch):
                  "wal": teile([b for b in buch if b.get("art") == "wal"])}
     letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "titel", "anzeige", "eur", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
-              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") != "serieFuehrt"][:40]
+              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "liveFuehrt")][:40]
     # Lucas 20.10. („Übersichtskurve auf die neuen Betfair-Pushes, weil das zählt"): jeder Push als
     # [Zeit UTC, Rendite je Einheit, 1/0] — offen mit None. build.py baut daraus die Bilanz-Kurve.
     grenze = datetime.now(timezone.utc) - timedelta(days=60)
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "norm", "normMeist", "serieFuehrt"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "norm", "normMeist", "serieFuehrt", "liveFuehrt"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,
