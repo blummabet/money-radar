@@ -992,6 +992,15 @@ def main() -> int:
                     sp_ = next((x for x in (d.get("radar") or {}).get("spiele") or [] if str(x.get("id")) == str(beleg.get("id"))), None)
                     if sp_ and "normEur" not in beleg:
                         beleg = {**beleg, "normEur": sp_.get("normEur"), "ligaEur": sp_.get("ligaEur"), "liga": beleg.get("liga") or sp_.get("liga")}
+                    # 30.10. (Elversberg 32' 2:0, Dauerzufluss auf Elversberg @ 1,40): Stand + Lage der Auswahl-Seite beim Push
+                    # mitschreiben — trägt live Geld auf den, der schon führt?
+                    lv_ = (sp_ or {}).get("live") or {}
+                    if beleg.get("live") and lv_.get("stand") and lv_["stand"][0] is not None:
+                        a_ = str(beleg.get("auswahl") or "")
+                        k_ = 0 if a_ == sp_.get("heim") else 1 if a_ == sp_.get("gast") else None
+                        st_ = lv_["stand"]
+                        beleg = {**beleg, "stand": st_, "minute": lv_.get("min"),
+                                 "lage": None if k_ is None else "vorn" if st_[k_] > st_[1 - k_] else "hinten" if st_[k_] < st_[1 - k_] else "gleich"}
                     bilanz.eintragen(buch, beleg, JETZT)
     if not trocken:
         try:                         # Lucas 23.10.: Top 3 jetzt mitschreiben und abrechnen (Messung, kein Push)

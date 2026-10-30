@@ -3882,7 +3882,7 @@ const STAT_K = {
   fix:["Fix-Verdacht","Betfair","var(--down)"], pinn:["Pinnacle + Geld","Pinnacle","var(--pin)"],
   pserie:["Poly-Dauerzufluss","Polymarket","var(--poly)"], wal:["Wal-Einstieg","Polymarket","color-mix(in srgb, var(--poly) 60%, var(--text))"],
   stake:["Burst","Stake","var(--stake)"], hz:["HZ 0:0","Halbzeit-Finder","var(--hz)"]};
-const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche"};
+const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche", lage:"alle"};
 const MONAT = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 async function statLaden(){
   if(ST.daten || ST.laden) return; ST.laden = true;
@@ -3927,7 +3927,7 @@ function seiteStatistik(){
   const katsDa = Object.keys(STAT_K).filter(k=>alle.some(z=>z[1]===k));
   if(!ST.kat) ST.kat = new Set(katsDa);
   const {liste:zr, mo} = stZeitraeume(alle);
-  const basis = alle.filter(z=>stImZeitraum(z, ST.zeit, mo) && (ST.wann==="alle" || (ST.wann==="live") === !!z[8]) && (ST.liga==="alle" || (ST.liga==="top5") === !!z[7]));
+  const basis = alle.filter(z=>stImZeitraum(z, ST.zeit, mo) && (ST.wann==="alle" || (ST.wann==="live") === !!z[8]) && (ST.liga==="alle" || (ST.liga==="top5") === !!z[7]) && (ST.lage==="alle" || z[11]===ST.lage));
   const Z = basis.filter(z=>ST.kat.has(z[1]));
   const K = stKennz(Z);
   const seg = (feld, opts) => `<div class="seg st-seg">${opts.map(([v,n])=>`<button class="${ST[feld]===v?"an":""}" data-st="${feld}" data-v="${v}">${n}</button>`).join("")}</div>`;
@@ -3986,7 +3986,7 @@ function seiteStatistik(){
   return `<div class="grid">
     <div class="panel c12 st-filter">
       ${seg("zeit", zr)}
-      <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}</div>
+      <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}${seg("lage", [["alle","Jeder Stand"],["vorn","Live: Auswahl führt"],["gleich","Live: gleich"],["hinten","Live: hinten"]])}</div>
       <div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div>
     </div>
     <div class="panel c12">${kopf}${kurve}</div>

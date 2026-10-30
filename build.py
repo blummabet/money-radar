@@ -2226,7 +2226,7 @@ def statistik(burst, finder):
                        (1 if b.get("win") else 0) if ab else None,
                        round(float(q), 2) if isinstance(q, (int, float)) else None, clv,
                        b.get("liga") or b.get("sport") or "", 1 if b.get("top5") else 0, 1 if b.get("live") else 0,
-                       str(titel)[:60], str(b.get("auswahl") or "")[:40]])
+                       str(titel)[:60], str(b.get("auswahl") or "")[:40], b.get("lage")])
     for z in burst or []:
         if not isinstance(z, dict) or not z.get("push") or not stake_ok(z) or not ts(z.get("sentAt")):
             continue
@@ -2252,7 +2252,7 @@ def statistik(burst, finder):
                            int(bool(x.get("win"))) if ab else None, x.get("quote") if isinstance(x.get("quote"), (int, float)) else None,
                            None, e.get("league") or e.get("liga") or "", 0, 1, f"{e.get('home') or ''} – {e.get('away') or ''}"[:60], name])
     zeilen.sort(key=lambda z: z[0])
-    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return len(zeilen)
 
 def verlauf(bf_buch, burst, finder, tr_led):
