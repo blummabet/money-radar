@@ -29,7 +29,7 @@ CACHE = BASIS / ".bf" / "live_stats.json"
 BASE_URL = "https://v3.football.api-sports.io"
 MAX_JE_LAUF = 40         # 25.10.: HZ-Finder im alten Projekt abgedreht → 40 × 288 ≈ 11.500 von 75.000/Tag (60-%-Regel bremst weiter)
 ANTEIL = 0.6
-FRISCH_MIN = 9          # jünger als das → nicht neu abrufen
+FRISCH_MIN = 4          # jünger als das → nicht neu abrufen (30.10.: 9 → 4, jeder Lauf; Lucas: „2:0 sehen wir noch nicht")
 GUELTIG_MIN = 25        # älter als das → nicht mehr zeigen
 ANPFIFF_TOLERANZ_MIN = 20
 STAT_FELDER = {"Shots on Goal": "aufsTor", "Total Shots": "schuesse", "Corner Kicks": "ecken",
@@ -320,7 +320,11 @@ def druck_radar(d, cache, live_ids, neue_ticks):
                     "top5": sp.get("top5"), **dr,
                     "verlauf": [[q["m"], q["xg"][0], q["xg"][1], q.get("st")] for q in einheitlich(e.get("verlauf") or [])[0]
                                 if isinstance(q.get("m"), (int, float)) and q["xg"][0] is not None],
-                    "geldMin": sp.get("geldMin"), "eur": sp.get("eur"), "xnorm": sp.get("xnorm"),
+                    "geldMin": sp.get("geldMin"), "eur": sp.get("eur"), "xnorm": sp.get("xnorm"), "tore": e.get("tore"),
+                    # Stand/Minute aus dem Betfair-Abruf (alle 5 Min), wenn der weiter ist als der Statistik-Abruf
+                    **({"min": (sp.get("live") or {}).get("min"), "stand": (sp.get("live") or {}).get("stand")}
+                       if isinstance((sp.get("live") or {}).get("min"), (int, float)) and (sp.get("live") or {}).get("stand")
+                       and (sp["live"]["min"] >= (dr.get("min") or 0)) else {}),
                     "zufluss": ({"eur": z.get("zuflussEur"), "markt": (z.get("fluss") or [{}])[0].get("markt"),
                                  "auswahl": (z.get("fluss") or [{}])[0].get("auswahl"),
                                  "quote": (z.get("fluss") or [{}])[0].get("quote")} if z else None)})
@@ -413,12 +417,27 @@ def main() -> int:
                          "min": ((fx.get("fixture") or {}).get("status") or {}).get("elapsed"),
                          "stand": [(fx.get("goals") or {}).get("home"), (fx.get("goals") or {}).get("away")],
                          "verlauf": list(alt_e.get("verlauf") or [])[-30:]}
+                    # 30.10. (Lucas: Shelbourne „1:0 ist schon länger her", Grafik zeigte es bei 14'): die echten Tor-Minuten
+                    # aus den Ereignissen der Live-Liste — sonst landet ein Tor vor unserem ersten Abruf auf dessen Minute
+                    ev = [x for x in fx.get("events") or [] if str(x.get("type") or "").lower() == "goal"
+                          and str(x.get("detail") or "").lower() != "missed penalty"]
+                    if ev:
+                        e["tore"] = [[((x.get("time") or {}).get("elapsed") or 0) + ((x.get("time") or {}).get("extra") or 0),
+                                      "heim" if ((x.get("team") or {}).get("id")) == hid else "gast"] for x in ev]
+                    elif alt_e.get("tore"):
+                        e["tore"] = alt_e["tore"]
                     p = _punkt(e)
                     vorher = e["verlauf"][-1] if e["verlauf"] else None
                     if not vorher or vorher.get("m") != p.get("m"):
                         e["verlauf"].append(p)
                     e["druck"] = druck_von(e)
-                    neue_ticks.extend(ereignisse(sp, vorher, p, alt_e.get("druck"), e["druck"], e["verlauf"][:-1]))
+                    tks = ereignisse(sp, vorher, p, alt_e.get("druck"), e["druck"], e["verlauf"][:-1])
+                    for tk in tks:            # Tor-Zeile mit der echten Minute
+                        if tk["art"] == "tor" and e.get("tore"):
+                            mins = [t[0] for t in e["tore"] if t[1] == tk["seite"]]
+                            if mins:
+                                tk["m"] = mins[-1]
+                    neue_ticks.extend(tks)
                     cache[sp["id"]] = e
     if kand and os.environ.get("APISPORTS_KEY"):
         cache["_ohneStatistik"] = {"ts": JETZT.isoformat(), "ids": ohne}
