@@ -427,7 +427,13 @@ def druck_messung(buch):
         urteil = "bestanden" if gesamt["_roi"] - (gesamt["_se"] or 0) > 0 else "nicht bestanden"
     letzte = [{k: b.get(k) for k in ("heim", "gast", "auswahl", "quote", "index", "min", "stand", "lage", "status", "win", "ts")}
               for b in reversed(z)][:15]
-    return {"ziel": DRUCK_ZIEL, "urteil": urteil, "gruppen": aus, "letzte": letzte}
+    # 30.10.: Next Goal — wer trifft als Nächstes? (ohne Quote: nur Anteile; „unklar" zählt nicht)
+    def nt(g):
+        e = [b.get("naechstes") for b in g if b.get("naechstes") in ("eigen", "gegner", "keins")]
+        return {"n": len(e), "eigen": sum(1 for x in e if x == "eigen"), "gegner": sum(1 for x in e if x == "gegner"),
+                "keins": sum(1 for x in e if x == "keins")} if e else None
+    naechstes = [{"name": name, **k} for name, g in gruppen if (k := nt(g))]
+    return {"ziel": DRUCK_ZIEL, "urteil": urteil, "gruppen": aus, "letzte": letzte, "naechstes": naechstes}
 
 
 NORM_ZIEL = 100

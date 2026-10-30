@@ -760,6 +760,11 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .ls{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;font-size:11.5px;color:var(--text-3);margin-top:4px}
 .ls b,.jf-l .ls b{display:inline;color:var(--text);font-weight:700;font-size:inherit;white-space:nowrap}
 .jf-l .ls span{display:inline}
+.nt-z{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:4px 10px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px}
+.nt-n{display:flex;flex-direction:column;font-weight:700} .nt-n small{color:var(--text-3);font-weight:600;font-size:11px}
+.nt-bar{display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden}
+.nt-bar i.e{background:var(--up)} .nt-bar i.g{background:var(--down)} .nt-bar i.k{background:var(--text-3);opacity:.5}
+.nt-w{grid-column:2;font-size:11.5px;color:var(--text-2)} .nt-w b{color:var(--up)}
 /* Lucas 30.10.: Statistik-Seite */
 .st-filter{display:flex;flex-direction:column;gap:10px}
 .st-seg{flex-wrap:wrap;border-radius:14px;max-width:100%}
@@ -3134,7 +3139,7 @@ function topDreiDaten(D){
     const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
     const summe = Object.values(p).reduce((a,b)=>a+b,0) - (lb?.urteil==="trägt nicht" ? 1 : 0);
     const g = {serie: se && `${se.n}× in Folge`, neu: `+${eur(neu)} in ${s.fensterMin||30} Min`, norm: `×${dez(s.xnorm)} der Liga`,
-      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, maerkte: mm.length && "🧩 " + mm.map(k=>T3_FAM[k]).join(" + "), druck: drPasst && `📊 Druck ${dr.index} · xG ${dez(dr.teams[dr.seite].xg)}`, push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
+      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, maerkte: mm.length && "🧩 " + mm.map(k=>T3_FAM[k]).join(" + "), druck: drPasst && `📊 Druck ${esc(dr.seite==="heim"?s.heim:s.gast)} ${dr.index} · xG ${dez(dr.teams[dr.seite].xg)} → nächstes Tor / Über`, push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
       poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
       stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
     return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
@@ -3220,7 +3225,16 @@ function t3MessungDetail(D){
   return `<h4 style="margin:18px 0 6px">🧪 Top 3 jetzt: trifft ein hoher Wert öfter?</h4>
     <div class="kk-klein" style="margin-bottom:8px">Seit ${tagKurz(M.ab)} · jeder erste Einzug in die Top 3 zur Quote in dem Moment, alle Ligen · Ziel ${M.ziel} abgerechnet · bestanden = Rendite auch abzüglich Fehler über null und Schlussquote geschlagen</div>
     ${G.length ? istSoll(G.map(g=>({name:esc(g.name), unter:`${g.abgerechnet} abgerechnet${g.fehler!=null?` · ± ${dez(g.fehler)} %`:""}${g.clvN?` · Schlussquote ${pz(g.clv)}`:""}`, ist:g.treffer, soll:g.erwartet, roi:g.roi})))
-      : `<div class="leer">${M.gruppen[0].gesendet} mitgeschrieben, noch keins abgerechnet.</div>`}`;
+      : `<div class="leer">${M.gruppen[0].gesendet} mitgeschrieben, noch keins abgerechnet.</div>`}
+    ${druckNaechstes(M)}`;
+}
+// Lucas 30.10.: „Druck ist vor allem gut für Next Goal" — wer trifft nach dem Eintrag als Nächstes?
+function druckNaechstes(M){
+  const N = (M.naechstes||[]).filter(g=>g.n>0); if(!N.length) return `<div class="kk-klein" style="margin-top:10px">⚽ Nächstes Tor: wird ab 30.10. mitgeschrieben, noch keine Fälle.</div>`;
+  const z = g => { const p = v => Math.round(100*v/g.n);
+    return `<div class="nt-z"><span class="nt-n">${esc(g.name)}<small>${g.n} Fälle</small></span><div class="nt-bar"><i class="e" style="flex:${g.eigen||0.001}"></i><i class="g" style="flex:${g.gegner||0.001}"></i><i class="k" style="flex:${g.keins||0.001}"></i></div>
+      <span class="nt-w"><b>${p(g.eigen)} %</b> Druck-Team · ${p(g.gegner)} % Gegner · ${p(g.keins)} % keins</span></div>`; };
+  return `<h4 style="margin:16px 0 6px">⚽ Nächstes Tor: trifft das Druck-Team?</h4><div class="kk-klein" style="margin-bottom:6px">Ohne Next-Goal-Quote — nur, wer als Nächstes trifft</div>${N.map(z).join("")}`;
 }
 // ══ Druck-Radar (Lucas 25.10.) ═══════════════════════════════════════════════════════════════════════════════
 // Index 0–100 je Spiel aus live_stats.py: xG ohne eigene Tore + was in den letzten ~15 Min kam (xG, Schüsse aufs
@@ -3323,7 +3337,16 @@ function druckMessungDetail(D){
   return `<h4 style="margin:18px 0 6px">🧪 Druck-Radar: fällt bei hohem Druck noch ein Tor?</h4>
     <div class="kk-klein" style="margin-bottom:8px">Ab Index 70, einmal je Spiel bis zur 80. Minute · Über (Tore + 0,5) zur Betfair-Quote in dem Moment · Ziel ${M.ziel} abgerechnet</div>
     ${G.length ? istSoll(G.map(g=>({name:esc(g.name), unter:`${g.abgerechnet} abgerechnet${g.fehler!=null?` · ± ${dez(g.fehler)} %`:""}`, ist:g.treffer, soll:g.erwartet, roi:g.roi})))
-      : `<div class="leer">${M.gruppen[0].gesendet} mitgeschrieben, noch keins abgerechnet.</div>`}`;
+      : `<div class="leer">${M.gruppen[0].gesendet} mitgeschrieben, noch keins abgerechnet.</div>`}
+    ${druckNaechstes(M)}`;
+}
+// Lucas 30.10.: „Druck ist vor allem gut für Next Goal" — wer trifft nach dem Eintrag als Nächstes?
+function druckNaechstes(M){
+  const N = (M.naechstes||[]).filter(g=>g.n>0); if(!N.length) return `<div class="kk-klein" style="margin-top:10px">⚽ Nächstes Tor: wird ab 30.10. mitgeschrieben, noch keine Fälle.</div>`;
+  const z = g => { const p = v => Math.round(100*v/g.n);
+    return `<div class="nt-z"><span class="nt-n">${esc(g.name)}<small>${g.n} Fälle</small></span><div class="nt-bar"><i class="e" style="flex:${g.eigen||0.001}"></i><i class="g" style="flex:${g.gegner||0.001}"></i><i class="k" style="flex:${g.keins||0.001}"></i></div>
+      <span class="nt-w"><b>${p(g.eigen)} %</b> Druck-Team · ${p(g.gegner)} % Gegner · ${p(g.keins)} % keins</span></div>`; };
+  return `<h4 style="margin:16px 0 6px">⚽ Nächstes Tor: trifft das Druck-Team?</h4><div class="kk-klein" style="margin-bottom:6px">Ohne Next-Goal-Quote — nur, wer als Nächstes trifft</div>${N.map(z).join("")}`;
 }
 // Lucas 25.10.: „wenn über der Norm Geld fließt — wie oft folgt das Ergebnis dem Geld?" (norm_mess.py, stille Messung)
 function normMessung(D){

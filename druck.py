@@ -8,6 +8,11 @@ Vorab festgelegt (25.10., 12:15 Wien), damit die Auswertung nicht nachträglich 
   • Ziel 100 abgerechnete. Getrennt ausgewertet: Index 70–84 / ab 85, xG gemessen / geschätzt, Druck-Team hinten /
     gleich / vorn, mit / ohne frisches Geld, 1. / 2. Halbzeit, Ligagröße.
 Kein Push — nur Seite und Buch.
+
+30.10. (Lucas: „Druck ist gut vor allem für Next Goal — ich spiele nicht immer klassisch 1X2"): zusätzlich wird je
+Eintrag mitgeschrieben, WER das nächste Tor macht — das Druck-Team, der Gegner oder keiner (bis Abpfiff). Bestimmt aus
+dem Live-Stand je Lauf (alle ~5 Min); ändern sich beide Seiten im selben Intervall, ist es „unklar" und zählt nicht.
+Ohne Next-Goal-Quote (Betwatch führt den Markt nicht): ausgewiesen wird die Trefferquote, keine Rendite.
 """
 from __future__ import annotations
 
@@ -60,3 +65,43 @@ def eintragen(d, buch, jetzt):
         schon.add(i)
         neu += 1
     return neu
+
+
+def naechstes_tor(d, buch):
+    """Für offene Druck-Einträge: erstes Tor nach dem Eintrag aus dem aktuellen Live-Stand. REIN bis auf das Buch."""
+    radar = {str(s.get("id")): s for s in (d.get("radar") or {}).get("spiele") or []}
+    n = 0
+    for b in buch:
+        if b.get("art") != "druck" or b.get("naechstes"):
+            continue
+        st0 = b.get("stand") or [0, 0]
+        sp = radar.get(str(b.get("id")))
+        jetzt = ((sp or {}).get("live") or {}).get("stand")
+        if not jetzt and b.get("status") == "abgerechnet":
+            ft = b.get("ft") if isinstance(b.get("ft"), list) else None
+            if ft and (ft[0] or 0) + (ft[1] or 0) == (st0[0] or 0) + (st0[1] or 0):
+                b["naechstes"] = "keins"
+                n += 1
+            elif ft:
+                d0, d1 = (ft[0] or 0) - (st0[0] or 0), (ft[1] or 0) - (st0[1] or 0)
+                if (d0 > 0) != (d1 > 0):   # nur eine Seite hat danach getroffen → eindeutig, auch ohne Zwischenstand
+                    k = "heim" if d0 > 0 else "gast"
+                    b["naechstes"] = "eigen" if k == b.get("seite") else "gegner"
+                    n += 1
+                elif b.get("status") == "abgerechnet":
+                    b["naechstes"] = "unklar"
+                    n += 1
+            continue
+        if not jetzt or jetzt[0] is None or jetzt[1] is None:
+            continue
+        d0, d1 = jetzt[0] - (st0[0] or 0), jetzt[1] - (st0[1] or 0)
+        if d0 <= 0 and d1 <= 0:
+            continue
+        if d0 > 0 and d1 > 0:
+            b["naechstes"] = "unklar"
+        else:
+            k = "heim" if d0 > 0 else "gast"
+            b["naechstes"] = "eigen" if k == b.get("seite") else "gegner"
+        b["naechstesMin"] = ((sp or {}).get("live") or {}).get("min")
+        n += 1
+    return n

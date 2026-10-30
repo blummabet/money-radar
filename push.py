@@ -1006,6 +1006,9 @@ def main() -> int:
             nd = druck.eintragen(d, buch, JETZT)
             if nd:
                 print(f"  druck: {nd} neu im Buch")
+            nt = druck.naechstes_tor(d, buch)       # 30.10.: wer macht das nächste Tor?
+            if nt:
+                print(f"  druck: {nt}× nächstes Tor festgestellt")
         except Exception as exc:  # noqa: BLE001
             print(f"  druck: {exc}")
         try:                         # Lucas 25.10.: „über der Liga-Norm" still mitmessen — folgt das Ergebnis dem Geld?
