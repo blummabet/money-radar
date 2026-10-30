@@ -783,6 +783,19 @@ def serie(d):
             continue
         key = f"se|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}"
         q, q0 = x.get("quote"), x.get("quoteStart")
+        # Lucas 30.10. (Elversberg 32' 2:0 @ 1,40: „da kommt viel rein, das so Schema hat — filtern wir raus, messen im
+        # Hintergrund"): live Dauerzufluss auf ein Team, das schon FÜHRT, wird nicht gepusht, sondern nur still ins Buch
+        # geschrieben (art „serieFuehrt"). Nach ~2 Wochen vergleichen mit den gepushten Serien.
+        sp_l = next((sp for sp in (d.get("radar") or {}).get("spiele") or [] if sp.get("id") == x["id"]), None) or {}
+        st_l = (sp_l.get("live") or {}).get("stand")
+        k_l = 0 if x["auswahl"] == x["heim"] else 1 if x["auswahl"] == x["gast"] else None
+        if x.get("live") and st_l and st_l[0] is not None and k_l is not None and st_l[k_l] > st_l[1 - k_l]:
+            yield (f"sf|{x['id']}|{x['markt']}|{x['auswahl']}", None, None,
+                   {"art": "serieFuehrt", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
+                    "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": True, "markt": x["markt"], "auswahl": x["auswahl"],
+                    "quote": q, "eur": x["eur"], "stand": st_l, "minute": (sp_l.get("live") or {}).get("min"), "lage": "vorn",
+                    "n": x["n"]})
+            continue
         # die Quote vor dem Geldfluss kann älter sein als der Serienbeginn (Porto: 1,63 vor 30 Min, Serie ab 1,43)
         vorher = [f.get("quoteVorher") for z_ in d.get("zufluss30") or [] if str(z_.get("id")) == str(x["id"])
                   for f in z_.get("fluss") or [] if f.get("markt") == x["markt"] and f.get("auswahl") == x["auswahl"]]
@@ -973,6 +986,11 @@ def main() -> int:
                        for k, v in gesehen.items()):
                     continue        # nicht als gesehen markieren: die Stufe kommt nach der Pause mit frischen Zahlen
             if erster_lauf:
+                gesehen[key] = JETZT.isoformat()
+                continue
+            if text is None:                 # 30.10.: nur messen, nicht senden (Schattenbuch)
+                if beleg and not trocken:
+                    bilanz.eintragen(buch, beleg, JETZT)
                 gesehen[key] = JETZT.isoformat()
                 continue
             if gesendet >= MAX_JE_LAUF:
