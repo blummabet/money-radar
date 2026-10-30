@@ -353,7 +353,11 @@ def top3_messung(buch):
                                                    and "druck" not in (b.get("signale") or [])]),
                ("ohne mehrere Märkte (ab 25.10.)", [b for b in z if b.get("art") == "top3" and (b.get("regel") or 1) >= 2
                                                     and "maerkte" not in (b.get("signale") or [])]),
-               *[(LIGA_NAME[n], [b for b in z if b.get("art") == "top3" and ligagroesse(b) == n]) for n in LIGA_STUFEN]]
+               *[(LIGA_NAME[n], [b for b in z if b.get("art") == "top3" and ligagroesse(b) == n]) for n in LIGA_STUFEN],
+               # 30.10. (Volendam 37' 1:0): live Geld auf die Seite, die schon führt — trägt das, oder läuft es nur der Uhr nach?
+               ("Live: Auswahl führt schon", [b for b in z if b.get("lage") == "vorn"]),
+               ("Live: Stand gleich", [b for b in z if b.get("lage") == "gleich"]),
+               ("Live: Auswahl liegt hinten", [b for b in z if b.get("lage") == "hinten"])]
     aus = []
     for name, g in gruppen:
         k = _gruppe(g)

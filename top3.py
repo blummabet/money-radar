@@ -204,7 +204,12 @@ def rangliste(d, jetzt):
         aus.append({"art": "top3", "id": str(s.get("id")), "heim": s.get("heim"), "gast": s.get("gast"), "liga": s.get("liga"),
                     "anpfiff": s.get("anpfiff"), "live": bool(lv), "top5": bool(s.get("top5")), "normEur": s.get("normEur"), "ligaEur": s.get("ligaEur"), "markt": (fM or {}).get("name"),
                     "auswahl": fA.get("name"), "quote": q, "eur": s.get("eur"), "punkte": round(summe, 2),
-                    "signale": sorted(p), "n": len(p), "familien": mm})
+                    "signale": sorted(p), "n": len(p), "familien": mm,
+                    # 30.10. (Volendam 37' 1:0, Geld auf den Führenden): Stand beim Einzug + Lage der Auswahl-Seite mitschreiben
+                    "stand": stand if lv else None,
+                    "lage": (None if not lv or fk not in ("heim", "gast") else
+                             "vorn" if (stand[0 if fk == "heim" else 1] or 0) > (stand[1 if fk == "heim" else 0] or 0) else
+                             "hinten" if (stand[0 if fk == "heim" else 1] or 0) < (stand[1 if fk == "heim" else 0] or 0) else "gleich")})
 
     # Polymarket-Märkte ohne Betfair-Spiel (E-Sport, Tennis, Fußball, den Betfair nicht führt)
     bf_teams = [((team(s.get("heim")), team(s.get("gast"))), _ts(s.get("anpfiff"))) for s in (d.get("radar") or {}).get("spiele") or []]
