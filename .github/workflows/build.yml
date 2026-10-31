@@ -115,7 +115,9 @@ jobs:
           rm -f poly_money_broad_close.json poly_money_upcoming.json poly_money_broad_live.json liga_poly_prices.json pinnacle_poly_scan.json
       - name: Daten verdichten
         run: python3 build.py
-      - name: Cards (Top-5-Picks aus dem alten Projekt, höchstens alle 20 Min neu)
+      - name: Cards (Top-5-Picks aus dem alten Projekt, neu sobald das alte Repo neue Picks hat)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: timeout 120 python3 cards.py || echo "Cards-Abruf fehlgeschlagen, Seite nimmt den letzten Stand"
       - name: Live-Statistik (API-Football, xG und Schüsse für die gezeigten Live-Spiele)
         env:

@@ -117,6 +117,19 @@ def _markt_art(m):
     return "Sieg"
 
 
+def _quell_sha():
+    """Letzter Commit an liga-data.json im alten Repo — kleiner API-Aufruf statt 20 MB. None = unbekannt."""
+    import os
+    try:
+        req = urllib.request.Request("https://api.github.com/repos/blummabet/Betting-Dashboard/commits?path=liga-data.json&per_page=1",
+                                     headers={"Accept": "application/vnd.github+json",
+                                              **({"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"]} if os.environ.get("GITHUB_TOKEN") else {})})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return (json.loads(r.read().decode("utf-8")) or [{}])[0].get("sha")
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def bauen() -> dict:
     d = _holen("liga-data.json")
     hist = _holen("liga-odds-history.json")
@@ -175,9 +188,14 @@ def main() -> int:
         pass
     neu = alt
     t = _ts((alt or {}).get("stand"))
-    if not alt or not t or (JETZT - t).total_seconds() > FRISCH_MIN * 60 or "--neu" in sys.argv:
+    # 31.10.: Tottenham kam als Push, fehlte aber 20 Min auf der Seite. Jetzt: sofort neu, sobald das alte
+    # Repo liga-data.json neu committet hat (Aufstellungs-Lauf, Odds-Refresh); die 20 Min bleiben als Rückfall.
+    sha = _quell_sha()
+    geaendert = bool(sha) and sha != (alt or {}).get("quelleSha")
+    if not alt or not t or geaendert or (JETZT - t).total_seconds() > FRISCH_MIN * 60 or "--neu" in sys.argv:
         try:
             neu = bauen()
+            neu["quelleSha"] = sha
             CACHE.parent.mkdir(parents=True, exist_ok=True)
             CACHE.write_text(json.dumps(neu, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
             print(f"cards: {len(neu['karten'])} Cards, {len(neu['bilanz'])} abgerechnete Picks")
