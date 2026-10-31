@@ -9,7 +9,8 @@ site/cards.json (~50 kB). Damit der Bau nicht alle 5 Min 20 MB lädt: Zwischenst
 neu geholt höchstens alle 20 Min.
 
 Inhalt 1:1 aus den Cards: nur BET/ABWÄGEN, Top-5-Ligen, heute + morgen (Wiener Zeit), dazu die Bilanz aller
-abgerechneten BET/ABWÄGEN-Picks (je Monat, je Markt-Art, je Überzeugung).
+abgerechneten BET/ABWÄGEN-Picks (je Monat, je Markt-Art, je Überzeugung) — jede Zeile mit dem
+Public-Merker (kein Gegensignal = geht in den Kanal), damit die Seite dieselbe Bilanz zeigt wie der Kanal.
 """
 from __future__ import annotations
 
@@ -89,6 +90,20 @@ def _einheiten(p):
     return 0.0
 
 
+def _public(p):
+    """Geht dieser Pick in den Public-Kanal? 1:1 pick_announce_state.push_ok im alten Repo:
+    BET immer, ABWÄGEN nur ohne jedes Gegensignal (und mit mindestens einem dafür)."""
+    if p.get("trackingExcluded") or p.get("boldAlt") or p.get("verdict") not in ("BET", "ABWÄGEN"):
+        return False
+    if p.get("verdict") == "BET":
+        return True
+    pos, neg = p.get("signalCountPos"), p.get("signalCountNeg")
+    if not (isinstance(pos, int) and isinstance(neg, int)):
+        sig = [x for x in (_lit(p.get("signals")) or []) if isinstance(x, dict)]
+        pos, neg = sum(1 for x in sig if (x.get("score") or 0) > 0), sum(1 for x in sig if (x.get("score") or 0) < 0)
+    return neg == 0 and pos > 0
+
+
 def _markt_art(m):
     m = str(m or "")
     if m.startswith("AH"):
@@ -123,7 +138,7 @@ def bauen() -> dict:
                     continue
                 if p.get("result") in ("WIN", "LOSS", "VOID") and ko:
                     bilanz.append([ko.astimezone(WIEN).strftime("%Y-%m-%d"), g, _markt_art(p.get("market")), p.get("convictionScore"),
-                                   p.get("verdict"), p["result"], round(_einheiten(p), 3), p.get("odds")])
+                                   p.get("verdict"), p["result"], round(_einheiten(p), 3), p.get("odds"), 1 if _public(p) else 0])
                 if not ko or ko.astimezone(WIEN).date() not in tage:
                     continue
                 h, a = teams.get(str(fx["home"]), {}), teams.get(str(fx["away"]), {})
@@ -139,7 +154,7 @@ def bauen() -> dict:
                     "logoH": h.get("logo"), "logoG": a.get("logo"),
                     "markt": p["market"], "quote": p.get("odds"), "urteil": p["verdict"], "score": p.get("convictionScore"),
                     "schwelle": p.get("convBetSchwelle") or 8, "fam": p.get("convictionFamilies") or {},
-                    "dafuer": p.get("signalCountPos"), "dagegen": p.get("signalCountNeg"), "einsatz": p.get("stake"),
+                    "dafuer": p.get("signalCountPos"), "dagegen": p.get("signalCountNeg"), "einsatz": p.get("stake"), "public": _public(p),
                     "ergebnis": p.get("result"), "stand": [res.get("home_score"), res.get("away_score")] if res.get("status") == "FT" else None,
                     "signale": sorted([{"n": SIGNAL_DE.get(s.get("name"), s.get("name")), "w": s.get("weighted_score"), "e": s.get("evidence")}
                                        for s in sig if isinstance(s, dict) and s.get("weighted_score")], key=lambda s: -abs(s["w"])),
@@ -149,7 +164,7 @@ def bauen() -> dict:
     bilanz.sort()
     return {"stand": JETZT.isoformat(), "quelleStand": (d.get("_meta") or {}).get("picksUpdatedAt"),
             "karten": karten, "bilanz": bilanz,
-            "bilanzFelder": ["tag", "liga", "art", "score", "urteil", "ergebnis", "einheiten", "quote"]}
+            "bilanzFelder": ["tag", "liga", "art", "score", "urteil", "ergebnis", "einheiten", "quote", "public"]}
 
 
 def main() -> int:

@@ -1441,6 +1441,18 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 body.auf-cards #ligaschalter{display:none}
 .cd-chip{font:600 12.5px inherit;font-family:inherit;color:var(--text-2);border:1px solid var(--rand);background:var(--panel);border-radius:999px;padding:6px 12px;cursor:pointer}
 .cd-chip.an{color:var(--text);border-color:var(--text-3)}
+.cd-chip.frei{color:var(--up);border-color:color-mix(in srgb,var(--up) 40%,var(--rand))}
+.cd-chip.frei.an{background:color-mix(in srgb,var(--up) 16%,var(--panel));border-color:var(--up)}
+.cd-kz div.frei{border-color:color-mix(in srgb,var(--up) 45%,var(--rand));background:color-mix(in srgb,var(--up) 7%,var(--panel))}
+.cd-kn{font-size:12px;font-weight:700;color:var(--text-3);margin-left:4px}
+.cd-kn b{font-size:12px}
+.cd.frei{border-color:color-mix(in srgb,var(--up) 55%,var(--rand));box-shadow:0 0 0 1px color-mix(in srgb,var(--up) 30%,transparent)}
+.cd-frei{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 16px;background:color-mix(in srgb,var(--up) 15%,transparent);color:var(--up);font-size:12.5px;font-weight:800}
+.cd-frei small{font-size:11px;font-weight:600;opacity:.85}
+.cd-vm{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:10px}
+.cd-vm div{background:var(--panel-2);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;font-size:12px;font-weight:600;color:var(--text-2)}
+.cd-vm small{color:var(--text-3);font-size:11px}
+.cd-vm .g{color:var(--text-3)}
 .cd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
 .cd{background:var(--panel);border:1px solid var(--rand);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;--cf:var(--bf)}
 .cd.bet{--cf:var(--up)}
@@ -4093,7 +4105,8 @@ function statKlick(e){
 
 // ══ Cards (Lucas 31.10.) ═══════════════════════════════════════════════════════════════════════════════════════
 // Top-5-Picks aus dem alten Projekt, 1:1 im Inhalt. cards.py baut site/cards.json (höchstens alle 20 Min neu).
-const CD = {daten:null, laden:false, fehler:null, tag:"heute", liga:"alle", offen:new Set()};
+const CD = {daten:null, laden:false, fehler:null, tag:"heute", liga:"alle", nurFrei:false, offen:new Set()};
+// public = geht in den Kanal (BET, oder ABWÄGEN ohne jedes Gegensignal) — 1:1 push_ok im alten Repo. Spalte 8 der Bilanz.
 const CD_LAND = {ENG:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",ESP:"🇪🇸",GER:"🇩🇪",ITA:"🇮🇹",FRA:"🇫🇷"};
 const CD_LIGEN = [["alle","Alle"],["ENG","🏴󠁧󠁢󠁥󠁮󠁧󠁿 PL"],["ESP","🇪🇸 La Liga"],["GER","🇩🇪 Bundesliga"],["ITA","🇮🇹 Serie A"],["FRA","🇫🇷 Ligue 1"]];
 async function cardsLaden(){
@@ -4129,7 +4142,8 @@ function cdKarte(c, i){
   const logo = (u, n) => u ? `<img src="${esc(u)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('em'),{textContent:'${esc(String(n||"?")[0])}'}))">` : `<em>${esc(String(n||"?")[0])}</em>`;
   const fam = [["Sharp-Geld",c.fam?.sharp_money],["Modell",c.fam?.model_stack],["Kontext",c.fam?.context],["Markt",c.fam?.market]];
   const gruende = offen ? c.signale : [...c.signale.filter(x=>x.w>0).slice(0,2), ...c.signale.filter(x=>x.w<0).slice(0,1)];
-  return `<article class="cd ${bet?"bet":""} ${c.ergebnis?"vorbei":""} ${offen?"offen":""}">
+  return `<article class="cd ${bet?"bet":""} ${c.public?"frei":""} ${c.ergebnis?"vorbei":""} ${offen?"offen":""}">
+    ${c.public?`<div class="cd-frei"><span>✓ Kein Gegensignal</span><small>geht in den Kanal</small></div>`:""}
     <div class="cd-top"><span><b>${uhr(c.anpfiff)}</b>${CD_LAND[c.land]||""} ${esc(c.liga)}${lauft?` · <span style="color:var(--down);font-weight:700">läuft</span>`:""}</span>${erg}</div>
     <div class="cd-teams"><div class="cd-t">${logo(c.logoH, c.heim)}${esc(c.heim)}${c.stand?`<span class="tor">${c.stand[0]}</span>`:""}</div><div class="cd-t">${logo(c.logoG, c.gast)}${esc(c.gast)}${c.stand?`<span class="tor">${c.stand[1]}</span>`:""}</div></div>
     <div class="cd-tipp">
@@ -4151,8 +4165,15 @@ function cdBilanz(B){
   const monate = [...new Set(B.map(z=>z[0].slice(0,7)))].sort().reverse();
   const arten = [...new Set(B.map(z=>z[2]))];
   const stufen = [[0,4,"Überzeugung 1–4"],[5,5,"Überzeugung 5"],[6,6,"Überzeugung 6"],[7,7,"Überzeugung 7"],[8,10,"BET (8+)"]];
-  return `<div class="cd-bil">
-    <div class="panel"><div class="ph"><h3>Je Monat</h3><span class="hint">alle BET/ABWÄGEN, 1 Einheit je Pick</span></div>${monate.map(m=>zeile(MONAT[+m.slice(5)-1]+" "+m.slice(0,4), B.filter(z=>z[0].startsWith(m)))).join("")}</div>
+  const F = B.filter(z=>z[8]), G = B.filter(z=>!z[8]);
+  const vergleich = `<div class="panel cd-vgl"><div class="ph"><h3>Kein Gegensignal gegen den Rest</h3><span class="hint">nur die ohne Gegensignal gehen in den Kanal</span></div>
+    ${zeile("✓ Kein Gegensignal (Kanal)", F)}${zeile("Mit Gegensignal", G)}${zeile("Alle Cards", B)}
+    <div class="cd-vm">${monate.map(m=>{ const f = F.filter(z=>z[0].startsWith(m)), g = G.filter(z=>z[0].startsWith(m)), e = r=>r.reduce((a,z)=>a+z[6],0);
+      const zahl = x => `<b style="color:${x>=0?"var(--up)":"var(--down)"}">${x>=0?"+":"−"}${dez(Math.abs(x))} E</b>`;
+      return `<div><small>${MONAT[+m.slice(5)-1]}</small><span>✓ ${zahl(e(f))}</span><span class="g">mit ${zahl(e(g))}</span></div>`; }).join("")}</div></div>`;
+  if(CD.nurFrei) B = F;
+  return `<div class="cd-bil">${vergleich}
+    <div class="panel"><div class="ph"><h3>Je Monat</h3><span class="hint">${CD.nurFrei?"nur ohne Gegensignal":"alle BET/ABWÄGEN"}, 1 Einheit je Pick</span></div>${monate.map(m=>zeile(MONAT[+m.slice(5)-1]+" "+m.slice(0,4), B.filter(z=>z[0].startsWith(m)))).join("")}</div>
     <div class="panel"><div class="ph"><h3>Je Markt</h3></div>${arten.map(a=>zeile(a, B.filter(z=>z[2]===a))).join("")}</div>
     <div class="panel"><div class="ph"><h3>Je Überzeugung</h3><span class="hint">trifft höher öfter?</span></div>${stufen.map(([a,b,n])=>zeile(n, B.filter(z=>z[3]!=null && z[3]>=a && z[3]<=b))).join("")}</div>
     <div class="panel"><div class="ph"><h3>Je Liga</h3></div>${CD_LIGEN.slice(1).map(([k,n])=>zeile(n, B.filter(z=>z[1]===k))).join("")}</div></div>`;
@@ -4161,17 +4182,23 @@ function seiteCards(){
   if(!CD.daten){ cardsLaden(); return `<div class="panel"><div class="leer">${CD.fehler?`Die Cards konnten nicht geladen werden (${esc(CD.fehler)}).`:"Cards werden geladen …"}</div></div>`; }
   const K = CD.daten.karten||[], B = CD.daten.bilanz||[];
   const monat = new Date().toISOString().slice(0,7), BM = B.filter(z=>z[0].startsWith(monat));
-  const bm = { w:BM.filter(z=>z[5]==="WIN").length, l:BM.filter(z=>z[5]==="LOSS").length, e:BM.reduce((a,z)=>a+z[6],0) };
-  const sicht = K.map((c,i)=>[c,i]).filter(([c])=>c.tag===CD.tag && (CD.liga==="alle" || c.land===CD.liga));
+  const zf = r => ({ w:r.filter(z=>z[5]==="WIN").length, l:r.filter(z=>z[5]==="LOSS").length, e:r.reduce((a,z)=>a+z[6],0) });
+  const bf = zf(BM.filter(z=>z[8])), ba = zf(BM);
+  const vz = e => `<b style="color:${e>=0?"var(--up)":"var(--down)"}">${e>=0?"+":"−"}${dez(Math.abs(e))}</b>`;
+  const sicht = K.map((c,i)=>[c,i]).filter(([c])=>c.tag===CD.tag && (CD.liga==="alle" || c.land===CD.liga) && (!CD.nurFrei || c.public))
+    .sort((a,b)=>(b[0].public?1:0)-(a[0].public?1:0));
   const seg = [["heute","Heute"],["morgen","Morgen"],["bilanz","Bilanz"]];
-  return `<div class="cd-kopf"><div class="cd-kz"><div><small>${MONAT[new Date().getMonth()]} · alle Cards</small><b>${bm.w}–${bm.l}</b></div><div><small>Einheiten</small><b style="color:${bm.e>=0?"var(--up)":"var(--down)"}">${bm.e>=0?"+":"−"}${dez(Math.abs(bm.e))}</b></div><div><small>heute</small><b>${K.filter(c=>c.tag==="heute").length}</b></div></div>
+  const hf = K.filter(c=>c.tag==="heute"), M = MONAT[new Date().getMonth()];
+  return `<div class="cd-kopf"><div class="cd-kz"><div class="frei"><small>${M} · ✓ kein Gegensignal</small><b>${bf.w}–${bf.l}</b></div><div class="frei"><small>Einheiten (Kanal)</small>${vz(bf.e)}</div><div><small>${M} · alle Cards</small><b>${ba.w}–${ba.l}</b> <span class="cd-kn">${vz(ba.e)} E</span></div><div><small>heute</small><b>${hf.length}</b> <span class="cd-kn">davon ✓ ${hf.filter(c=>c.public).length}</span></div></div>
     ${CD.daten.quelleStand?`<span class="hint">Picks berechnet ${uhr(CD.daten.quelleStand)}</span>`:""}</div>
     <div class="cd-leiste"><div class="seg">${seg.map(([k,n])=>`<button class="${CD.tag===k?"an":""}" data-cdtag="${k}">${n}</button>`).join("")}</div>
+    <button class="cd-chip frei ${CD.nurFrei?"an":""}" data-cdfrei aria-pressed="${CD.nurFrei}">✓ nur ohne Gegensignal</button>
     ${CD.tag==="bilanz" ? "" : CD_LIGEN.map(([k,n])=>`<button class="cd-chip ${CD.liga===k?"an":""}" data-cdliga="${k}">${n}</button>`).join("")}</div>
-    ${CD.tag==="bilanz" ? cdBilanz(B) : sicht.length ? `<div class="cd-grid">${sicht.map(([c,i])=>cdKarte(c,i)).join("")}</div>` : `<div class="panel"><div class="leer">Für ${CD.tag==="heute"?"heute":"morgen"}${CD.liga!=="alle"?" in dieser Liga":""} gibt es keinen Pick mit BET oder ABWÄGEN.</div></div>`}`;
+    ${CD.tag==="bilanz" ? cdBilanz(B) : sicht.length ? `<div class="cd-grid">${sicht.map(([c,i])=>cdKarte(c,i)).join("")}</div>` : `<div class="panel"><div class="leer">Für ${CD.tag==="heute"?"heute":"morgen"}${CD.liga!=="alle"?" in dieser Liga":""} gibt es ${CD.nurFrei?"keinen Pick ohne Gegensignal":"keinen Pick mit BET oder ABWÄGEN"}.</div></div>`}`;
 }
 function cardsKlick(e){
   const t = e.target.closest("[data-cdtag]"); if(t){ CD.tag = t.dataset.cdtag; $("#s-cards").innerHTML = seiteCards(); return true; }
+  if(e.target.closest("[data-cdfrei]")){ CD.nurFrei = !CD.nurFrei; $("#s-cards").innerHTML = seiteCards(); return true; }
   const l = e.target.closest("[data-cdliga]"); if(l){ CD.liga = l.dataset.cdliga; $("#s-cards").innerHTML = seiteCards(); return true; }
   const a = e.target.closest("[data-cdauf]"); if(a){ const i = +a.dataset.cdauf; CD.offen.has(i) ? CD.offen.delete(i) : CD.offen.add(i); $("#s-cards").innerHTML = seiteCards(); return true; }
   return false;
