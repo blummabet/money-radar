@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R1"
+REGEL = "R2"   # R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale
 AB = "2026-10-31T10:30:00+00:00"
 ZIEL = 60
 JE_FENSTER = 3
@@ -88,6 +88,11 @@ def passt(m) -> bool:
     """m: {art, liga, quote, …} — gilt die Public-Regel 1 für diese Meldung (ohne Kontingent)?"""
     art, q, liga = m.get("art"), m.get("quote"), str(m.get("liga") or "")
     if art not in ARTEN or not isinstance(q, (int, float)):
+        return False
+    # Regel 2 (Lucas 31.10. 13:03, wie im alten Projekt): Premier League ohne Betfair-Geld-Signale — dort liegt
+    # immer das meiste Geld, Dauerzufluss/Zufluss sagen nichts (seit 16.10.: 17 Tipps, −48 % / −18 %).
+    # Stake-Burst und Wal bleiben (10 Tipps +85 %, 2 Tipps +94 %).
+    if art in ("serie", "zufluss") and re.search(r"^(English )?Premier League$", liga, re.I):
         return False
     if GROSS.search(liga) and 1.6 <= q < 3.0:
         return True
