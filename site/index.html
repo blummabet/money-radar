@@ -460,7 +460,7 @@ main{padding:22px 28px 60px;min-width:0}
   .kk-reihe svg{width:52px;height:52px}
   .nz{grid-template-columns:minmax(0,1fr) 72px 70px;gap:8px;padding:8px 2px}
   .drawer{top:auto;width:100vw;max-height:85vh;border-left:0;border-top:1px solid var(--line);border-radius:18px 18px 0 0;transform:translateY(102%)}
-  .unten-nav{display:grid;grid-template-columns:repeat(8,1fr);position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(13,19,32,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .unten-nav{display:grid;grid-template-columns:repeat(7,1fr);position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(13,19,32,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
   .unten-nav button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--text-3);padding:6px 0}
   .unten-nav button .dot{width:18px;height:4px;border-radius:2px;opacity:.35}
   .unten-nav button.an{color:var(--text)}
@@ -1419,6 +1419,89 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .bk-mehr .serie-n{animation:serieN 1.4s ease-out}
 @keyframes serieN{0%,30%{color:var(--up);text-shadow:0 0 12px var(--up)}}
 @media (prefers-reduced-motion:reduce){ .bk-mehr,.bk-neu,.bk-plus,.t3-b i,.kopf .rechts.neu,.bk-mehr .saeulen .s-letzt,.bk-neu .saeulen .s-letzt{animation:none} .bk-plus{display:none} }
+
+/* ── Burger-Menü (Lucas 31.10.: Statistik + HZ 0:0 raus aus der Navi, oben rechts ins Menü) ── */
+.burger-wrap{position:relative;flex:none}
+.burger-knopf{background:var(--panel);border:1px solid var(--rand);border-radius:999px;width:36px;height:36px;display:grid;place-items:center;color:var(--text);cursor:pointer}
+.burger-menue{position:absolute;right:0;top:44px;z-index:40;min-width:230px;background:var(--panel);border:1px solid var(--rand);border-radius:14px;padding:6px;box-shadow:var(--schatten)}
+.burger-menue button{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;color:var(--text);font:600 14px inherit;font-family:inherit;padding:10px 12px;border-radius:10px;text-align:left;cursor:pointer}
+.burger-menue button:hover,.burger-menue button.an{background:var(--flaeche-2)}
+.burger-menue .dot{width:8px;height:8px;border-radius:50%}
+.burger-menue small{display:block;color:var(--text-3);font-weight:500;font-size:11.5px;margin-top:1px}
+.burger-menue .cnt{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--text-2);background:var(--panel-3);border-radius:999px;padding:1px 7px}
+/* ── Cards (Lucas 31.10.: Top-5-Picks aus dem alten Projekt, eigener Bereich) ── */
+.cd-kopf{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.cd-kz{display:flex;gap:8px;flex-wrap:wrap}
+.cd-kz div{background:var(--panel);border:1px solid var(--rand);border-radius:14px;padding:8px 14px}
+.cd-kz small{display:block;color:var(--text-3);font-size:11.5px;font-weight:600}
+.cd-kz b{font-size:18px;font-weight:800}
+.cd-leiste{display:flex;gap:8px;align-items:center;overflow-x:auto;scrollbar-width:none;margin-bottom:16px}
+.cd-leiste>*{flex:none}
+.cd-leiste .seg{width:auto}
+body.auf-cards #ligaschalter{display:none}
+.cd-chip{font:600 12.5px inherit;font-family:inherit;color:var(--text-2);border:1px solid var(--rand);background:var(--panel);border-radius:999px;padding:6px 12px;cursor:pointer}
+.cd-chip.an{color:var(--text);border-color:var(--text-3)}
+.cd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.cd{background:var(--panel);border:1px solid var(--rand);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;--cf:var(--bf)}
+.cd.bet{--cf:var(--up)}
+.cd.vorbei{opacity:.72}
+.cd-top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 0;font-size:12px;color:var(--text-3);font-weight:600;gap:8px}
+.cd-top b{color:var(--text);font-weight:800;margin-right:4px}
+.cd-u{font-weight:800;font-size:10.5px;letter-spacing:.06em;padding:4px 8px;border-radius:6px;background:color-mix(in srgb,var(--cf) 16%,transparent);color:var(--cf);white-space:nowrap}
+.cd-u.w{--cf:var(--up)} .cd-u.l{--cf:var(--down)} .cd-u.v{--cf:var(--text-3)}
+.cd-teams{padding:12px 16px 14px;display:flex;flex-direction:column;gap:7px}
+.cd-t{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:700}
+.cd-t img,.cd-t em{width:22px;height:22px;object-fit:contain;flex:none}
+.cd-t em{border-radius:50%;background:var(--panel-3);display:grid;place-items:center;font:800 11px inherit;font-style:normal;color:var(--text-2)}
+.cd-t .tor{margin-left:auto;font-weight:900}
+.cd-tipp{margin:0 12px;padding:14px 14px 12px;background:var(--panel-2);border-radius:14px}
+.cd-tz{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.cd-tz span{font-size:12px;color:var(--text-3);font-weight:600;display:block;margin-bottom:2px}
+.cd-tz b{font-size:21px;font-weight:800;letter-spacing:-.01em}
+.cd-q{font-size:30px;font-weight:900;color:var(--cf)}
+.cd-ueb{margin-top:12px}
+.cd-uk{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-3);font-weight:600;margin-bottom:6px}
+.cd-uk b{color:var(--text);font-size:12.5px}
+.cd-st{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;position:relative}
+.cd-st i{height:9px;border-radius:2px;background:var(--panel-3)}
+.cd-st i.an{background:var(--cf)}
+.cd-st .lin{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--text);border-radius:1px}
+.cd-st .lin:after{content:"BET";position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:800;color:var(--text-2);letter-spacing:.05em}
+.cd-fam{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.cd-fam div{font-size:11px;color:var(--text-3);font-weight:600}
+.cd-fam div b{display:block;font-size:13px;color:var(--text);margin-top:2px}
+.cd-fam div.null b{color:var(--text-3)}
+.cd-vl{margin-top:12px}
+.cd-vk{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-3);font-weight:600;margin-bottom:4px}
+.cd-vk b{color:var(--pin);font-size:12.5px}
+.cd-vl svg{display:block;width:100%;height:46px}
+.cd-waage{padding:14px 16px 2px}
+.cd-wk{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;margin-bottom:6px}
+.cd-wk .n{color:var(--down)} .cd-wk .p{color:var(--up)} .cd-wk span:nth-child(2){color:var(--text-3);font-weight:600}
+.cd-wb{display:grid;grid-template-columns:1fr 2px 1fr;height:12px;align-items:center}
+.cd-wb .l,.cd-wb .r{display:flex;gap:2px;height:100%}
+.cd-wb .l{justify-content:flex-end}
+.cd-wb i{height:100%;border-radius:3px}
+.cd-wb .l i{background:color-mix(in srgb,var(--down) 80%,transparent)}
+.cd-wb .r i{background:color-mix(in srgb,var(--up) 85%,transparent)}
+.cd-wb .m{height:18px;background:var(--text-3);border-radius:1px}
+.cd-warum{padding:12px 16px 4px;display:flex;flex-direction:column;gap:7px}
+.cd-w{display:grid;grid-template-columns:16px 1fr;gap:8px;font-size:13px;line-height:1.38;color:var(--text-2)}
+.cd-w span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cd.offen .cd-w span{-webkit-line-clamp:unset;display:block}
+.cd-w i{font-style:normal;font-weight:900;text-align:center}
+.cd-w.p i{color:var(--up)} .cd-w.n i{color:var(--down)}
+.cd-w small{display:block;color:var(--text-3);font-size:11px;font-weight:700}
+.cd-mehr{background:none;border:0;font:600 12px inherit;font-family:inherit;color:var(--text-3);padding:6px 16px 0;text-align:left;cursor:pointer}
+.cd-fuss{margin-top:auto;display:flex;gap:14px;padding:12px 16px 14px;font-size:12px;color:var(--text-3);font-weight:600;flex-wrap:wrap}
+.cd-fuss b{color:var(--text-2)}
+.cd-bil{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.cd-bz{display:grid;grid-template-columns:1fr auto auto auto;gap:6px 14px;align-items:center;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line)}
+.cd-bz:last-child{border:0}
+.cd-bz span:first-child{font-weight:700}
+.cd-bz .bar{grid-column:1/-1;height:5px;border-radius:3px;background:var(--panel-3);overflow:hidden}
+.cd-bz .bar i{display:block;height:100%;background:var(--up)}
+@media (max-width:420px){ .cd-grid{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -1429,7 +1512,7 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
   <div class="aside-fuss"><div style="margin-bottom:6px">Datenstand</div><div id="quellen"></div></div>
 </aside>
 <main>
-  <div class="kopf"><div><h1 id="titel">Übersicht</h1><div class="sub" id="untertitel"></div></div><div id="ligaschalter"></div><button class="merk-badge" id="merkBadge" data-merkliste hidden aria-label="Deine gemerkten Spiele">★ <b>0</b></button><div class="rechts"><span class="puls" id="puls"></span><span id="stand">lädt</span></div><button class="thema-knopf" id="thema" aria-label="Hell oder dunkel"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button></div>
+  <div class="kopf"><div><h1 id="titel">Übersicht</h1><div class="sub" id="untertitel"></div></div><div id="ligaschalter"></div><button class="merk-badge" id="merkBadge" data-merkliste hidden aria-label="Deine gemerkten Spiele">★ <b>0</b></button><div class="rechts"><span class="puls" id="puls"></span><span id="stand">lädt</span></div><button class="thema-knopf" id="thema" aria-label="Hell oder dunkel"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button><div class="burger-wrap"><button class="burger-knopf" id="burger" aria-label="Weitere Bereiche" aria-expanded="false" aria-controls="burgermenue"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><div class="burger-menue" id="burgermenue" hidden></div></div></div>
   <section class="seite an" id="s-start"></section>
   <section class="seite" id="s-feed"></section>
   <section class="seite" id="s-betfair"></section>
@@ -1438,6 +1521,7 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
   <section class="seite" id="s-stake"></section>
   <section class="seite" id="s-hz"></section>
   <section class="seite" id="s-statistik"></section>
+  <section class="seite" id="s-cards"></section>
 </main>
 </div>
 <nav class="unten-nav" id="untennav" aria-label="Bereiche"></nav>
@@ -4006,19 +4090,112 @@ function statKlick(e){
   const a = e.target.closest("[data-stalle]"); if(a){ const da = Object.keys(STAT_K).filter(k=>(ST.daten?.zeilen||[]).some(z=>z[1]===k)); ST.kat = da.every(k=>ST.kat.has(k)) ? new Set() : new Set(da); return true; }
   return false;
 }
+
+// ══ Cards (Lucas 31.10.) ═══════════════════════════════════════════════════════════════════════════════════════
+// Top-5-Picks aus dem alten Projekt, 1:1 im Inhalt. cards.py baut site/cards.json (höchstens alle 20 Min neu).
+const CD = {daten:null, laden:false, fehler:null, tag:"heute", liga:"alle", offen:new Set()};
+const CD_LAND = {ENG:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",ESP:"🇪🇸",GER:"🇩🇪",ITA:"🇮🇹",FRA:"🇫🇷"};
+const CD_LIGEN = [["alle","Alle"],["ENG","🏴󠁧󠁢󠁥󠁮󠁧󠁿 PL"],["ESP","🇪🇸 La Liga"],["GER","🇩🇪 Bundesliga"],["ITA","🇮🇹 Serie A"],["FRA","🇫🇷 Ligue 1"]];
+async function cardsLaden(){
+  if(CD.daten || CD.laden) return; CD.laden = true;
+  try{ const r = await fetch("cards.json?t="+Date.now(), {cache:"no-store"}); if(!r.ok) throw new Error("HTTP "+r.status); CD.daten = await r.json(); CD.fehler = null; }
+  catch(e){ CD.fehler = String(e.message||e); }
+  CD.laden = false;
+  try{ $("#s-cards").innerHTML = seiteCards(); }catch(e){ console.error(e); }
+}
+const cdMarkt = m => String(m||"").replace(/(\d)\.(\d)/g,"$1,$2").replace("Doppelte Chance — ","Doppelte Chance ").replace(/^AH Heim/,"Handicap Heim").replace(/^AH Auswärts/,"Handicap Auswärts").replace("Beide Teams treffen — ","Beide treffen: ");
+const cdText = e => String(e||"").replace(/^[^\p{L}\p{N}(~]+/u,"").replace(/(\d)\.(\d)/g,"$1,$2");
+function cdVerlauf(c, i){
+  const v = c.verlauf||[]; if(v.length<3) return "";
+  const ys = v.map(x=>x[1]), lo = Math.min(...ys)-2, hi = Math.max(...ys)+2, W=300, H=46;
+  const pt = v.map((x,j)=>[j/(v.length-1)*W, H-4-(x[1]-lo)/(hi-lo)*(H-8)]);
+  const d = pt.map((p,j)=>(j?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  return `<div class="cd-vl"><div class="cd-vk"><span>Pinnacle-Chance seit Eröffnung</span><b>${Math.round(ys[0])} → ${Math.round(ys.at(-1))} %</b></div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Pinnacle-Chance von ${Math.round(ys[0])} auf ${Math.round(ys.at(-1))} Prozent"><defs><linearGradient id="cdg${i}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--pin)" stop-opacity=".28"/><stop offset="1" stop-color="var(--pin)" stop-opacity="0"/></linearGradient></defs>
+    <path d="${d} L${W} ${H} L0 ${H}Z" fill="url(#cdg${i})"/><path d="${d}" fill="none" stroke="var(--pin)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    <circle cx="${pt.at(-1)[0]}" cy="${pt.at(-1)[1]}" r="3.5" fill="var(--pin)"/></svg></div>`;
+}
+function cdWaage(c){
+  const p = c.signale.filter(x=>x.w>0), n = c.signale.filter(x=>x.w<0);
+  const mx = Math.max(p.reduce((a,x)=>a+x.w,0), n.reduce((a,x)=>a-x.w,0), 3);
+  const seg = arr => arr.map(x=>`<i style="width:${(Math.abs(x.w)/mx*100).toFixed(1)}%" title="${esc(x.n)}"></i>`).join("");
+  return `<div class="cd-waage"><div class="cd-wk"><span class="n">${c.dagegen ?? n.length} dagegen</span><span>Signal-Waage</span><span class="p">${c.dafuer ?? p.length} dafür</span></div>
+    <div class="cd-wb"><div class="l">${seg(n.slice().reverse())}</div><span class="m"></span><div class="r">${seg(p)}</div></div></div>`;
+}
+function cdKarte(c, i){
+  const bet = c.urteil==="BET", s = c.score||0, schw = c.schwelle||8, offen = CD.offen.has(i);
+  const erg = c.ergebnis==="WIN" ? `<span class="cd-u w">✓ GEWONNEN</span>` : c.ergebnis==="LOSS" ? `<span class="cd-u l">✗ VERLOREN</span>` : c.ergebnis==="VOID" ? `<span class="cd-u v">VOID</span>` : `<span class="cd-u">${bet?"BET":"ABWÄGEN"}</span>`;
+  const ko = new Date(c.anpfiff), lauft = ko < Date.now() && !c.ergebnis;
+  const logo = (u, n) => u ? `<img src="${esc(u)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('em'),{textContent:'${esc(String(n||"?")[0])}'}))">` : `<em>${esc(String(n||"?")[0])}</em>`;
+  const fam = [["Sharp-Geld",c.fam?.sharp_money],["Modell",c.fam?.model_stack],["Kontext",c.fam?.context],["Markt",c.fam?.market]];
+  const gruende = offen ? c.signale : [...c.signale.filter(x=>x.w>0).slice(0,2), ...c.signale.filter(x=>x.w<0).slice(0,1)];
+  return `<article class="cd ${bet?"bet":""} ${c.ergebnis?"vorbei":""} ${offen?"offen":""}">
+    <div class="cd-top"><span><b>${uhr(c.anpfiff)}</b>${CD_LAND[c.land]||""} ${esc(c.liga)}${lauft?` · <span style="color:var(--down);font-weight:700">läuft</span>`:""}</span>${erg}</div>
+    <div class="cd-teams"><div class="cd-t">${logo(c.logoH, c.heim)}${esc(c.heim)}${c.stand?`<span class="tor">${c.stand[0]}</span>`:""}</div><div class="cd-t">${logo(c.logoG, c.gast)}${esc(c.gast)}${c.stand?`<span class="tor">${c.stand[1]}</span>`:""}</div></div>
+    <div class="cd-tipp">
+      <div class="cd-tz"><div><span>Tipp</span><b>${esc(cdMarkt(c.markt))}</b></div><div class="cd-q">${q2(c.quote)}</div></div>
+      <div class="cd-ueb"><div class="cd-uk"><span>Überzeugung</span><b>${s} / 10</b></div>
+        <div class="cd-st">${Array.from({length:10},(_,j)=>`<i class="${j<s?"an":""}"></i>`).join("")}<span class="lin" style="left:calc(${(schw-1)*10}% + ${(schw-1)*0.3}px)"></span></div></div>
+      <div class="cd-fam">${fam.map(([n,v])=>`<div class="${v?"":"null"}">${n}<b>${v??0}</b></div>`).join("")}</div>
+      ${cdVerlauf(c, i)}
+    </div>
+    ${c.signale.length ? cdWaage(c) : ""}
+    <div class="cd-warum">${gruende.map(x=>`<div class="cd-w ${x.w>0?"p":"n"}"><i>${x.w>0?"+":"−"}</i><span>${offen?`<small>${esc(x.n)}</small>`:""}${esc(cdText(x.e))}</span></div>`).join("")}</div>
+    ${c.signale.length>3 ? `<button class="cd-mehr" data-cdauf="${i}" aria-expanded="${offen}">${offen?"weniger ‹":`alle ${c.signale.length} Signale ›`}</button>` : ""}
+    <div class="cd-fuss">${c.einsatz?`<span>Einsatz <b>€${q2(c.einsatz)}</b></span>`:""}<span>${c.spieltag}. Spieltag</span></div>
+  </article>`;
+}
+function cdBilanz(B){
+  const zeile = (name, r) => { const n = r.length, w = r.filter(z=>z[5]==="WIN").length, l = r.filter(z=>z[5]==="LOSS").length, e = r.reduce((a,z)=>a+z[6],0);
+    return n ? `<div class="cd-bz"><span>${name}</span><span>${w}–${l}</span><span>${n} Picks</span><span style="color:${e>=0?"var(--up)":"var(--down)"};font-weight:800">${e>=0?"+":"−"}${dez(Math.abs(e))} E</span><div class="bar"><i style="width:${w+l?Math.round(100*w/(w+l)):0}%"></i></div></div>` : ""; };
+  const monate = [...new Set(B.map(z=>z[0].slice(0,7)))].sort().reverse();
+  const arten = [...new Set(B.map(z=>z[2]))];
+  const stufen = [[0,4,"Überzeugung 1–4"],[5,5,"Überzeugung 5"],[6,6,"Überzeugung 6"],[7,7,"Überzeugung 7"],[8,10,"BET (8+)"]];
+  return `<div class="cd-bil">
+    <div class="panel"><div class="ph"><h3>Je Monat</h3><span class="hint">alle BET/ABWÄGEN, 1 Einheit je Pick</span></div>${monate.map(m=>zeile(MONAT[+m.slice(5)-1]+" "+m.slice(0,4), B.filter(z=>z[0].startsWith(m)))).join("")}</div>
+    <div class="panel"><div class="ph"><h3>Je Markt</h3></div>${arten.map(a=>zeile(a, B.filter(z=>z[2]===a))).join("")}</div>
+    <div class="panel"><div class="ph"><h3>Je Überzeugung</h3><span class="hint">trifft höher öfter?</span></div>${stufen.map(([a,b,n])=>zeile(n, B.filter(z=>z[3]!=null && z[3]>=a && z[3]<=b))).join("")}</div>
+    <div class="panel"><div class="ph"><h3>Je Liga</h3></div>${CD_LIGEN.slice(1).map(([k,n])=>zeile(n, B.filter(z=>z[1]===k))).join("")}</div></div>`;
+}
+function seiteCards(){
+  if(!CD.daten){ cardsLaden(); return `<div class="panel"><div class="leer">${CD.fehler?`Die Cards konnten nicht geladen werden (${esc(CD.fehler)}).`:"Cards werden geladen …"}</div></div>`; }
+  const K = CD.daten.karten||[], B = CD.daten.bilanz||[];
+  const monat = new Date().toISOString().slice(0,7), BM = B.filter(z=>z[0].startsWith(monat));
+  const bm = { w:BM.filter(z=>z[5]==="WIN").length, l:BM.filter(z=>z[5]==="LOSS").length, e:BM.reduce((a,z)=>a+z[6],0) };
+  const sicht = K.map((c,i)=>[c,i]).filter(([c])=>c.tag===CD.tag && (CD.liga==="alle" || c.land===CD.liga));
+  const seg = [["heute","Heute"],["morgen","Morgen"],["bilanz","Bilanz"]];
+  return `<div class="cd-kopf"><div class="cd-kz"><div><small>${MONAT[new Date().getMonth()]} · alle Cards</small><b>${bm.w}–${bm.l}</b></div><div><small>Einheiten</small><b style="color:${bm.e>=0?"var(--up)":"var(--down)"}">${bm.e>=0?"+":"−"}${dez(Math.abs(bm.e))}</b></div><div><small>heute</small><b>${K.filter(c=>c.tag==="heute").length}</b></div></div>
+    ${CD.daten.quelleStand?`<span class="hint">Picks berechnet ${uhr(CD.daten.quelleStand)}</span>`:""}</div>
+    <div class="cd-leiste"><div class="seg">${seg.map(([k,n])=>`<button class="${CD.tag===k?"an":""}" data-cdtag="${k}">${n}</button>`).join("")}</div>
+    ${CD.tag==="bilanz" ? "" : CD_LIGEN.map(([k,n])=>`<button class="cd-chip ${CD.liga===k?"an":""}" data-cdliga="${k}">${n}</button>`).join("")}</div>
+    ${CD.tag==="bilanz" ? cdBilanz(B) : sicht.length ? `<div class="cd-grid">${sicht.map(([c,i])=>cdKarte(c,i)).join("")}</div>` : `<div class="panel"><div class="leer">Für ${CD.tag==="heute"?"heute":"morgen"}${CD.liga!=="alle"?" in dieser Liga":""} gibt es keinen Pick mit BET oder ABWÄGEN.</div></div>`}`;
+}
+function cardsKlick(e){
+  const t = e.target.closest("[data-cdtag]"); if(t){ CD.tag = t.dataset.cdtag; $("#s-cards").innerHTML = seiteCards(); return true; }
+  const l = e.target.closest("[data-cdliga]"); if(l){ CD.liga = l.dataset.cdliga; $("#s-cards").innerHTML = seiteCards(); return true; }
+  const a = e.target.closest("[data-cdauf]"); if(a){ const i = +a.dataset.cdauf; CD.offen.has(i) ? CD.offen.delete(i) : CD.offen.add(i); $("#s-cards").innerHTML = seiteCards(); return true; }
+  return false;
+}
+// Lucas 31.10.: Cards in die Navi; HZ 0:0 und Statistik ins Burger-Menü oben rechts
 const SEITEN = [["start","Übersicht","var(--text)"],["feed","Feed","var(--down)"],["betfair","Betfair","var(--bf)"],["pinnacle","Pinnacle","var(--pin)"],
-  ["poly","Polymarket","var(--poly)"],["stake","Stake","var(--stake)"],["hz","HZ 0:0","var(--hz)"],["statistik","Statistik","var(--up)"]];
-const UNTER = {start:"Wo gerade das Geld liegt, quer über alle Quellen", betfair:"Jedes Spiel im Abruf, gemessen an seiner Liga", pinnacle:"Wohin die schärfste Quote zieht", poly:"Wer setzt, und wer davon nachweislich gut ist", stake:"Serien großer Einsätze", hz:"Spiele, die zur Pause anders laufen als erwartet", statistik:"Wie unsere Pushes abschneiden, nach Kategorie und Zeitraum", feed:"Alles, was gerade passiert, neueste zuerst"};
+  ["poly","Polymarket","var(--poly)"],["stake","Stake","var(--stake)"],["cards","Cards","var(--up)"]];
+const MENUE = [["statistik","Statistik","var(--up)"],["hz","HZ 0:0","var(--hz)"]];
+const ALLE_SEITEN = [...SEITEN, ...MENUE];
+const UNTER = {start:"Wo gerade das Geld liegt, quer über alle Quellen", betfair:"Jedes Spiel im Abruf, gemessen an seiner Liga", pinnacle:"Wohin die schärfste Quote zieht", poly:"Wer setzt, und wer davon nachweislich gut ist", stake:"Serien großer Einsätze", hz:"Spiele, die zur Pause anders laufen als erwartet", cards:"Top-5-Ligen · Picks aus 14 Signalen, Pinnacle als Anker", statistik:"Wie unsere Pushes abschneiden, nach Kategorie und Zeitraum", feed:"Alles, was gerade passiert, neueste zuerst"};
 let aktiv = "start";
 function navAufbauen(z){
   $("#navliste").innerHTML = SEITEN.map(([k,n,f])=>`<button class="nav${k===aktiv?" an":""}" data-geh="${k}"><span class="dot" style="background:${f}"></span>${n}${z[k]?`<span class="cnt">${z[k]}</span>`:""}</button>`).join("");
-  $("#untennav").innerHTML = SEITEN.map(([k,n,f])=>`<button class="${k===aktiv?"an":""}" data-geh="${k}"><span class="dot" style="background:${f}"></span>${n.replace("Polymarket","Poly").replace("Übersicht","Start").replace("Statistik","Stats")}</button>`).join("");
+  $("#untennav").innerHTML = SEITEN.map(([k,n,f])=>`<button class="${k===aktiv?"an":""}" data-geh="${k}"><span class="dot" style="background:${f}"></span>${n.replace("Polymarket","Poly").replace("Übersicht","Start")}</button>`).join("");
+  $("#burgermenue").innerHTML = MENUE.map(([k,n,f])=>`<button class="${k===aktiv?"an":""}" data-geh="${k}"><span class="dot" style="background:${f}"></span><span>${n}<small>${esc(UNTER[k]||"")}</small></span>${z[k]?`<span class="cnt">${z[k]}</span>`:""}</button>`).join("");
 }
+function burger(auf){ const m = $("#burgermenue"), b = $("#burger"); if(!m) return; m.hidden = !auf; b.setAttribute("aria-expanded", String(auf)); }
 function gehe(k){
   aktiv = k;
   document.querySelectorAll(".seite").forEach(s=>s.classList.toggle("an", s.id==="s-"+k));
-  document.querySelectorAll("#navliste [data-geh], #untennav [data-geh]").forEach(b=>b.classList.toggle("an", b.dataset.geh===k));
-  $("#titel").textContent = SEITEN.find(s=>s[0]===k)[1];
+  document.querySelectorAll("#navliste [data-geh], #untennav [data-geh], #burgermenue [data-geh]").forEach(b=>b.classList.toggle("an", b.dataset.geh===k));
+  $("#burger")?.classList.toggle("an", MENUE.some(m=>m[0]===k));
+  document.body.classList.toggle("auf-cards", k==="cards");
+  $("#titel").textContent = (ALLE_SEITEN.find(s=>s[0]===k)||SEITEN[0])[1];
   $("#untertitel").textContent = UNTER[k];
   try{ localStorage.setItem("radar-seite2", k); }catch(_){}
 }
@@ -4041,6 +4218,7 @@ function render(blitz=false){
   sicher("#s-stake", ()=>seiteStake(D));
   sicher("#s-hz", ()=>seiteHz(D));
   sicher("#s-statistik", seiteStatistik);
+  sicher("#s-cards", seiteCards);
   try{ navAufbauen({betfair:D.radar.spiele.filter(s=>s.xnorm>=1.5).length, pinnacle:((D.pinnDrops||{}).live||[]).length+((D.pinnDrops||{}).vor||[]).filter(s=>s.frisch).length,
     poly:D.poly.maerkte.filter(belegt).length, stake:(D.stake.gruppen||D.stake.heute).length, hz:D.hz.heute.length, feed:lf(D.liveZufluss||[]).length||null}); }
   catch(e){ console.error(e); navAufbauen({}); }
@@ -4119,7 +4297,10 @@ document.addEventListener("click", e=>{
     document.documentElement.dataset.theme = t; try{ localStorage.setItem("radar-thema", t); }catch(_){} return; }
   const bt = e.target.closest("[data-bt]"); if(bt){ bilanzTage = +bt.dataset.bt; $("#bilanzpanel").innerHTML = bilanzKopf()+bilanzPanel(D)+bilanzLeiste(D)+t3MessungDetail(D); return; }
   const bq = e.target.closest("[data-bq]"); if(bq){ bilanzAn = bilanzAn===bq.dataset.bq ? null : bq.dataset.bq; $("#bilanzpanel").innerHTML = bilanzKopf()+bilanzPanel(D)+bilanzLeiste(D)+t3MessungDetail(D); return; }
-  const g = e.target.closest("[data-geh]"); if(g){ gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
+  if(e.target.closest("#burger")){ burger($("#burgermenue").hidden); return; }
+  if(!e.target.closest("#burgermenue")) burger(false);
+  const g = e.target.closest("[data-geh]"); if(g){ burger(false); gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
+  if(e.target.closest("#s-cards") && cardsKlick(e)) return;
   if(e.target.closest("#s-statistik") && statKlick(e)){ $("#s-statistik").innerHTML = seiteStatistik(); return; }
   const rg = e.target.closest("[data-rang]"); if(rg){ filterRang = rg.dataset.rang; neuBauen("#s-poly", seitePoly(D)); return; }
   const sp = e.target.closest("[data-sport]"); if(sp){ filterSport = sp.dataset.sport; neuBauen("#s-poly", seitePoly(D)); return; }
@@ -4132,9 +4313,9 @@ document.addEventListener("click", e=>{
   if(e.target.closest("a")) return;
   const tr = e.target.closest("tr.zeile"); if(tr) aufklappen(tr);
 });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape") drZu(); if(e.key==="Enter"){ const dk=e.target.closest?.("[data-dr]"); if(dk){ drOeffnen(dk.dataset.dr); return; } } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ drZu(); burger(false); } if(e.key==="Enter"){ const dk=e.target.closest?.("[data-dr]"); if(dk){ drOeffnen(dk.dataset.dr); return; } } });
 document.addEventListener("keydown", e=>{ if(e.key==="Enter"){ const tr=e.target.closest?.("tr.zeile"); if(tr) aufklappen(tr); } });
-try{ const s = localStorage.getItem("radar-seite2"); if(s && SEITEN.some(x=>x[0]===s)) aktiv = s; }catch(_){}
+try{ const s = localStorage.getItem("radar-seite2"); if(s && ALLE_SEITEN.some(x=>x[0]===s)) aktiv = s; }catch(_){}
 laden();
 setInterval(laden, 30*1000);   // der Zeiger ist ~1 KB, die Daten kommen nur bei neuem Stand
 setInterval(standZeigen, 20*1000);
