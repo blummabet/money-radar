@@ -1441,7 +1441,7 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .cd-leiste{display:flex;gap:8px;align-items:center;overflow-x:auto;scrollbar-width:none;margin-bottom:16px}
 .cd-leiste>*{flex:none}
 .cd-leiste .seg{width:auto}
-body.auf-cards #ligaschalter{display:none}
+body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .cd-chip{font:600 12.5px inherit;font-family:inherit;color:var(--text-2);border:1px solid var(--rand);background:var(--panel);border-radius:999px;padding:6px 12px;cursor:pointer}
 .cd-chip.an{color:var(--text);border-color:var(--text-3)}
 .cd-chip.frei{color:var(--up);border-color:color-mix(in srgb,var(--up) 40%,var(--rand))}
@@ -4233,6 +4233,7 @@ function gehe(k){
   document.querySelectorAll("#navliste [data-geh], #untennav [data-geh], #burgermenue [data-geh]").forEach(b=>b.classList.toggle("an", b.dataset.geh===k));
   $("#burger")?.classList.toggle("an", MENUE.some(m=>m[0]===k));
   document.body.classList.toggle("auf-cards", k==="cards");
+  document.body.classList.toggle("auf-statistik", k==="statistik");
   $("#titel").textContent = (ALLE_SEITEN.find(s=>s[0]===k)||SEITEN[0])[1];
   $("#untertitel").textContent = UNTER[k];
   try{ localStorage.setItem("radar-seite2", k); }catch(_){}
