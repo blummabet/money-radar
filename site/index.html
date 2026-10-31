@@ -3883,7 +3883,8 @@ const STAT_K = {
   pserie:["Poly-Dauerzufluss","Polymarket","var(--poly)"], wal:["Wal-Einstieg","Polymarket","color-mix(in srgb, var(--poly) 60%, var(--text))"],
   stake:["Burst","Stake","var(--stake)"], hz:["HZ 0:0","Halbzeit-Finder","var(--hz)"],
   serieFuehrt:["Dauerzufluss auf Führenden","Nur gemessen","color-mix(in srgb, var(--bf) 40%, var(--text-3))"],
-  liveFuehrt:["Live-Zufluss auf Führenden","Nur gemessen","color-mix(in srgb, var(--down) 40%, var(--text-3))"]};
+  liveFuehrt:["Live-Zufluss auf Führenden","Nur gemessen","color-mix(in srgb, var(--down) 40%, var(--text-3))"],
+  public:["Public-Regel 1","Public-Kanal","var(--up)"]};   // Lucas 31.10.: Auswahl aus den Arten oben, deshalb nicht vorgewählt
 const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche", lage:"alle"};
 const MONAT = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 async function statLaden(){
@@ -3927,7 +3928,7 @@ function seiteStatistik(){
   if(!ST.daten){ statLaden(); return `<div class="panel"><div class="leer">${ST.fehler?`Statistik konnte nicht geladen werden (${esc(ST.fehler)}).`:"Statistik wird geladen …"}</div></div>`; }
   const alle = ST.daten.zeilen||[];
   const katsDa = Object.keys(STAT_K).filter(k=>alle.some(z=>z[1]===k));
-  if(!ST.kat) ST.kat = new Set(katsDa);
+  if(!ST.kat) ST.kat = new Set(katsDa.filter(k=>k!=="public"));
   const {liste:zr, mo} = stZeitraeume(alle);
   const basis = alle.filter(z=>stImZeitraum(z, ST.zeit, mo) && (ST.wann==="alle" || (ST.wann==="live") === !!z[8]) && (ST.liga==="alle" || (ST.liga==="top5") === !!z[7]) && (ST.lage==="alle" || z[11]===ST.lage));
   const Z = basis.filter(z=>ST.kat.has(z[1]));

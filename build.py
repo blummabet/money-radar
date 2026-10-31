@@ -2251,6 +2251,32 @@ def statistik(burst, finder):
             zeilen.append([ts(e["gebuchtAt"]).strftime("%Y-%m-%dT%H:%M"), "hz", round(float(x["r"]), 3) if ab else None,
                            int(bool(x.get("win"))) if ab else None, x.get("quote") if isinstance(x.get("quote"), (int, float)) else None,
                            None, e.get("league") or e.get("liga") or "", 0, 1, f"{e.get('home') or ''} – {e.get('away') or ''}"[:60], name])
+    # Lucas 31.10.: Public-Regel 1 — jedes Public-Signal als eigene Art „public", Ergebnis vom gleichen Tipp oben
+    try:
+        pl = json.loads((BASIS / ".push_state" / "public.json").read_text(encoding="utf-8")).get("liste") or []
+    except Exception:  # noqa: BLE001
+        pl = []
+    nz = lambda s: re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+    for p in pl:
+        t0 = ts(p.get("zeit") + "+00:00") if len(str(p.get("zeit") or "")) == 16 else ts(p.get("zeit"))
+        if not t0:
+            continue
+        best, bd = None, None
+        for z in zeilen:
+            if z[1] != p.get("art"):
+                continue
+            dt = abs((ts(z[0] + "+00:00") - t0).total_seconds())
+            if dt > 20 * 60:
+                continue
+            titel_ok = nz(z[9])[:10] and nz(z[9])[:10] == nz(p.get("spiel"))[:10]
+            ausw_ok = nz(z[10]) and nz(p.get("auswahl")) and (nz(z[10]) in nz(p.get("auswahl")) or nz(p.get("auswahl")) in nz(z[10]))
+            if (titel_ok or ausw_ok) and (bd is None or dt < bd):
+                best, bd = z, dt
+        if best:
+            zeilen.append([best[0], "public", *best[2:]])
+        else:
+            zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), "public", None, None, p.get("quote"), None, p.get("liga") or "", 0,
+                           1 if p.get("live") else 0, str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40], None])
     zeilen.sort(key=lambda z: z[0])
     (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return len(zeilen)

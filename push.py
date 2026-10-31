@@ -27,6 +27,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import public as pubmod
+
 BASIS = Path(__file__).resolve().parent
 DATEN = BASIS / "site" / "data.json"
 STAND = BASIS / ".push_state" / "gesehen.json"
@@ -155,6 +157,31 @@ def _beleg(art, z, fl, live=False):
             "markt": fl.get("markt"), "auswahl": fl.get("auswahl"), "quote": fl.get("quote"), "eur": fl.get("eur")}
 
 
+def _pbalken(pct):
+    n = max(0, min(10, round((pct or 0) / 10)))
+    return "▰" * n + "▱" * (10 - n)
+
+
+def _dauer(mn):
+    mn = int(mn or 0)
+    return f"{mn} Min" if mn < 90 else f"{round(mn / 60)} Std."
+
+
+def _live_von(d, sid):
+    sp = next((x for x in (d.get("radar") or {}).get("spiele") or [] if str(x.get("id")) == str(sid)), None) or {}
+    lv = sp.get("live") or {}
+    return lv.get("min"), lv.get("stand")
+
+
+def _pub(art, spiel, liga, quote, auswahl, *, roh=None, markt=None, anpfiff=None, live=False, minute=None, stand=None,
+         sport=None, betrag=None, gruende=()):
+    """Lucas 31.10.: Daten für die Public-Fassung (public.py) — nur das, was dort steht."""
+    return {"art": art, "spiel": spiel, "liga": liga, "quote": quote, "auswahl": auswahl, "auswahlRoh": roh,
+            "markt": None if markt in (None, "", "Match Odds", "Sieg-Markt") or str(markt).startswith("Über/Unter")
+            else "1. Halbzeit" if str(markt).startswith("HZ-Tore") else markt, "anpfiff": anpfiff,
+            "live": bool(live), "minute": minute, "stand": stand, "sport": sport, "betrag": betrag, "gruende": list(gruende)}
+
+
 def liga_zeile(d, liga):
     """Lucas 19.10.: Liga-Bilanz in den Pushes — trägt hohes Geld in DIESER Liga bisher?"""
     lb = ((d.get("ligaBilanz") or {}).get("ligen") or {}).get(liga)
@@ -227,7 +254,12 @@ def zufluss(d):
                 + _geld_block(fl, 30)
                 + pinnacle_zeile(d, z, fl)
                 + liga_zeile(d, z.get("liga")))
-        yield key, text, ZUFLUSS_PAUSE_H, _beleg("zufluss", z, fl)
+        gedr = isinstance(q, (int, float)) and isinstance(qv, (int, float)) and q < qv * 0.97
+        pub = _pub("zufluss", f"{z.get('heim')} – {z.get('gast')}", z.get("liga"), q, remis(_auswahl_de(fl.get("auswahl"))),
+                   roh=fl.get("auswahl"), markt=_markt_de(fl.get("markt")), anpfiff=z.get("anpfiff"),
+                   gruende=[f"{_pbalken(fl.get('anteil'))} {fl.get('anteil')} % des neuen Geldes",
+                            f"⚡ +{geld(fl.get('eur'))} in den letzten 30 Min" + (f" · Quote {q2(qv)} → {q2(q)}" if gedr else "")])
+        yield key, text, ZUFLUSS_PAUSE_H, _beleg("zufluss", z, fl), pub
 
 
 def live(d):
@@ -416,9 +448,15 @@ def bf_halbzeit(d):
                     + _hz_liga_zeile(a)
                     + _anteil_balken(auf, a.get("anteil"), quote.replace("<b>", "").replace("</b>", ""))
                     + (f"<i>{seiten}</i>\n" if seiten else ""))
+        pub = _pub(a.get("art"), f"{a.get('heim')} – {a.get('gast')}", a.get("liga"), a.get("quote"), auf, roh=a.get("auf"),
+                   markt=_markt_de(a.get("markt")), anpfiff=a.get("anpfiff"), live=bool(lv),
+                   minute=(lv or {}).get("min"), stand=(lv or {}).get("stand"),
+                   gruende=[f"📏 {str(a.get('faktor')).replace('.', ',')}× mehr Geld auf die 1. Halbzeit als aufs ganze Spiel"
+                            if a.get("faktor") else "",
+                            f"{_pbalken(a.get('anteil'))} {a.get('anteil')} % des Geldes in diesem Markt" if a.get("anteil") else ""])
         yield key, text, None, {"art": a.get("art"), "id": str(a.get("id")), "heim": a.get("heim"), "gast": a.get("gast"),
                                 "liga": a.get("liga"), "anpfiff": a.get("anpfiff"), "top5": bool(a.get("top")), "live": bool(lv),
-                                "markt": a.get("markt"), "auswahl": a.get("auf"), "quote": a.get("quote"), "eur": a.get("eur")}
+                                "markt": a.get("markt"), "auswahl": a.get("auf"), "quote": a.get("quote"), "eur": a.get("eur")}, pub
 
 
 SPORT = {"Fußball": "⚽", "E-Sport": "🎮", "Tennis": "🎾"}
@@ -638,7 +676,15 @@ def wale(d):
                   "markt": "Polymarket", "auswahl": o.get("seite"), "anzeige": seite, "quote": round(1 / preis, 3),
                   "preis": preis, "usd": round(usd), "wallet": o.get("wallet"), "live": False,
                   "top5": top5} if preis and 0 < preis < 1 else None)
-        yield key, "\n".join(zeilen) + "\n", None, beleg
+        gr = []
+        if pnl and pnl > 0:
+            gr.append(f"🏆 Wallet mit +{geld(pnl, '$')} Gewinn")
+        if schnitt and usd and usd / float(schnitt) >= 1.5:
+            gr.append(f"🔥 setzt sonst Ø {geld(schnitt, '$')}, diesmal {q2(usd / float(schnitt))}× so viel")
+        pub = (_pub("wal", (f"{g.get('heim')} – {g.get('gast')}" if g and not nebenmarkt else str(o.get("spiel") or "")),
+                    (g or {}).get("liga"), round(1 / preis, 2), seite, roh=o.get("seite"), anpfiff=o.get("anpfiff"),
+                    sport=o.get("sport"), betrag=pubmod.geld(usd, "$"), gruende=gr) if preis and 0 < preis < 1 else None)
+        yield key, "\n".join(zeilen) + "\n", None, beleg, pub
 
 
 def stake(d):
@@ -701,7 +747,15 @@ def stake(d):
                 + (f" @ {q2(quote)}" if quote else "") + "\n"
                 + (f"📏 {q2(g.get('faktor'))}-mal so viel wie in dieser Liga üblich\n" if g.get("faktor") else "")
                 + (f"🗂 {e((mit_auswahl or g).get('markt'))}\n" if (mit_auswahl or g).get("markt") else ""))
-        yield key, text, None
+        mk = (mit_auswahl or g).get("markt")
+        pub = _pub("stake", str(g.get("spiel") or "").replace(" - ", " – "), g.get("liga"), quote, auswahl,
+                   markt=None if str(mk or "").lower() in ("match result", "1x2", "winner", "match winner")
+                   else re.sub(r"\s*-\s*Twoway$", "", str(mk or "")) or None,
+                   anpfiff=g.get("anpfiff"), live=g.get("phase") == "live", minute=g.get("minute"), sport=g.get("kat"),
+                   betrag=pubmod.geld(g.get("usd"), "$"),
+                   gruende=[f"🎯 {g.get('wetten')} Großwetten innerhalb weniger Minuten",
+                            f"📏 {q2(g.get('faktor'))}× so viel wie in dieser Liga üblich" if g.get("faktor") else ""]) if auswahl else None
+        yield key, text, None, None, pub
 
 
 def _geld_block(fl, minuten):
@@ -831,9 +885,14 @@ def serie(d):
                    if x.get("marktVerteilung") else "")
                 + (f"<code>{_balken(x['saeulen'][-24:])}</code> <i>letzte 2 h, je Säule 5 Min</i>\n" if any(x['saeulen'][-24:]) else "")
                 + liga_zeile(d, x.get("liga")))
+        mi_, st_ = _live_von(d, x["id"])
+        pub = _pub("serie", f"{x['heim']} – {x['gast']}", x.get("liga"), q, remis(_auswahl_de(x["auswahl"])), roh=x["auswahl"],
+                   markt=_markt_de(x["markt"]), anpfiff=x.get("anpfiff"), live=bool(x.get("live")), minute=mi_, stand=st_,
+                   gruende=[f"{_pbalken(x.get('anteil'))} {x.get('anteil')} % des Geldes",
+                            f"⏱ {x['n']}× in Folge · +{geld(x['eur'])} in {_dauer(x.get('dauerMin'))}"])
         yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
-                                "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"]}
+                                "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"]}, pub
     for x in d.get("polySerien") or []:
         # wie bei Betfair/Stake: Favoriten-Geld (Quote < 1,40 ≙ Preis > 71 ¢) wird nicht gepusht; ohne Preis auch nicht
         if not x.get("quote") or x["quote"] < SERIE_PUSH_MIN_QUOTE:
@@ -930,8 +989,8 @@ def waechter(d, gesehen):
 STATUS = {"fehler": []}
 
 
-def senden(token, chat, text) -> bool:
-    body = urllib.parse.urlencode({"chat_id": chat, "text": text + f'\n<a href="{SEITE}">Geldradar</a>',
+def senden(token, chat, text, link=True) -> bool:
+    body = urllib.parse.urlencode({"chat_id": chat, "text": text + (f'\n<a href="{SEITE}">Geldradar</a>' if link else ""),
                                    "parse_mode": "HTML", "disable_web_page_preview": "true"}).encode()
     try:
         with urllib.request.urlopen(f"https://api.telegram.org/bot{token}/sendMessage", body, timeout=20) as r:
@@ -975,11 +1034,21 @@ def main() -> int:
                 else:
                     gesehen.pop(key, None)
     import bilanz
+    public = pubmod
     buch = bilanz.laden()
+    pub_stand = public.laden(JETZT)
+    pub_chat = os.environ.get("PUBLIC_CHAT_ID", "").strip() or chat     # Lucas 31.10.: erst Test-Channel, dann Public
+
+    def erkannt():
+        heute = JETZT.astimezone(ZoneInfo("Europe/Vienna")).date()
+        return sum(1 for k, v in gesehen.items() if not k.startswith(("wa|", "sf|", "lf|")) and ts(v)
+                   and ts(v).astimezone(ZoneInfo("Europe/Vienna")).date() == heute)
+
     for art in ARTEN:
         for item in art(d):
             key, text, pause_h = item[:3]
             beleg = item[3] if len(item) > 3 else None
+            pub = item[4] if len(item) > 4 else None
             alt = gesehen.get(key)
             if alt and (pause_h is None or (JETZT - ts(alt)).total_seconds() < pause_h * 3600):
                 continue
@@ -1011,6 +1080,17 @@ def main() -> int:
             if ok:
                 gesehen[key] = JETZT.isoformat()
                 gesendet += 1
+                try:                 # Lucas 31.10.: Public-Regel 1 — eigene Fassung, je Zeitfenster höchstens 3
+                    if pub and public.passt(pub):
+                        pl = public.platz(pub_stand, pub, JETZT)
+                        if pl:
+                            pt = public.text(pub, pl, erkannt(), JETZT)
+                            if trocken:
+                                print("── PUBLIC\n" + pt)
+                            if trocken or senden(token, pub_chat, pt, link=False):
+                                public.buchen(pub_stand, pub, pl, JETZT)
+                except Exception as exc:  # noqa: BLE001
+                    print(f"  public: {exc}")
                 if beleg and not trocken:
                     # Lucas 25.10. („kleine Ligen mit 30k sagen mehr als 1 Mio auf Chelsea — nicht pauschal auswerten"):
                     # die Liga-Norm (übliches Geld je Spiel in dieser Liga) beim Push mitschreiben → Auswertung je Ligagröße
@@ -1058,6 +1138,7 @@ def main() -> int:
             print(f"  bilanz: {exc}")
         STAND.parent.mkdir(parents=True, exist_ok=True)
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
+        public.speichern(pub_stand)
     print(f"push: {'erster Lauf, ' + str(len(gesehen)) + ' als gesehen markiert' if erster_lauf else str(gesendet) + ' gesendet'}")
     if not trocken:
         heute = JETZT.astimezone(ZoneInfo("Europe/Vienna")).strftime("%Y-%m-%d")
