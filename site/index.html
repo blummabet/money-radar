@@ -4035,8 +4035,8 @@ function seiteStatistik(){
   const K = stKennz(Z);
   const seg = (feld, opts) => `<div class="seg st-seg">${opts.map(([v,n])=>`<button class="${ST[feld]===v?"an":""}" data-st="${feld}" data-v="${v}">${n}</button>`).join("")}</div>`;
   // Kategorien als Chips, gruppiert nach Quelle
-  const quellen = [...new Set(katsDa.map(k=>STAT_K[k][1]))];
-  const chips = quellen.map(q=>`<div class="st-qg"><span class="st-ql">${q}</span>${katsDa.filter(k=>STAT_K[k][1]===q).map(k=>{ const kz = stKennz(basis.filter(z=>z[1]===k));
+  const quellen = [...new Set(katsDa.filter(k=>k!=="public").map(k=>STAT_K[k][1]))];
+  const chips = quellen.map(q=>`<div class="st-qg"><span class="st-ql">${q}</span>${katsDa.filter(k=>k!=="public" && STAT_K[k][1]===q).map(k=>{ const kz = stKennz(basis.filter(z=>z[1]===k));
       return `<button class="st-chip${ST.kat.has(k)?" an":""}" data-stk="${k}" style="--f:${STAT_K[k][2]}"><i></i>${STAT_K[k][0]}<small style="color:${ST.kat.has(k)?stFarbe(kz.einheiten):"inherit"}">${kz.n?stVz(kz.einheiten):"·"}</small></button>`; }).join("")}</div>`).join("");
   const ohnePub = katsDa.filter(k=>k!=="public");
   const alleAn = ohnePub.every(k=>ST.kat.has(k));
