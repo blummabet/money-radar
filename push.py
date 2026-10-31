@@ -687,6 +687,30 @@ def wale(d):
         yield key, "\n".join(zeilen) + "\n", None, beleg, pub
 
 
+def _stake_fuehrt(g, auswahl, markt, radar):
+    """Liegt die Stake-Auswahl (Sieg-Markt) live gerade vorn? → Beleg fürs Schattenbuch, sonst None. REIN."""
+    if not auswahl or str(markt or "").lower() not in ("match result", "1x2", "winner", "match winner", "match odds", "fulltime result"):
+        return None
+    teile = [x.strip().lower() for x in str(g.get("spiel") or "").split(" - ")]
+    if len(teile) != 2:
+        return None
+    for sp in radar:
+        h, gg = str(sp.get("heim") or "").lower(), str(sp.get("gast") or "").lower()
+        if not (h[:5] and gg[:5] and h[:5] in teile[0] and gg[:5] in teile[1]):
+            continue
+        st = (sp.get("live") or {}).get("stand")
+        if not st or st[0] is None or st[1] is None:
+            return None
+        a = str(auswahl).lower()
+        k = 0 if h[:5] in a else 1 if gg[:5] in a else None
+        if k is None or st[k] <= st[1 - k]:
+            return None
+        return {"art": "stakeFuehrt", "id": str(sp.get("id")), "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga") or g.get("liga"),
+                "anpfiff": sp.get("anpfiff") or g.get("anpfiff"), "top5": bool(sp.get("top5")), "live": True, "markt": "Match Odds",
+                "auswahl": sp.get("heim") if k == 0 else sp.get("gast"), "stand": st, "lage": "vorn"}
+    return None
+
+
 def stake(d):
     """Lucas 18.10. (Brighton 3:0: Push „$127k @ 1,48, live" — die $127k und 1,48 waren der Burst von VOR dem Spiel,
     ausgelöst hat ein neuer $17k-Spiel-Burst bei 3:0): je Push nur die Signale, die zusammen kamen (≤ 5 Min), mit
@@ -721,6 +745,13 @@ def stake(d):
         auswahl = (mit_auswahl or {}).get("auswahl")
         quote = (mit_auswahl or {}).get("quote") or g.get("quote")
         if (isinstance(quote, (int, float)) and quote < 1.40) or (g.get("phase") == "live" and klar_vorn(g.get("spiel"))):
+            continue
+        # Lucas 31.10. (Accrington – Northampton 40' 1:0, $18k auf Accrington @ 1,40: „Macht keinen Sinn, oder?"): REGEL S2 —
+        # wie beim Betfair-Zufluss seit 30.10.: Live-Geld auf das Team, das gerade führt (egal wie knapp), wird nicht gepusht,
+        # nur still gemessen (art „stakeFuehrt", Sieg-Markt beim Betfair-Spiel). Auswertung mit den anderen am 13.11.
+        fs = _stake_fuehrt(g, auswahl, (mit_auswahl or g).get("markt"), radar) if g.get("phase") == "live" else None
+        if fs:
+            yield f"sf|{g.get('spiel')}|{t0:%Y-%m-%dT%H:%M}", None, None, {**fs, "quote": quote, "usd": g.get("usd"), "minute": g.get("minute")}
             continue
         # Lucas 18.10. (Málaga – Sociedad: Torlinien-Burst von 20:01 kam um 20:30, Spiel schon aus): live ist ein
         # Burst nach 10 Min Geschichte — die Stake-Datei des alten Projekts kommt manchmal 20–30 Min verspätet an.
