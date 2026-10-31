@@ -1,4 +1,5 @@
 site/data.json
+site/cards.json
 __pycache__/
 .push_state/
 .bf/
