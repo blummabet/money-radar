@@ -4,6 +4,7 @@ public.py — Public-Regel 1 (Lucas 31.10.2026): welche Pushes in den öffentlic
 Regel, festgelegt am 31.10. vor der Messung (Auswertung seit 16.10.: 3 je Fenster ≈ 10 Signale/Tag):
   • große Ligen (GROSS) + Dauerzufluss / Zufluss vor Anpfiff / Fix-Verdacht / Stake-Burst / Wal, Quote 1,60–3,00
   • ODER Stake-Burst / Fix-Verdacht in jeder Liga, Quote 1,80–3,00
+  • ODER Wal-Einstieg (Polymarket) in jeder Liga und im E-Sport, Quote 1,60–3,00 (Lucas 31.10. 11:23)
   • je Spiel höchstens 1× am Tag
   • 4 Zeitfenster (Wiener Zeit: bis 12, 12–16, 16–20, ab 20 Uhr), je Fenster höchstens 3 — wer zuerst kommt
 Abgerechnet wird über die Statistik (build.py hängt die Public-Signale als Art „public" an), Ziel 60.
@@ -90,6 +91,8 @@ def passt(m) -> bool:
         return False
     if GROSS.search(liga) and 1.6 <= q < 3.0:
         return True
+    if art == "wal":                      # Lucas 31.10. 11:23: Wale in jeder Liga + E-Sport (seit 16.10.: 77 · +10,9 %)
+        return 1.6 <= q < 3.0
     return art in NUR_ALLE_LIGEN and 1.8 <= q < 3.0
 
 
