@@ -1787,6 +1787,12 @@ function geldSaeulen(s){
   const fokus = (ziel && T.find(t=>t.markt===ziel.markt && t.auswahl===ziel.auswahl)) || T[0] || null;
   const warum = !fokus ? "" : grund && fokus.auswahl===grund.auswahl ? "Dauerzufluss" : pzz && fokus.auswahl===pzz.auswahl ? `Push ${uhr(pz.zeit)}` : flw && fokus.auswahl===flw.auswahl ? "Zufluss" : "meistes neues Geld";
   const live = i => S.ko!=null && i >= S.ko;
+  // Lucas 01.11. (Yunnan – Dalian: „zwei Drittel vor Anpfiff, das Spiel nur ein Drittel"): läuft das Spiel, bekommt die Zeit
+  // vor Anpfiff höchstens ein Drittel der Breite — die Säulen dort werden schmaler, ihre Höhe (Geld je 10 Min) bleibt gleich.
+  const kPre = S.ko!=null && S.ko > 0 && S.ko < n ? S.ko : 0, nLive = n - kPre;
+  const aPre = kPre && kPre/n > 1/3 ? 0.5 * nLive / kPre : 1;
+  const X = i => (Math.min(i, kPre)*aPre + Math.max(0, i - kPre)) / (kPre*aPre + nLive) * 100;
+  const spalten = kPre ? `repeat(${kPre},${aPre.toFixed(3)}fr) repeat(${nLive},1fr)` : `repeat(${n},1fr)`;
   // Lucas 25.10. (Odra Opole: grauer €59k-Balken, „welcher Markt ist das?"): grau hieß „übrige Märkte", war aber zum
   // größten Teil die GEGENSEITE desselben Markts (Unter 2,5). Jetzt die zweitstärkste Auswahl eigens (blau), grau nur noch der Rest.
   const summe = t => (t.w||[]).reduce((a,b)=>a+(b||0),0);
@@ -1797,20 +1803,20 @@ function geldSaeulen(s){
     return `<i class="${x==null?"leer":""}${unbek?" unbek":""}${fokus?" mitfokus":live(i)?" lv":""}${i===top?" top":""}" style="height:${x?Math.max(3, x/mx*100).toFixed(1):0}%" title="${uhrVon(i)}–${uhrVon(i+1)}: ${x==null?"keine Daten":"+"+eur(x)+(fokus&&f?`, davon ${eur(f)} auf ${auswahlDe(fokus.auswahl)}`:"")+(z2?`, ${eur(z2)} auf ${auswahlDe(zw.auswahl)}`:"")}">${f&&x?`<b style="height:${(f/x*100).toFixed(1)}%"></b>`:""}${z2&&x?`<u style="bottom:${(f/x*100).toFixed(1)}%;height:${(z2/x*100).toFixed(1)}%"></u>`:""}</i>`; }).join("");
   const fokusSumme = fokus ? fokus.w.reduce((a,b)=>a+(b||0),0) : 0;
   const marken = [];
-  if(S.ko!=null) marken.push(`<span class="gs-ko" style="left:${(S.ko/n*100).toFixed(2)}%"></span>`);
+  if(S.ko!=null) marken.push(`<span class="gs-ko" style="left:${X(S.ko).toFixed(2)}%"></span>`);
   // 23.10.: zwei Tore dicht hintereinander überlagerten sich — nahe Tore zu einer Marke mit dem späteren Stand
   const toreZ = []; for(const t of S.tore||[]){ const l = toreZ[toreZ.length-1]; if(l && t.i - l.i < 4){ l.i = t.i; l.stand = t.stand; l.n++; } else toreZ.push({...t, n:1}); }
-  for(const t of toreZ) marken.push(`<span class="gs-tor" style="left:${((t.i+0.5)/n*100).toFixed(2)}%">${"⚽".repeat(Math.min(t.n,2))} ${t.stand.join(":")}</span>`);
+  for(const t of toreZ) marken.push(`<span class="gs-tor" style="left:${X(t.i+0.5).toFixed(2)}%">${"⚽".repeat(Math.min(t.n,2))} ${t.stand.join(":")}</span>`);
   // Achse: Anfang, Anpfiff (wenn im Fenster), jetzt — Zwischenzeiten nur, wenn sie nicht mit dem Anpfiff kollidieren
   const ticks = [[0, uhrVon(0)]];
-  for(const i of [12, 24]) if(S.ko==null || Math.abs(i - S.ko) > 5) ticks.push([i, uhrVon(i)]);
-  const achse = ticks.map(([i,t])=>`<span style="left:${(i/n*100).toFixed(2)}%">${t}</span>`).join("")
-    + (S.ko!=null ? `<span class="gs-kol" style="left:${(S.ko/n*100).toFixed(2)}%">Anpfiff</span>` : "") + `<span class="r">jetzt</span>`;
+  for(const i of [12, 24]) if((S.ko==null || Math.abs(X(i) - X(S.ko)) > 16) && X(i) > 16 && X(i) < 84) ticks.push([i, uhrVon(i)]);
+  const achse = ticks.map(([i,t])=>`<span style="left:${X(i).toFixed(2)}%">${t}</span>`).join("")
+    + (S.ko!=null ? `<span class="gs-kol" style="left:${X(S.ko).toFixed(2)}%">Anpfiff</span>` : "") + `<span class="r">jetzt</span>`;
   const st = (s.reihe||[]).length ? s.reihe[s.reihe.length-1][1] : s.eur;
   return `<h4>Neues Geld auf Betfair <small>je 10 Min · letzte 6 h</small></h4>
     <div class="gs-kz"><span><b>+${eur(ges)}</b> in 6 h, ganzes Spiel</span><span>größter Schub <b>+${eur(v[top])}</b> um ${uhrVon(top)}</span><span><b>${eur(st)}</b> gematcht</span></div>
     ${fokus?`<div class="gs-leg"><span><i class="f"></i><b>${esc(auswahlDe(fokus.auswahl))}</b> ${esc(marktDe(fokus.markt))} · +${eur(fokusSumme)} <em>(${warum})</em></span>${zw?`<span><i style="background:var(--pin)"></i><b>${esc(auswahlDe(zw.auswahl))}</b> ${esc(marktDe(zw.markt))} · +${eur(summe(zw))}</span>`:""}<span><i></i>${zw?"Rest":"übrige Märkte"}</span>${v.some((x,i)=>x>0 && fokus.w[i]==null)?`<span><i class="u"></i>Aufteilung nicht gespeichert</span>`:""}</div>`:""}
-    <div class="gs"><div class="gs-g">${linienY.map(y=>`<span style="bottom:${(y/mx*100).toFixed(2)}%"><em>${eur(y)}</em></span>`).join("")}</div><div class="gs-b">${bars}</div>${marken.join("")}<div class="gs-x">${achse}</div></div>`;
+    <div class="gs"><div class="gs-g">${linienY.map(y=>`<span style="bottom:${(y/mx*100).toFixed(2)}%"><em>${eur(y)}</em></span>`).join("")}</div><div class="gs-b" style="grid-template-columns:${spalten}">${bars}</div>${marken.join("")}<div class="gs-x">${achse}</div></div>`;
 }
 function spielVerlauf(s){
   // mit Säulen: die Quoten-Linie zeigt dasselbe 6-h-Fenster, damit beide Zeitachsen übereinander passen
