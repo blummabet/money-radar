@@ -414,6 +414,7 @@ def druck_messung(buch):
     z = [b for b in buch if b.get("art") == "druck"]
     gruppen = [("Alle", z), ("ab Regel 2 (Tore im Fenster abgezogen)", [b for b in z if (b.get("regel") or 1) >= 2]),
                ("ab Regel 3 (xG nie gemischt)", [b for b in z if (b.get("regel") or 1) >= 3]),
+               ("ab Regel 5 (Anlauf ohne xG kippt nicht mehr)", [b for b in z if (b.get("regel") or 1) >= 5]),
                ("Index 70–84", [b for b in z if (b.get("index") or 0) < 85]),
                ("Index ab 85", [b for b in z if (b.get("index") or 0) >= 85]),
                ("xG gemessen", [b for b in z if b.get("quelle") == "xG"]), ("xG geschätzt", [b for b in z if b.get("quelle") != "xG"]),

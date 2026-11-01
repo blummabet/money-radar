@@ -82,7 +82,15 @@ def _proxy(q, i):
 def einheitlich(vl):
     """Lucas 30.10. (Druck-Check): liefert API-Football xG nicht in jedem Abruf, mischte die Reihe echte xG mit dem
     Schuss-Schätzer (CSKA: 0,28 → 0,06 → 0,40). Ein Sprung zwischen den beiden Maßstäben ist kein Druck. Ist auch nur ein
-    Punkt geschätzt, rechnet die ganze Reihe mit dem Schätzer. REIN."""
+    Punkt geschätzt, rechnet die ganze Reihe mit dem Schätzer. REIN.
+    Druck-Regel 5 (Lucas 01.11., Viborg „xG geschätzt", im Detail stehen echte xG): API-Football liefert xG meist erst
+    ab der 2.–4. Minute. Dieser EINE Anlauf-Punkt kippte fast jede Reihe auf den Schätzer (CSKA-Fall war ein Ausfall
+    MITTEN im Spiel). Geschätzte Punkte ganz am Anfang (bis Minute 10, vor dem ersten echten) fallen deshalb weg."""
+    i0 = 0
+    while i0 < len(vl) and not vl[i0].get("echt") and isinstance(vl[i0].get("m"), (int, float)) and vl[i0]["m"] <= 10:
+        i0 += 1
+    if 0 < i0 < len(vl):
+        vl = vl[i0:]
     if all(q.get("echt") for q in vl):
         return vl, True
     aus = []

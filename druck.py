@@ -69,7 +69,7 @@ def eintragen(d, buch, jetzt):
                      "lage": "hinten" if eig < geg else "gleich" if eig == geg else "vorn",
                      "geld": bool(x.get("zufluss")), "xgTeam": x["teams"][s]["xg"],
                      "rot": rot, "zahl": zahl,
-                     "ts": jetzt.isoformat(), "status": "offen", "regel": 4})   # Regel 2 ab 25.10. 17:20: Tore im Fenster abgezogen · Regel 3 ab 30.10.: xG-Reihe einheitlich (nie echt und geschätzt gemischt) · Regel 4 ab 01.11.: Rote Karten mitgeschrieben (Index unverändert)
+                     "ts": jetzt.isoformat(), "status": "offen", "regel": 5})   # Regel 2 ab 25.10. 17:20: Tore im Fenster abgezogen · Regel 3 ab 30.10.: xG-Reihe einheitlich (nie echt und geschätzt gemischt) · Regel 4 ab 01.11.: Rote Karten mitgeschrieben (Index unverändert) · Regel 5 ab 01.11. ~15 Uhr: geschätzte Anlauf-Punkte (≤ 10. Min) kippen die Reihe nicht mehr auf den Schätzer
         schon.add(i)
         neu += 1
     return neu
