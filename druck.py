@@ -54,6 +54,13 @@ def eintragen(d, buch, jetzt):
         sp = radar.get(i) or {}
         s = x["seite"]
         eig, geg = st[0 if s == "heim" else 1], st[1 if s == "heim" else 0]
+        # Druck-Regel 4 (Lucas 01.11.): Rote Karten nur MITSCHREIBEN, Index bleibt gleich. API-Football liefert die Anzahl je
+        # Team (99,5 % der Abrufe), keine Minute. Nach ~2 Wochen: trifft „Druck-Team in Überzahl" öfter als der Rest?
+        ls = ((d.get("liveStats") or {}).get(i) or {}).get("statistik") or {}
+        r_h, r_g = (ls.get("heim") or {}).get("rot"), (ls.get("gast") or {}).get("rot")
+        rot = [r_h, r_g] if isinstance(r_h, (int, float)) and isinstance(r_g, (int, float)) else None
+        r_e, r_x = (rot[0 if s == "heim" else 1], rot[1 if s == "heim" else 0]) if rot else (None, None)
+        zahl = None if rot is None else "keine" if r_e == r_x == 0 else "ueber" if r_e < r_x else "unter" if r_e > r_x else "gleich"
         buch.append({"art": "druck", "id": i, "heim": x.get("heim"), "gast": x.get("gast"), "liga": x.get("liga"),
                      "land": x.get("land"), "anpfiff": sp.get("anpfiff"), "live": True, "top5": bool(x.get("top5")),
                      "normEur": sp.get("normEur"), "ligaEur": sp.get("ligaEur"),
@@ -61,7 +68,8 @@ def eintragen(d, buch, jetzt):
                      "index": x["index"], "seite": s, "min": x["min"], "stand": st, "quelle": x.get("quelle"),
                      "lage": "hinten" if eig < geg else "gleich" if eig == geg else "vorn",
                      "geld": bool(x.get("zufluss")), "xgTeam": x["teams"][s]["xg"],
-                     "ts": jetzt.isoformat(), "status": "offen", "regel": 3})   # Regel 2 ab 25.10. 17:20: Tore im Fenster abgezogen · Regel 3 ab 30.10.: xG-Reihe einheitlich (nie echt und geschätzt gemischt)
+                     "rot": rot, "zahl": zahl,
+                     "ts": jetzt.isoformat(), "status": "offen", "regel": 4})   # Regel 2 ab 25.10. 17:20: Tore im Fenster abgezogen · Regel 3 ab 30.10.: xG-Reihe einheitlich (nie echt und geschätzt gemischt) · Regel 4 ab 01.11.: Rote Karten mitgeschrieben (Index unverändert)
         schon.add(i)
         neu += 1
     return neu

@@ -421,6 +421,10 @@ def druck_messung(buch):
                ("Unentschieden", [b for b in z if b.get("lage") == "gleich"]),
                ("Druck-Team führt", [b for b in z if b.get("lage") == "vorn"]),
                ("mit frischem Geld", [b for b in z if b.get("geld")]), ("ohne frisches Geld", [b for b in z if not b.get("geld")]),
+               # Druck-Regel 4 (01.11.): Rote Karten — nur Einträge, bei denen sie mitgeschrieben wurden
+               ("Rote Karte: Druck-Team in Überzahl", [b for b in z if b.get("zahl") == "ueber"]),
+               ("Rote Karte: Druck-Team in Unterzahl", [b for b in z if b.get("zahl") == "unter"]),
+               ("Ohne Rote Karte", [b for b in z if b.get("zahl") == "keine"]),
                ("1. Halbzeit", [b for b in z if (b.get("min") or 0) <= 45]), ("2. Halbzeit", [b for b in z if (b.get("min") or 0) > 45]),
                *[(LIGA_NAME[n], [b for b in z if ligagroesse(b) == n]) for n in LIGA_STUFEN]]
     aus = []
