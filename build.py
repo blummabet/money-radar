@@ -2411,9 +2411,18 @@ def minuten_pruefen(prices, bf_hist):
             continue
         uhr = (JETZT - ko).total_seconds() / 60
         schaetz = uhr if uhr <= 47 else 45 if uhr <= 62 else min(90, uhr - 15)
+        pts = [p for p in (bf_hist or {}).get(str(m.get("matchId"))) or [] if isinstance(p, dict) and ts(p.get("ts"))]
+        # Lucas 01.11. (Bohemians – Sparta: um 20:04 noch „89' · 0:0", Anpfiff 18:00): Betwatch meldet das Ende manchmal
+        # nicht, die Minute bleibt bei 89 hängen — und weil die Uhr-Schätzung bei 90 deckelt, griff die Korrektur nie.
+        # Ab der 85. Minute, seit ≥ 15 Min keine Bewegung und ≥ 110 Min nach Anpfiff → als beendet behandeln.
+        # (Verlängerung bewegt die Minute weiter über 90 → bleibt live.)
+        alt15 = [p for p in pts if JETZT - ts(p["ts"]) >= timedelta(minutes=15)]
+        if t >= 85 and uhr >= 110 and alt15 and isinstance(alt15[-1].get("min"), (int, float)) and alt15[-1]["min"] >= t:
+            li["finished"], li["endeGeschaetzt"] = True, True
+            n += 1
+            continue
         if schaetz - t < 10:
             continue
-        pts = [p for p in (bf_hist or {}).get(str(m.get("matchId"))) or [] if isinstance(p, dict) and ts(p.get("ts"))]
         alt = [p for p in pts if JETZT - ts(p["ts"]) >= timedelta(minutes=10)]
         if alt and isinstance(alt[-1].get("min"), (int, float)) and alt[-1]["min"] >= t:    # seit 10 Min keine Bewegung
             li["timeBetwatch"], li["time"], li["minGeschaetzt"] = t, int(schaetz), True
