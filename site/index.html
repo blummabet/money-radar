@@ -1261,6 +1261,22 @@ html,body{overflow-x:hidden} .app{overflow-x:clip;max-width:100vw} main{overflow
 .pr-fakt{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;color:var(--text-3);margin-top:4px}
 .pr-fakt b{color:var(--text-2);font-weight:800}
 .pr-fakt .neu{color:var(--g)}
+.pr-m{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;margin-top:10px}
+@media (max-width:700px){.pr-m{grid-template-columns:minmax(0,1fr)}}
+.pr-z{--g:var(--bf);display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:center;padding:8px 10px;border-radius:12px;cursor:pointer;border:1px solid var(--rand);
+  background:linear-gradient(90deg, color-mix(in srgb, var(--g) 10%, transparent), transparent 55%), var(--glas-a)}
+.pr-z:hover{border-color:color-mix(in srgb, var(--g) 50%, var(--rand))}
+.pr-zi{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:15px;font-weight:900;color:var(--g);
+  background:color-mix(in srgb, var(--g) 10%, transparent);box-shadow:inset 0 0 0 3px color-mix(in srgb, var(--g) 55%, transparent)}
+.pr-zm{min-width:0}
+.pr-zt{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center;font-weight:800;font-size:13.5px}
+.pr-zt span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.pr-zt span:last-child{text-align:right}
+.pr-zt .an{color:var(--g)}
+.pr-zt em{font-style:normal;font-weight:900;padding:0 6px;border-radius:6px;background:var(--panel-3)}
+.pr-zu{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.pr-zu .lv{color:var(--down);font-weight:800}
+.pr-zu .neu{color:var(--g);font-weight:700}
 .pr-geld{grid-column:1/-1;display:flex;align-items:center;gap:6px;margin-top:6px;padding:5px 9px;border-radius:9px;font-size:12px;font-weight:700;
   background:color-mix(in srgb, var(--up) 12%, transparent);color:var(--up)}
 .pr-t{margin-top:14px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:1px}
@@ -3419,6 +3435,16 @@ function druckKarte(x){
     ${z && z.eur ? `<div class="pr-geld">💶 +${eur(z.eur)} in 15 Min auf ${esc(auswahlDe(z.auswahl||""))}${z.quote?` @ ${q2(z.quote)}`:""}</div>` : ""}
   </div>`;
 }
+// Lucas 01.11. („nur 2 Spiele ist untertrieben, wenn live mehr los ist"): die nächsten bis zu 4 kompakt darunter
+function druckZeile(x){
+  const t = x.teams||{}, s = x.seite, d = t[s]||{}, st = x.stand||[0,0];
+  const letzte = [d.dxg15>=0.1 && `xG +${dez(d.dxg15)}`, d.dat15>=1 && `${Math.round(d.dat15)} aufs Tor`].filter(Boolean);
+  return `<div class="pr-z${x.index>=70?" heiss":""}" style="--g:${druckFarbe(x.index)}" ${klickSpiel({id:x.id, heim:x.heim, gast:x.gast})}>
+    <b class="pr-zi">${x.index}</b>
+    <div class="pr-zm"><div class="pr-zt"><span class="${s==="heim"?"an":""}">${esc(x.heim)}</span><em>${st[0]??0}:${st[1]??0}</em><span class="${s==="gast"?"an":""}">${esc(x.gast)}</span></div>
+      <div class="pr-zu"><span class="lv">● ${x.min}'</span> ${flagge(x.land)} ${esc(ligaName(x.liga)||"")} · xG ${dez(d.xg)}${x.quelle!=="xG"?" (geschätzt)":""}${letzte.length?` · <span class="neu">15': ${letzte.join(" · ")}</span>`:""}</div></div>
+  </div>`;
+}
 const DR_ART = {druck:["Druck","var(--hz)"], index:["Index","var(--down)"], tor:["Tor","var(--up)"], geld:["Geld","var(--bf)"], ecke:["Ecken","var(--pin)"]};
 function druckTicker(D, n){
   const ids = new Set(lf(D.radar.spiele||[]).map(s=>s.id));
@@ -3483,6 +3509,7 @@ function druckPanel(D){
   const n = window.innerWidth < 700 ? 2 : window.innerWidth < 1100 ? 2 : 3;
   return `<div class="panel c12 pr-panel"><div class="ph"><h3>🔥 Druck-Radar</h3><span class="hint">wo live viel passiert, aber wenig reinfällt · xG ohne Tore + die letzten 15 Min</span></div>
     ${S.length ? `<div class="pr">${S.slice(0,n).map(druckKarte).join("")}</div>` : `<div class="leer">Gerade kein Live-Spiel mit hohem Druck (Index ab 40).</div>`}
+    ${S.length > n ? `<div class="pr-m">${S.slice(n, n+4).map(druckZeile).join("")}</div>` : ""}
     ${tick}${druckMessung(D)}</div>`;
 }
 function topDrei(D){
