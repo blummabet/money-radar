@@ -132,6 +132,106 @@ def druck_von(e):
             "quelle": "xG" if echt else "geschätzt", "frisch15": bool(q)}
 
 
+WELLE = BASIS / ".push_state" / "ecken_welle.json"
+
+
+def welle_von(verlauf):
+    """Lucas 01.11. („3, 4, 5 Ecken hintereinander, vor allem in der 2. HZ, Team hinten"): Ecken-Welle = ein Team holt
+    ≥ 3 Ecken in den letzten ~15 Min (Vergleichspunkt 8–20 Min zurück), 46.–85. Minute, und liegt hinten oder gleich.
+    Gibt die stärkere Seite zurück oder None. REIN."""
+    if not verlauf:
+        return None
+    p = verlauf[-1]
+    m = p.get("m")
+    if not isinstance(m, (int, float)) or m < 46 or m > 85:
+        return None
+    vor = [q for q in verlauf[:-1] if isinstance(q.get("m"), (int, float)) and 8 <= m - q["m"] <= 20]
+    if not vor:
+        return None
+    q = min(vor, key=lambda q: abs(m - 15 - q["m"]))
+    st = p.get("st") or [0, 0]
+    beste = None
+    for i, seite in enumerate(("heim", "gast")):
+        e_p, e_q = (p.get("eck") or [None, None])[i], (q.get("eck") or [None, None])[i]
+        if not isinstance(e_p, (int, float)) or not isinstance(e_q, (int, float)):
+            continue
+        n = int(e_p - e_q)
+        if n >= 3 and _zahl(st[i]) <= _zahl(st[1 - i]) and (not beste or n > beste["n"]):
+            beste = {"seite": seite, "n": n, "in": int(m - q["m"]), "min": m, "stand": st,
+                     "lage": "hinten" if _zahl(st[i]) < _zahl(st[1 - i]) else "gleich", "eck": list(p.get("eck") or [None, None])}
+    return beste
+
+
+def welle_buch(d, cache, live_ids, neue_ticks):
+    """Ticker-Zeile je Welle (neu, oder wenn sie wächst, sonst höchstens alle 15 Min) + stilles Buch: holt dasselbe Team
+    danach noch ≥ 2 Ecken bis zum Ende, und wer bekommt die nächste Ecke? Keine Quoten, nur Häufigkeit."""
+    try:
+        w = json.loads(WELLE.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        w = {"liste": [], "zuletzt": {}}
+    spiele = {s["id"]: s for s in (d.get("radar") or {}).get("spiele") or []}
+    for i, e in cache.items():
+        if i.startswith("_") or i not in live_ids or JETZT - (_zeit(e.get("ts")) or JETZT) > timedelta(minutes=GUELTIG_MIN):
+            continue
+        sp = spiele.get(i) or {}
+        x = welle_von(e.get("verlauf") or [])
+        if not x:
+            continue
+        k = f"{i}|{x['seite']}"
+        alt = w["zuletzt"].get(k)
+        if not alt or x["n"] > alt[1] or JETZT - (_zeit(alt[0]) or JETZT) > timedelta(minutes=15):
+            team = sp.get(x["seite"]) or x["seite"]
+            ek = x["eck"]
+            tk = _tick(x["min"], {"id": i, "heim": sp.get("heim"), "gast": sp.get("gast")}, "welle",
+                       f"{team} {x['n']} Ecken in {x['in']} Min · {'liegt ' + str(x['stand'][0]) + ':' + str(x['stand'][1]) + ' hinten' if x['lage'] == 'hinten' else 'bei ' + str(x['stand'][0]) + ':' + str(x['stand'][1])}"
+                       f" · gesamt {ek[0]}:{ek[1]}", x["seite"])
+            tk["key"] = k
+            neue_ticks.append(tk)
+            w["zuletzt"][k] = [JETZT.isoformat(), x["n"]]
+        if not any(b["id"] == i and b["seite"] == x["seite"] for b in w["liste"]):
+            j = 0 if x["seite"] == "heim" else 1
+            w["liste"].append({"id": i, "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga"), "seite": x["seite"],
+                               "min": x["min"], "stand": x["stand"], "lage": x["lage"], "n": x["n"], "eckAn": x["eck"],
+                               "eckLetzt": x["eck"], "mLetzt": x["min"], "naechste": None, "ts": JETZT.isoformat(),
+                               "tsLetzt": JETZT.isoformat(), "status": "offen", "win": None, "regel": 1})
+    # nachführen + abrechnen
+    for b in w["liste"]:
+        if b["status"] != "offen":
+            continue
+        e = cache.get(b["id"]) or {}
+        p = (e.get("verlauf") or [None])[-1]
+        if p and isinstance(p.get("m"), (int, float)) and p["m"] >= b["mLetzt"] and all(isinstance(v, (int, float)) for v in p.get("eck") or [None, None]):
+            j = 0 if b["seite"] == "heim" else 1
+            if b["naechste"] is None and p["eck"] != b["eckLetzt"]:
+                dh, dg = p["eck"][0] - (b["eckLetzt"][0] or 0), p["eck"][1] - (b["eckLetzt"][1] or 0)
+                if (dh > 0) != (dg > 0):
+                    b["naechste"] = "eigen" if (dh > 0) == (j == 0) else "gegner"
+                elif dh > 0 and dg > 0:
+                    b["naechste"] = "unklar"
+            b["eckLetzt"], b["mLetzt"], b["tsLetzt"] = p["eck"], p["m"], e.get("ts") or b["tsLetzt"]
+        alt_min = (JETZT - (_zeit(b["tsLetzt"]) or JETZT)).total_seconds() / 60
+        if b["mLetzt"] >= 88 or (b["id"] not in live_ids and alt_min > 20) or alt_min > 180:
+            j = 0 if b["seite"] == "heim" else 1
+            b["weitere"] = (b["eckLetzt"][j] or 0) - (b["eckAn"][j] or 0)
+            b["win"] = b["weitere"] >= 2
+            b["status"] = "abgerechnet"
+            if b["naechste"] is None:
+                b["naechste"] = "keine"
+    w["liste"] = w["liste"][-2000:]
+    w["zuletzt"] = {k: v for k, v in w["zuletzt"].items() if JETZT - (_zeit(v[0]) or JETZT) < timedelta(hours=3)}
+    WELLE.parent.mkdir(exist_ok=True)
+    WELLE.write_text(json.dumps(w, ensure_ascii=False), encoding="utf-8")
+    ab = [b for b in w["liste"] if b["status"] == "abgerechnet"]
+    def gr(z):
+        n = len(z)
+        nx = [b for b in z if b.get("naechste") in ("eigen", "gegner")]
+        return {"n": n, "weitere2": round(100 * sum(1 for b in z if b["win"]) / n) if n else None,
+                "naechsteEigen": round(100 * sum(1 for b in nx if b["naechste"] == "eigen") / len(nx)) if nx else None,
+                "schnitt": round(sum(b.get("weitere") or 0 for b in z) / n, 1) if n else None}
+    return {"gesamt": len(w["liste"]), "offen": sum(1 for b in w["liste"] if b["status"] == "offen"),
+            "alle": gr(ab), "hinten": gr([b for b in ab if b["lage"] == "hinten"]), "gleich": gr([b for b in ab if b["lage"] == "gleich"])}
+
+
 def _tick(t, sp, art, text, seite=None):
     return {"t": JETZT.isoformat(), "m": t, "id": sp["id"], "art": art, "seite": seite, "text": text,
             "spiel": f"{sp.get('heim')} – {sp.get('gast')}"}
@@ -324,7 +424,8 @@ def druck_radar(d, cache, live_ids, neue_ticks):
         if i not in live_ids or not sp or not dr or JETZT - _zeit(e["ts"]) > timedelta(minutes=GUELTIG_MIN):
             continue
         z = zufl.get(i)
-        aus.append({"id": i, "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga"), "land": sp.get("land"),
+        wv = welle_von(e.get("verlauf") or [])
+        aus.append({"id": i, "welle": wv, "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga"), "land": sp.get("land"),
                     "top5": sp.get("top5"), **dr,
                     "verlauf": [[q["m"], q["xg"][0], q["xg"][1], q.get("st")] for q in einheitlich(e.get("verlauf") or [])[0]
                                 if isinstance(q.get("m"), (int, float)) and q["xg"][0] is not None],
@@ -359,7 +460,9 @@ def druck_radar(d, cache, live_ids, neue_ticks):
                 ticker.setdefault("geld", []).append([k, JETZT.isoformat()])
     aus.sort(key=lambda x: -x["index"])
     grenze = JETZT - timedelta(minutes=120)
-    zeilen = [t for t in (ticker.get("zeilen") or []) + neue_ticks if (_zeit(t.get("t")) or grenze) > grenze]
+    neu_keys = {t.get("key") for t in neue_ticks if t.get("art") == "welle"}
+    zeilen = [t for t in (ticker.get("zeilen") or []) if not (t.get("art") == "welle" and t.get("key") in neu_keys)] + neue_ticks
+    zeilen = [t for t in zeilen if (_zeit(t.get("t")) or grenze) > grenze]
     ticker = {"zeilen": zeilen[-60:], "geld": [g for g in ticker.get("geld") or [] if (_zeit(g[1]) or grenze) > grenze]}
     TICKER.write_text(json.dumps(ticker, ensure_ascii=False), encoding="utf-8")
     return {"stand": JETZT.isoformat(), "spiele": aus[:12], "ticker": list(reversed(zeilen[-25:]))}
@@ -458,6 +561,10 @@ def main() -> int:
                           "abdeckung48h": {"abrufe": len(abz), "xg": sum(z[1] for z in abz), "strafraum": sum(z[2] for z in abz),
                                            "strafraumOhneXg": sum(1 for z in abz if z[2] and not z[1]),
                                            "gefAngriffe": sum(z[3] for z in abz if len(z) > 3), "karten": sum(z[4] for z in abz if len(z) > 4)}}
+    try:
+        d["eckenWelle"] = welle_buch(d, cache, live_ids, neue_ticks)
+    except Exception as exc:  # noqa: BLE001
+        print("live_stats: Ecken-Welle", exc)
     d["druck"] = druck_radar(d, cache, live_ids, neue_ticks)
     DATEN.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"live_stats: {len(d['liveStats'])} Spiele mit Statistik, Kandidaten {len(kand)}, Kontingent {info}")

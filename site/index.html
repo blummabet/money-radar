@@ -1288,6 +1288,9 @@ html,body{overflow-x:clip} .app{overflow-x:clip;max-width:100vw} main{overflow-x
 .pr-t-z .x{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-2)}
 .pr-t-z .x small{color:var(--text-3);margin-left:6px}
 .pr-t-z:nth-last-child(2){opacity:.6} .pr-t-z:last-child{opacity:.3}
+.pr-t-z.welle{background:color-mix(in srgb, var(--poly) 13%, transparent);font-weight:700}
+.pr-t-z.welle .x{color:var(--text)}
+.pr-welle{display:inline-block;font-size:11px;font-weight:800;color:var(--poly);background:color-mix(in srgb, var(--poly) 14%, transparent);border-radius:999px;padding:1px 8px;margin-bottom:3px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .pr-t-z.neu{animation:bkNeu .5s ease both}
 @media (max-width:1100px){.pr{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:700px){.pr{grid-template-columns:minmax(0,1fr)} .pr-t-z{grid-template-columns:8px 30px auto minmax(0,1fr);font-size:12.3px} .pr-t-z .x small{display:none}}
@@ -3428,12 +3431,21 @@ function druckKarte(x){
   return `<div class="pr-k${x.index>=70?" heiss":""}" style="--g:${druckFarbe(x.index)}" ${klickSpiel({id:x.id, heim:x.heim, gast:x.gast})}>
     ${druckRing(x.index)}
     <div class="pr-kopf"><div><span class="lv">● ${x.min}'</span> · ${flagge(x.land)} ${esc(ligaName(x.liga)||"")}</div>
-      <div class="wer">Druck: <b>${esc(x[s])}</b> · xG ${dez(d.xg)}${x.quelle!=="xG"?` <span title="Diese Liga hat bei API-Football kein xG — geschätzt aus Schüssen und Schüssen aufs Tor" style="color:var(--text-3);font-weight:600">(geschätzt)</span>`:""}</div></div>
+      ${welleChip(x)}<div class="wer">Druck: <b>${esc(x[s])}</b> · xG ${dez(d.xg)}${x.quelle!=="xG"?` <span title="Diese Liga hat bei API-Football kein xG — geschätzt aus Schüssen und Schüssen aufs Tor" style="color:var(--text-3);font-weight:600">(geschätzt)</span>`:""}</div></div>
     <div class="pr-teams"><span class="${s==="heim"?"an":""}">${esc(x.heim)}</span><em>${st[0]??0}:${st[1]??0}</em><span class="${s==="gast"?"an":""}">${esc(x.gast)}</span></div>
     <div class="pr-graf">${druckGrafik(x)}</div>
     <div class="pr-fakt"><span>xG <b>${dez(h.xg)}</b> : <b>${dez(g.xg)}</b></span><span>aufs Tor <b>${h.aufsTor??"–"}</b> : <b>${g.aufsTor??"–"}</b></span><span>Ecken <b>${h.ecken??"–"}</b> : <b>${g.ecken??"–"}</b></span>${letzte.length?`<span class="neu">letzte 15': ${letzte.join(" · ")}</span>`:""}</div>
     ${z && z.eur ? `<div class="pr-geld">💶 +${eur(z.eur)} in 15 Min auf ${esc(auswahlDe(z.auswahl||""))}${z.quote?` @ ${q2(z.quote)}`:""}</div>` : ""}
   </div>`;
+}
+// Lucas 01.11.: Ecken-Welle (≥ 3 Ecken in ~15 Min, 2. HZ, Team hinten oder gleich) als Abzeichen
+const welleChip = x => x.welle ? `<span class="pr-welle">🚩 ${esc(x[x.welle.seite])}: ${x.welle.n} Ecken in ${x.welle.in}'</span>` : "";
+function welleMessung(D){
+  const W = D.eckenWelle; if(!W || !W.gesamt) return "";
+  const a = W.alle||{};
+  return `<div class="t3-mess"><span class="t3-mess-t">🚩 Ecken-Welle</span><span><b>${W.gesamt}</b> erkannt${W.offen?` · ${W.offen} laufen`:""}</span>
+    ${a.n ? `<span>danach noch ≥ 2 Ecken: <b>${a.weitere2} %</b> (${a.n} Spiele, Schnitt +${dez(a.schnitt)})</span>${a.naechsteEigen!=null?`<span>nächste Ecke eigenes Team: <b>${a.naechsteEigen} %</b></span>`:""}
+      ${W.hinten?.n && W.gleich?.n ? `<span>hinten ${W.hinten.weitere2} % · gleich ${W.gleich.weitere2} %</span>` : ""}` : `<span>noch keine abgerechnet</span>`}</div>`;
 }
 // Lucas 01.11. („nur 2 Spiele ist untertrieben, wenn live mehr los ist"): die nächsten bis zu 4 kompakt darunter
 function druckZeile(x){
@@ -3441,11 +3453,11 @@ function druckZeile(x){
   const letzte = [d.dxg15>=0.1 && `xG +${dez(d.dxg15)}`, d.dat15>=1 && `${Math.round(d.dat15)} aufs Tor`].filter(Boolean);
   return `<div class="pr-z${x.index>=70?" heiss":""}" style="--g:${druckFarbe(x.index)}" ${klickSpiel({id:x.id, heim:x.heim, gast:x.gast})}>
     <b class="pr-zi">${x.index}</b>
-    <div class="pr-zm"><div class="pr-zt"><span class="${s==="heim"?"an":""}">${esc(x.heim)}</span><em>${st[0]??0}:${st[1]??0}</em><span class="${s==="gast"?"an":""}">${esc(x.gast)}</span></div>
+    <div class="pr-zm">${welleChip(x)}<div class="pr-zt"><span class="${s==="heim"?"an":""}">${esc(x.heim)}</span><em>${st[0]??0}:${st[1]??0}</em><span class="${s==="gast"?"an":""}">${esc(x.gast)}</span></div>
       <div class="pr-zu"><span class="lv">● ${x.min}'</span> ${flagge(x.land)} ${esc(ligaName(x.liga)||"")} · xG ${dez(d.xg)}${x.quelle!=="xG"?" (geschätzt)":""}${letzte.length?` · <span class="neu">15': ${letzte.join(" · ")}</span>`:""}</div></div>
   </div>`;
 }
-const DR_ART = {druck:["Druck","var(--hz)"], index:["Index","var(--down)"], tor:["Tor","var(--up)"], geld:["Geld","var(--bf)"], ecke:["Ecken","var(--pin)"]};
+const DR_ART = {welle:["🚩 Ecken-Welle","var(--poly)"], druck:["Druck","var(--hz)"], index:["Index","var(--down)"], tor:["Tor","var(--up)"], geld:["Geld","var(--bf)"], ecke:["Ecken","var(--pin)"]};
 function druckTicker(D, n){
   const ids = new Set(lf(D.radar.spiele||[]).map(s=>s.id));
   const Z = ((D.druck||{}).ticker||[]).filter(t=>ids.has(t.id)).slice(0, n);
@@ -3453,7 +3465,7 @@ function druckTicker(D, n){
   return `<div class="pr-t">${Z.map(t=>{ const [a,f] = DR_ART[t.art]||["",""];
     const text = t.art==="geld" && t.auswahl ? `+${eur(t.eur)} auf ${esc(auswahlDe(t.auswahl))}${t.quote?` @ ${q2(t.quote)}`:""} · Druck ${t.index}` : esc(t.text);
     const [heim, gast] = String(t.spiel||"").split(" – ");
-    return `<div class="pr-t-z" style="--f:${f}" ${klickSpiel({id:t.id, heim, gast})}><i></i><span class="m">${t.m!=null?t.m+"'":""}</span><span class="a">${a}</span><span class="x">${text}<small>${esc(t.spiel)}</small></span></div>`; }).join("")}</div>`;
+    return `<div class="pr-t-z${t.art==="welle"?" welle":""}" style="--f:${f}" ${klickSpiel({id:t.id, heim, gast})}><i></i><span class="m">${t.m!=null?t.m+"'":""}</span><span class="a">${a}</span><span class="x">${text}<small>${esc(t.spiel)}</small></span></div>`; }).join("")}</div>`;
 }
 function druckMessung(D){
   const M = D.pushBilanz?.druck; if(!M) return "";
@@ -3510,7 +3522,7 @@ function druckPanel(D){
   return `<div class="panel c12 pr-panel"><div class="ph"><h3>🔥 Druck-Radar</h3><span class="hint">wo live viel passiert, aber wenig reinfällt · xG ohne Tore + die letzten 15 Min</span></div>
     ${S.length ? `<div class="pr">${S.slice(0,n).map(druckKarte).join("")}</div>` : `<div class="leer">Gerade kein Live-Spiel mit hohem Druck (Index ab 40).</div>`}
     ${S.length > n ? `<div class="pr-m">${S.slice(n, n+4).map(druckZeile).join("")}</div>` : ""}
-    ${tick}${druckMessung(D)}</div>`;
+    ${tick}${druckMessung(D)}${welleMessung(D)}</div>`;
 }
 function topDrei(D){
   const T = topDreiDaten(D);
