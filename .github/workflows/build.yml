@@ -221,6 +221,9 @@ jobs:
           basis=$(date -d "${angelegt:-@$START}" +%s 2>/dev/null || echo $START)
           rest=$(( 300 - ($(date +%s) - basis) ))
           echo "Lauf angelegt ${angelegt:-?}, Rest bis 5 Min: ${rest}s"
+          # 01.11. (Kette stand 08:06–09:24 UTC): GitHub meldete created_at eine Stunde ZU SPÄT (Zeitumstellung in den USA) →
+          # Rest ~3.900 s, der Schritt schlief bis in den Job-Deckel, nichts wurde angestoßen. Rest nie über 300 s.
+          [ $rest -gt 300 ] && { echo "created_at liegt in der Zukunft — Rest auf 0"; rest=0; }
           [ $rest -gt 0 ] && sleep $rest
           # 26.10. (Kette stand 14:23–17:28 UTC, 3 h ohne Pushes; Zeitplan und Wächter feuerten in der Zeit nicht):
           # IMMER anstoßen (die Gruppe „pages" hält höchstens einen wartenden Lauf, doppelt ist harmlos) und danach
