@@ -38,8 +38,10 @@ GROSS = re.compile(
     r"UEFA Europa League|UEFA Conference League|Austrian|Swiss Super|Danish Superliga|Segunda|FA Cup|DFB|Copa del Rey|"
     r"Coppa Italia|Brazilian Serie A|AFC Champions League$)", re.I)
 
-KOPF = {"serie": ("🔁", "DAUERZUFLUSS"), "zufluss": ("💶", "GELD VOR ANPFIFF"), "fix": ("🚨", "AUFFÄLLIGES GELD"),
-        "stake": ("🟢", "STAKE-BURST"), "wal": ("🐋", "WAL STEIGT EIN")}
+# Lucas 02.11. („so simpel wie möglich, dass es der dümmste User versteht"): Namen nach der Quelle, je Nachricht nur
+# noch die Geld-Zeile + höchstens der Anteil-Balken, Fußzeile ohne „heute N Geldbewegungen erkannt".
+KOPF = {"serie": ("🔁", "BETFAIR INFO"), "zufluss": ("💶", "BETFAIR VOR ANPFIFF"), "fix": ("🚨", "AUFFÄLLIGES GELD"),
+        "stake": ("🟢", "STAKE.com GELD"), "wal": ("🐋", "POLYMARKET WAL")}
 LIGA_KURZ = {"English Premier League": "Premier League", "Spanish La Liga": "La Liga", "German Bundesliga": "Bundesliga",
              "Italian Serie A": "Serie A", "French Ligue 1": "Ligue 1", "English Sky Bet Championship": "Championship",
              "German Bundesliga 2": "2. Bundesliga", "Italian Serie B": "Serie B", "French Ligue 2": "Ligue 2",
@@ -177,11 +179,10 @@ def text(m, nr_f, erkannt, jetzt) -> str:
         z.append(f"💰 <b>{m['betrag']}</b> auf {auf} @ <b>{q2(m['quote'])}</b>")
     else:
         z.append(f"💰 Geld auf {auf} @ <b>{q2(m['quote'])}</b>")
-    z += [x for x in m.get("gruende") or [] if x][:2]
+    z += [x for x in m.get("gruende") or [] if x and ("▰" in x or "▱" in x)][:1]
     z.append("")
     bis = FENSTER[f][1]
-    z.append(f"📡 Signal {n} von {JE_FENSTER} " + (f"bis {bis} Uhr" if bis < 24 else "heute Nacht")
-             + f" · heute {erkannt} Geldbewegungen erkannt")
+    z.append(f"📡 Signal {n} von {JE_FENSTER} " + (f"bis {bis} Uhr" if bis < 24 else "heute Nacht"))
     if n == JE_FENSTER and FENSTER[f][2]:
         z.append(f"⏳ Nächste Signale ab {FENSTER[f][2]}")
     return "\n".join(z)
