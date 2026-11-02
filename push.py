@@ -675,6 +675,7 @@ def wale(d):
                   "liga": (g or {}).get("liga"), "sport": o.get("sport") or "Fußball", "anpfiff": o.get("anpfiff"),
                   "markt": "Polymarket", "auswahl": o.get("seite"), "anzeige": seite, "quote": round(1 / preis, 3),
                   "preis": preis, "usd": round(usd), "wallet": o.get("wallet"), "live": False,
+                  "faktor": round(usd / float(schnitt), 2) if schnitt and usd else None,   # 02.11.: Einsatz ÷ üblicher Einsatz
                   "top5": top5} if preis and 0 < preis < 1 else None)
         gr = []
         if pnl and pnl > 0:
@@ -684,6 +685,8 @@ def wale(d):
         pub = (_pub("wal", (f"{g.get('heim')} – {g.get('gast')}" if g and not nebenmarkt else str(o.get("spiel") or "")),
                     (g or {}).get("liga"), round(1 / preis, 2), seite, roh=o.get("seite"), anpfiff=o.get("anpfiff"),
                     sport=o.get("sport"), betrag=pubmod.geld(usd, "$"), gruende=gr) if preis and 0 < preis < 1 else None)
+        if pub:
+            pub["faktor"] = round(usd / float(schnitt), 2) if schnitt and usd else None     # Public-Regel 3
         yield key, "\n".join(zeilen) + "\n", None, beleg, pub
 
 

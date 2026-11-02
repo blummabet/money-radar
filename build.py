@@ -2226,7 +2226,8 @@ def statistik(burst, finder):
                        (1 if b.get("win") else 0) if ab else None,
                        round(float(q), 2) if isinstance(q, (int, float)) else None, clv,
                        b.get("liga") or b.get("sport") or "", 1 if b.get("top5") else 0, 1 if b.get("live") else 0,
-                       str(titel)[:60], str(b.get("auswahl") or "")[:40], b.get("lage")])
+                       str(titel)[:60], str(b.get("auswahl") or "")[:40], b.get("lage"),
+                       b.get("usd") if isinstance(b.get("usd"), (int, float)) else None, b.get("faktor")])   # 02.11.: Wal-Betrag + × üblicher Einsatz
     for z in burst or []:
         if not isinstance(z, dict) or not z.get("push") or not stake_ok(z) or not ts(z.get("sentAt")):
             continue
@@ -2278,7 +2279,7 @@ def statistik(burst, finder):
             zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), "public", None, None, p.get("quote"), None, p.get("liga") or "", 0,
                            1 if p.get("live") else 0, str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40], None])
     zeilen.sort(key=lambda z: z[0])
-    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return len(zeilen)
 
 def verlauf(bf_buch, burst, finder, tr_led):

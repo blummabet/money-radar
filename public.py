@@ -24,7 +24,9 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R2"   # R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale
+REGEL = "R3"   # R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+WAL_MIN_FAKTOR = 2.0
+WAL_JE_FENSTER = 1
 AB = "2026-10-31T10:30:00+00:00"
 ZIEL = 60
 JE_FENSTER = 3
@@ -96,6 +98,11 @@ def passt(m) -> bool:
     # Stake-Burst und Wal bleiben (10 Tipps +85 %, 2 Tipps +94 %).
     if art in ("serie", "zufluss") and re.search(r"^(English )?Premier League$", liga, re.I):
         return False
+    # Regel 3 (Lucas 02.11., Penafiel – Feirense „$2.770 auf Penafiel — wieso kam der?"): ein Wal nur, wenn die Wallet
+    # mindestens doppelt so viel setzt wie sonst (Überzeugung statt Größe). Vor GROSS geprüft — sonst ließ „Segunda"
+    # (gemeint war die spanische) auch die portugiesische 2. Liga ohne diese Prüfung durch.
+    if art == "wal" and not (isinstance(m.get("faktor"), (int, float)) and m["faktor"] >= WAL_MIN_FAKTOR):
+        return False
     if GROSS.search(liga) and 1.6 <= q < 3.0:
         return True
     if art == "wal":                      # Lucas 31.10. 11:23: Wale in jeder Liga + E-Sport (seit 16.10.: 77 · +10,9 %)
@@ -110,7 +117,7 @@ def laden(jetzt):
         s = {}
     tag = jetzt.astimezone(WIEN).strftime("%Y-%m-%d")
     if s.get("tag") != tag:
-        s.update({"tag": tag, "fenster": {}, "spiele": []})
+        s.update({"tag": tag, "fenster": {}, "spiele": [], "arten": {}})
     grenze = (jetzt - timedelta(days=70)).isoformat()
     s["liste"] = [x for x in s.get("liste") or [] if x.get("zeit", "") >= grenze]
     return s
@@ -129,6 +136,9 @@ def platz(s, m, jetzt):
     if not sk or sk in s["spiele"]:
         return None
     f = _fenster(jetzt)
+    # Regel 3: höchstens 1 Wal je Fenster — die übrigen Plätze bleiben für Betfair/Stake
+    if m.get("art") == "wal" and ((s.get("arten") or {}).get(str(f)) or []).count("wal") >= WAL_JE_FENSTER:
+        return None
     n = (s["fenster"].get(str(f)) or 0) + 1
     return (n, f) if n <= JE_FENSTER else None
 
@@ -136,10 +146,11 @@ def platz(s, m, jetzt):
 def buchen(s, m, nr_f, jetzt):
     n, f = nr_f
     s["fenster"][str(f)] = n
+    s.setdefault("arten", {}).setdefault(str(f), []).append(m.get("art"))
     s["spiele"].append(_norm(m.get("spiel")))
     s["liste"].append({"zeit": jetzt.strftime("%Y-%m-%dT%H:%M"), "art": m.get("art"), "spiel": m.get("spiel"),
                        "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
-                       "live": bool(m.get("live")), "regel": REGEL})
+                       "live": bool(m.get("live")), "regel": REGEL, "faktor": m.get("faktor")})
 
 
 def _wann(iso, jetzt):
