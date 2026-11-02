@@ -2264,7 +2264,7 @@ def statistik(burst, finder):
             continue
         # Public-Regel 4 (02.11.): gesendet wird zeitversetzt aus dem Topf → derselbe Tipp (Spiel + Auswahl) aus irgendeiner
         # Art bis 36 h davor; Rendite neu zur gesendeten Quote. Nicht gesendete Kandidaten als eigene Art „publicNein".
-        r4 = p.get("regel") == "R4"
+        r4 = str(p.get("regel") or "") >= "R4"      # ab R4 aus dem Topf (zeitversetzt)
         art_p = "publicNein" if p.get("gesendet") is False else "public"
         best, bd = None, None
         for z in zeilen:

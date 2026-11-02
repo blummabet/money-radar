@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R4"   # (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R5"   # R5 02.11. 21:30 Dauerzufluss aus allen Ligen · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -108,6 +108,10 @@ def passt(m) -> bool:
     if GROSS.search(liga) and 1.6 <= q < 3.0:
         return True
     if art == "wal":                      # Lucas 31.10. 11:23: Wale in jeder Liga + E-Sport (seit 16.10.: 77 · +10,9 %)
+        return 1.6 <= q < 3.0
+    # Regel 5 (Lucas 02.11. 21:29: „diese Sperre hab ich nie definiert — ich bin größter Fan von kleinen Ligen und viel
+    # Geld"): Dauerzufluss aus ALLEN Ligen. Gemessen: kleine Ligen 315 Tipps +10,9 % (große 240 · +7,6 %).
+    if art == "serie":
         return 1.6 <= q < 3.0
     return art in NUR_ALLE_LIGEN and 1.8 <= q < 3.0
 
@@ -258,7 +262,7 @@ def export(s, jetzt):
                      "arten": [e.get("art") for e in ev][-8:], "geld": round(sum(je_art.values())), "seit": c.get("erst"), "zuletzt": c.get("letzt"),
                      "nah": bool(m.get("live") or (ko and (ko - jetzt).total_seconds() <= NAH_H * 3600))})
     kand.sort(key=lambda x: -x["punkte"])
-    heute = [x for x in s.get("liste") or [] if x.get("zeit", "")[:10] == jetzt.strftime("%Y-%m-%d") and x.get("regel") == REGEL]
+    heute = [x for x in s.get("liste") or [] if x.get("zeit", "")[:10] == jetzt.strftime("%Y-%m-%d") and str(x.get("regel") or "") >= "R4"]
     return {"stand": jetzt.isoformat(), "regel": REGEL, "fenster": f"{v}–{b} Uhr", "gesendet": gesendet, "max": JE_FENSTER, "termine": termine,
             "schwellen": {"termin": MIN_PUNKTE, "sofort": EXPRESS, "live": LIVE_VORZIEHEN, "kurzVorAnpfiff": LETZTE_CHANCE, "nahStunden": NAH_H},
             "kandidaten": kand[:15], "heute": [{"zeit": x.get("zeit"), "spiel": x.get("spiel"), "auswahl": x.get("auswahl"), "quote": x.get("quote"),
