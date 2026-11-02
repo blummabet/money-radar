@@ -230,6 +230,41 @@ def auswahl(s, jetzt):
     return aus
 
 
+def export(s, jetzt):
+    """Für die Seite (Statistik → Public-Kanal, Lucas 02.11.: „den Topf irgendwo darstellen"): was gerade drinliegt,
+    mit Punkten, und wie die Termine im laufenden Fenster stehen."""
+    f = _fenster(jetzt)
+    v, b, _ = FENSTER[f]
+    gesendet = s["fenster"].get(str(f)) or 0
+    ab = jetzt.astimezone(WIEN).replace(hour=v, minute=0, second=0, microsecond=0)
+    termine = []
+    for i, t in enumerate(TERMINE[f]):
+        zt = ab + timedelta(minutes=t)
+        termine.append({"uhr": zt.strftime("%H:%M"), "vorbei": zt <= jetzt.astimezone(WIEN), "gefuellt": i < gesendet})
+    kand = []
+    for k, c in (s.get("topf") or {}).items():
+        p = punkte(c, jetzt)
+        if p is None:
+            continue
+        m, ev = c.get("m") or {}, c.get("ereignisse") or []
+        ko = _ts(m.get("anpfiff"))
+        je_art = {}
+        for e in ev:
+            if isinstance(e.get("eur"), (int, float)):
+                je_art[e["art"]] = max(je_art.get(e["art"], 0), e["eur"])
+        kand.append({"spiel": m.get("spiel"), "auswahl": m.get("auswahl"), "markt": m.get("markt"), "liga": LIGA_KURZ.get(m.get("liga"), m.get("liga")),
+                     "sport": m.get("sport"), "quote": m.get("quote"), "live": bool(m.get("live")), "minute": m.get("minute"),
+                     "anpfiff": m.get("anpfiff"), "punkte": p, "signale": len(ev), "quellen": sorted({QUELLE.get(e.get("art")) for e in ev} - {None}),
+                     "arten": [e.get("art") for e in ev][-8:], "geld": round(sum(je_art.values())), "seit": c.get("erst"), "zuletzt": c.get("letzt"),
+                     "nah": bool(m.get("live") or (ko and (ko - jetzt).total_seconds() <= NAH_H * 3600))})
+    kand.sort(key=lambda x: -x["punkte"])
+    heute = [x for x in s.get("liste") or [] if x.get("zeit", "")[:10] == jetzt.strftime("%Y-%m-%d") and x.get("regel") == REGEL]
+    return {"stand": jetzt.isoformat(), "regel": REGEL, "fenster": f"{v}–{b} Uhr", "gesendet": gesendet, "max": JE_FENSTER, "termine": termine,
+            "schwellen": {"termin": MIN_PUNKTE, "sofort": EXPRESS, "live": LIVE_VORZIEHEN, "kurzVorAnpfiff": LETZTE_CHANCE, "nahStunden": NAH_H},
+            "kandidaten": kand[:15], "heute": [{"zeit": x.get("zeit"), "spiel": x.get("spiel"), "auswahl": x.get("auswahl"), "quote": x.get("quote"),
+                                                 "punkte": x.get("punkte"), "grund": x.get("grund"), "gesendet": x.get("gesendet", True)} for x in heute][-20:]}
+
+
 def laden(jetzt):
     try:
         s = json.loads(STAND.read_text(encoding="utf-8"))

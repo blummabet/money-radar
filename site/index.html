@@ -775,6 +775,24 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .st-modus{margin-bottom:10px}
 .st-modus button{font-weight:700}
 .st-chiphint{margin-top:6px}
+.tp-ts{display:flex;gap:6px;flex-wrap:wrap}
+.tp-t{font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;border:1px solid var(--rand);color:var(--text-2)}
+.tp-t.voll{background:color-mix(in srgb, var(--up) 14%, transparent);color:var(--up);border-color:transparent}
+.tp-t.leer{color:var(--text-3);opacity:.7}
+.tp-k{display:grid;grid-template-columns:46px minmax(0,1fr);gap:12px;align-items:center;padding:10px 4px;border-top:1px solid var(--line)}
+.tp-p{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:17px;font-weight:900;background:var(--panel-3);color:var(--text-3)}
+.tp-k.bereit .tp-p{background:color-mix(in srgb, var(--up) 16%, transparent);color:var(--up)}
+.tp-k.sofort .tp-p{background:color-mix(in srgb, var(--down) 16%, transparent);color:var(--down)}
+.tp-k.wartet .tp-p{background:color-mix(in srgb, var(--bf) 16%, transparent);color:var(--bf)}
+.tp-i{min-width:0}
+.tp-s{font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tp-a{font-size:12.5px;color:var(--text-2);margin-top:1px}
+.tp-m{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:4px;font-size:11px;font-weight:700;color:var(--text-3)}
+.tp-m span{padding:1px 7px;border-radius:999px;background:var(--panel-3)}
+.tp-m em{font-style:normal;font-weight:600}
+.tp-h{display:grid;grid-template-columns:42px 96px minmax(0,1fr) auto auto;gap:8px;font-size:12px;padding:4px 2px;color:var(--text-2);align-items:baseline}
+.tp-h b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:700px){.tp-h{grid-template-columns:40px 80px minmax(0,1fr) auto}.tp-h span:nth-child(4){display:none}}
 .st-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--text-3);border-radius:999px;padding:5px 10px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
 .st-chip i{width:8px;height:8px;border-radius:50%;background:var(--f);opacity:.35}
 .st-chip small{font-size:11.5px;font-weight:800}
@@ -4033,6 +4051,33 @@ const STAT_K = {
   publicNein:["Kandidat, nicht gesendet","Public-Kanal","var(--text-3)"]};   // Lucas 31.10.: Auswahl aus den Arten oben, deshalb nicht vorgewählt
 const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche", lage:"alle"};
 const MONAT = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+// Lucas 02.11.: der Public-Topf (Regel 4) auf der Statistik-Seite — was liegt drin, mit wie vielen Punkten, welcher Termin kommt
+async function topfLaden(){
+  if(ST.topfLaedt) return; ST.topfLaedt = true;
+  try{ const r = await fetch("topf.json?t="+Date.now(), {cache:"no-store"}); ST.topf = r.ok ? await r.json() : null; ST.topfZeit = Date.now(); }catch(e){ ST.topf = null; ST.topfZeit = Date.now(); }
+  ST.topfLaedt = false;
+  try{ if(aktiv==="statistik") $("#s-statistik").innerHTML = seiteStatistik(); }catch(e){ console.error(e); }
+}
+function topfPanel(){
+  if(!ST.topfZeit || Date.now()-ST.topfZeit > 60000) topfLaden();
+  const T = ST.topf; if(!T) return `<div class="panel c12"><div class="leer">Topf wird geladen …</div></div>`;
+  const S = T.schwellen||{};
+  const termine = (T.termine||[]).map(t=>`<span class="tp-t ${t.gefuellt?"voll":t.vorbei?"leer":""}">${t.gefuellt?"✓":t.vorbei?"–":"○"} ${t.uhr}</span>`).join("");
+  const QN = {betfair:"Betfair", stake:"Stake", poly:"Polymarket"};
+  const kand = (T.kandidaten||[]).map(k=>{
+    const st = k.punkte>=S.sofort ? "sofort" : k.punkte>=S.termin ? (k.nah ? "bereit" : "wartet") : "zu schwach";
+    const wann = k.live ? `<span style="color:var(--down);font-weight:800">● live${k.minute?` ${k.minute}'`:""}</span>` : k.anpfiff ? `Anpfiff ${uhr(k.anpfiff)}` : "";
+    const hinweis = st==="wartet" ? `wartet – Anpfiff erst in über ${S.nahStunden} h` : st==="zu schwach" ? `unter ${dez(S.termin)} Punkten` : st==="sofort" ? "stark genug für sofort" : "bereit für den nächsten Termin";
+    return `<div class="tp-k ${st.replace(" ","-")}"><b class="tp-p">${dez(k.punkte)}</b><div class="tp-i"><div class="tp-s">${esc(k.spiel||"")}</div>
+      <div class="tp-a"><b>${esc(k.auswahl||"")}</b>${k.markt?` <i>(${esc(k.markt)})</i>`:""} @ ${q2(k.quote)} · ${wann}</div>
+      <div class="tp-m">${(k.quellen||[]).map(q=>`<span>${QN[q]||q}</span>`).join("")}<span>${k.signale} Signal${k.signale>1?"e":""}</span>${k.geld?`<span>${eur(k.geld)}</span>`:""}<em>${hinweis}</em></div></div></div>`; }).join("");
+  const heute = (T.heute||[]).slice().reverse().map(h=>`<div class="tp-h"><span>${h.zeit?uhr(String(h.zeit).slice(0,16)+":00Z"):""}</span><span>${h.gesendet===false?"✗ verfallen":"✓ "+esc(h.grund||"gesendet")}</span><b>${esc(h.spiel||"")}</b><span>${esc(h.auswahl||"")} @ ${q2(h.quote)}</span><span>${h.punkte!=null?dez(h.punkte)+" P.":""}</span></div>`).join("");
+  return `<div class="panel c12 tp"><div class="ph"><h3>🫙 Topf jetzt</h3><span class="hint">Fenster ${esc(T.fenster||"")} · ${T.gesendet} von ${T.max} gesendet · Stand ${uhr(T.stand)}</span></div>
+    <div class="tp-ts">${termine}</div>
+    <div class="kk-klein" style="margin:6px 0 10px">Zum Termin geht der beste Kandidat ab ${dez(S.termin)} Punkten, der live ist oder in ≤ ${S.nahStunden} h anpfeift · ab ${dez(S.sofort)} sofort · live ab ${dez(S.live)} vorgezogen</div>
+    ${kand || `<div class="leer">Gerade liegt nichts im Topf.</div>`}
+    ${heute ? `<h4 style="margin:16px 0 6px">Heute aus dem Topf</h4>${heute}` : ""}</div>`;
+}
 async function statLaden(){
   if(ST.daten || ST.laden) return; ST.laden = true;
   try{
@@ -4143,6 +4188,7 @@ function seiteStatistik(){
       <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}${seg("lage", [["alle","Jeder Stand"],["vorn","Live: Auswahl führt"],["gleich","Live: gleich"],["hinten","Live: hinten"]])}</div>
       ${pubModus||neinModus?"":`<div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div><div class="hint st-chiphint">Kategorie antippen = nur diese · nochmal antippen = wieder alle</div>`}
     </div>
+    ${pubModus ? topfPanel() : ""}
     <div class="panel c12">${kopf}${kurve}</div>
     <div class="panel c12"><div class="ph"><h3>Je Kategorie</h3><span class="hint">antippen = nur diese</span></div>${jeKat?tkopf("Kategorie")+jeKat:`<div class="leer">Keine Tipps im Ausschnitt.</div>`}</div>
     <div class="panel c6"><div class="ph"><h3>Je ${ST.gruppe==="monat"?"Monat":"Woche"}</h3>${seg("gruppe", [["woche","Woche"],["monat","Monat"]])}</div>${jeZeit?tkopf(ST.gruppe==="monat"?"Monat":"Woche")+jeZeit:`<div class="leer">–</div>`}</div>

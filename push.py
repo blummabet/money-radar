@@ -1188,6 +1188,10 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             print(f"  public: {exc}")
         public.speichern(pub_stand)
+        try:                         # 02.11.: den Topf auf der Seite zeigen (Statistik → Public-Kanal)
+            (BASIS / "site" / "topf.json").write_text(json.dumps(public.export(pub_stand, JETZT), ensure_ascii=False), encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  topf: {exc}")
     print(f"push: {'erster Lauf, ' + str(len(gesehen)) + ' als gesehen markiert' if erster_lauf else str(gesendet) + ' gesendet'}")
     if not trocken:
         heute = JETZT.astimezone(ZoneInfo("Europe/Vienna")).strftime("%Y-%m-%d")
