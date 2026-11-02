@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R4"   # (R4 ab 02.11. 16 Uhr: Live-Kandidaten ab 7 Punkten dürfen den nächsten Termin vorziehen) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R4"   # (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -119,7 +119,7 @@ def passt(m) -> bool:
 # Kandidat raus; ein sehr starker sofort; einer kurz vor Anpfiff darf einen Termin vorziehen.
 TERMINE = {0: (540, 620, 700), 1: (60, 140, 220), 2: (60, 140, 220), 3: (60, 140, 220)}   # Minuten ab Fensterbeginn (0–12: 9:00 10:20 11:40)
 MIN_PUNKTE, EXPRESS, LETZTE_CHANCE, NAH_H = 5.0, 14.0, 9.0, 4
-LIVE_VORZIEHEN = 7.0   # 02.11. 16 Uhr: ein Live-Kandidat lebt nur 20 Min, die Termine liegen 80 Min auseinander → er darf vorziehen
+LIVE_VORZIEHEN = 10.0  # 02.11. 16 Uhr: ein Live-Kandidat lebt nur 20 Min, die Termine liegen 80 Min auseinander → er darf vorziehen
 QUELLE = {"serie": "betfair", "zufluss": "betfair", "fix": "betfair", "stake": "stake", "wal": "poly"}
 
 
