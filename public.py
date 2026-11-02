@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import html
 import json
+import math
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -24,7 +25,8 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R3"   # R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R4"   # R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+#                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
 AB = "2026-10-31T10:30:00+00:00"
@@ -110,6 +112,121 @@ def passt(m) -> bool:
     return art in NUR_ALLE_LIGEN and 1.8 <= q < 3.0
 
 
+# ── Public-Regel 4 (Lucas 02.11.: „ein bisschen sammeln, sehen wo Bewegung ist … sonst wird der erstbeste Blödsinn
+# gepostet"; „was am Vormittag kommt, wird weiter beobachtet und wird stärker, je näher das Spiel kommt") ─────────────
+# Jedes passende Signal kommt in den Topf, je Spiel + Tipp EIN Kandidat; spätere Signale zum selben Tipp machen ihn stärker.
+# Der Topf überlebt die Fenster (Vormittags-Geld zählt im Fenster 12–16 mit). Zu drei Terminen je Fenster geht der beste
+# Kandidat raus; ein sehr starker sofort; einer kurz vor Anpfiff darf einen Termin vorziehen.
+TERMINE = {0: (540, 620, 700), 1: (60, 140, 220), 2: (60, 140, 220), 3: (60, 140, 220)}   # Minuten ab Fensterbeginn (0–12: 9:00 10:20 11:40)
+MIN_PUNKTE, EXPRESS, LETZTE_CHANCE, NAH_H = 5.0, 14.0, 9.0, 4
+QUELLE = {"serie": "betfair", "zufluss": "betfair", "fix": "betfair", "stake": "stake", "wal": "poly"}
+
+
+def _key(m):
+    return f"{_norm(m.get('spiel'))}|{_norm(m.get('auswahlRoh') or m.get('auswahl'))}"
+
+
+def sammeln(s, m, jetzt):
+    """Signal in den Topf (nur wenn es die Regel erfüllt und das Spiel heute noch nicht gepostet wurde)."""
+    if not passt(m) or not _norm(m.get("spiel")) or _norm(m.get("spiel")) in s.get("spiele", []):
+        return
+    t = s.setdefault("topf", {})
+    k = _key(m)
+    c = t.get(k) or {"erst": jetzt.isoformat(), "ereignisse": []}
+    c["m"] = {x: v for x, v in m.items()}
+    c["letzt"] = jetzt.isoformat()
+    c["ereignisse"] = (c["ereignisse"] + [{"zeit": jetzt.isoformat(), "art": m.get("art"), "eur": m.get("eur"), "n": m.get("n"),
+                                            "faktor": m.get("faktor")}])[-30:]
+    t[k] = c
+
+
+def punkte(c, jetzt):
+    """Stärke eines Kandidaten — None = nicht mehr spielbar (verfällt). REIN.
+    Grundwert 2 · +1 je weiterem Signal (max. 5) · +4 je weiterer Quelle (Betfair/Stake/Polymarket) · Geld: +2 je
+    Verdopplung über €5k (max. 8, je Art der höchste Stand, dann summiert) · Dauerzufluss-Kette: +½ je Glied (max. 4)
+    · Wal: + sein Vielfaches des üblichen Einsatzes (max. 4) · −3, wenn seit 90 Min nichts mehr kam."""
+    m, ev = c.get("m") or {}, c.get("ereignisse") or []
+    if not ev:
+        return None
+    letzt = _ts(c.get("letzt"))
+    alter = (jetzt - letzt).total_seconds() / 60 if letzt else 999
+    if m.get("live"):
+        if alter > 20 or (isinstance(m.get("minute"), (int, float)) and m["minute"] > 75):
+            return None
+    else:
+        ko = _ts(m.get("anpfiff"))
+        if alter > 240 or not ko or (ko - jetzt).total_seconds() < 20 * 60:
+            return None
+    quellen = {QUELLE.get(e.get("art")) for e in ev}
+    je_art = {}
+    for e in ev:
+        if isinstance(e.get("eur"), (int, float)):
+            je_art[e["art"]] = max(je_art.get(e["art"], 0), e["eur"])
+    geld = sum(je_art.values())
+    kette = max([e.get("n") or 0 for e in ev if e.get("art") == "serie"] or [0])
+    p = 2 + min(5, len(ev) - 1) + 4 * (len(quellen) - 1) + (min(8, max(0, 2 * math.log2(geld / 5000))) if geld > 0 else 0) \
+        + min(4, kette / 2) + min(4, max([e.get("faktor") or 0 for e in ev if e.get("art") == "wal"] or [0])) \
+        - (3 if alter > 90 else 0)
+    return round(p, 1)
+
+
+def _termine_vorbei(f, jetzt):
+    w = jetzt.astimezone(WIEN)
+    ab = (w.hour - FENSTER[f][0]) * 60 + w.minute
+    return sum(1 for t in TERMINE[f] if ab >= t)
+
+
+def auswahl(s, jetzt):
+    """Was jetzt aus dem Topf in den Kanal geht: [(m, (nr, fenster), punkte, grund)]. Räumt Verfallenes ab
+    (mit seinen besten Punkten als „nicht gesendet" in der Liste — so lässt sich später messen, ob die Auswahl besser trifft)."""
+    if jetzt < _ts(AB):
+        return []
+    t = s.setdefault("topf", {})
+    bewertet = []
+    for k, c in list(t.items()):
+        p = punkte(c, jetzt)
+        if p is None or _norm((c.get("m") or {}).get("spiel")) in s.get("spiele", []):
+            m = c.get("m") or {}
+            if c.get("best") is not None and _norm(m.get("spiel")) not in s.get("spiele", []):
+                s["liste"].append({"zeit": (c.get("bestZeit") or c.get("letzt") or "")[:16], "art": m.get("art"), "spiel": m.get("spiel"),
+                                   "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
+                                   "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": c.get("best"),
+                                   "signale": len(c.get("ereignisse") or [])})
+            t.pop(k, None)
+            continue
+        if c.get("best") is None or p > c["best"]:
+            c["best"], c["bestZeit"] = p, jetzt.isoformat()
+        bewertet.append((p, k, c))
+    bewertet.sort(key=lambda x: -x[0])
+    f = _fenster(jetzt)
+    gesendet = s["fenster"].get(str(f)) or 0
+    vorbei = _termine_vorbei(f, jetzt)
+    aus = []
+    for p, k, c in bewertet:
+        if gesendet >= JE_FENSTER:
+            break
+        m = c["m"]
+        if m.get("art") == "wal" and ((s.get("arten") or {}).get(str(f)) or []).count("wal") + sum(1 for x in aus if x[0].get("art") == "wal") >= WAL_JE_FENSTER:
+            continue
+        ko = _ts(m.get("anpfiff"))
+        bald = bool(not m.get("live") and ko and (ko - jetzt).total_seconds() < 40 * 60)
+        # Lucas: Geld vom Vormittag für ein Abendspiel wird weiter beobachtet und stärker — zu einem Termin nur, was live
+        # ist oder in den nächsten 4 h anpfeift (früher nur, wenn es „sehr stark" ist)
+        nah = bool(m.get("live") or (ko and (ko - jetzt).total_seconds() <= NAH_H * 3600))
+        if vorbei - gesendet > 0 and p >= MIN_PUNKTE and nah:
+            grund = "Termin"
+        elif p >= EXPRESS:
+            grund = "sehr stark"
+        elif bald and p >= LETZTE_CHANCE and vorbei + 1 - gesendet > 0:
+            grund = "kurz vor Anpfiff"
+        else:
+            continue
+        gesendet += 1
+        aus.append((m, (gesendet, f), p, grund))
+        t.pop(k, None)
+    return aus
+
+
 def laden(jetzt):
     try:
         s = json.loads(STAND.read_text(encoding="utf-8"))
@@ -143,14 +260,15 @@ def platz(s, m, jetzt):
     return (n, f) if n <= JE_FENSTER else None
 
 
-def buchen(s, m, nr_f, jetzt):
+def buchen(s, m, nr_f, jetzt, punkte=None, grund=None):
     n, f = nr_f
     s["fenster"][str(f)] = n
     s.setdefault("arten", {}).setdefault(str(f), []).append(m.get("art"))
     s["spiele"].append(_norm(m.get("spiel")))
     s["liste"].append({"zeit": jetzt.strftime("%Y-%m-%dT%H:%M"), "art": m.get("art"), "spiel": m.get("spiel"),
                        "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
-                       "live": bool(m.get("live")), "regel": REGEL, "faktor": m.get("faktor")})
+                       "live": bool(m.get("live")), "regel": REGEL, "faktor": m.get("faktor"),
+                       "gesendet": True, "punkte": punkte, "grund": grund})
 
 
 def _wann(iso, jetzt):

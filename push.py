@@ -173,6 +173,14 @@ def _live_von(d, sid):
     return lv.get("min"), lv.get("stand")
 
 
+def _mit(pub, eur=None, n=None):
+    """02.11. (Public-Regel 4): Zahlen, nach denen der Topf die Kandidaten bewertet — Geld (€ bzw. $) und Kettenlänge."""
+    if pub:
+        pub["eur"] = float(eur) if isinstance(eur, (int, float)) else None
+        pub["n"] = n
+    return pub
+
+
 def _pub(art, spiel, liga, quote, auswahl, *, roh=None, markt=None, anpfiff=None, live=False, minute=None, stand=None,
          sport=None, betrag=None, gruende=()):
     """Lucas 31.10.: Daten für die Public-Fassung (public.py) — nur das, was dort steht."""
@@ -259,6 +267,7 @@ def zufluss(d):
                    roh=fl.get("auswahl"), markt=_markt_de(fl.get("markt")), anpfiff=z.get("anpfiff"),
                    gruende=[f"{_pbalken(fl.get('anteil'))} {fl.get('anteil')} % des neuen Geldes",
                             f"⚡ +{geld(fl.get('eur'))} in den letzten 30 Min" + (f" · Quote {q2(qv)} → {q2(q)}" if gedr else "")])
+        _mit(pub, fl.get("eur"))
         yield key, text, ZUFLUSS_PAUSE_H, _beleg("zufluss", z, fl), pub
 
 
@@ -454,6 +463,7 @@ def bf_halbzeit(d):
                    gruende=[f"📏 {str(a.get('faktor')).replace('.', ',')}× mehr Geld auf die 1. Halbzeit als aufs ganze Spiel"
                             if a.get("faktor") else "",
                             f"{_pbalken(a.get('anteil'))} {a.get('anteil')} % des Geldes in diesem Markt" if a.get("anteil") else ""])
+        _mit(pub, a.get("eur"))
         yield key, text, None, {"art": a.get("art"), "id": str(a.get("id")), "heim": a.get("heim"), "gast": a.get("gast"),
                                 "liga": a.get("liga"), "anpfiff": a.get("anpfiff"), "top5": bool(a.get("top")), "live": bool(lv),
                                 "markt": a.get("markt"), "auswahl": a.get("auf"), "quote": a.get("quote"), "eur": a.get("eur")}, pub
@@ -687,6 +697,7 @@ def wale(d):
                     sport=o.get("sport"), betrag=pubmod.geld(usd, "$"), gruende=gr) if preis and 0 < preis < 1 else None)
         if pub:
             pub["faktor"] = round(usd / float(schnitt), 2) if schnitt and usd else None     # Public-Regel 3
+            _mit(pub, usd)
         yield key, "\n".join(zeilen) + "\n", None, beleg, pub
 
 
@@ -789,6 +800,7 @@ def stake(d):
                    betrag=pubmod.geld(g.get("usd"), "$"),
                    gruende=[f"🎯 {g.get('wetten')} Großwetten innerhalb weniger Minuten",
                             f"📏 {q2(g.get('faktor'))}× so viel wie in dieser Liga üblich" if g.get("faktor") else ""]) if auswahl else None
+        _mit(pub, g.get("usd"))
         yield key, text, None, None, pub
 
 
@@ -924,6 +936,7 @@ def serie(d):
                    markt=_markt_de(x["markt"]), anpfiff=x.get("anpfiff"), live=bool(x.get("live")), minute=mi_, stand=st_,
                    gruende=[f"{_pbalken(x.get('anteil'))} {x.get('anteil')} % des Geldes",
                             f"⏱ {x['n']}× in Folge · +{geld(x['eur'])} in {_dauer(x.get('dauerMin'))}"])
+        _mit(pub, x.get("eur"), x.get("n"))
         yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"]}, pub
@@ -1114,15 +1127,9 @@ def main() -> int:
             if ok:
                 gesehen[key] = JETZT.isoformat()
                 gesendet += 1
-                try:                 # Lucas 31.10.: Public-Regel 1 — eigene Fassung, je Zeitfenster höchstens 3
-                    if pub and public.passt(pub):
-                        pl = public.platz(pub_stand, pub, JETZT)
-                        if pl:
-                            pt = public.text(pub, pl, erkannt(), JETZT)
-                            if trocken:
-                                print("── PUBLIC\n" + pt)
-                            if trocken or senden(token, pub_chat, pt, link=False):
-                                public.buchen(pub_stand, pub, pl, JETZT)
+                try:                 # Public-Regel 4 (02.11.): nicht sofort senden — in den Topf, bewertet wird unten
+                    if pub:
+                        public.sammeln(pub_stand, pub, JETZT)
                 except Exception as exc:  # noqa: BLE001
                     print(f"  public: {exc}")
                 if beleg and not trocken:
@@ -1172,6 +1179,14 @@ def main() -> int:
             print(f"  bilanz: {exc}")
         STAND.parent.mkdir(parents=True, exist_ok=True)
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
+        try:                         # Public-Regel 4: zu den Terminen den besten Kandidaten aus dem Topf
+            for m_, pl_, pkt_, grund_ in public.auswahl(pub_stand, JETZT):
+                pt = public.text(m_, pl_, erkannt(), JETZT)
+                if senden(token, pub_chat, pt, link=False):
+                    public.buchen(pub_stand, m_, pl_, JETZT, punkte=pkt_, grund=grund_)
+                    print(f"  public: {m_.get('spiel')} · {pkt_} Punkte · {grund_}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  public: {exc}")
         public.speichern(pub_stand)
     print(f"push: {'erster Lauf, ' + str(len(gesehen)) + ' als gesehen markiert' if erster_lauf else str(gesendet) + ' gesendet'}")
     if not trocken:

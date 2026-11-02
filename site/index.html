@@ -4029,7 +4029,8 @@ const STAT_K = {
   serieFuehrt:["Dauerzufluss auf Führenden","Nur gemessen","color-mix(in srgb, var(--bf) 40%, var(--text-3))"],
   liveFuehrt:["Live-Zufluss auf Führenden","Nur gemessen","color-mix(in srgb, var(--down) 40%, var(--text-3))"],
   stakeFuehrt:["Stake live auf Führenden","Nur gemessen","color-mix(in srgb, var(--st, var(--up)) 40%, var(--text-3))"],
-  public:["Public-Signale","Public-Kanal","var(--up)"]};   // Lucas 31.10.: Auswahl aus den Arten oben, deshalb nicht vorgewählt
+  public:["Public-Signale","Public-Kanal","var(--up)"],
+  publicNein:["Kandidat, nicht gesendet","Public-Kanal","var(--text-3)"]};   // Lucas 31.10.: Auswahl aus den Arten oben, deshalb nicht vorgewählt
 const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche", lage:"alle"};
 const MONAT = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 async function statLaden(){
@@ -4073,21 +4074,21 @@ function seiteStatistik(){
   if(!ST.daten){ statLaden(); return `<div class="panel"><div class="leer">${ST.fehler?`Statistik konnte nicht geladen werden (${esc(ST.fehler)}).`:"Statistik wird geladen …"}</div></div>`; }
   const alle = ST.daten.zeilen||[];
   const katsDa = Object.keys(STAT_K).filter(k=>alle.some(z=>z[1]===k));
-  if(!ST.kat) ST.kat = new Set(katsDa.filter(k=>k!=="public"));
+  if(!ST.kat) ST.kat = new Set(katsDa.filter(k=>!k.startsWith("public")));
   const {liste:zr, mo} = stZeitraeume(alle);
   const basis = alle.filter(z=>stImZeitraum(z, ST.zeit, mo) && (ST.wann==="alle" || (ST.wann==="live") === !!z[8]) && (ST.liga==="alle" || (ST.liga==="top5") === !!z[7]) && (ST.lage==="alle" || z[11]===ST.lage));
   const Z = basis.filter(z=>ST.kat.has(z[1]));
   const K = stKennz(Z);
   const seg = (feld, opts) => `<div class="seg st-seg">${opts.map(([v,n])=>`<button class="${ST[feld]===v?"an":""}" data-st="${feld}" data-v="${v}">${n}</button>`).join("")}</div>`;
   // Kategorien als Chips, gruppiert nach Quelle
-  const quellen = [...new Set(katsDa.filter(k=>k!=="public").map(k=>STAT_K[k][1]))];
-  const chips = quellen.map(q=>`<div class="st-qg"><span class="st-ql">${q}</span>${katsDa.filter(k=>k!=="public" && STAT_K[k][1]===q).map(k=>{ const kz = stKennz(basis.filter(z=>z[1]===k));
+  const quellen = [...new Set(katsDa.filter(k=>!k.startsWith("public")).map(k=>STAT_K[k][1]))];
+  const chips = quellen.map(q=>`<div class="st-qg"><span class="st-ql">${q}</span>${katsDa.filter(k=>!k.startsWith("public") && STAT_K[k][1]===q).map(k=>{ const kz = stKennz(basis.filter(z=>z[1]===k));
       return `<button class="st-chip${ST.kat.has(k)?" an":""}" data-stk="${k}" style="--f:${STAT_K[k][2]}"><i></i>${STAT_K[k][0]}<small style="color:${ST.kat.has(k)?stFarbe(kz.einheiten):"inherit"}">${kz.n?stVz(kz.einheiten):"·"}</small></button>`; }).join("")}</div>`).join("");
-  const ohnePub = katsDa.filter(k=>k!=="public");
+  const ohnePub = katsDa.filter(k=>!k.startsWith("public"));
   const alleAn = ohnePub.every(k=>ST.kat.has(k));
   // Lucas 01.11. („wenn ich's klick, passiert darunter nichts"): Public-Signale sind eine Auswahl AUS den Pushes, nicht
   // eine weitere Art → eigener Umschalter oben. Ein Chip antippen zeigt nur diese Kategorie, nochmal antippen = wieder alle.
-  const pubModus = ST.kat.size===1 && ST.kat.has("public");
+  const pubModus = ST.kat.size===1 && ST.kat.has("public"), neinModus = ST.kat.size===1 && ST.kat.has("publicNein");
   // Kopfzahlen
   const kpi = (wert, name, sub, farbe) => `<div class="st-kpi"><b style="color:${farbe||"var(--text)"}">${wert}</b><span>${name}</span>${sub?`<small>${sub}</small>`:""}</div>`;
   const kopf = `<div class="st-kpis">
@@ -4137,10 +4138,10 @@ function seiteStatistik(){
   const zuletzt = Z.slice(-12).reverse().map(z=>`<div class="st-l"><span class="st-lp ${z[3]===1?"w":z[3]===0?"l":"o"}"></span><span class="st-lt"><b>${esc(z[10]||"")}</b>${z[4]?` @ ${q2(z[4])}`:""}<small>${esc(z[9]||"")} · ${STAT_K[z[1]]?.[0]||z[1]} · ${stLokal(z[0]).toLocaleDateString("de-AT",{day:"numeric",month:"short"})}</small></span><span style="color:${stFarbe(z[2])}">${z[2]==null?"offen":stVz(z[2],2)}</span></div>`).join("");
   return `<div class="grid">
     <div class="panel c12 st-filter">
-      ${katsDa.includes("public")?`<div class="seg st-seg st-modus"><button class="${pubModus?"":"an"}" data-stmodus="alle">Alle Pushes</button><button class="${pubModus?"an":""}" data-stmodus="public">📣 Public-Kanal</button></div>`:""}
+      ${katsDa.includes("public")?`<div class="seg st-seg st-modus"><button class="${pubModus||neinModus?"":"an"}" data-stmodus="alle">Alle Pushes</button><button class="${pubModus?"an":""}" data-stmodus="public">📣 Public-Kanal</button>${katsDa.includes("publicNein")?`<button class="${neinModus?"an":""}" data-stmodus="publicNein">Nicht gesendet</button>`:""}</div>`:""}
       ${seg("zeit", zr)}
       <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}${seg("lage", [["alle","Jeder Stand"],["vorn","Live: Auswahl führt"],["gleich","Live: gleich"],["hinten","Live: hinten"]])}</div>
-      ${pubModus?"":`<div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div><div class="hint st-chiphint">Kategorie antippen = nur diese · nochmal antippen = wieder alle</div>`}
+      ${pubModus||neinModus?"":`<div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div><div class="hint st-chiphint">Kategorie antippen = nur diese · nochmal antippen = wieder alle</div>`}
     </div>
     <div class="panel c12">${kopf}${kurve}</div>
     <div class="panel c12"><div class="ph"><h3>Je Kategorie</h3><span class="hint">antippen = nur diese</span></div>${jeKat?tkopf("Kategorie")+jeKat:`<div class="leer">Keine Tipps im Ausschnitt.</div>`}</div>
@@ -4151,8 +4152,8 @@ function seiteStatistik(){
 }
 function statKlick(e){
   const s = e.target.closest("[data-st]"); if(s){ ST[s.dataset.st] = s.dataset.v; return true; }
-  const da_ = () => Object.keys(STAT_K).filter(k=>k!=="public" && (ST.daten?.zeilen||[]).some(z=>z[1]===k));
-  const m = e.target.closest("[data-stmodus]"); if(m){ ST.kat = m.dataset.stmodus==="public" ? new Set(["public"]) : new Set(da_()); return true; }
+  const da_ = () => Object.keys(STAT_K).filter(k=>!k.startsWith("public") && (ST.daten?.zeilen||[]).some(z=>z[1]===k));
+  const m = e.target.closest("[data-stmodus]"); if(m){ ST.kat = m.dataset.stmodus==="alle" ? new Set(da_()) : new Set([m.dataset.stmodus]); return true; }
   const k = e.target.closest("[data-stk]"); if(k){ const v = k.dataset.stk; ST.kat = (ST.kat.size===1 && ST.kat.has(v)) ? new Set(da_()) : new Set([v]); return true; }
   const n = e.target.closest("[data-stnur]"); if(n){ ST.kat = new Set([n.dataset.stnur]); return true; }
   const a = e.target.closest("[data-stalle]"); if(a){ const da = da_(); ST.kat = da.every(k=>ST.kat.has(k)) ? new Set() : new Set(da); return true; }

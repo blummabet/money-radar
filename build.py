@@ -2262,21 +2262,30 @@ def statistik(burst, finder):
         t0 = ts(p.get("zeit") + "+00:00") if len(str(p.get("zeit") or "")) == 16 else ts(p.get("zeit"))
         if not t0:
             continue
+        # Public-Regel 4 (02.11.): gesendet wird zeitversetzt aus dem Topf → derselbe Tipp (Spiel + Auswahl) aus irgendeiner
+        # Art bis 36 h davor; Rendite neu zur gesendeten Quote. Nicht gesendete Kandidaten als eigene Art „publicNein".
+        r4 = p.get("regel") == "R4"
+        art_p = "publicNein" if p.get("gesendet") is False else "public"
         best, bd = None, None
         for z in zeilen:
-            if z[1] != p.get("art"):
+            if z[1] in ("public", "publicNein") or (not r4 and z[1] != p.get("art")):
                 continue
             dt = abs((ts(z[0] + "+00:00") - t0).total_seconds())
-            if dt > 20 * 60:
+            if dt > (36 * 3600 if r4 else 20 * 60):
                 continue
             titel_ok = nz(z[9])[:10] and nz(z[9])[:10] == nz(p.get("spiel"))[:10]
             ausw_ok = nz(z[10]) and nz(p.get("auswahl")) and (nz(z[10]) in nz(p.get("auswahl")) or nz(p.get("auswahl")) in nz(z[10]))
             if (titel_ok or ausw_ok) and (bd is None or dt < bd):
                 best, bd = z, dt
-        if best:
-            zeilen.append([best[0], "public", *best[2:]])
+        if best and r4:
+            q_p = p.get("quote") if isinstance(p.get("quote"), (int, float)) else best[4]
+            w_ = best[3]
+            zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, (round(q_p - 1, 3) if w_ == 1 else -1.0) if w_ is not None and q_p else None, w_,
+                           q_p, None, best[6], best[7], 1 if p.get("live") else 0, best[9], best[10], best[11] if len(best) > 11 else None])
+        elif best:
+            zeilen.append([best[0], art_p, *best[2:]])
         else:
-            zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), "public", None, None, p.get("quote"), None, p.get("liga") or "", 0,
+            zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, None, None, p.get("quote"), None, p.get("liga") or "", 0,
                            1 if p.get("live") else 0, str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40], None])
     zeilen.sort(key=lambda z: z[0])
     (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
