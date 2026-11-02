@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R5"   # R5 02.11. 21:30 Dauerzufluss aus allen Ligen · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R5"   # R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 (außer Geld vor Anpfiff: groß, ab 1,60) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -105,15 +105,17 @@ def passt(m) -> bool:
     # (gemeint war die spanische) auch die portugiesische 2. Liga ohne diese Prüfung durch.
     if art == "wal" and not (isinstance(m.get("faktor"), (int, float)) and m["faktor"] >= WAL_MIN_FAKTOR):
         return False
-    if GROSS.search(liga) and 1.6 <= q < 3.0:
-        return True
+    # Regel 5 (02.11. 21:35, Lucas „allgemein auf 1,5?"): Quote ab 1,50 für alle Arten außer Geld vor Anpfiff (Band 1,50–1,60:
+    # 199 Tipps +8,0 %, besser als 1,60–1,80 mit +2,0 %; Geld vor Anpfiff dort −11,3 %), in allen Ligen gleich.
+    if art == "zufluss":
+        return bool(GROSS.search(liga)) and 1.6 <= q < 3.0
     if art == "wal":                      # Lucas 31.10. 11:23: Wale in jeder Liga + E-Sport (seit 16.10.: 77 · +10,9 %)
-        return 1.6 <= q < 3.0
+        return 1.5 <= q < 3.0
     # Regel 5 (Lucas 02.11. 21:29: „diese Sperre hab ich nie definiert — ich bin größter Fan von kleinen Ligen und viel
     # Geld"): Dauerzufluss aus ALLEN Ligen. Gemessen: kleine Ligen 315 Tipps +10,9 % (große 240 · +7,6 %).
     if art == "serie":
-        return 1.6 <= q < 3.0
-    return art in NUR_ALLE_LIGEN and 1.8 <= q < 3.0
+        return 1.5 <= q < 3.0
+    return art in NUR_ALLE_LIGEN and 1.5 <= q < 3.0     # Stake + Auffälliges Geld: alle Ligen ab 1,50 (vorher kleine Ligen erst ab 1,80)
 
 
 # ── Public-Regel 4 (Lucas 02.11.: „ein bisschen sammeln, sehen wo Bewegung ist … sonst wird der erstbeste Blödsinn
