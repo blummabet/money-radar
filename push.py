@@ -903,6 +903,16 @@ def serie(d):
                     "quote": q, "eur": x["eur"], "stand": st_l, "minute": (sp_l.get("live") or {}).get("min"), "lage": "vorn",
                     "n": x["n"]})
             continue
+        # Lucas 02.11. (Mallorca – Cádiz 52' 0:1, Push „@ 1,60", Betfair stand längst bei 3,40): die Quote der Serie ist die
+        # des letzten Ketten-Blocks — fällt danach ein Tor, ist sie veraltet. Live gilt der JETZIGE Preis der Auswahl; hat er
+        # sich um mehr als ein Viertel bewegt, war das Geld vor dem Ereignis → kein Push (das Spiel ist ein anderes).
+        if x.get("live"):
+            q_jetzt = next((v[2] for v in x.get("marktVerteilung") or [] if isinstance(v, (list, tuple)) and len(v) > 2
+                            and v[0] == x["auswahl"] and isinstance(v[2], (int, float)) and v[2] > 1), None)
+            if q_jetzt and q and (q_jetzt > q * 1.25 or q_jetzt < q / 1.25):
+                continue
+            if q_jetzt:
+                q = q_jetzt
         # die Quote vor dem Geldfluss kann älter sein als der Serienbeginn (Porto: 1,63 vor 30 Min, Serie ab 1,43)
         vorher = [f.get("quoteVorher") for z_ in d.get("zufluss30") or [] if str(z_.get("id")) == str(x["id"])
                   for f in z_.get("fluss") or [] if f.get("markt") == x["markt"] and f.get("auswahl") == x["auswahl"]]
