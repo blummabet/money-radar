@@ -1585,12 +1585,19 @@ def serien(takt, radar):
                 continue
             # Lucas 18.10.: fiel während der Serie ein Tor, muss das dabeistehen — Geld nach einem Tor ist
             # oft Nachlegen auf den Führenden, nicht das frühe Urteil
+            # 03.11. (Kobe – Ratchaburi: Serie ab vor Anpfiff, 1:0, dann 1:1 — „Tor während der Serie" fehlte): vor Anpfiff
+            # gibt es keinen Stand → als 0:0 zählen, sobald das Spiel läuft. Sonst sah eine Serie über zwei Tore torlos aus.
+            nsc = lambda s_: tuple(s_) if s_ else ((0, 0) if kette[-1][4] else ())
             tor = None
-            st0, st1 = kette[0][4], kette[-1][4]
+            st0, st1 = nsc(kette[0][4]), nsc(kette[-1][4])
             if st0 and st1 and st0 != st1:
                 tor = {"von": list(st0), "nach": list(st1),
-                       "vorTor": round(sum(k[1] for k in kette if k[4] == st0)),
-                       "nachTor": round(sum(k[1] for k in kette if k[4] != st0))}
+                       "vorTor": round(sum(k[1] for k in kette if nsc(k[4]) == st0)),
+                       "nachTor": round(sum(k[1] for k in kette if nsc(k[4]) != st0)),
+                       # Geld seit dem LETZTEN Stand (nach dem letzten Tor) und zu welcher Quote das Geld davor kam
+                       "seitStand": round(sum(k[1] for k in kette if nsc(k[4]) == st1)),
+                       "quoteVorher": round(sum(k[1] * k[3] for k in kette if nsc(k[4]) != st1 and isinstance(k[3], (int, float)))
+                                            / max(1, sum(k[1] for k in kette if nsc(k[4]) != st1 and isinstance(k[3], (int, float)))), 2)}
             markt, auswahl = key.split("|", 1)
             if (sieg_tot and markt in SIEG_MAERKTE) or _linie_durch(markt, (sp.get("live") or {}).get("stand")):
                 continue

@@ -988,7 +988,10 @@ def serie(d):
                 + lay_hinweis
                 + (stat_zeile(d, x["id"]) if x.get("live") else "")
                 + (f"⚽ <b>Tor während der Serie</b> ({x['tor']['von'][0]}:{x['tor']['von'][1]} → {x['tor']['nach'][0]}:{x['tor']['nach'][1]}): "
-                   f"{geld(x['tor']['vorTor'])} kamen vorher, {geld(x['tor']['nachTor'])} danach\n" if x.get("tor") else "")
+                   + (f"<b>{geld(x['tor']['seitStand'])}</b> seit dem {x['tor']['nach'][0]}:{x['tor']['nach'][1]}, "
+                      f"{geld(x['eur'] - x['tor']['seitStand'])} kamen davor im Schnitt @ {q2(x['tor']['quoteVorher'])}\n"
+                      if x["tor"].get("seitStand") is not None else
+                      f"{geld(x['tor']['vorTor'])} kamen vorher, {geld(x['tor']['nachTor'])} danach\n") if x.get("tor") else "")
                 + "\n"
                 + (_geld_block({"markt": x["markt"], "auswahl": x["auswahl"], "marktVerteilung": x["marktVerteilung"]}, 0)
                    if x.get("marktVerteilung") else "")
