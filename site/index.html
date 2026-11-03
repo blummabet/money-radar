@@ -2227,16 +2227,21 @@ function spielTabelle(liste, id, max, mitVt=true){
 // ── alle Pushes einer Quelle in einer Liste ─────────────────────────
 const tagFuer = s => s==="won"?`<span class="tag t-won">gewonnen</span>`:s==="lost"?`<span class="tag t-lost">verloren</span>`:s==="pending"?`<span class="tag t-open">offen</span>`:"";
 const statusTag = s => s==="won"?`<span class="tag t-won">gewonnen</span>`:s==="lost"?`<span class="tag t-lost">verloren</span>`:"";
-const stakeStatus = x => x.status==="abgerechnet"&&x.rendite!=null ? (x.rendite>0?"won":"lost") : "pending";
+// Lucas 03.11. (Platense, Deportivo „gewonnen, steht aber verloren"): ein Spiel-Burst ist ein PAKET aus Wetten auf
+// mehrere Märkte (Halbzeit, Ecken, Tore …). Abgerechnet wird das ganze Paket nach Geld, nicht der Sieg des Teams →
+// statt gewonnen/verloren steht die Paket-Rendite da.
+const stakePaket = x => !x.quote && String(x.markt||"").includes(",");
+const stakeStatus = x => x.status==="abgerechnet"&&x.rendite!=null ? (stakePaket(x) ? "paket" : x.rendite>0?"won":"lost") : "pending";
+const paketTag = r => `<span class="tag ${r>0?"t-won":r<0?"t-lost":"t-open"}" title="Rendite des ganzen Wett-Pakets (alle Märkte, nach Geld gewichtet)">Paket ${r>0?"+":r<0?"−":""}${Math.round(Math.abs(r)*100)} %</span>`;
 function allePushes(D){
   const f = [];
   for(const p of D.bfPushes.liste) f.push({q:"betfair", t:`${p.auf} @ ${q2(p.quote)}`, s:`${p.heim} – ${p.gast}, ${p.liga}${p.anteil!=null?`, ${p.anteil} % des neuen Geldes`:p.art?`, ${p.art}`:""}`, b:eur(p.eur), zeit:p.zeit, status:p.status});
   for(const w of D.poly.tradesPushes||[]) f.push({q:"poly", t:`${SPORT_ICO[w.sport]||""} Wal auf ${nm(/^draw/i.test(w.seite)?"Draw":w.seite)} @ ${Math.round((w.preis||0)*100)} ¢`, s:w.spiel, b:usd(w.usd), zeit:w.zeit, status:w.status});
-  for(const x of D.stake.gruppen||[]) f.push({q:"stake", t:`${x.auswahl}${x.quote?" @ "+q2(x.quote):""}`, s:`${x.spiel}, ${x.arten.join(" + ")}`, b:usd(x.usd), zeit:x.zeit, status:stakeStatus(x)});
+  for(const x of D.stake.gruppen||[]) f.push({q:"stake", t:`${x.auswahl}${x.quote?" @ "+q2(x.quote):""}${stakePaket(x)?` + ${String(x.markt).split(",").length} Märkte`:""}`, s:`${x.spiel}, ${x.arten.join(" + ")}`, b:usd(x.usd), zeit:x.zeit, status:stakeStatus(x), rendite:x.rendite});
   for(const h of D.hz.heute) f.push({q:"hz", t:`0:0 zur Pause, Tor 2. HZ @ ${q2(h.quoten?.over05)}`, s:`${h.spiel}, ${h.liga}`, b:"0:0", zeit:h.zeit});
   return f.sort((a,b)=>new Date(b.zeit)-new Date(a.zeit));
 }
-const feZeile = x => `<div class="fe">${icon(x.q)}<div style="min-width:0"><div class="t">${esc(x.t)}${statusTag(x.status)}</div><div class="s">${esc(x.s)}</div></div><div class="b">${esc(x.b)}<small>${x.zeit?vor(x.zeit):""}</small></div></div>`;
+const feZeile = x => `<div class="fe">${icon(x.q)}<div style="min-width:0"><div class="t">${esc(x.t)}${x.status==="paket"?paketTag(x.rendite):statusTag(x.status)}</div><div class="s">${esc(x.s)}</div></div><div class="b">${esc(x.b)}<small>${x.zeit?vor(x.zeit):""}</small></div></div>`;
 function klickSpiel(x){ const sp = spielInfo(x); return sp ? klick(esc(x.heim)+" – "+esc(x.gast), ohneHuelle(spielDetail(sp))) : ""; }
 // ── Feed als Geschichten (Lucas 21.10.: „knackiger, mehr Mehrwert, stylischer") ─────────────────────────────
 // Jedes Ereignis bekommt eine eigene Form (Perlenkette, Anteil-Balken, Kurve, Wal …), alles zu EINEM Spiel steht
@@ -2272,7 +2277,7 @@ function feedEreignisse(D){
   for(const x of (D.stakeSerien||[]).filter(top5Ok)){ const [h,g] = feedTeams(x.titel);
     E.push({heim:h, gast:g, liga:ligaName(x.liga)||x.sport, live:x.live?{}:null, anpfiff:x.anpfiff, sport:x.sport, q:"stake", k:"serie", aus:x.auswahl, quote:x.quote, markt:x.markt, n:x.n, wert:x.usd, b:usd(x.usd), zeit:x.zeit, gewicht:x.usd*3}); }
   for(const x of lf(D.stake.gruppen||[])){ const [h,g] = feedTeams(x.spiel);
-    E.push({heim:h, gast:g, liga:x.liga, live:x.phase==="live"?{}:null, anpfiff:x.anpfiff, sport:x.kat, q:"stake", k:"stake", aus:x.auswahl, quote:x.quote, markt:(x.arten||[]).join(" + "), faktor:x.faktor, wetten:x.wetten, wert:x.usd, b:usd(x.usd), zeit:x.zeit, status:stakeStatus(x), gewicht:x.usd}); }
+    E.push({heim:h, gast:g, liga:x.liga, live:x.phase==="live"?{}:null, anpfiff:x.anpfiff, sport:x.kat, q:"stake", k:"stake", aus:x.auswahl, quote:x.quote, markt:(x.arten||[]).join(" + "), faktor:x.faktor, wetten:x.wetten, wert:x.usd, b:usd(x.usd), zeit:x.zeit, status:stakeStatus(x), rendite:x.rendite, gewicht:x.usd}); }
   for(const p of lf(D.bfPushes.liste||[])) E.push({heim:p.heim, gast:p.gast, liga:ligaName(p.liga), q:"betfair", k:"push", bil:PUSH_ART[p.art], pushArt:p.art, aus:auswahlDe(p.auf), quote:p.quote, markt:marktDe(p.markt||""), wert:p.eur, b:eur(p.eur), zeit:p.zeit, status:p.status, gewicht:p.eur||0});
   for(const w of D.poly.tradesPushes||[]){ const mk = (D.poly.maerkte||[]).find(m=>m.key===w.markt); if(!top5Ok({top5:POLY_TOP5_JS(w.markt)})) continue; const [h,g] = feedTeams(mk?.spiel || (D.polyFluss?.maerkte||[]).find(m=>m.key===w.markt)?.titel || w.spiel);
     E.push({heim:h, gast:g, liga:mk?ligaName(mk.liga):"", sport:w.sport, q:"poly", k:"wal", bil:"wal", aus:nm(/^draw/i.test(w.seite)?"Draw":w.seite), preis:w.preis, wallet:w.wallet, wert:w.usd, b:usd(w.usd), zeit:w.zeit, status:w.status, gewicht:w.usd}); }
@@ -2299,7 +2304,7 @@ function fxForm(e){
 }
 const FX_NAME = {serie:"Dauerzufluss", live:"live neu", zufluss:"neu 30 Min", pfluss:"Käufe 30 Min", stake:"große Wetten", push:"gepusht", wal:"Wal-Einstieg", hz:"HZ-Push", pinnacle:"Pinnacle"};
 function fxZeile(D, e){
-  const st = e.status==="won" ? `<span class="fx-st ok">✓</span>` : e.status==="lost" ? `<span class="fx-st nein">✗</span>` : "";
+  const st = e.status==="won" ? `<span class="fx-st ok">✓</span>` : e.status==="lost" ? `<span class="fx-st nein">✗</span>` : e.status==="paket" ? paketTag(e.rendite) : "";
   const drop = e.drop && e.k!=="pinnacle" ? `<span class="fx-drop" title="Quote gedrückt">🔻 ${q2(e.drop[0])}</span>` : "";
   const markt = /Über\/Unter|Sieg-Markt|Match Odds/.test(e.markt||"") ? "" : e.markt;
   const meta = [e.k==="push"&&e.pushArt?e.pushArt:FX_NAME[e.k], markt].filter(Boolean).join(" · ");
@@ -2852,7 +2857,7 @@ function polyKarten(liste){
 function stakeKarten(gr){
   if(!gr.length) return `<div class="leer">In den letzten 24 Stunden keine Meldung.</div>`;
   return `<div class="kgrid">${gr.map(x=>`<div class="kk">
-      <div class="kk-oben">${x.phase==="live"?`<span class="live">live</span>`:`<span class="status">vorher</span>`}<span>${uhr(x.zeit)}</span><span class="rechts">${tagFuer(stakeStatus(x))}</span></div>
+      <div class="kk-oben">${x.phase==="live"?`<span class="live">live</span>`:`<span class="status">vorher</span>`}<span>${uhr(x.zeit)}</span><span class="rechts">${(stakeStatus(x)==="paket"?paketTag(x.rendite):tagFuer(stakeStatus(x)))}</span></div>
       <div class="kk-titel">${esc(x.auswahl)}${x.quote?` <span class="status">@ ${q2(x.quote)}</span>`:""}</div>
       <div class="kk-klein" style="margin-top:2px">${esc(x.spiel)}</div>
       <div class="kk-zahl" style="margin-top:10px">${usd(x.usd)}</div>
@@ -3959,7 +3964,7 @@ function stakeZeilen(gr){
   return `<div class="jf">${gr.map(x=>`<div class="jf-z st-z">
       <div class="jf-l"><span class="st-ph ${x.phase==="live"?"live":""}">${x.phase==="live"?"live":"vor"}</span><div style="min-width:0"><b>${esc(/^(over|under)$/i.test(x.auswahl||"") && x.markt ? `${x.auswahl==="Over"||x.auswahl==="over"?"Über":"Unter"} · ${x.markt.split(",")[0]}` : x.auswahl)}${x.quote?` <span class="st-q">@ ${q2(x.quote)}</span>`:""}</b><small>${esc(x.spiel)} · ${uhr(x.zeit)}</small></div></div>
       <div class="jf-b"><i style="width:${Math.max(4,(x.usd||0)/max*100).toFixed(1)}%;background:var(--stake)"></i><span>${usd(x.usd)}</span></div>
-      <div class="jf-r"><b>${x.wetten} Wetten${x.faktor?` · ×${dez(x.faktor)}`:""}</b><small>${tagFuer(stakeStatus(x))||x.arten.join(" + ")}</small></div></div>`).join("")}</div>`;
+      <div class="jf-r"><b>${x.wetten} Wetten${x.faktor?` · ×${dez(x.faktor)}`:""}</b><small>${(stakeStatus(x)==="paket"?paketTag(x.rendite):tagFuer(stakeStatus(x)))||x.arten.join(" + ")}</small></div></div>`).join("")}</div>`;
 }
 function seiteStake(D){
   const st = D.stake, gr = (st.gruppen||[]);
