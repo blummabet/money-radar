@@ -4078,13 +4078,16 @@ function topfPanel(){
     ${kand || `<div class="leer">Gerade liegt nichts im Topf.</div>`}
     ${heute ? `<h4 style="margin:16px 0 6px">Heute aus dem Topf</h4>${heute}` : ""}</div>`;
 }
+// Lucas 03.11. (morgens noch „offen" bei längst abgerechneten Tipps, Nacht-Signale fehlten): die Statistik wurde nur
+// EINMAL je geöffneter Seite geladen — wer die Seite (oder die App) offen ließ, sah den Stand vom Vorabend. Jetzt neu,
+// sobald ein neuer Datenstand da ist (Zeiger) oder spätestens nach 5 Min.
 async function statLaden(){
-  if(ST.daten || ST.laden) return; ST.laden = true;
+  if(ST.laden || (ST.daten && ST.zeiger===ZEIGER && Date.now()-(ST.zeit||0) < 300000)) return; ST.laden = true;
   try{
     const quelle = ZEIGER ? ZEIGER.replace(/\.json$/, "-s.json") : null;
     let r = quelle ? await fetch(quelle) : null;
     if(!r || !r.ok) r = await fetch("statistik.json?t="+Date.now(), {cache:"no-store"});
-    ST.daten = await r.json(); ST.fehler = null;
+    ST.daten = await r.json(); ST.fehler = null; ST.zeiger = ZEIGER; ST.zeit = Date.now();
   }catch(e){ ST.fehler = String(e.message||e); }
   ST.laden = false;
   try{ $("#s-statistik").innerHTML = seiteStatistik(); }catch(e){ console.error(e); }
@@ -4116,6 +4119,7 @@ function stKennz(Z){
 const stVz = (v, n=1) => { if(v==null) return "–"; const r = +Number(v).toFixed(n); return (r>0?"+":r<0?"−":"")+dez(Math.abs(r), n); };
 const stFarbe = v => v==null ? "var(--text-3)" : v>0 ? "var(--up)" : v<0 ? "var(--down)" : "var(--text-2)";
 function seiteStatistik(){
+  if(ST.daten) statLaden();      // prüft selbst, ob ein neuer Stand fällig ist
   if(!ST.daten){ statLaden(); return `<div class="panel"><div class="leer">${ST.fehler?`Statistik konnte nicht geladen werden (${esc(ST.fehler)}).`:"Statistik wird geladen …"}</div></div>`; }
   const alle = ST.daten.zeilen||[];
   const katsDa = Object.keys(STAT_K).filter(k=>alle.some(z=>z[1]===k));
@@ -4213,8 +4217,8 @@ const CD = {daten:null, laden:false, fehler:null, tag:"heute", liga:"alle", nurF
 const CD_LAND = {ENG:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",ESP:"🇪🇸",GER:"🇩🇪",ITA:"🇮🇹",FRA:"🇫🇷"};
 const CD_LIGEN = [["alle","Alle"],["ENG","🏴󠁧󠁢󠁥󠁮󠁧󠁿 PL"],["ESP","🇪🇸 La Liga"],["GER","🇩🇪 Bundesliga"],["ITA","🇮🇹 Serie A"],["FRA","🇫🇷 Ligue 1"]];
 async function cardsLaden(){
-  if(CD.daten || CD.laden) return; CD.laden = true;
-  try{ const r = await fetch("cards.json?t="+Date.now(), {cache:"no-store"}); if(!r.ok) throw new Error("HTTP "+r.status); CD.daten = await r.json(); CD.fehler = null; }
+  if(CD.laden || (CD.daten && Date.now()-(CD.zeit||0) < 300000)) return; CD.laden = true;   // 03.11.: nach 5 Min neu
+  try{ const r = await fetch("cards.json?t="+Date.now(), {cache:"no-store"}); if(!r.ok) throw new Error("HTTP "+r.status); CD.daten = await r.json(); CD.fehler = null; CD.zeit = Date.now(); }
   catch(e){ CD.fehler = String(e.message||e); }
   CD.laden = false;
   try{ $("#s-cards").innerHTML = seiteCards(); }catch(e){ console.error(e); }
@@ -4282,6 +4286,7 @@ function cdBilanz(B){
     <div class="panel"><div class="ph"><h3>Je Liga</h3></div>${CD_LIGEN.slice(1).map(([k,n])=>zeile(n, B.filter(z=>z[1]===k))).join("")}</div></div>`;
 }
 function seiteCards(){
+  if(CD.daten) cardsLaden();
   if(!CD.daten){ cardsLaden(); return `<div class="panel"><div class="leer">${CD.fehler?`Die Cards konnten nicht geladen werden (${esc(CD.fehler)}).`:"Cards werden geladen …"}</div></div>`; }
   const K = CD.daten.karten||[], B = CD.daten.bilanz||[];
   const monat = new Date().toISOString().slice(0,7), BM = B.filter(z=>z[0].startsWith(monat));
