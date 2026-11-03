@@ -1371,8 +1371,11 @@ html,body{overflow-x:clip} .app{overflow-x:clip;max-width:100vw} main{overflow-x
 .w2{position:relative}
 .w2-k{position:absolute;padding:2px;box-sizing:border-box}
 .w2-i{position:relative;height:100%;box-sizing:border-box;border-radius:10px;overflow:hidden;padding:8px 9px;display:flex;flex-direction:column;gap:2px;
-  background:color-mix(in srgb, var(--f) 16%, var(--glas-a))}
-.w2-p{position:absolute;left:0;right:0;top:0;background:color-mix(in srgb, var(--f) 55%, transparent);pointer-events:none}
+  background:color-mix(in srgb, var(--f) var(--bgm, 16%), var(--glas-a))}
+.w2-p{position:absolute;left:0;right:0;top:0;background:color-mix(in srgb, var(--f) var(--pm, 55%), transparent);pointer-events:none}
+.w2-v{display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1.5px;margin:3px 0 1px;flex:none}
+.w2-v i{display:block;height:100%;background:color-mix(in srgb, var(--f) 30%, var(--panel))}.w2-v i.t{background:var(--f)}
+.w2-k.auf .w2-v{display:none}
 .w2-i>*:not(.w2-p){position:relative}
 .w2-m{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .w2-a{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.w2-a small{color:var(--text-3)}
@@ -2136,13 +2139,25 @@ function marktWand2(s){
     const gr = A > 0.22 ? "g" : A > 0.09 ? "m" : "k";
     const tot = k.m && totM(k.m), f = k.rest || tot ? "var(--text-3)" : MW_FAM.find(x=>x[0]===mwFamilie(k.m.name))[2];
     const pegel = k.neu>0 ? Math.max(6, Math.min(100, k.neu/k.eur*100)) : 0;
-    let mitte = "";
+    let mitte = "", klar = "";
     if(k.m){ const aus = (k.m.auswahl||[]).filter(a=>a.name!=="Rest" && a.eur>0), ges = (k.m.auswahl||[]).reduce((x,a)=>x+(a.eur||0),0)||1;
       const top = aus.reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null), topN = aus.reduce((x,a)=>(a.neu||0)>(x?.neu||0)?a:x, null);
-      mitte = top ? `<div class="w2-a"><b>${esc(kurz(top.name))}</b> <span class="w2-pz">${Math.round(top.eur/ges*100)} %</span>${top.quote?` <small>@ ${q2(top.quote)}</small>`:""}</div>` : "";
-      if(gr!=="k" && topN && (topN.neu||0)>0) mitte += `<div class="w2-z">neu meist auf <b>${esc(kurz(topN.name))}</b>${topN.quote?` ${q2(topN.quote)}`:""}</div>`; }
+      // Lucas 03.11. (HZ-Tore €20k „Über 1,5 52 %" sah stark aus, war aber 52 : 48): unter 60 % keine Seite nennen,
+      // Verteilungsstreifen in jeder Kachel, Farbstärke = wie einseitig das Geld liegt (Größe bleibt = wie viel Geld).
+      const anteil = top ? top.eur/ges : 0, sortA = [...aus].sort((a,b)=>b.eur-a.eur);
+      const pz = sortA.map(a=>Math.round(a.eur/ges*100));
+      mitte = !top ? "" : anteil < 0.6
+        ? `<div class="w2-a"><b>ausgeglichen</b> <span class="w2-pz">${pz.slice(0,3).join(" : ")}</span></div>`
+        : `<div class="w2-a"><b>${esc(kurz(top.name))}</b> <span class="w2-pz">${Math.round(anteil*100)} %</span>${top.quote?` <small>@ ${q2(top.quote)}</small>`:""}</div>`;
+      if(top) mitte += `<div class="w2-v" aria-hidden="true">${sortA.map((a,j)=>`<i class="${j===0&&anteil>=0.6?"t":""}" style="flex:${a.eur}"></i>`).join("")}</div>`;
+      const neuSum = aus.reduce((x,a)=>x+Math.max(0,a.neu||0),0);
+      if(gr!=="k" && topN && (topN.neu||0)>0) mitte += (topN.neu/neuSum < 0.6)
+        ? `<div class="w2-z">neu: <b>ausgeglichen</b></div>`
+        : `<div class="w2-z">neu meist auf <b>${esc(kurz(topN.name))}</b>${topN.quote?` ${q2(topN.quote)}`:""}</div>`;
+      const st = Math.max(0, Math.min(1, (anteil - 0.5) / 0.4));
+      klar = `--bgm:${(6 + 18*st).toFixed(0)}%;--pm:${(25 + 50*st).toFixed(0)}%`; }
     return `<div class="w2-k ${gr}" data-w2 tabindex="0" role="button" aria-expanded="false" style="left:${(r.x/W*100).toFixed(2)}%;top:${(r.y/H*100).toFixed(2)}%;width:${(r.w/W*100).toFixed(2)}%;height:${(r.h/H*100).toFixed(2)}%">
-      <div class="w2-i" style="--f:${f}" title="${k.m?esc(marktDe(k.m.name)):k.low?`Märkte mit Quote unter 1,20 (Absicherung, kein Signal)`:`${k.rest.length} weitere Märkte`}: ${eur(k.eur)} drin${k.neu>0?`, davon +${eur(k.neu)} neu in ${fm} Min`:""}">
+      <div class="w2-i" style="--f:${f};${klar}" title="${k.m?esc(marktDe(k.m.name)):k.low?`Märkte mit Quote unter 1,20 (Absicherung, kein Signal)`:`${k.rest.length} weitere Märkte`}: ${eur(k.eur)} drin${k.neu>0?`, davon +${eur(k.neu)} neu in ${fm} Min`:""}">
         <div class="w2-p" style="height:${pegel.toFixed(1)}%"></div>
         <div class="w2-m">${k.m ? esc(kopfM(k.m.name)) : k.low ? `Kleinstquoten · ${k.rest.length} ${k.rest.length>1?"Märkte":"Markt"}` : `+${k.rest.length} weitere Märkte`}</div>
         ${mitte}
