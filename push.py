@@ -725,6 +725,34 @@ def _stake_fuehrt(g, auswahl, markt, radar):
     return None
 
 
+def _stake_team(gruppe, radar, t0):
+    """Lucas 03.11. (Platense, Deportivo: Team gewann, Spiel-Burst-Paket verlor): still mitmessen, ob „dem Team folgen"
+    trägt — Sieg-Markt bei Betfair zur Quote beim Erkennen, art „stakeTeam". Nur Fußball (Betfair-Radar). REIN."""
+    z = next((x for x in sorted(gruppe, key=lambda x: -(x.get("usd") or 0)) if "Spiel-Burst" in str(x.get("art") or "")), None)
+    if not z or not z.get("auswahl"):
+        return None
+    teile = [x.strip().lower() for x in str(z.get("spiel") or "").split(" - ")]
+    if len(teile) != 2:
+        return None
+    a = str(z["auswahl"]).lower()
+    for sp in radar:
+        h, gg = str(sp.get("heim") or "").lower(), str(sp.get("gast") or "").lower()
+        if not (h[:5] and gg[:5] and h[:5] in teile[0] and gg[:5] in teile[1]):
+            continue
+        k = "heim" if (h[:5] in a or teile[0][:5] in a) else "gast" if (gg[:5] in a or teile[1][:5] in a) else None
+        q = (sp.get("quoten") or {}).get(k) if k else None
+        if not isinstance(q, (int, float)) or q <= 1:
+            return None
+        lv = sp.get("live") or {}
+        return (f"tm|{z.get('spiel')}|{t0:%Y-%m-%dT%H:%M}", None, None,
+                {"art": "stakeTeam", "id": str(sp.get("id")), "heim": sp.get("heim"), "gast": sp.get("gast"),
+                 "liga": sp.get("liga") or z.get("liga"), "anpfiff": sp.get("anpfiff") or z.get("anpfiff"),
+                 "top5": bool(sp.get("top5")), "live": z.get("phase") == "live", "markt": "Match Odds",
+                 "auswahl": sp.get(k), "quote": q, "usd": z.get("usd"), "maerkte": z.get("markt"),
+                 "stand": lv.get("stand"), "minute": lv.get("min")})
+    return None
+
+
 def stake(d):
     """Lucas 18.10. (Brighton 3:0: Push „$127k @ 1,48, live" — die $127k und 1,48 waren der Burst von VOR dem Spiel,
     ausgelöst hat ein neuer $17k-Spiel-Burst bei 3:0): je Push nur die Signale, die zusammen kamen (≤ 5 Min), mit
@@ -770,6 +798,9 @@ def stake(d):
         for z in gruppe:
             benutzt.add(id(z))
         g = max(gruppe, key=lambda z: z.get("usd") or 0)
+        tm = _stake_team(gruppe, radar, t0)
+        if tm:
+            yield tm
         mit_auswahl = next((z for z in sorted(gruppe, key=lambda z: -(z.get("usd") or 0)) if z.get("auswahl")), None)
         auswahl = (mit_auswahl or {}).get("auswahl")
         quote = (mit_auswahl or {}).get("quote") or g.get("quote")
@@ -1120,7 +1151,7 @@ def main() -> int:
 
     def erkannt():
         heute = JETZT.astimezone(ZoneInfo("Europe/Vienna")).date()
-        return sum(1 for k, v in gesehen.items() if not k.startswith(("wa|", "sf|", "lf|")) and ts(v)
+        return sum(1 for k, v in gesehen.items() if not k.startswith(("wa|", "sf|", "lf|", "tm|")) and ts(v)
                    and ts(v).astimezone(ZoneInfo("Europe/Vienna")).date() == heute)
 
     for art in ARTEN:
@@ -1131,9 +1162,10 @@ def main() -> int:
             alt = gesehen.get(key)
             if alt and (pause_h is None or (JETZT - ts(alt)).total_seconds() < pause_h * 3600):
                 continue
-            if key.startswith("st|"):
+            if key.startswith(("st|", "tm|")):
                 basis = key.rsplit("|", 1)[0] + "|"
-                if any(k.startswith(basis) and (JETZT - ts(v)).total_seconds() < 30 * 60 for k, v in gesehen.items()):
+                # tm| (stakeTeam): je Spiel nur einmal messen — ein Paket kommt oft in mehreren Schüben
+                if any(k.startswith(basis) and (key.startswith("tm|") or (JETZT - ts(v)).total_seconds() < 30 * 60) for k, v in gesehen.items()):
                     continue
             if key.startswith(("se|", "ps|", "ss|")):
                 basis = key.rsplit("|", 1)[0] + "|"
