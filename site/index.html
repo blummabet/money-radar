@@ -820,7 +820,7 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .st-eh{font-weight:900}
 .st-z[data-stnur]{cursor:pointer} .st-z[data-stnur]:hover{background:var(--hover)}
 .st-l{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
-.st-lp{width:10px;height:10px;border-radius:3px;background:var(--text-3)} .st-lp.w{background:var(--up)} .st-lp.l{background:var(--down)} .st-lp.o{background:none;border:1.5px solid var(--text-3)}
+.st-lp{width:10px;height:10px;border-radius:3px;background:var(--text-3)} .st-lp.w{background:var(--up)} .st-lp.l{background:var(--down)} .st-lp.o{background:none;border:1.5px solid var(--text-3)} .st-lp.v{background:var(--text-3)}
 .st-lt{display:flex;flex-direction:column;min-width:0} .st-lt small{color:var(--text-3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st-l>span:last-child{font-weight:800;font-variant-numeric:tabular-nums}
 @media (max-width:700px){ .st-kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .st-kpis .st-kpi:first-child{grid-column:1 / -1} .st-kpi b{font-size:21px}
@@ -4110,10 +4110,12 @@ function stImZeitraum(z, zeit, mo){
   if(zeit[0]==="m"){ return d.getFullYear()===+zeit.slice(1,5) && d.getMonth()+1===+zeit.slice(6,8); }
   return true;
 }
+const stVoid = z => z[2]===0 && z[3]!==1;
 function stKennz(Z){
-  const ab = Z.filter(z=>z[2]!=null), n = ab.length, e = ab.reduce((a,z)=>a+z[2],0);
+  // void (annulliert, Rendite 0 ohne Treffer) zählt nicht als Tipp: nicht in Anzahl, Treffer, ROI
+  const ab = Z.filter(z=>z[2]!=null && !stVoid(z)), n = ab.length, e = ab.reduce((a,z)=>a+z[2],0);
   const mq = ab.filter(z=>z[4]>1), cl = Z.filter(z=>z[5]!=null);
-  return {n, offen:Z.length-n, einheiten:e, roi: n ? 100*e/n : null, treffer: n ? 100*ab.filter(z=>z[3]===1).length/n : null,
+  return {n, offen:Z.filter(z=>z[2]==null).length, einheiten:e, roi: n ? 100*e/n : null, treffer: n ? 100*ab.filter(z=>z[3]===1).length/n : null,
     erwartet: mq.length ? 100*mq.reduce((a,z)=>a+1/z[4],0)/mq.length : null, clv: cl.length ? cl.reduce((a,z)=>a+z[5],0)/cl.length : null, clvN:cl.length};
 }
 const stVz = (v, n=1) => { if(v==null) return "–"; const r = +Number(v).toFixed(n); return (r>0?"+":r<0?"−":"")+dez(Math.abs(r), n); };
@@ -4184,7 +4186,7 @@ function seiteStatistik(){
   const jeZeit = Object.entries(grp).sort((a,b)=>b[0]-a[0]).map(([,g])=>zeile(g.n, stKennz(g.z))).join("");
   const baender = [[0,1.5,"unter 1,50"],[1.5,2,"1,50 – 1,99"],[2,3,"2,00 – 2,99"],[3,99,"ab 3,00"]];
   const jeQuote = baender.map(([a,b,n])=>({n, kz:stKennz(Z.filter(z=>z[4]>=a && z[4]<b))})).filter(x=>x.kz.n+x.kz.offen).map(x=>zeile(x.n, x.kz)).join("");
-  const zuletzt = Z.slice(-12).reverse().map(z=>`<div class="st-l"><span class="st-lp ${z[3]===1?"w":z[3]===0?"l":"o"}"></span><span class="st-lt"><b>${esc(z[10]||"")}</b>${z[4]?` @ ${q2(z[4])}`:""}<small>${esc(z[9]||"")} · ${STAT_K[z[1]]?.[0]||z[1]} · ${stLokal(z[0]).toLocaleDateString("de-AT",{day:"numeric",month:"short"})}</small></span><span style="color:${stFarbe(z[2])}">${z[2]==null?"offen":stVz(z[2],2)}</span></div>`).join("");
+  const zuletzt = Z.slice(-12).reverse().map(z=>`<div class="st-l"><span class="st-lp ${stVoid(z)?"v":z[3]===1?"w":z[3]===0?"l":"o"}"></span><span class="st-lt"><b>${esc(z[10]||"")}</b>${z[4]?` @ ${q2(z[4])}`:""}<small>${esc(z[9]||"")} · ${STAT_K[z[1]]?.[0]||z[1]} · ${stLokal(z[0]).toLocaleDateString("de-AT",{day:"numeric",month:"short"})}</small></span><span style="color:${stFarbe(z[2])}">${z[2]==null?"offen":stVoid(z)?"void":stVz(z[2],2)}</span></div>`).join("");
   return `<div class="grid">
     <div class="panel c12 st-filter">
       ${katsDa.includes("public")?`<div class="seg st-seg st-modus"><button class="${pubModus||neinModus?"":"an"}" data-stmodus="alle">Alle Pushes</button><button class="${pubModus?"an":""}" data-stmodus="public">📣 Public-Kanal</button>${katsDa.includes("publicNein")?`<button class="${neinModus?"an":""}" data-stmodus="publicNein">Nicht gesendet</button>`:""}</div>`:""}

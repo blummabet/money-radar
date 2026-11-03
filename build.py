@@ -2280,7 +2280,10 @@ def statistik(burst, finder):
         if best and r4:
             q_p = p.get("quote") if isinstance(p.get("quote"), (int, float)) else best[4]
             w_ = best[3]
-            zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, (round(q_p - 1, 3) if w_ == 1 else -1.0) if w_ is not None and q_p else None, w_,
+            # 03.11. (Lucas: HellNight hat gewonnen, Stake hat die Wetten annulliert): Rendite 0 = void → bleibt 0, kein Verlust
+            void = best[2] == 0 and w_ != 1
+            r_ = 0.0 if void else (round(q_p - 1, 3) if w_ == 1 else -1.0) if w_ is not None and q_p else None
+            zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, r_, w_,
                            q_p, None, best[6], best[7], 1 if p.get("live") else 0, best[9], best[10], best[11] if len(best) > 11 else None])
         elif best:
             zeilen.append([best[0], art_p, *best[2:]])
