@@ -44,6 +44,11 @@ jobs:
             .push_state
           key: radar-none
           restore-keys: radar-
+      - name: Probe Data API v2 (nur mit Bericht)
+        if: inputs.bericht
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          python3 poly_v2_probe.py 2>&1 | tee probe.log || true
       - name: Märkte, Wale, Wallet-Buch
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
@@ -69,5 +74,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          { cat pm.log; tail -20 pf.log; echo; echo '```'; python3 -c "import json;d=json.load(open('.pf/poly_fluss.json'));[print(m['titel'][:40], m['fenster'].get('30')) for m in d['maerkte'][:8]]" 2>&1; echo '```'; } > bericht.txt
+          { cat probe.log 2>/dev/null; echo; cat pm.log; tail -20 pf.log; echo; echo '```'; python3 -c "import json;d=json.load(open('.pf/poly_fluss.json'));[print(m['titel'][:40], m['fenster'].get('30')) for m in d['maerkte'][:8]]" 2>&1; echo '```'; } > bericht.txt
           gh issue create -R ${{ github.repository }} --title "Poly-Fluss $(date -u +%FT%H:%MZ)" --body-file bericht.txt
