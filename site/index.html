@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f1f2f4">
+<script>window.SEITE_V="__SEITE_V__";</script>
 <script>try{const t=localStorage.getItem("radar-thema");if(t)document.documentElement.dataset.theme=t;}catch(_){}</script>
 <title>Geldradar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -4416,7 +4417,15 @@ let ZEIGER = null;
 async function frischeDaten(){
   try{
     const z = await fetch("z/"+Date.now()+Math.random().toString(36).slice(2), {cache:"no-store"});
-    const m = /data-stand="(d\/\d+\.json)"/.exec(await z.text());
+    const zt = await z.text();
+    // Lucas 03.11. (Statistik zeigte den Stand vom 02.11. — die App lief noch mit der alten Seite): ist die Seite
+    // selbst neu gebaut worden, einmal neu laden (höchstens alle 10 Min, damit nichts im Kreis lädt).
+    const sv = /data-seite="([0-9a-f]+)"/.exec(zt);
+    if(sv && window.SEITE_V && !window.SEITE_V.startsWith("__") && sv[1] !== window.SEITE_V){
+      let zuletzt = 0; try{ zuletzt = +sessionStorage.getItem("seite-neu")||0; }catch(_){}
+      if(Date.now() - zuletzt > 600000){ try{ sessionStorage.setItem("seite-neu", Date.now()); }catch(_){} location.reload(); return null; }
+    }
+    const m = /data-stand="(d\/\d+\.json)"/.exec(zt);
     if(m){ if(m[1]===ZEIGER && D) return null; const r = await fetch(m[1]); if(r.ok){ const neu = await r.json(); ZEIGER = m[1]; return neu; } }
   }catch(_){}
   const r = await fetch("data.json?t="+Date.now(), {cache:"no-store"});

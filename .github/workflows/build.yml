@@ -200,7 +200,13 @@ jobs:
           Path("site/404.html").write_text(f"""<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Geldradar</title>
           <style>body{{font:16px system-ui,sans-serif;background:#0f141c;color:#e8edf5;display:grid;place-items:center;min-height:100vh;margin:0}}a{{color:#ffb547}}</style></head>
           <body data-stand="d/{stempel}.json"><p>Diese Seite gibt es nicht. <a href="/money-radar/">Zum Geldradar</a></p></body></html>""", encoding="utf-8")
-          print("Zeiger:", stempel)
+          # 03.11.: Fassung der Seite — offene Seiten laden neu, sobald eine neue gebaut wurde
+          import hashlib
+          ix = Path("site/index.html"); txt = ix.read_text(encoding="utf-8")
+          sv = hashlib.md5(txt.encode()).hexdigest()[:10]
+          ix.write_text(txt.replace("__SEITE_V__", sv), encoding="utf-8")
+          z = Path("site/404.html"); z.write_text(z.read_text(encoding="utf-8").replace("<body ", f'<body data-seite="{sv}" ', 1), encoding="utf-8")
+          print("Zeiger:", stempel, "Seite:", sv)
           PY
       - uses: actions/upload-pages-artifact@v3
         with:
