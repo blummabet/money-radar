@@ -2022,7 +2022,7 @@ function merkAnzeigen(){
   const st = $("#merk-start"); if(st){ st.hidden = !MERK.length; st.querySelector(".merk-inhalt").innerHTML = merkListe(false); }
 }
 function dKopf(s){
-  const zeit = s.live ? `<span class="dk-live">● ${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}</span>` : `<span class="mk-zeit">${wann(s.anpfiff)}</span>`;
+  const zeit = s.live ? `<span class="dk-live">● ${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}${rotTxt(s.id, s.heim, s.gast) ? " · "+esc(rotTxt(s.id, s.heim, s.gast)) : ""}</span>` : `<span class="mk-zeit">${wann(s.anpfiff)}</span>`;
   const norm = s.xnorm!=null ? `<span class="dk-n" style="color:${s.xnorm>=3?"var(--down)":s.xnorm>=1.5?"var(--bf)":"var(--text-2)"}">×${dez(s.xnorm)} der Liga</span>` : "";
   return `<div class="dk"><div class="dk-1">${flagge(s.land)}<span>${esc(ligaName(s.liga)||s.liga||"")}</span>${zeit}<span class="dk-knoepfe">${merkKnopf(s)}<button class="dk-teilen" data-teilen="${esc(String(s.id))}" aria-label="Teilen">↗ Teilen</button></span></div>
     <div class="dk-2"><b>${eur(s.eur)}</b> gematcht über alle Märkte ${norm}</div><div data-mk-tipps="${esc(String(s.id))}">${merkTipps(s)}</div></div>`;
@@ -3172,6 +3172,13 @@ function bcZeigen(ev){
 // Lucas 19.10. („Wann heute das Geld spielt — was mach ich damit?"): stattdessen, wohin JETZT Geld fließt —
 // Spiele nach neuem Betfair-Geld der letzten 30 Min, mit der Auswahl, die davon am meisten bekam.
 // Lucas 19.10. (APISPORTS_KEY): Live-Statistik je Betfair-Spiel aus live_stats.py — xG als Tauziehen-Balken
+// Lucas 03.11. (Port FC – Beijing 72' 3:4, Beijing zu zehnt — „eher Vorsicht geboten"): Rote Karten (API-Football, Anzahl
+// je Team, keine Minute) sichtbar machen. Zählt (noch) nicht in die Punkte — gemessen wird still mit (Auswertung 15.11.).
+function rotTxt(id, heim, gast){
+  const x = (D.liveStats||{})[String(id)], h = x?.statistik?.heim?.rot, g = x?.statistik?.gast?.rot;
+  const z = n => n>=2 ? `zu ${11-n===9?"neunt":11-n===8?"acht":(11-n)}` : "zu zehnt";
+  return [h>0 ? `🟥 ${heim} ${z(h)}` : "", g>0 ? `🟥 ${gast} ${z(g)}` : ""].filter(Boolean).join(" · ");
+}
 function liveStat(id, gross){
   const x = (D.liveStats||{})[String(id)]; if(!x || !x.statistik) return "";
   const h = x.statistik.heim||{}, g = x.statistik.gast||{};
@@ -3305,7 +3312,7 @@ function topDreiDaten(D){
       poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
       stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
     return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
-      kopf: `${flagge(s.land)} ${esc(ligaName(s.liga)||"")}`, live: s.live ? `${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}` : null,
+      kopf: `${flagge(s.land)} ${esc(ligaName(s.liga)||"")}`, live: s.live ? `${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}${rotTxt(s.id, s.heim, s.gast) ? " · "+esc(rotTxt(s.id, s.heim, s.gast)) : ""}` : null,
       anpfiff: s.anpfiff, heim: s.heim, gast: s.gast, auf: auswahlDe(fA.name), quote: fA.quote, alt: p.quote ? fA.q60 : null, markt: marktDe(fM?.name||""),
       saeulen: s.saeulen?.w || [], wert: s.eur, einheit: "€", klick: klickSpiel({id:s.id, heim:s.heim, gast:s.gast})};
   }).filter(Boolean);

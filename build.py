@@ -1640,6 +1640,19 @@ def serien(takt, radar):
                         # für den Push: wie der Markt jetzt insgesamt liegt (Lucas 18.10.)
                         "marktVerteilung": next(([[a["name"], a["eur"], a.get("quote"), round(summe) if a["name"] == auswahl else 0]
                                                   for a in m["auswahl"]] for m in sp.get("maerkteDetail") or [] if m["name"] == markt), None)})
+            # Lucas 03.11. (Port FC – Beijing 72' 3:4, Top 3 „15× in Folge" über sieben Tore): REGEL S3 auch an der Quelle —
+            # live zählt nur das Geld seit dem letzten Tor. Reicht das (3 Abrufe, Mindestsumme) nicht, gibt es live keine Serie.
+            x = out[-1]
+            if sp.get("live") and tor and tor.get("seitStand") is not None:
+                kt = [k for k in kette if nsc(k[4]) == st1]
+                if len(kt) < SERIE_MIN_N or tor["seitStand"] < max(SERIE_SUMME[top5], SERIE_NORM_ANTEIL * (sp.get("normEur") or 0)):
+                    out.pop()
+                    continue
+                x.update({"nGesamt": x["n"], "eurGesamt": x["eur"], "n": len(kt), "eur": tor["seitStand"],
+                          "anteil": round(sum(k[2] for k in kt) / len(kt)), "quoteStart": kt[0][3], "seit": iso(kt[0][0]),
+                          "dauerMin": round((kt[-1][0] - kt[0][0]).total_seconds() / 60) + 5})
+                if x.get("marktVerteilung"):
+                    x["marktVerteilung"] = [[v[0], v[1], v[2], tor["seitStand"] if v[3] else 0] for v in x["marktVerteilung"]]
     # je Spiel nur die stärkste Serie (sonst steht ein Spiel mit drei Märkten dreimal da)
     best = {}
     for x in sorted(out, key=lambda x: -x["eur"]):

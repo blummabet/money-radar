@@ -236,7 +236,20 @@ def stat_zeile(d, sid):
     if not st:
         return ""
     minute = f" bis {x['min']}'" if x.get("min") else ""
-    return f"📊 <b>Live-Stats</b>{minute}: {st}\n"
+    return f"📊 <b>Live-Stats</b>{minute}: {st}\n" + rot_zeile(d, sid)
+
+
+def rot_zeile(d, sid):
+    """Lucas 03.11. (Port FC – Beijing 72' 3:4, Beijing zu zehnt): Rote Karten sichtbar machen (API-Football: Anzahl je Team)."""
+    x = (d.get("liveStats") or {}).get(str(sid)) or {}
+    st = x.get("statistik") or {}
+    r = [(st.get("heim") or {}).get("rot"), (st.get("gast") or {}).get("rot")]
+    if not all(isinstance(v, (int, float)) for v in r) or not any(r):
+        return ""
+    sp = next((s for s in (d.get("radar") or {}).get("spiele") or [] if str(s.get("id")) == str(sid)), {})
+    namen = [sp.get("heim") or "Heim", sp.get("gast") or "Gast"]
+    teile = [f"{e(namen[i])} zu {'zehnt' if r[i] == 1 else 'neunt' if r[i] == 2 else str(11 - int(r[i]))}" for i in (0, 1) if r[i]]
+    return f"🟥 <b>Rote Karte</b>: {' · '.join(teile)}\n"
 
 
 def zufluss(d):
@@ -959,14 +972,8 @@ def serie(d):
         # Lucas 03.11. (Kobe – Ratchaburi: €241k „@ 1,96", das Geld kam großteils bei 1:0 zu ~1,20, dann 1:1 — „Punkt 1
         # einbauen"): REGEL S3 — live zählt nur das Geld SEIT DEM LETZTEN TOR. Ein Tor macht ein anderes Spiel; Geld davor
         # steht nur als Hinweis dabei. Seit dem Tor braucht es wieder 3 Abrufe in Folge und die Mindestsumme.
-        if x.get("live") and x.get("tor") and x["tor"].get("seitStand") is not None:
-            t_ = x["tor"]
-            if t_.get("nSeitStand", 0) < 3 or t_["seitStand"] < (75000 if x.get("top5") else 10000):
-                continue
-            x = {**x, "eur_vorTor": x["eur"] - t_["seitStand"], "eur": t_["seitStand"], "n": t_["nSeitStand"],
-                 "anteil": t_.get("anteilSeitStand") or x.get("anteil"), "dauerMin": t_["nSeitStand"] * 5,
-                 "quoteStart": None,
-                 "marktVerteilung": [[v[0], v[1], v[2], t_["seitStand"] if v[3] else 0] for v in x.get("marktVerteilung") or []] or None}
+        if x.get("eurGesamt") is not None:          # REGEL S3 (build.serien): Zahlen schon seit dem letzten Tor
+            x = {**x, "eur_vorTor": x["eurGesamt"] - x["eur"], "quoteStart": None}
         key = f"se|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}" + (f"|{x['tor']['nach'][0]}:{x['tor']['nach'][1]}" if x.get("eur_vorTor") is not None else "")
         q, q0 = x.get("quote"), x.get("quoteStart")
         # Lucas 30.10. (Elversberg 32' 2:0 @ 1,40: „da kommt viel rein, das so Schema hat — filtern wir raus, messen im
@@ -1236,6 +1243,13 @@ def main() -> int:
                         st_ = lv_["stand"]
                         beleg = {**beleg, "stand": st_, "minute": lv_.get("min"),
                                  "lage": None if k_ is None else "vorn" if st_[k_] > st_[1 - k_] else "hinten" if st_[k_] < st_[1 - k_] else "gleich"}
+                        # 03.11. (Beijing zu zehnt): Rote Karten still mitschreiben — Auswahl in Über-/Unterzahl? (Auswertung 15.11.)
+                        ls_ = (((d.get("liveStats") or {}).get(str(beleg.get("id"))) or {}).get("statistik") or {})
+                        r_ = [(ls_.get("heim") or {}).get("rot"), (ls_.get("gast") or {}).get("rot")]
+                        if k_ is not None and all(isinstance(v, (int, float)) for v in r_):
+                            beleg["rot"] = r_
+                            beleg["zahl"] = ("keine" if r_[0] == r_[1] == 0 else "unter" if r_[k_] > r_[1 - k_]
+                                             else "ueber" if r_[k_] < r_[1 - k_] else "gleich")
                     bilanz.eintragen(buch, beleg, JETZT)
     if not trocken:
         try:                         # Lucas 23.10.: Top 3 jetzt mitschreiben und abrechnen (Messung, kein Push)
