@@ -6,7 +6,7 @@ UA = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
 def get(u):
     try:
         with urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=20, context=ssl.create_default_context()) as r:
-            return r.status, r.read().decode()[:2500]
+            return r.status, r.read().decode()
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode()[:600]
     except Exception as e:
@@ -19,4 +19,4 @@ B = "https://data-api.polymarket.com/v2/"
 for pfad in (f"trades?condition={cond}&limit=3", f"trades?condition={cond}&limit=3&takerOnly=true", f"trades?condition={cond}&limit=3&taker_only=true",
              f"trades?condition={cond}&limit=3&side=BUY", f"holders?condition={cond}&limit=3", "status"):
     st, body = get(B + pfad)
-    print(f"\n=== {pfad} → {st}\n{body}")
+    print(f"\n=== {pfad} → {st}\n{body[:1800]}")

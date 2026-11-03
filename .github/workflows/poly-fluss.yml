@@ -49,9 +49,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-          if [ "$(gh issue list -R ${{ github.repository }} --search 'Poly-v2-Probe in:title' --state all --json number -q length 2>/dev/null || echo 0)" = "0" ]; then
+          if [ "$(gh issue list -R ${{ github.repository }} --search 'Poly-v2-Probe2 in:title' --state all --json number -q length 2>/dev/null || echo 0)" = "0" ]; then
             python3 poly_v2_probe.py > probe.log 2>&1 || true
-            gh issue create -R ${{ github.repository }} --title "Poly-v2-Probe $(date -u +%FT%H:%MZ)" --body-file probe.log || true
+            gh issue create -R ${{ github.repository }} --title "Poly-v2-Probe2 $(date -u +%FT%H:%MZ)" --body-file probe.log || true
           fi
       - name: Märkte, Wale, Wallet-Buch
         run: |
