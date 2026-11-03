@@ -38,8 +38,7 @@ MAERKTE = BASIS / "poly_maerkte.json"
 TRACK = BASIS / "poly_wallet_track.json"
 
 GAMMA = "https://gamma-api.polymarket.com/events"
-HOLDERS = "https://data-api.polymarket.com/holders?market={cond}&limit=200&offset={off}"
-POSITIONS = "https://data-api.polymarket.com/positions?user={user}&sizeThreshold=1&limit=500"
+import poly_v2      # 03.11.2026: Data API v1 (/holders, /positions) abgeschaltet → v2 (condition=, cursor, snake_case)
 PNL_API = "https://user-pnl-api.polymarket.com/user-pnl?user_address={user}&interval=all&fidelity=1d"
 
 TAGS = ("soccer", "esports", "tennis")
@@ -239,11 +238,13 @@ def _halter_parse(data, token):
     rows = None
     for g in groups or []:
         if isinstance(g, dict) and "holders" in g:
-            if str(g.get("token")) == str(token):
+            if str(g.get("token") or g.get("asset") or g.get("tokenId")) == str(token):
                 rows = g.get("holders")
                 break
         else:
-            rows = groups
+            # v2 kann flache Zeilen liefern (beide Ausgänge gemischt) → nach Token filtern, wenn die Zeile einen trägt
+            rows = [r for r in groups if not isinstance(r, dict) or not (r.get("asset") or r.get("tokenId"))
+                    or str(r.get("asset") or r.get("tokenId")) == str(token)]
             break
     out = []
     for h in rows or []:
@@ -260,22 +261,15 @@ def _halter_parse(data, token):
 
 
 def alle_halter(cond, token):
-    alle, gesehen, ab = [], set(), False
-    for seite in range(HALTER_SEITEN):
-        data = _get(HOLDERS.format(cond=cond, off=seite * 200))
-        if not data:
-            ab = True
-            break
-        rows = _halter_parse(data, token)
-        neu = [(w, a) for w, a in rows if w not in gesehen]
-        gesehen.update(w for w, _ in neu)
-        alle.extend(neu)
-        if len(rows) < 200:
-            break
-        if not neu or seite == HALTER_SEITEN - 1:
-            ab = True
-            break
-    return alle, ab
+    alle, gesehen = [], set()
+    data = poly_v2.seiten(_get, "holders", HALTER_SEITEN, condition=cond, limit=200)
+    if data is None:
+        return [], True
+    for w, a in _halter_parse(data, token):
+        if w not in gesehen:
+            gesehen.add(w)
+            alle.append((w, a))
+    return alle, len(data) >= 200 * HALTER_SEITEN
 
 
 def wal_auswahl(wale, bekannt):
@@ -599,7 +593,7 @@ def main() -> int:
                 if pos_budget[0] <= 0:
                     continue
                 pos_budget[0] -= 1
-                pos_cache[wh["wallet"]] = _get(POSITIONS.format(user=wh["wallet"])) or []
+                pos_cache[wh["wallet"]] = poly_v2.seiten(_get, "positions", 1, user=wh["wallet"], limit=500) or []
             ap = avg_aus_positionen(pos_cache[wh["wallet"]], tok.get(wh["side"]))
             if ap is not None:
                 wh["avgPrice"] = ap

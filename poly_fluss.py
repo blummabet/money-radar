@@ -28,7 +28,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 GAMMA = "https://gamma-api.polymarket.com/events?slug={slug}"
-TRADES = "https://data-api.polymarket.com/trades?market={cond}&limit=500&takerOnly=true"
+import poly_v2                          # 03.11.: Data API v1 abgeschaltet (410) → v2
 OUT = Path(__file__).resolve().parent / ".pf" / "poly_fluss.json"
 JETZT = datetime.now(timezone.utc)
 FENSTER_MIN = (30, 10)
@@ -58,10 +58,29 @@ def get(url, tries=2):
     return None
 
 
+_V2_PARAM = []        # die erste Parameter-Kombination, die v2 annimmt (400 → nächste)
+_V2_KOMBIS = ({"limit": 500, "takerOnly": "true"}, {"limit": 500}, {"limit": 100, "takerOnly": "true"}, {"limit": 100})
+
+
+def trades_v2(cond):
+    """Letzte Taker-Trades eines Markts über Data API v2 (v1 seit 02.11. 410 Gone)."""
+    for p in (_V2_PARAM or _V2_KOMBIS):
+        z = poly_v2.seiten(lambda u: get(u, tries=1 if not _V2_PARAM else 2), "trades", 1, condition=cond, **p)
+        if z is not None:
+            if not _V2_PARAM:
+                _V2_PARAM.append(p)
+                print(f"  poly_fluss: v2 /trades nimmt {p}")
+            return z
+        if _V2_PARAM:
+            return None
+    return None
+
+
 def ts(s):
     try:
-        if isinstance(s, (int, float)):
-            return datetime.fromtimestamp(float(s), tz=timezone.utc)
+        if isinstance(s, (int, float)) or (isinstance(s, str) and s.isdigit()):
+            f = float(s)
+            return datetime.fromtimestamp(f / 1000 if f > 1e12 else f, tz=timezone.utc)
         d = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
         return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
     except Exception:  # noqa: BLE001
@@ -153,7 +172,7 @@ def fluss_fuer(m):
     preis_summe = {}                             # Etikett -> [usd*preis, usd] der letzten 60 Min
     alle = {}                                    # Etikett -> usd über ALLE geholten Käufe (bis 500 je Markt)
     for cond, lab, frage in seiten(event, m.get("sport")):
-        tr = get(TRADES.format(cond=cond))
+        tr = trades_v2(cond)
         if not isinstance(tr, list):
             continue
         for t in tr:
