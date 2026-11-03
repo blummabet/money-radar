@@ -151,6 +151,7 @@ def fluss_fuer(m):
     gross = []
     takt, takt_summe, aeltester = {}, [0.0] * TAKT_N, 0.0
     preis_summe = {}                             # Etikett -> [usd*preis, usd] der letzten 60 Min
+    alle = {}                                    # Etikett -> usd über ALLE geholten Käufe (bis 500 je Markt)
     for cond, lab, frage in seiten(event, m.get("sport")):
         tr = get(TRADES.format(cond=cond))
         if not isinstance(tr, list):
@@ -173,6 +174,7 @@ def fluss_fuer(m):
                 continue
             etikett = lab.get(t.get("outcome")) or t.get("outcome") or "?"
             aeltester = max(aeltester, alter)
+            alle[etikett] = alle.get(etikett, 0) + usd
             if alter <= 60:
                 ps = preis_summe.setdefault(etikett, [0.0, 0.0])
                 ps[0] += usd * preis
@@ -213,7 +215,12 @@ def fluss_fuer(m):
         fenster[str(f)] = {"neu": round(ges), "auf": top_lab, "usd": round(top_usd), "anteil": round(100 * top_usd / basis),
                            "seiten": {k: round(v) for k, v in sorted(s.items(), key=lambda kv: -kv[1])[:5]}}
     if not fenster:
-        return None
+        # Lucas 03.11. (Top Esports – Invictus, $235k, „keine Aufteilung bei Poly"): vor Anpfiff ist in 30 Min oft
+        # nichts gekauft worden → der Markt fiel ganz raus. Die Aufteilung der letzten Käufe trotzdem mitgeben.
+        if not alle:
+            return None
+        return {"key": m["key"], "nurAlle": True, "alle": {k: round(v) for k, v in alle.items()},
+                "alleReichweiteMin": round(aeltester)}
     gross.sort(key=lambda g: -g["usd"])
     top = sorted(takt.items(), key=lambda kv: -sum(kv[1]))[:4]
     return {**m, "titel": titel, "fenster": fenster, "gross": gross[:5],
@@ -221,7 +228,8 @@ def fluss_fuer(m):
             # mittlerer Kaufpreis je Seite (geldgewichtet, letzte 60 Min) → Quote im Push
             "preise": {k: round(v[0] / v[1], 3) for k, v in preis_summe.items() if v[1] > 0},
             # die Trade-Abfrage holt höchstens 500 je Markt — so weit zurück reichen die Säulen wirklich
-            "taktReichweiteMin": round(aeltester)}
+            "taktReichweiteMin": round(aeltester),
+            "alle": {k: round(v) for k, v in alle.items()}, "alleReichweiteMin": round(aeltester)}
 
 
 def main() -> int:
@@ -252,8 +260,10 @@ def main() -> int:
                 if r:
                     rows.append(r)
         pool.shutdown(wait=False, cancel_futures=True)
+    nur_alle = {r["key"]: {"alle": r["alle"], "reichweiteMin": r["alleReichweiteMin"]} for r in rows if r.get("nurAlle")}
+    rows = [r for r in rows if not r.get("nurAlle")]
     rows.sort(key=lambda r: -(r["fenster"].get("30") or {}).get("usd", 0))
-    OUT.write_text(json.dumps({"generatedAt": JETZT.isoformat(), "n": len(rows), "maerkte": rows},
+    OUT.write_text(json.dumps({"generatedAt": JETZT.isoformat(), "n": len(rows), "maerkte": rows, "seitenAlle": nur_alle},
                               ensure_ascii=False), encoding="utf-8")
     print(f"poly_fluss: {len(rows)} Märkte mit Käufen in 30 Min → {OUT} ({time.time() - start:.0f}s)")
     return 0

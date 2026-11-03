@@ -1895,6 +1895,9 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
     #    Die Schlüssel tragen nur Kürzel („mls-nyr-tor-…"); die Teamnamen stehen in den Preis-Schlüsseln.
     #    „…-more-markets" (Tore, BTTS, Handicap) zählt zum Volumen desselben Spiels.
     pf_takt = {m.get("key"): m.get("takt") or {} for m in (pf or {}).get("maerkte") or [] if m.get("takt")}
+    # 03.11.: letzte Käufe je Seite (bis 500 Trades je Markt) — auch für Märkte ohne Käufe in 30 Min
+    pf_alle = {m.get("key"): (m.get("alle"), m.get("alleReichweiteMin")) for m in (pf or {}).get("maerkte") or [] if m.get("alle")}
+    pf_alle.update({k: (v.get("alle"), v.get("reichweiteMin")) for k, v in ((pf or {}).get("seitenAlle") or {}).items() if v.get("alle")})
     pf_30 = {}
     for m in (pf or {}).get("maerkte") or []:
         su = sum((m.get("taktSumme") or [])[-3:])       # 3 × 10 Min = die letzten 30 Min
@@ -1939,6 +1942,15 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
                 if k:
                     seiten[k] = seiten.get(k, 0) + sum(werte or [])
             herkunft = "Käufe 4 h"
+        if not seiten and key in pf_alle:
+            for n, v in (pf_alle[key][0] or {}).items():
+                if str(n).startswith("gegen "):
+                    continue
+                k = _seite(n, g["heim"], g["gast"])
+                if k:
+                    seiten[k] = seiten.get(k, 0) + float(v or 0)
+            rw = pf_alle[key][1] or 0
+            herkunft = "letzte Käufe " + (f"{rw / 1440:.0f} T" if rw >= 2880 else f"{rw / 60:.0f} h" if rw >= 60 else f"{rw:.0f} Min")
         wl = [dict(x, k=_seite(x["seite"], g["heim"], g["gast"])) for x in
               ((belegt or {}).get(key) or []) + ((belegt or {}).get(key + "-more-markets") or [])]
         if wl:
@@ -2153,7 +2165,7 @@ def poly_fluss():
         pre = str(m.get("key") or "").split("-")[0]
         m["top5"] = pre in POLY_TOP5
         rows.append(m)
-    return {"stand": d.get("generatedAt"), "maerkte": rows}
+    return {"stand": d.get("generatedAt"), "maerkte": rows, "seitenAlle": d.get("seitenAlle") or {}}
 
 
 def betfair_pushes(buch):
