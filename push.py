@@ -930,6 +930,21 @@ def _stufe(n):
     return 3 if n < 5 else 5 if n < 8 else 8 if n < 12 else 12
 
 
+def _tor_zeile(x):
+    """Zeile „Tor während der Serie" (18.10.; 03.11. REGEL S3: live zählt oben nur das Geld seit dem letzten Tor)."""
+    t = x.get("tor")
+    if not t:
+        return ""
+    kopf = f"⚽ <b>Tor während der Serie</b> ({t['von'][0]}:{t['von'][1]} → {t['nach'][0]}:{t['nach'][1]}): "
+    if x.get("eur_vorTor") is not None:
+        return (kopf + f"oben nur das Geld seit dem {t['nach'][0]}:{t['nach'][1]} — davor kamen weitere "
+                f"{geld(x['eur_vorTor'])} im Schnitt @ {q2(t['quoteVorher'])} (zählt nicht)\n")
+    if t.get("seitStand") is not None:
+        return (kopf + f"<b>{geld(t['seitStand'])}</b> seit dem {t['nach'][0]}:{t['nach'][1]}, "
+                f"{geld(x['eur'] - t['seitStand'])} kamen davor im Schnitt @ {q2(t['quoteVorher'])}\n")
+    return kopf + f"{geld(t['vorTor'])} kamen vorher, {geld(t['nachTor'])} danach\n"
+
+
 def serie(d):
     """Lucas 17.10.: wiederholter Zufluss auf dieselbe Auswahl („bei jedem Scan wieder 10.000") ist ein
     eigener KPI. Push ab 3 Abrufen in Folge, wieder bei 5, 8 und 12 — nicht bei jedem neuen Treffer."""
@@ -941,7 +956,18 @@ def serie(d):
                          if str(z_.get("id")) == str(x["id"]) for f in z_.get("fluss") or [] if f.get("auswahl") == x["auswahl"]]
                          if isinstance(v, (int, float))], default=None), bool(x.get("live"))):
             continue
-        key = f"se|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}"
+        # Lucas 03.11. (Kobe – Ratchaburi: €241k „@ 1,96", das Geld kam großteils bei 1:0 zu ~1,20, dann 1:1 — „Punkt 1
+        # einbauen"): REGEL S3 — live zählt nur das Geld SEIT DEM LETZTEN TOR. Ein Tor macht ein anderes Spiel; Geld davor
+        # steht nur als Hinweis dabei. Seit dem Tor braucht es wieder 3 Abrufe in Folge und die Mindestsumme.
+        if x.get("live") and x.get("tor") and x["tor"].get("seitStand") is not None:
+            t_ = x["tor"]
+            if t_.get("nSeitStand", 0) < 3 or t_["seitStand"] < (75000 if x.get("top5") else 10000):
+                continue
+            x = {**x, "eur_vorTor": x["eur"] - t_["seitStand"], "eur": t_["seitStand"], "n": t_["nSeitStand"],
+                 "anteil": t_.get("anteilSeitStand") or x.get("anteil"), "dauerMin": t_["nSeitStand"] * 5,
+                 "quoteStart": None,
+                 "marktVerteilung": [[v[0], v[1], v[2], t_["seitStand"] if v[3] else 0] for v in x.get("marktVerteilung") or []] or None}
+        key = f"se|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}" + (f"|{x['tor']['nach'][0]}:{x['tor']['nach'][1]}" if x.get("eur_vorTor") is not None else "")
         q, q0 = x.get("quote"), x.get("quoteStart")
         # Lucas 30.10. (Elversberg 32' 2:0 @ 1,40: „da kommt viel rein, das so Schema hat — filtern wir raus, messen im
         # Hintergrund"): live Dauerzufluss auf ein Team, das schon FÜHRT, wird nicht gepusht, sondern nur still ins Buch
@@ -987,11 +1013,7 @@ def serie(d):
                 + drop
                 + lay_hinweis
                 + (stat_zeile(d, x["id"]) if x.get("live") else "")
-                + (f"⚽ <b>Tor während der Serie</b> ({x['tor']['von'][0]}:{x['tor']['von'][1]} → {x['tor']['nach'][0]}:{x['tor']['nach'][1]}): "
-                   + (f"<b>{geld(x['tor']['seitStand'])}</b> seit dem {x['tor']['nach'][0]}:{x['tor']['nach'][1]}, "
-                      f"{geld(x['eur'] - x['tor']['seitStand'])} kamen davor im Schnitt @ {q2(x['tor']['quoteVorher'])}\n"
-                      if x["tor"].get("seitStand") is not None else
-                      f"{geld(x['tor']['vorTor'])} kamen vorher, {geld(x['tor']['nachTor'])} danach\n") if x.get("tor") else "")
+                + _tor_zeile(x)
                 + "\n"
                 + (_geld_block({"markt": x["markt"], "auswahl": x["auswahl"], "marktVerteilung": x["marktVerteilung"]}, 0)
                    if x.get("marktVerteilung") else "")

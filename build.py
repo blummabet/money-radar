@@ -1596,6 +1596,8 @@ def serien(takt, radar):
                        "nachTor": round(sum(k[1] for k in kette if nsc(k[4]) != st0)),
                        # Geld seit dem LETZTEN Stand (nach dem letzten Tor) und zu welcher Quote das Geld davor kam
                        "seitStand": round(sum(k[1] for k in kette if nsc(k[4]) == st1)),
+                       "nSeitStand": sum(1 for k in kette if nsc(k[4]) == st1),
+                       "anteilSeitStand": round(sum(k[2] for k in kette if nsc(k[4]) == st1) / max(1, sum(1 for k in kette if nsc(k[4]) == st1))),
                        "quoteVorher": round(sum(k[1] * k[3] for k in kette if nsc(k[4]) != st1 and isinstance(k[3], (int, float)))
                                             / max(1, sum(k[1] for k in kette if nsc(k[4]) != st1 and isinstance(k[3], (int, float)))), 2)}
             markt, auswahl = key.split("|", 1)
