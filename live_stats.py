@@ -427,7 +427,7 @@ def druck_radar(d, cache, live_ids, neue_ticks):
         wv = welle_von(e.get("verlauf") or [])
         aus.append({"id": i, "welle": wv, "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga"), "land": sp.get("land"),
                     "top5": sp.get("top5"), **dr,
-                    "verlauf": [[q["m"], q["xg"][0], q["xg"][1], q.get("st")] for q in einheitlich(e.get("verlauf") or [])[0]
+                    "verlauf": [[q["m"], q["xg"][0], q["xg"][1], q.get("st"), q.get("sch"), q.get("at")] for q in einheitlich(e.get("verlauf") or [])[0]
                                 if isinstance(q.get("m"), (int, float)) and q["xg"][0] is not None],
                     "geldMin": sp.get("geldMin"), "eur": sp.get("eur"), "xnorm": sp.get("xnorm"), "tore": e.get("tore"),
                     # Stand/Minute aus dem Betfair-Abruf (alle 5 Min), wenn der weiter ist als der Statistik-Abruf
