@@ -3427,7 +3427,12 @@ function druckGrafik(x){
   const fach = Array.from({length:19}, ()=>[0, 0]);
   const erst = v.length ? v[0][0] : 0;
   let vorher = [0, 0, 0, [0, 0]], tore = "";
-  for(const p of v){
+  // 03.11.: API-Football korrigiert xG auch nach unten (Shakhtar 57' 1,17 → 62' 0,90 → 78' 1,53). Gezählt wird nur,
+  // was über den bisher höchsten Wert hinausgeht — sonst stünde der Wiederanstieg doppelt in den Balken.
+  const hoch = [0, 0];
+  for(const p0 of v){
+    const p = [p0[0], Math.max(p0[1], hoch[0]), Math.max(p0[2], hoch[1]), ...p0.slice(3)];
+    hoch[0] = p[1]; hoch[1] = p[2];
     const a = vorher[0], e = p[0], dm = Math.max(1, e - a);
     for(let k = Math.floor(a/5); k*5 < e && k < 19; k++){
       const ueber = Math.max(0, Math.min(e, k*5+5) - Math.max(a, k*5));
