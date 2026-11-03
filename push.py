@@ -747,6 +747,21 @@ def stake(d):
                 return bool(sp.get("klarVorn") or sp.get("entschieden"))
         return False
 
+    def jetzt_live(spiel):
+        """Lucas 03.11. (Ryukyu – Gifu: Push sagte 16', im Spiel stand es schon 30' und 1:2): die Stake-Daten kommen
+        über den Mac-Runner bis ~15 Min verspätet an. Darum steht der aktuelle Stand vom Betfair-Radar dabei."""
+        teile = [x.strip().lower() for x in str(spiel or "").split(" - ")]
+        if len(teile) != 2:
+            return None
+        for sp in radar:
+            h, g = str(sp.get("heim") or "").lower(), str(sp.get("gast") or "").lower()
+            if h[:5] and g[:5] and h[:5] in teile[0] and g[:5] in teile[1]:
+                lv = sp.get("live") or {}
+                st = lv.get("stand")
+                if isinstance(lv.get("min"), (int, float)) and isinstance(st, list) and len(st) == 2:
+                    return int(lv["min"]), st
+        return None
+
     benutzt = set()
     for t0, z0 in sig:
         if id(z0) in benutzt:
@@ -786,6 +801,13 @@ def stake(d):
                 arten.append(z["art"])
         key = f"st|{g.get('spiel')}|{t0:%Y-%m-%dT%H:%M}"
         phase = ("live" + (f" {g['minute']}'" if g.get("minute") else "")) if g.get("phase") == "live" else "vor Anpfiff"
+        if g.get("phase") == "live":
+            alt_min = (JETZT - t0).total_seconds() / 60
+            jl = jetzt_live(g.get("spiel"))
+            if alt_min >= 4:
+                phase += f" (Geld um {t0.astimezone(ZoneInfo('Europe/Vienna')):%H:%M}, vor {alt_min:.0f} Min)"
+            if jl:
+                phase += f"\n⏱ jetzt {jl[0]}' · Stand {jl[1][0]}:{jl[1][1]}"
         text = (f"🟢 <b>Stake · {e(' + '.join(arten))}</b>\n"
                 f"<b>{e(g.get('spiel'))}</b>\n{e(g.get('liga'))} · {phase}\n\n"
                 f"💵 <b>{geld(g.get('usd'), '$')}</b> in {g.get('wetten')} Wetten" + (f" auf <b>{e(auswahl)}</b>" if auswahl else "")
