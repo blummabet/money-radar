@@ -52,4 +52,12 @@ jobs:
         run: |
           M="${{ inputs.modus }}"
           if [ -z "$M" ]; then H=$(date -u +%H); [ "$H" -lt 12 ] && M=morgen || M=abend; fi
-          python social/posten.py "$M"
+          set -o pipefail
+          python social/posten.py "$M" 2>&1 | tee ig.log
+      - name: Fehler als Issue (ohne Token)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          { echo '```'; tail -40 ig.log 2>/dev/null | sed -E 's/(access_token=)[^& ]+/\1***/g'; echo '```'; } > fehler.md
+          gh issue create -R ${{ github.repository }} --title "Instagram-Fehler $(date -u +%FT%H:%MZ)" --body-file fehler.md
