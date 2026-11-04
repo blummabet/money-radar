@@ -345,7 +345,7 @@ def text(m, nr_f, erkannt, jetzt) -> str:
     emo, name = KOPF[m["art"]]
     kopf = f"{emo} <b>{name}</b>"
     if m.get("live"):
-        lv = "🔴 <b>LIVE" + (f" {m['minute']}'" if m.get("minute") else "") + "</b>"
+        lv = "⚡ <b>LIVE" + (f" {m['minute']}'" if m.get("minute") else "") + "</b>"
         st = m.get("stand")
         kopf += f" · {lv}" + (f" · {st[0]}:{st[1]}" if st and st[0] is not None else "")
     liga = LIGA_KURZ.get(m.get("liga"), m.get("liga") or "")
