@@ -29,7 +29,7 @@ concurrency:
 jobs:
   bauen:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 25   # 04.11.: Platz für die Anstoß-Versuche bei GitHub-Störungen
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
