@@ -273,7 +273,10 @@ jobs:
           # 26.10. (Kette stand 14:23–17:28 UTC, 3 h ohne Pushes; Zeitplan und Wächter feuerten in der Zeit nicht):
           # IMMER anstoßen (die Gruppe „pages" hält höchstens einen wartenden Lauf, doppelt ist harmlos) und danach
           # PRÜFEN, ob GitHub wirklich einen neuen Lauf angelegt hat — sonst bis zu dreimal neu.
-          for v in 1 2 3; do
+          # 04.11. (Kette stand 12:19–12:43 Wien, GitHub hatte Störungen mit HTTP 500): drei Versuche in 4 Min reichten nicht —
+          # jetzt bis zu 8 Versuche, ab dem dritten mit 60 s Pause (zusammen gut 15 Min).
+          for v in 1 2 3 4 5 6 7 8; do
+            [ $v -ge 3 ] && sleep 60
             seit=$(date -u +%Y-%m-%dT%H:%M:%SZ)
             gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main || { echo "Anstoß fehlgeschlagen (Versuch $v)"; sleep 10; continue; }
             for w in 1 2 3 4 5 6; do
