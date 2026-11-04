@@ -188,6 +188,45 @@ def geld_spiel(s: dict) -> str:
     return _html(body, css)
 
 
+def geld_drei(spiele: list[dict], titel_unter: str = "heute Abend") -> str:
+    """Bis zu 3 Spiele, bei denen das Geld am weitesten über der Quote liegt (gleiche Felder wie geld_spiel)."""
+    karten = []
+    for i, s in enumerate(spiele[:3], 1):
+        an = datetime.fromisoformat(str(s["anpfiff"]).replace("Z", "+00:00")).astimezone(WIEN)
+        name = s["heim"] if s["seite"] == "heim" else s["gast"] if s["seite"] == "gast" else "Remis"
+        karten.append(
+            f"<div class='k'><div class='kk'><span class='nr'>{i}</span><span class='sp'>{e(s['heim'])} – {e(s['gast'])}</span>"
+            f"<span class='lz'>{e(s['liga'])} · {an:%H:%M}</span></div>"
+            f"<div class='km'><div class='wer'>Geld auf<br><b>{e(name)}</b></div>"
+            f"<div class='pz'>{s['anteil']:.0f}<small>%</small></div>"
+            f"<div class='qz'><span>Quote {q2(s['quote'])}</span><b>{s['impl']:.0f} %</b><span>erwartet</span></div></div>"
+            f"<div class='bal'><i class='g' style='width:{s['anteil']:.1f}%'></i><i class='mk' style='left:{s['impl']:.1f}%'></i></div>"
+            f"<div class='kf'>{geld(s['gesamt'])} gematcht · {' · '.join(x['name'] for x in s.get('quellen') or [])}</div></div>")
+    body = (f"<div class='seite'>{_kopf('Wo das Geld liegt', titel_unter)}"
+            f"<div class='sub'>Die drei Spiele, bei denen das Geld am weitesten über der Quote liegt</div>"
+            f"<div class='ks'>{''.join(karten)}</div>{FUSS}</div>")
+    css = """
+.sub{font-size:26px;color:var(--grau);margin:30px 0 26px;line-height:1.35}
+.ks{display:flex;flex-direction:column;gap:22px}
+.k{background:var(--karte);border-radius:26px;padding:26px 34px 22px}
+.kk{display:flex;align-items:baseline;gap:16px;white-space:nowrap}
+.nr{font-family:'Barlow Condensed';font-weight:800;font-size:34px;background:var(--gelb);border-radius:10px;padding:0 12px;line-height:44px}
+.sp{font-family:'Barlow Condensed';font-weight:700;font-size:44px;overflow:hidden;text-overflow:ellipsis}
+.lz{margin-left:auto;font-size:21px;color:var(--grau)}
+.km{display:grid;grid-template-columns:1fr auto 170px;align-items:end;gap:20px;margin-top:8px}
+.wer{font-size:23px;color:var(--grau);padding-bottom:16px;line-height:1.3}.wer b{color:var(--tinte);font-size:30px}
+.pz{font-family:'Barlow Condensed';font-weight:800;font-size:132px;line-height:.85;letter-spacing:-2px}
+.pz small{font-size:.42em;margin-left:3px;letter-spacing:0}
+.qz{display:flex;flex-direction:column;align-items:flex-end;font-size:20px;color:var(--grau);padding-bottom:10px}
+.qz b{font-family:'Barlow Condensed';font-weight:700;font-size:52px;color:var(--hell);line-height:1}
+.bal{position:relative;height:18px;border-radius:9px;background:#EDEFF2;margin-top:16px}
+.bal .g{position:absolute;left:0;top:0;bottom:0;border-radius:9px;background:var(--gelb)}
+.bal .mk{position:absolute;top:-7px;bottom:-7px;width:4px;margin-left:-2px;background:var(--tinte);border-radius:2px}
+.kf{font-size:19px;color:var(--grau);margin-top:12px}
+"""
+    return _html(body, css)
+
+
 def rendern(html_text: str, ziel: Path):
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
