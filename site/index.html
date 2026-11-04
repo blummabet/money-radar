@@ -2353,7 +2353,8 @@ function feedGeschichten(D){
   });
 }
 function fxKarte(D, g, max=3){
-  const live = g.live ? `<span class="mk-live">● ${g.live.min!=null?g.live.min+"'":"live"}${g.live.stand?.[0]!=null?" · "+g.live.stand.join(":"):""}</span>` : g.anpfiff && new Date(g.anpfiff)>Date.now() ? `<span class="mk-zeit">${wann(g.anpfiff)}</span>` : "";
+  if(g.live && feedAus(D, g)) g = {...g, live:null, aus:true};
+  const live = g.aus ? `<span class="mk-zeit">aus</span>` : g.live ? `<span class="mk-live">● ${g.live.min!=null?g.live.min+"'":"live"}${g.live.stand?.[0]!=null?" · "+g.live.stand.join(":"):""}</span>` : g.anpfiff && new Date(g.anpfiff)>Date.now() ? `<span class="mk-zeit">${wann(g.anpfiff)}</span>` : "";
   const quellen = g.quellen.length>1 ? `<span class="fx-mehr" title="mehrere Quellen gleichzeitig">${g.quellen.map(q=>`<i style="background:${FARBE[q]}">${ICO[q]}</i>`).join("")}</span>` : "";
   const ev = g.ev.slice(0,max), rest = g.ev.length-max;
   const sp = g.sp ? spielInfo(g.sp) : null;
@@ -2363,8 +2364,18 @@ function fxKarte(D, g, max=3){
     <div class="fx-ev">${ev.map(e=>fxZeile(D,e)).join("")}${rest>0?`<div class="fx-rest">+${rest} weitere</div>`:""}</div>
   </div>`;
 }
+// Lucas 04.11. (Buriram – Kashima stand fast eine Stunde nach Abpfiff noch „live" unter „Gerade passiert"): ein Spiel ist
+// aus, wenn es einen Endstand gibt oder (Fußball) der Anpfiff über 115 Min her ist und Betfair es nicht mehr live führt.
+function feedAus(D, g){
+  const id = g.sp?.id; if(id!=null && (D.endstaende||{})[id]?.ft) return true;
+  const ko = g.anpfiff ? new Date(g.anpfiff).getTime() : null;
+  if(!ko || (g.sport && g.sport!=="Fußball")) return false;
+  const rs = (D.radar?.spiele||[]).find(x=>feedKey(x.heim,x.gast)===g.k);
+  if(rs?.live && !rs.entschieden) return false;
+  return Date.now()-ko > 115*60e3;
+}
 function feedListe(D, n=5){
-  const G = feedGeschichten(D).filter(g=>g.alterMin<=90 && g.ev.some(e=>e.k!=="push"||e.status==="pending")).sort((a,b)=>b.score-a.score).slice(0,n);
+  const G = feedGeschichten(D).filter(g=>g.alterMin<=90 && !feedAus(D,g) && g.ev.some(e=>e.k!=="push"||e.status==="pending")).sort((a,b)=>b.score-a.score).slice(0,n);
   return G.length ? `<div class="fxl">${G.map(g=>fxKarte(D,g,3)).join("")}</div>` : `<div class="leer">Gerade passiert nichts Auffälliges.</div>`;
 }
 const FEED_ARTEN = [["alle","Alle"],["live","Live"],["vor","Vor Anpfiff"],["serie","🔁 Serien"],["mehr","Mehrere Quellen"],["push","Pushes"]];
