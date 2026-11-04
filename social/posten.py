@@ -74,6 +74,8 @@ def bilder_sichern(gepostet):
     jpgs = sorted(ARBEIT.glob("*.jpg"))
     for alt in jpgs[:-20]:
         alt.unlink()
+    import shutil
+    shutil.rmtree(ARBEIT / ".git", ignore_errors=True)   # 04.11.: zweiter Aufruf im selben Lauf scheiterte an „branch bilder already exists"
     tok = os.environ["GH_TOKEN"]
     cmds = [["git", "init", "-q"], ["git", "checkout", "-q", "--orphan", "bilder"], ["git", "add", "-A"],
             ["git", "-c", "user.name=geldradar-bot", "-c", "user.email=geldradar-bot@users.noreply.github.com", "commit", "-qm", f"Bilder {W:%F %H:%M}"],
