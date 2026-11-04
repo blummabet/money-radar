@@ -38,7 +38,9 @@ ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "W
          "serieFuehrt": "Live-Dauerzufluss auf den Führenden (nicht gepusht, ab 30.10.)",
          "liveFuehrt": "Live-Zufluss auf den Führenden (nicht gepusht, ab 30.10.)",
          "stakeFuehrt": "Stake live auf den Führenden (nicht gepusht, ab 31.10.)",
-         "stakeTeam": "Stake-Spiel-Burst: nur der Sieg des Teams (nicht gepusht, ab 03.11.)"}
+         "stakeTeam": "Stake-Spiel-Burst: nur der Sieg des Teams (nicht gepusht, ab 03.11.)",
+         "ueberQuote": "Geld über der Quote (≥ 25 pp, nicht gepusht, ab 04.11.)",
+         "ueberQuoteTop3": "Geld über der Quote: Instagram-Top-3 (ab 04.11.)"}
 
 
 def _ts(s):
@@ -498,14 +500,14 @@ def zusammenfassen(buch):
                  "wal": teile([b for b in buch if b.get("art") == "wal"])}
     letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "titel", "anzeige", "eur", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
-              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "liveFuehrt", "stakeFuehrt", "stakeTeam")][:40]
+              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "liveFuehrt", "stakeFuehrt", "stakeTeam", "ueberQuote", "ueberQuoteTop3")][:40]
     # Lucas 20.10. („Übersichtskurve auf die neuen Betfair-Pushes, weil das zählt"): jeder Push als
     # [Zeit UTC, Rendite je Einheit, 1/0] — offen mit None. build.py baut daraus die Bilanz-Kurve.
     grenze = datetime.now(timezone.utc) - timedelta(days=60)
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "norm", "normMeist", "serieFuehrt", "liveFuehrt", "stakeFuehrt", "stakeTeam"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "norm", "normMeist", "serieFuehrt", "liveFuehrt", "stakeFuehrt", "stakeTeam", "ueberQuote", "ueberQuoteTop3"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,

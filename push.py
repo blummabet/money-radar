@@ -1259,6 +1259,19 @@ def main() -> int:
                 print(f"  top3: {n3} neu im Buch")
         except Exception as exc:  # noqa: BLE001
             print(f"  top3: {exc}")
+        try:                         # Lucas 04.11.: „Geld über der Quote" still mitmessen + Instagram-Top-3 (ab 17 Uhr)
+            import ueber_quote
+            nu = ueber_quote.eintragen(d, buch, JETZT, BASIS / ".push_state")
+            if nu:
+                print(f"  ueberQuote: {nu} neu im Buch")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  ueberQuote: {exc}")
+        try:                         # die Top-3-Datei liegt im Gedächtnis; jede Seite bekommt sie mit (Instagram liest sie)
+            import shutil
+            if (BASIS / ".push_state" / "ig_top3.json").exists():
+                shutil.copy(BASIS / ".push_state" / "ig_top3.json", BASIS / "site" / "ig_top3.json")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  ig_top3: {exc}")
         try:                         # Lucas 25.10.: Druck-Radar still mitmessen (Index ≥ 70 → „noch ein Tor")
             import druck
             nd = druck.eintragen(d, buch, JETZT)
