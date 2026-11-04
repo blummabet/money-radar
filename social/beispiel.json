@@ -1,0 +1,15 @@
+{"gestern":[
+{"zeit":"2026-11-02T23:00","spiel":"CA Platense – Central Cordoba","auswahl":"CA Platense","quote":1.78,"r":0.78,"w":1},
+{"zeit":"2026-11-02T23:45","spiel":"Red Bull Bragantino – Santos","auswahl":"Red Bull Bragantino","quote":1.55,"r":0.55,"w":1},
+{"zeit":"2026-11-03T10:17","spiel":"Kashiwa – Daejeon Citizen","auswahl":"Kashiwa","quote":1.51,"r":0.51,"w":1},
+{"zeit":"2026-11-03T11:27","spiel":"Kobe – Ratchaburi","auswahl":"Kobe","quote":1.96,"r":0.96,"w":1},
+{"zeit":"2026-11-03T12:48","spiel":"FURIA Esports - Natus Vincere","auswahl":"FURIA Esports","quote":1.85,"r":0.85,"w":1},
+{"zeit":"2026-11-03T13:33","spiel":"Cong An Nhan Dan – Kyoto","auswahl":"Over 0.5 Goals","quote":1.5,"r":-1,"w":0},
+{"zeit":"2026-11-03T16:04","spiel":"Man Utd – Roma","auswahl":"Man Utd","quote":2.26,"r":1.26,"w":1},
+{"zeit":"2026-11-03T17:09","spiel":"Galatasaray – Stuttgart","auswahl":"Galatasaray","quote":2.06,"r":1.06,"w":1},
+{"zeit":"2026-11-03T18:24","spiel":"Shakhtar – Sporting Lisbon","auswahl":"Sporting Lisbon","quote":2.86,"r":1.86,"w":1},
+{"zeit":"2026-11-03T19:04","spiel":"ENPPI – Asyut Petroleum","auswahl":"ENPPI","quote":2.06,"r":-1,"w":0},
+{"zeit":"2026-11-03T20:00","spiel":"Villarreal – Paris St-G","auswahl":"Paris St-G","quote":1.8,"r":0.8,"w":1},
+{"zeit":"2026-11-03T20:20","spiel":"Atletico Madrid – Bayern Munich","auswahl":"Bayern Munich","quote":2.24,"r":1.24,"w":1}],
+"geld":{"heim":"Porto","gast":"Napoli","liga":"Champions League","anpfiff":"2026-11-04T20:00:00Z","seite":"heim","anteil":82.6,"impl":51.9,"quote":1.92,"gesamt":730312,
+"quellen":[{"name":"Polymarket","betrag":446996,"anteil":91.6,"w":"$"},{"name":"Betfair","betrag":345895,"anteil":77.6}]}}
