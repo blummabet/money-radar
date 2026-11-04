@@ -35,10 +35,13 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Chromium für die Grafik
         run: |
-          pip install -q playwright==1.48.0
-          python -m playwright install --with-deps chromium >/dev/null
+          python -m pip install -q playwright
+          python -m playwright install --with-deps chromium
       - name: Grafik bauen und posten
         env:
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
@@ -49,4 +52,4 @@ jobs:
         run: |
           M="${{ inputs.modus }}"
           if [ -z "$M" ]; then H=$(date -u +%H); [ "$H" -lt 12 ] && M=morgen || M=abend; fi
-          python3 social/posten.py "$M"
+          python social/posten.py "$M"
