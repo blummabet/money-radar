@@ -17,7 +17,7 @@ on:
   # Neuer Code kommt mit dem nächsten Kettenlauf (≤ 5 Min) von selbst auf die Seite.
 
 permissions:
-  contents: read
+  contents: write     # 04.11.: tägliche Sicherung der Bücher in den Zweig „daten" (siehe unten)
   actions: write      # der Lauf stößt am Ende den nächsten an (siehe letzter Schritt)
   pages: write
   id-token: write
@@ -60,6 +60,16 @@ jobs:
           path: .st
           key: stake-none
           restore-keys: stake-
+      # 04.11. (Lucas: „Speicherthema … automatisch, ohne Aufwand"): Ist das Gedächtnis weg (Cache abgeräumt oder leer),
+      # holt der Lauf die letzte Tagessicherung aus dem Zweig „daten" zurück — nur Dateien, die fehlen.
+      - name: Gedächtnis aus der Tagessicherung ergänzen (nur wenn etwas fehlt)
+        run: |
+          if [ -s .push_state/bilanz.json ] && [ -s .bf/liga_buch.json ] && [ -s .pm/poly_maerkte.json ] && [ -d .st ]; then echo "Gedächtnis vollständig"; exit 0; fi
+          git fetch -q --depth=1 origin daten 2>/dev/null || { echo "noch keine Sicherung"; exit 0; }
+          f=$(git ls-tree --name-only origin/daten | grep '^sicherung-.*\.tar\.gz$' | sort | tail -1)
+          [ -n "$f" ] || exit 0
+          git show "origin/daten:$f" > /tmp/sicherung.tar.gz
+          tar xzf /tmp/sicherung.tar.gz --skip-old-files && echo "ergänzt aus $f"
       # 25.10. (Lucas: „neues Projekt sauber halten"): keine Startwerte mehr aus dem alten Projekt. Geht der Cache
       # verloren, fängt das Gedächtnis leer an und lernt in wenigen Tagen neu — besser als alte, anders gerechnete Stände.
       # 20.10.2026 (Lucas: „muss autonom im neuen Projekt laufen"): Stake und Polymarket laufen in DIESEM Repo auf dem
@@ -139,6 +149,32 @@ jobs:
           PUBLIC_CHAT_ID: "-1003819239615"
           PUSH_TEST: ${{ inputs.push_test && '1' || '' }}
         run: python3 push.py
+      # 04.11. (Lucas: „Speicherthema … mach das, was am besten ist, ohne Aufwand für mich"): Die Bücher liegen sonst NUR
+      # im Actions-Cache (letzte 8 Stände). Einmal am Tag eine Sicherung in den eigenen Zweig „daten" — getrennt vom Code,
+      # main bleibt sauber. Der Zweig hat immer nur EINEN Commit mit den letzten 14 Tagessicherungen (wächst nicht).
+      # Rohdaten über 25 MB (Betfair-Preisverlauf u. ä.) bleiben draußen — die Bücher sind klein.
+      - name: Tagessicherung der Bücher (Zweig daten)
+        if: always()
+        continue-on-error: true
+        run: |
+          TAG=$(date -u +%F)
+          W=$RUNNER_TEMP/daten; rm -rf "$W"; mkdir -p "$W"
+          if git fetch -q --depth=1 origin daten 2>/dev/null; then
+            [ "$(git show origin/daten:LETZTE 2>/dev/null)" = "$TAG" ] && { echo "heute schon gesichert"; exit 0; }
+            git --work-tree="$W" checkout origin/daten -- . 2>/dev/null || true
+            git reset -q
+          fi
+          [ -s .push_state/bilanz.json ] || { echo "kein Push-Buch — keine Sicherung (leeres Gedächtnis nicht sichern)"; exit 0; }
+          find .bf .pin .push_state .pm .pf .st -type f -size -25M 2>/dev/null > /tmp/liste
+          find .bf .pin .push_state .pm .pf .st -type f -size +25M 2>/dev/null | sed 's/^/  ohne (zu groß): /'
+          tar czf "$W/sicherung-$TAG.tar.gz" -T /tmp/liste
+          ls -1 "$W"/sicherung-*.tar.gz | sort | head -n -14 | xargs -r rm -f
+          echo "$TAG" > "$W/LETZTE"
+          printf 'Tagessicherung der Geldradar-Bücher (automatisch, build.yml). Wiederherstellung: der Seitenbau ergänzt fehlende Dateien selbst.\n' > "$W/README.md"
+          ls -la "$W"
+          cd "$W" && git init -q && git checkout -q --orphan daten && git add -A \
+            && git -c user.name="geldradar-bot" -c user.email="geldradar-bot@users.noreply.github.com" commit -qm "Sicherung $TAG" \
+            && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:daten && echo "gesichert: $TAG"
       - name: Gedächtnis sichern
         if: always()
         uses: actions/cache/save@v4
