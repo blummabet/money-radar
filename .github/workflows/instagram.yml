@@ -1,0 +1,25 @@
+name: Instagram (Test)
+
+# 04.11.2026: erster Schritt — nur prüfen, ob Token und Konto passen. Gepostet wird erst nach Lucas' OK.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Konto lesen (postet nichts)
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+        run: python3 social/ig_api.py pruefen 2>&1 | tee ig.log
+      - name: Ergebnis als Issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create -R ${{ github.repository }} --title "Instagram-Prüfung $(date -u +%FT%H:%MZ)" --body-file ig.log
