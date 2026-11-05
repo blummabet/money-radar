@@ -52,6 +52,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TROCKEN: ${{ github.event_name == 'workflow_dispatch' && inputs.trocken && '1' || '' }}
           ERZWINGEN: ${{ inputs.erzwingen && '1' || '' }}
+          WAL_FENSTER_H: ${{ inputs.trocken && '9' || '' }}
         run: |
           M="${{ inputs.modus }}"
           if [ -z "$M" ]; then

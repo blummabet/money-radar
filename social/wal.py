@@ -8,11 +8,12 @@ Morgens: Auflösung mit Endstand (aus den Endständen der Seite).
 """
 from __future__ import annotations
 
+import os
 import re
 from datetime import datetime, timedelta, timezone
 
 MIN_USD = 10000
-FENSTER_H = 5
+FENSTER_H = float(os.environ.get("WAL_FENSTER_H") or 5)   # nur für Probeläufe änderbar
 MAX_PREIS = 0.90
 
 
