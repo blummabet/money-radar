@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "blummabet/money-radar")
-FENSTER = {"morgen": ((9, 40), (13, 0)), "abend": ((17, 25), (22, 0))}
+FENSTER = {"morgen": ((9, 40), (13, 0)), "abend": ((17, 25), (18, 15)), "wal": ((18, 20), (20, 30)), "abend2": ((20, 30), (22, 0))}
 jetzt = datetime.now(timezone.utc)
 w = jetzt.astimezone(ZoneInfo("Europe/Vienna"))
 
@@ -22,7 +22,15 @@ if not modus:
     raise SystemExit(0)
 rc, out = gh(f"repos/{REPO}/contents/gepostet.json?ref=bilder")
 gepostet = json.loads(base64.b64decode(json.loads(out)["content"])) if rc == 0 else {}
-if gepostet.get(f"{modus}|{w:%Y-%m-%d}"):
+if modus == "abend2":
+    modus = "abend"
+offen = not gepostet.get(f"{modus}|{w:%Y-%m-%d}")
+if modus == "wal" and not offen and not gepostet.get(f"abend|{w:%Y-%m-%d}"):
+    modus, offen = "abend", True
+if modus == "morgen" and not offen:            # Morgenpost da — fehlt noch die Wal-Auflösung von gestern?
+    gestern = (w - timedelta(days=1)).strftime("%Y-%m-%d")
+    offen = bool((gepostet.get(f"wal|{gestern}") or {}).get("wal")) and not gepostet.get(f"walAufl|{gestern}")
+if not offen:
     raise SystemExit(0)
 rc, out = gh(f"repos/{REPO}/actions/workflows/instagram.yml/runs?per_page=3")
 for r in (json.loads(out).get("workflow_runs") or []) if rc == 0 else []:

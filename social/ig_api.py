@@ -42,8 +42,9 @@ def host_finden(uid):
     return None, None
 
 
-def posten(host, uid, bild_url, text):
-    st, d = _req("POST", host, f"{uid}/media", {"image_url": bild_url, "caption": text})
+def posten(host, uid, bild_url, text, story=False):
+    params = {"image_url": bild_url, "media_type": "STORIES"} if story else {"image_url": bild_url, "caption": text}
+    st, d = _req("POST", host, f"{uid}/media", params)
     if st != 200 or not d.get("id"):
         raise SystemExit(f"Container fehlgeschlagen: HTTP {st} {json.dumps(d)[:300]}")
     cid = d["id"]

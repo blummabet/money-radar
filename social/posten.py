@@ -59,6 +59,17 @@ def statistik():
     return hol(f"{SEITE}statistik.json?t={int(time.time())}")
 
 
+def daten():
+    """Die ganze Seiten-Datei (d/<stand>.json) über den Zeiger."""
+    zufall = "".join(random.choices(string.ascii_lowercase, k=10))
+    try:
+        z = hol(f"{SEITE}z/{zufall}", text=True)
+    except urllib.error.HTTPError as e:
+        z = e.read().decode("utf-8", "ignore")
+    m = re.search(r'data-stand="(d/\d+)\.json"', z)
+    return hol(f"{SEITE}{m.group(1)}.json") if m else hol(f"{SEITE}data.json?t={int(time.time())}")
+
+
 def bilder_zweig():
     ARBEIT.mkdir(parents=True, exist_ok=True)
     r = subprocess.run(["git", "fetch", "-q", "--depth=1", "origin", "bilder"], capture_output=True)
@@ -133,25 +144,15 @@ def abend():
     return html, text
 
 
-def main(modus):
-    gepostet = bilder_zweig()
-    schluessel = f"{modus}|{W:%Y-%m-%d}"
-    if gepostet.get(schluessel) and not os.environ.get("ERZWINGEN"):
-        print("heute schon gepostet:", gepostet[schluessel])
-        return 0
-    r = morgen() if modus == "morgen" else abend()
-    if not r:
-        print("nichts zu posten")
-        return 0
-    html, text = r
-    datei = f"{modus}-{W:%Y%m%d-%H%M}.jpg"
-    grafik.rendern(html, ARBEIT / datei)
+def _veroeffentlichen(gepostet, schluessel, html, text, story=False):
+    datei = f"{schluessel.split('|')[0]}-{W:%Y%m%d-%H%M}.jpg"
+    grafik.rendern(html, ARBEIT / datei, 1920 if story else 1350)
     print(text)
     if os.environ.get("TROCKEN"):
         gepostet[f"trocken|{datei}"] = W.isoformat()
         bilder_sichern(gepostet)
         print("TROCKEN — Bild:", RAW.format(repo=REPO, datei=datei))
-        return 0
+        return
     bilder_sichern(gepostet)
     url = RAW.format(repo=REPO, datei=datei)
     for _ in range(10):                        # bis raw.githubusercontent.com das Bild ausliefert
@@ -162,9 +163,65 @@ def main(modus):
             time.sleep(6)
     import ig_api
     host, _konto = ig_api.host_finden(os.environ["IG_USER_ID"])
-    mid = ig_api.posten(host, os.environ["IG_USER_ID"], url, text)
+    mid = ig_api.posten(host, os.environ["IG_USER_ID"], url, text, story=story)
     gepostet[schluessel] = {"zeit": W.isoformat(), "id": mid, "bild": datei}
     bilder_sichern(gepostet)
+
+
+def wal_abend(gepostet):
+    import wal
+    w = wal.auswahl(daten(), JETZT)
+    if not w:
+        print("kein Wal heute (ab $10k, Fußball, Anpfiff in 5 h, Betfair-Spiel)")
+        gepostet[f"wal|{W:%Y-%m-%d}"] = {"zeit": W.isoformat(), "keiner": True}
+        if not os.environ.get("TROCKEN"):
+            bilder_sichern(gepostet)
+        return
+    print("Wal:", json.dumps(w, ensure_ascii=False))
+    _veroeffentlichen(gepostet, f"wal|{W:%Y-%m-%d}", grafik.wal_story(w), f"Wal des Tages: ${w['usd']:,} auf {w['seite']} ({w['spiel']}) · Wallet {w['wallet']}", story=True)
+    if gepostet.get(f"wal|{W:%Y-%m-%d}"):
+        gepostet[f"wal|{W:%Y-%m-%d}"]["wal"] = w
+        bilder_sichern(gepostet)
+
+
+def wal_aufloesung(gepostet):
+    import wal
+    gestern = (W - timedelta(days=1)).strftime("%Y-%m-%d")
+    alt = (gepostet.get(f"wal|{gestern}") or {}).get("wal")
+    if not alt or gepostet.get(f"walAufl|{gestern}"):
+        return
+    er = wal.ergebnis(daten(), alt)
+    if not er:
+        print("Wal von gestern: noch kein Endstand")
+        return
+    ergebnis, endstand = er
+    _veroeffentlichen(gepostet, f"walAufl|{gestern}", grafik.wal_story({**alt, "endstand": endstand}, ergebnis),
+                      f"Auflösung Wal: {ergebnis} ({endstand})", story=True)
+
+
+def main(modus):
+    gepostet = bilder_zweig()
+    if modus == "wal":
+        if gepostet.get(f"wal|{W:%Y-%m-%d}") and not os.environ.get("ERZWINGEN"):
+            print("Wal heute schon erledigt")
+            return 0
+        wal_abend(gepostet)
+        return 0
+    schluessel = f"{modus}|{W:%Y-%m-%d}"
+    if not (gepostet.get(schluessel) and not os.environ.get("ERZWINGEN")):
+        r = morgen() if modus == "morgen" else abend()
+        if r:
+            _veroeffentlichen(gepostet, schluessel, *r)
+        else:
+            print("nichts zu posten")
+    else:
+        print("heute schon gepostet:", gepostet[schluessel])
+    if modus == "morgen":
+        try:
+            wal_aufloesung(gepostet)
+        except Exception as ex:  # noqa: BLE001 — die Story darf den Morgenpost nicht reißen
+            print("Wal-Auflösung fehlgeschlagen:", ex)
+            raise
     return 0
 
 

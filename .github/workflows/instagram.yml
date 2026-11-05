@@ -3,15 +3,17 @@ name: Instagram
 # 04.11.2026 (Lucas): zwei Posts am Tag auf @cocobet89.
 #   morgen ~9:25 Wien  „Gestern im Kanal"  (Bilanz der Public-Signale des Vortags)
 #   abend  ~17:10 Wien „Wo das Geld liegt" (Top 3 Geld über der Quote, aus site/ig_top3.json)
+#   wal    ~18:15 Wien Story „Wal des Tages" (größte Polymarket-Position auf ein Abendspiel); Auflösung im Morgenlauf
 # Zeiten in UTC (Winterzeit +1 h). Je Art höchstens ein Post am Tag (bilder/gepostet.json).
 on:
   schedule:
     - cron: '23 8 * * *'
     - cron: '9 16 * * *'
+    - cron: '13 17 * * *'
   workflow_dispatch:
     inputs:
       modus:
-        description: 'morgen oder abend'
+        description: 'morgen, abend oder wal (Story)'
         default: 'morgen'
       trocken:
         description: 'nur Bild bauen, nicht posten'
@@ -52,7 +54,14 @@ jobs:
           ERZWINGEN: ${{ inputs.erzwingen && '1' || '' }}
         run: |
           M="${{ inputs.modus }}"
-          if [ -z "$M" ]; then H=$(date -u +%H); [ "$H" -lt 12 ] && M=morgen || M=abend; fi
+          if [ -z "$M" ]; then
+            case "${{ github.event.schedule }}" in
+              '13 17 * * *') M=wal ;;
+              '23 8 * * *') M=morgen ;;
+              '9 16 * * *') M=abend ;;
+              *) H=$(date -u +%H); [ "$H" -lt 12 ] && M=morgen || M=abend ;;
+            esac
+          fi
           set -o pipefail
           python social/posten.py "$M" 2>&1 | tee ig.log
       - name: Fehler als Issue (ohne Token)
