@@ -254,6 +254,12 @@ jobs:
       # jeder Lauf wartet, bis 5 Minuten seit seinem Start um sind, und stößt dann den nächsten an.
       # Der Zeitplan oben bleibt als Notanker, falls die Kette einmal reißt. Läuft schon ein anderer
       # Lauf oder wartet einer, wird nichts angestoßen — so entsteht nie eine zweite Kette.
+      - name: Instagram nachholen, falls der Zeitplan verschluckt wurde
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 social/nachhilfe.py
       - name: Nächsten Lauf anstoßen
         if: always() && github.event_name != 'push' && !inputs.push_test
         env:
