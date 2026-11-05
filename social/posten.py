@@ -182,21 +182,30 @@ def wal_abend(gepostet):
     if gepostet.get(f"wal|{W:%Y-%m-%d}"):
         gepostet[f"wal|{W:%Y-%m-%d}"]["wal"] = w
         bilder_sichern(gepostet)
+    pr = wal.profi(daten(), JETZT, w)
+    if pr and not gepostet.get(f"profi|{W:%Y-%m-%d}"):
+        pr["profi"] = True
+        print("Profi:", json.dumps(pr, ensure_ascii=False))
+        _veroeffentlichen(gepostet, f"profi|{W:%Y-%m-%d}", grafik.wal_story(pr), f"Profi des Abends: ${pr['usd']:,} auf {pr['seite']}", story=True)
+        if gepostet.get(f"profi|{W:%Y-%m-%d}"):
+            gepostet[f"profi|{W:%Y-%m-%d}"]["wal"] = pr
+            bilder_sichern(gepostet)
 
 
 def wal_aufloesung(gepostet):
     import wal
     gestern = (W - timedelta(days=1)).strftime("%Y-%m-%d")
-    alt = (gepostet.get(f"wal|{gestern}") or {}).get("wal")
-    if not alt or gepostet.get(f"walAufl|{gestern}"):
-        return
-    er = wal.ergebnis(daten(), alt)
-    if not er:
-        print("Wal von gestern: noch kein Endstand")
-        return
-    ergebnis, endstand = er
-    _veroeffentlichen(gepostet, f"walAufl|{gestern}", grafik.wal_story({**alt, "endstand": endstand}, ergebnis),
-                      f"Auflösung Wal: {ergebnis} ({endstand})", story=True)
+    for art in ("wal", "profi"):
+        alt = (gepostet.get(f"{art}|{gestern}") or {}).get("wal")
+        if not alt or gepostet.get(f"{art}Aufl|{gestern}"):
+            continue
+        er = wal.ergebnis(daten(), alt)
+        if not er:
+            print(f"{art} von gestern: noch kein Endstand")
+            continue
+        ergebnis, endstand = er
+        _veroeffentlichen(gepostet, f"{art}Aufl|{gestern}", grafik.wal_story({**alt, "endstand": endstand}, ergebnis),
+                          f"Auflösung {art}: {ergebnis} ({endstand})", story=True)
 
 
 def main(modus):

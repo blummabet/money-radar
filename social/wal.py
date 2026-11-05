@@ -36,7 +36,72 @@ def _seite(name, teams):
     return None
 
 
+def _bewiesen(d, jetzt, toepfe, maerkte):
+    """Lucas 05.11. 19:45: ein Ranglisten-Wallet (poly.setzen — nachweislich gut bei Fußball) mit ≥ $10k geht vor."""
+    beste = None
+    for o in (d.get("poly") or {}).get("setzen") or []:
+        if (o.get("sport") or "Fußball") != "Fußball" or float(o.get("usd") or 0) < MIN_USD:
+            continue
+        ko = _ts(o.get("anpfiff"))
+        m = maerkte.get(o.get("markt"))
+        g = toepfe.get(o.get("markt"))
+        if not ko or not m or not g or not (jetzt < ko <= jetzt + timedelta(hours=FENSTER_H)):
+            continue
+        if beste is None or float(o["usd"]) > beste[0]:
+            beste = (float(o["usd"]), o, m, g)
+    return beste
+
+
+def _bauen(usd, seite_name, wallet, m, g, rang=None):
+    preise = m.get("preise") or {}
+    teams = [n for n in preise if not str(n).lower().startswith("draw")]
+    k = _seite(seite_name, teams)
+    p = preise.get(seite_name)
+    if not k or not p or p <= 0.03 or max(preise.values()) > MAX_PREIS:
+        return None
+    name = {"heim": g["heim"], "gast": g["gast"], "remis": "Remis"}[k]
+    pr = {(g["heim"] if _seite(n, teams) == "heim" else g["gast"] if _seite(n, teams) == "gast" else "Remis"): v
+          for n, v in preise.items()}
+    return {"usd": round(usd), "seite": name, "k": k, "spiel": f"{g['heim']} – {g['gast']}",
+            "liga": re.sub(r"^UEFA |^English Sky Bet ", "", str(g.get("liga") or "")), "anpfiff": m.get("anpfiff"),
+            "preis": p, "preise": pr, "wallet": wallet, "bfId": str(g["id"]), "polyKey": m.get("key"),
+            "bewiesen": rang is not None, "rang": rang}
+
+
+def _toepfe(d):
+    t = {}
+    for g in d.get("toepfe") or []:
+        k = ((g.get("q") or {}).get("poly") or {}).get("key")
+        if k and not str(g.get("id", "")).startswith(("pm:", "st:")):
+            t[k] = g
+    return t
+
+
 def auswahl(d, jetzt):
+    """Hauptstory = immer der größte Einsatz (Lucas 05.11. 19:46: „sonst siehst du die Riesen-Einsätze nicht mehr").
+    Ist das Wallet auf unserer Rangliste, bekommt die Story den ⭐-Hinweis."""
+    w = _groesster(d, jetzt)
+    if w:
+        rang = {x.get("wallet"): i + 1 for i, x in enumerate((d.get("poly") or {}).get("wallets") or []) if x.get("bewiesen")}
+        if w["wallet"] in rang:
+            w.update(bewiesen=True, rang=rang[w["wallet"]])
+    return w
+
+
+def profi(d, jetzt, haupt=None):
+    """Zweite Story „Profi des Abends": größter Einsatz (≥ $10k) eines Ranglisten-Wallets — nur wenn es nicht
+    ohnehin die Hauptstory ist (Lucas 05.11. 19:45/19:46)."""
+    maerkte = {m.get("key"): m for m in (d.get("poly") or {}).get("maerkte") or []}
+    b = _bewiesen(d, jetzt, _toepfe(d), maerkte)
+    if not b:
+        return None
+    w = _bauen(b[0], b[1].get("seite"), b[1].get("wallet"), b[2], b[3], b[1].get("rang"))
+    if not w or (haupt and haupt.get("wallet") == w["wallet"] and haupt.get("polyKey") == w["polyKey"]):
+        return None
+    return w
+
+
+def _groesster(d, jetzt):
     toepfe = {}
     for g in d.get("toepfe") or []:
         k = ((g.get("q") or {}).get("poly") or {}).get("key")

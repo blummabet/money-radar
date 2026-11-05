@@ -243,6 +243,7 @@ html,body{width:1080px;height:1920px;background:var(--bg)}
 .g{color:var(--gewinn)}.v{color:var(--verlust)}
 .balken{flex-shrink:0;display:flex;height:84px;border-radius:18px;overflow:hidden;margin-top:24px;font-family:'Barlow Condensed';font-weight:700;font-size:33px}
 .balken div{display:flex;align-items:center;padding:0 16px;white-space:nowrap;overflow:hidden}
+.bew{margin-top:30px;background:var(--tinte);color:#fff;border-radius:20px;padding:22px 30px;font-size:34px;font-weight:600;line-height:1.3}
 .bk{font-size:28px;color:var(--grau);margin-top:16px;font-weight:500}
 .cliff{margin-top:auto;margin-bottom:46px;text-align:center}
 .cliff .f{font-family:'Barlow Condensed';font-weight:800;font-size:96px;line-height:1}
@@ -257,6 +258,13 @@ def _usd(v):
     return "$" + f"{round(float(v)):,}".replace(",", ".")
 
 
+def _bew_zeile(w):
+    if not w.get("bewiesen"):
+        return ""
+    platz = f" (Platz {w['rang']})" if w.get("rang") else ""
+    return f"<div class='bew'>⭐ Gehört zu den besten Fußball-Wallets auf Polymarket{platz}</div>"
+
+
 def wal_story(w: dict, ergebnis: str | None = None) -> str:
     """Story 1080×1920, hell. w: {usd, seite, spiel, liga, anpfiff (ISO), preis (0..1), preise {name: p}, wallet, endstand}
     ergebnis None = Abend (offen), "gewonnen"/"verloren" = Auflösung am Morgen. Wenig Text, große Zahlen (Lucas 05.11.)."""
@@ -269,7 +277,7 @@ def wal_story(w: dict, ergebnis: str | None = None) -> str:
                      f"color:{'var(--tinte)' if n == w['seite'] else '#fff'}'>{e(n.split(' (')[0]) if p / su > .2 else ''} {round(100 * p)} %</div>"
                      for i, (n, p) in enumerate(pr))
     if ergebnis is None:
-        oben = (f"<div class='marke'><span>🐋 Wal des Tages</span></div><div class='betrag'>{_usd(w['usd'])}</div>"
+        oben = (f"<div class='marke'><span>{'⭐ Profi des Abends' if w.get('profi') else '🐋 Wal des Tages'}</span></div><div class='betrag'>{_usd(w['usd'])}</div>"
                 f"<div class='auf'>auf {e(w['seite'])}</div>")
         mitte = (f"<div class='zwei'><div><div class='k'>Geht's auf</div><div class='w g'>+{_usd(plus)}</div></div>"
                  f"<div><div class='k'>Geht's schief</div><div class='w v'>−{_usd(w['usd'])}</div></div></div>")
@@ -286,6 +294,7 @@ def wal_story(w: dict, ergebnis: str | None = None) -> str:
     body = (f"<div class='st'>{_kopf('CocoBet', f'{TAGE[ko.weekday()]}, {ko.day}. {MONATE[ko.month - 1]}')}{oben}"
             f"<div class='spiel'>{e(w['spiel'])} · {ko:%H:%M}<br>{e(w.get('liga') or '')}</div>{mitte}"
             f"<div class='balken'>{balken}</div><div class='bk'>{bk}</div>"
+            + _bew_zeile(w) +
             f"{cliff}<div class='ende'><div class='l'>t.me/<b>c0c0bet</b></div><div class='r'>Echtes Geld, echte Wetten<br>18+ · keine Wettempfehlung</div></div></div>")
     return _html(body, STORY_CSS)
 

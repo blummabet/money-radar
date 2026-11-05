@@ -29,7 +29,7 @@ if modus == "wal" and not offen and not gepostet.get(f"abend|{w:%Y-%m-%d}"):
     modus, offen = "abend", True
 if modus == "morgen" and not offen:            # Morgenpost da — fehlt noch die Wal-Auflösung von gestern?
     gestern = (w - timedelta(days=1)).strftime("%Y-%m-%d")
-    offen = bool((gepostet.get(f"wal|{gestern}") or {}).get("wal")) and not gepostet.get(f"walAufl|{gestern}")
+    offen = any((gepostet.get(f"{a}|{gestern}") or {}).get("wal") and not gepostet.get(f"{a}Aufl|{gestern}") for a in ("wal", "profi"))
 if not offen:
     raise SystemExit(0)
 rc, out = gh(f"repos/{REPO}/actions/workflows/instagram.yml/runs?per_page=3")
