@@ -228,31 +228,28 @@ def geld_drei(spiele: list[dict], titel_unter: str = "heute Abend") -> str:
 
 
 STORY_CSS = """
-html,body{width:1080px;height:1920px;background:#0B0B0B;color:#fff}
-.st{position:relative;width:1080px;height:1920px;padding:220px 72px 190px;display:flex;flex-direction:column}
-.kopf .t{color:#fff;font-size:52px}.kopf .u{color:#9AA1AA}
-.marke{margin-top:56px;font-family:'Barlow Condensed';font-weight:700;font-size:34px;color:var(--gelb);letter-spacing:.5px}
-.betrag{font-family:'Barlow Condensed';font-weight:800;font-size:210px;line-height:.9;margin-top:8px;letter-spacing:-2px}
-.auf{font-size:54px;font-weight:700;margin-top:18px;line-height:1.15}
-.auf span{color:var(--gelb)}
-.spiel{font-size:32px;color:#C9CED4;margin-top:22px;line-height:1.4}
-.wette{margin-top:40px;background:#17191C;border-radius:28px;padding:40px 44px}
-.zeile{display:flex;justify-content:space-between;align-items:baseline;font-size:31px;color:#C9CED4;padding:14px 0}
-.zeile b{font-family:'Barlow Condensed';font-weight:700;font-size:54px;color:#fff}
-.zeile b.g{color:#3DDC84}.zeile b.v{color:#FF6B5B}
-.trenn{height:1px;background:#2A2D31;margin:6px 0}
-.markt{margin-top:36px}
-.markt .k{font-size:26px;color:#9AA1AA;margin-bottom:16px}
-.balken{display:flex;height:64px;border-radius:14px;overflow:hidden;font-family:'Barlow Condensed';font-weight:700;font-size:30px}
-.balken div{display:flex;align-items:center;padding:0 18px;white-space:nowrap;overflow:hidden}
-.wer{margin-top:30px;font-size:28px;color:#9AA1AA;line-height:1.5}
-.wer b{color:#fff;font-weight:600}
-.cliff{margin-top:auto;margin-bottom:30px;text-align:center}
-.cliff .f{font-family:'Barlow Condensed';font-weight:800;font-size:76px;line-height:1}
-.cliff .h{font-size:30px;color:#9AA1AA;margin-top:16px}
-.ende{height:130px;margin:0 -72px;display:flex;align-items:center;justify-content:space-between;padding:0 72px;border-top:1px solid #2A2D31}
-.ende .l{font-family:'Barlow Condensed';font-weight:700;font-size:44px}.ende .l b{color:var(--gelb)}
-.ende .r{font-size:22px;color:#9AA1AA;text-align:right;line-height:1.45}
+html,body{width:1080px;height:1920px;background:var(--bg)}
+.st{position:relative;width:1080px;height:1920px;padding:230px 72px 0;display:flex;flex-direction:column}
+.kopf .t{font-size:52px}
+.marke{margin-top:70px;font-family:'Barlow Condensed';font-weight:700;font-size:44px;letter-spacing:.5px}
+.marke span{background:var(--gelb);padding:4px 16px;border-radius:10px}
+.betrag{font-family:'Barlow Condensed';font-weight:800;font-size:230px;line-height:.9;margin-top:22px;letter-spacing:-2px}
+.auf{font-size:62px;font-weight:700;margin-top:14px;line-height:1.1}
+.spiel{font-size:38px;color:var(--grau);margin-top:22px;line-height:1.35;font-weight:500}
+.zwei{display:flex;gap:24px;margin-top:50px;flex-shrink:0}
+.zwei>div{flex:1;background:var(--karte);border-radius:28px;padding:30px 34px}
+.zwei .k{font-size:32px;color:var(--grau);font-weight:600}
+.zwei .w{font-family:'Barlow Condensed';font-weight:800;font-size:84px;line-height:1;margin-top:10px}
+.g{color:var(--gewinn)}.v{color:var(--verlust)}
+.balken{flex-shrink:0;display:flex;height:84px;border-radius:18px;overflow:hidden;margin-top:24px;font-family:'Barlow Condensed';font-weight:700;font-size:33px}
+.balken div{display:flex;align-items:center;padding:0 16px;white-space:nowrap;overflow:hidden}
+.bk{font-size:28px;color:var(--grau);margin-top:16px;font-weight:500}
+.cliff{margin-top:auto;margin-bottom:46px;text-align:center}
+.cliff .f{font-family:'Barlow Condensed';font-weight:800;font-size:96px;line-height:1}
+.cliff .h{font-size:36px;color:var(--grau);margin-top:14px;font-weight:500}
+.ende{height:150px;margin:0 -72px 200px;padding:0 72px;background:var(--tinte);color:#fff;display:flex;align-items:center;justify-content:space-between}
+.ende .l{font-family:'Barlow Condensed';font-weight:700;font-size:50px}.ende .l b{color:var(--gelb)}
+.ende .r{font-size:24px;color:#B9BEC5;text-align:right;line-height:1.45}
 """
 
 
@@ -261,36 +258,34 @@ def _usd(v):
 
 
 def wal_story(w: dict, ergebnis: str | None = None) -> str:
-    """Story 1080×1920. w: {usd, seite, spiel, liga, anpfiff (ISO), preis (0..1), preise {name: p}, wallet, bilanz (Text|None)}
-    ergebnis None = Abend (offen), "gewonnen"/"verloren" = Auflösung am Morgen."""
+    """Story 1080×1920, hell. w: {usd, seite, spiel, liga, anpfiff (ISO), preis (0..1), preise {name: p}, wallet, endstand}
+    ergebnis None = Abend (offen), "gewonnen"/"verloren" = Auflösung am Morgen. Wenig Text, große Zahlen (Lucas 05.11.)."""
     ko = datetime.fromisoformat(w["anpfiff"].replace("Z", "+00:00")).astimezone(WIEN)
-    zurueck = w["usd"] / w["preis"]
-    farben = ["var(--gelb)", "#5E6672", "#3A3F45"]
-    pr = sorted(w["preise"].items(), key=lambda x: -x[1])
+    plus = w["usd"] / w["preis"] - w["usd"]
+    pr = sorted(w["preise"].items(), key=lambda x: (x[0] != w["seite"], -x[1]))
     su = sum(p for _, p in pr) or 1
-    balken = "".join(f"<div style='width:{100 * p / su:.1f}%;background:{farben[i] if n != w['seite'] else 'var(--gelb)'};"
-                     f"color:{'#0B0B0B' if n == w['seite'] else '#fff'}'>{e(n.split(' (')[0])} {round(100 * p)} %</div>"
-                     for i, (n, p) in enumerate(sorted(pr, key=lambda x: x[0] != w["seite"])))
+    grau = ["#5E6672", "#8A929C"]
+    balken = "".join(f"<div style='width:{100 * p / su:.1f}%;background:{'var(--gelb)' if n == w['seite'] else grau[(i - 1) % 2]};"
+                     f"color:{'var(--tinte)' if n == w['seite'] else '#fff'}'>{e(n.split(' (')[0]) if p / su > .2 else ''} {round(100 * p)} %</div>"
+                     for i, (n, p) in enumerate(pr))
     if ergebnis is None:
-        oben = (f"<div class='marke'>🐋 WAL DES TAGES</div><div class='betrag'>{_usd(w['usd'])}</div>"
-                f"<div class='auf'>auf <span>{e(w['seite'])}</span></div>")
-        wette = (f"<div class='zeile'>Eingestiegen bei<b>{round(100 * w['preis'])} % · Quote {q2(1 / w['preis'])}</b></div><div class='trenn'></div>"
-                 f"<div class='zeile'>Gewinnt {e(w['seite'])}<b class='g'>+{_usd(zurueck - w['usd'])}</b></div>"
-                 f"<div class='zeile'>Sonst<b class='v'>−{_usd(w['usd'])}</b></div>")
-        cliff = "<div class='cliff'><div class='f'>Geht das auf?</div><div class='h'>Auflösung morgen früh in der Story</div></div>"
+        oben = (f"<div class='marke'><span>🐋 Wal des Tages</span></div><div class='betrag'>{_usd(w['usd'])}</div>"
+                f"<div class='auf'>auf {e(w['seite'])}</div>")
+        mitte = (f"<div class='zwei'><div><div class='k'>Geht's auf</div><div class='w g'>+{_usd(plus)}</div></div>"
+                 f"<div><div class='k'>Geht's schief</div><div class='w v'>−{_usd(w['usd'])}</div></div></div>")
+        cliff = "<div class='cliff'><div class='f'>Geht das auf?</div><div class='h'>Auflösung morgen früh</div></div>"
+        bk = "So sieht Polymarket das Spiel"
     else:
         gew = ergebnis == "gewonnen"
-        oben = (f"<div class='marke'>🐋 AUFLÖSUNG · WAL VON GESTERN</div>"
-                f"<div class='betrag' style='color:{'#3DDC84' if gew else '#FF6B5B'}'>{'+' if gew else '−'}{_usd(zurueck - w['usd'] if gew else w['usd'])}</div>"
-                f"<div class='auf'>{_usd(w['usd'])} auf <span>{e(w['seite'])}</span> – {'gewonnen' if gew else 'verloren'}</div>")
-        wette = (f"<div class='zeile'>Endstand<b>{e(w.get('endstand') or '')}</b></div>")
-        cliff = "<div class='cliff'><div class='f'>Heute Abend: der nächste Wal</div><div class='h'>Alle Geldflüsse live im Telegram-Kanal</div></div>"
+        oben = (f"<div class='marke'><span>🐋 Auflösung</span></div>"
+                f"<div class='betrag {'g' if gew else 'v'}'>{'+' if gew else '−'}{_usd(plus if gew else w['usd'])}</div>"
+                f"<div class='auf'>{'Gewonnen' if gew else 'Verloren'}: {_usd(w['usd'])} auf {e(w['seite'])}</div>")
+        mitte = (f"<div class='zwei'><div><div class='k'>Endstand</div><div class='w'>{e(w.get('endstand') or '–')}</div></div></div>")
+        cliff = "<div class='cliff'><div class='f' style='font-size:84px'>Heute Abend: der nächste Wal</div></div>"
+        bk = "So sah Polymarket das Spiel vor Anpfiff"
     body = (f"<div class='st'>{_kopf('CocoBet', f'{TAGE[ko.weekday()]}, {ko.day}. {MONATE[ko.month - 1]}')}{oben}"
-            f"<div class='spiel'>{e(w['spiel'])}<br>{e(w.get('liga') or '')} · {'heute' if ergebnis is None else ''} {ko:%H:%M} Uhr</div>"
-            f"<div class='wette'>{wette}</div>"
-            f"<div class='markt'><div class='k'>{'So sieht Polymarket das Spiel gerade' if ergebnis is None else 'So sah Polymarket das Spiel vor Anpfiff'}</div><div class='balken'>{balken}</div></div>"
-            f"<div class='wer'>Wer? Wallet <b>{e(w['wallet'][:6])}…{e(w['wallet'][-4:])}</b> – öffentlich einsehbar auf Polymarket."
-            f"{('<br>' + e(w['bilanz'])) if w.get('bilanz') else ''}</div>"
+            f"<div class='spiel'>{e(w['spiel'])} · {ko:%H:%M}<br>{e(w.get('liga') or '')}</div>{mitte}"
+            f"<div class='balken'>{balken}</div><div class='bk'>{bk}</div>"
             f"{cliff}<div class='ende'><div class='l'>t.me/<b>c0c0bet</b></div><div class='r'>Echtes Geld, echte Wetten<br>18+ · keine Wettempfehlung</div></div></div>")
     return _html(body, STORY_CSS)
 
