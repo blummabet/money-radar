@@ -227,11 +227,79 @@ def geld_drei(spiele: list[dict], titel_unter: str = "heute Abend") -> str:
     return _html(body, css)
 
 
-def rendern(html_text: str, ziel: Path):
+STORY_CSS = """
+html,body{width:1080px;height:1920px;background:#0B0B0B;color:#fff}
+.st{position:relative;width:1080px;height:1920px;padding:220px 72px 190px;display:flex;flex-direction:column}
+.kopf .t{color:#fff;font-size:52px}.kopf .u{color:#9AA1AA}
+.marke{margin-top:56px;font-family:'Barlow Condensed';font-weight:700;font-size:34px;color:var(--gelb);letter-spacing:.5px}
+.betrag{font-family:'Barlow Condensed';font-weight:800;font-size:210px;line-height:.9;margin-top:8px;letter-spacing:-2px}
+.auf{font-size:54px;font-weight:700;margin-top:18px;line-height:1.15}
+.auf span{color:var(--gelb)}
+.spiel{font-size:32px;color:#C9CED4;margin-top:22px;line-height:1.4}
+.wette{margin-top:40px;background:#17191C;border-radius:28px;padding:40px 44px}
+.zeile{display:flex;justify-content:space-between;align-items:baseline;font-size:31px;color:#C9CED4;padding:14px 0}
+.zeile b{font-family:'Barlow Condensed';font-weight:700;font-size:54px;color:#fff}
+.zeile b.g{color:#3DDC84}.zeile b.v{color:#FF6B5B}
+.trenn{height:1px;background:#2A2D31;margin:6px 0}
+.markt{margin-top:36px}
+.markt .k{font-size:26px;color:#9AA1AA;margin-bottom:16px}
+.balken{display:flex;height:64px;border-radius:14px;overflow:hidden;font-family:'Barlow Condensed';font-weight:700;font-size:30px}
+.balken div{display:flex;align-items:center;padding:0 18px;white-space:nowrap;overflow:hidden}
+.wer{margin-top:30px;font-size:28px;color:#9AA1AA;line-height:1.5}
+.wer b{color:#fff;font-weight:600}
+.cliff{margin-top:auto;margin-bottom:30px;text-align:center}
+.cliff .f{font-family:'Barlow Condensed';font-weight:800;font-size:76px;line-height:1}
+.cliff .h{font-size:30px;color:#9AA1AA;margin-top:16px}
+.ende{height:130px;margin:0 -72px;display:flex;align-items:center;justify-content:space-between;padding:0 72px;border-top:1px solid #2A2D31}
+.ende .l{font-family:'Barlow Condensed';font-weight:700;font-size:44px}.ende .l b{color:var(--gelb)}
+.ende .r{font-size:22px;color:#9AA1AA;text-align:right;line-height:1.45}
+"""
+
+
+def _usd(v):
+    return "$" + f"{round(float(v)):,}".replace(",", ".")
+
+
+def wal_story(w: dict, ergebnis: str | None = None) -> str:
+    """Story 1080×1920. w: {usd, seite, spiel, liga, anpfiff (ISO), preis (0..1), preise {name: p}, wallet, bilanz (Text|None)}
+    ergebnis None = Abend (offen), "gewonnen"/"verloren" = Auflösung am Morgen."""
+    ko = datetime.fromisoformat(w["anpfiff"].replace("Z", "+00:00")).astimezone(WIEN)
+    zurueck = w["usd"] / w["preis"]
+    farben = ["var(--gelb)", "#5E6672", "#3A3F45"]
+    pr = sorted(w["preise"].items(), key=lambda x: -x[1])
+    su = sum(p for _, p in pr) or 1
+    balken = "".join(f"<div style='width:{100 * p / su:.1f}%;background:{farben[i] if n != w['seite'] else 'var(--gelb)'};"
+                     f"color:{'#0B0B0B' if n == w['seite'] else '#fff'}'>{e(n.split(' (')[0])} {round(100 * p)} %</div>"
+                     for i, (n, p) in enumerate(sorted(pr, key=lambda x: x[0] != w["seite"])))
+    if ergebnis is None:
+        oben = (f"<div class='marke'>🐋 WAL DES TAGES</div><div class='betrag'>{_usd(w['usd'])}</div>"
+                f"<div class='auf'>auf <span>{e(w['seite'])}</span></div>")
+        wette = (f"<div class='zeile'>Eingestiegen bei<b>{round(100 * w['preis'])} % · Quote {q2(1 / w['preis'])}</b></div><div class='trenn'></div>"
+                 f"<div class='zeile'>Gewinnt {e(w['seite'])}<b class='g'>+{_usd(zurueck - w['usd'])}</b></div>"
+                 f"<div class='zeile'>Sonst<b class='v'>−{_usd(w['usd'])}</b></div>")
+        cliff = "<div class='cliff'><div class='f'>Geht das auf?</div><div class='h'>Auflösung morgen früh in der Story</div></div>"
+    else:
+        gew = ergebnis == "gewonnen"
+        oben = (f"<div class='marke'>🐋 AUFLÖSUNG · WAL VON GESTERN</div>"
+                f"<div class='betrag' style='color:{'#3DDC84' if gew else '#FF6B5B'}'>{'+' if gew else '−'}{_usd(zurueck - w['usd'] if gew else w['usd'])}</div>"
+                f"<div class='auf'>{_usd(w['usd'])} auf <span>{e(w['seite'])}</span> – {'gewonnen' if gew else 'verloren'}</div>")
+        wette = (f"<div class='zeile'>Endstand<b>{e(w.get('endstand') or '')}</b></div>")
+        cliff = "<div class='cliff'><div class='f'>Heute Abend: der nächste Wal</div><div class='h'>Alle Geldflüsse live im Telegram-Kanal</div></div>"
+    body = (f"<div class='st'>{_kopf('CocoBet', f'{TAGE[ko.weekday()]}, {ko.day}. {MONATE[ko.month - 1]}')}{oben}"
+            f"<div class='spiel'>{e(w['spiel'])}<br>{e(w.get('liga') or '')} · {'heute' if ergebnis is None else ''} {ko:%H:%M} Uhr</div>"
+            f"<div class='wette'>{wette}</div>"
+            f"<div class='markt'><div class='k'>{'So sieht Polymarket das Spiel gerade' if ergebnis is None else 'So sah Polymarket das Spiel vor Anpfiff'}</div><div class='balken'>{balken}</div></div>"
+            f"<div class='wer'>Wer? Wallet <b>{e(w['wallet'][:6])}…{e(w['wallet'][-4:])}</b> – öffentlich einsehbar auf Polymarket."
+            f"{('<br>' + e(w['bilanz'])) if w.get('bilanz') else ''}</div>"
+            f"{cliff}<div class='ende'><div class='l'>t.me/<b>c0c0bet</b></div><div class='r'>Echtes Geld, echte Wetten<br>18+ · keine Wettempfehlung</div></div></div>")
+    return _html(body, STORY_CSS)
+
+
+def rendern(html_text: str, ziel: Path, hoehe: int = 1350):
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         b = p.chromium.launch()
-        pg = b.new_page(viewport={"width": 1080, "height": 1350}, device_scale_factor=1)
+        pg = b.new_page(viewport={"width": 1080, "height": hoehe}, device_scale_factor=1)
         pg.set_content(html_text, wait_until="load")
         pg.wait_for_timeout(300)
         pg.screenshot(path=str(ziel), type="jpeg", quality=92, full_page=False)
