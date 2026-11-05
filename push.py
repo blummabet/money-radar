@@ -1008,7 +1008,11 @@ def serie(d):
         # Live steigt die Quote des Führenden/Favoriten mit der Zeit — aber nicht um ein Viertel in einer Dreiviertelstunde.
         # Steigt sie stärker, wurde das gematchte Geld eher von Lay-Seite in den Markt gedrückt (Volumen hat keine Richtung).
         lay_hinweis = ""
-        if x.get("live") and q and q0 and q > q0 * 1.15 and not x.get("tor"):
+        # 05.11. (Athletico-PR – Vasco 10' 0:0, 2,48 → 2,94, Endstand 1:3): nur Sieg-Märkte — bei Tor-Linien steigt die
+        # Über-Quote ohne Tor ganz normal mit der Uhr, das ist kein Lay-Zeichen.
+        sieg_markt = not re.search(r"Over/Under|Goals|Correct Score", str(x.get("markt") or ""))
+        lay_verdacht = bool(x.get("live") and sieg_markt and q and q0 and q > q0 * 1.15 and not x.get("tor"))
+        if lay_verdacht:
             lay_hinweis = (f"⚠️ <i>Quote stieg um {round(100 * (q / q0 - 1))} % ohne Tor — mehr als die Spielzeit erklärt. "
                            f"Gematchtes Geld kann auch Lay sein: der Markt glaubt eher weniger an diese Seite.</i>\n")
         lv = next((sp.get("live") for sp in (d.get("radar") or {}).get("spiele") or [] if sp.get("id") == x["id"]), None)
@@ -1031,10 +1035,12 @@ def serie(d):
                    markt=_markt_de(x["markt"]), anpfiff=x.get("anpfiff"), live=bool(x.get("live")), minute=mi_, stand=st_,
                    gruende=[f"{_pbalken(x.get('anteil'))} {x.get('anteil')} % des Geldes",
                             f"⏱ {x['n']}× in Folge · +{geld(x['eur'])} in {_dauer(x.get('dauerMin'))}"])
+        pub["layVerdacht"] = lay_verdacht           # Public-Regel 8
         _mit(pub, x.get("eur"), x.get("n"))
         yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
-                                "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"]}, pub
+                                "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"],
+                                "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht}, pub
     for x in d.get("polySerien") or []:
         # wie bei Betfair/Stake: Favoriten-Geld (Quote < 1,40 ≙ Preis > 71 ¢) wird nicht gepusht; ohne Preis auch nicht
         if not x.get("quote") or x["quote"] < SERIE_PUSH_MIN_QUOTE:

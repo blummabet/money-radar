@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R7"   # R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R8"   # R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -109,6 +109,11 @@ def passt(m) -> bool:
     # rausgenommen … bei hohen Einsätzen auf Unter ist viel gelayed"): Betfair-Geld auf Unter geht nicht in den Kanal.
     # Push in den Trades-Channel und Buch bleiben (gemessen wird weiter). Stake/Wal sind nicht betroffen (dort gibt es kein Lay).
     if art in ("serie", "zufluss", "fix", "live") and re.match(r"^\s*(under|unter)\b", str(m.get("auswahlRoh") or m.get("auswahl") or ""), re.I):
+        return False
+    # Regel 8 (Lucas 05.11. 06:08, Athletico-PR – Vasco 10' 0:0: €72k auf Athletico, Quote trotzdem 2,48 → 2,94, Endstand
+    # 1:3): Live-Dauerzufluss im Sieg-Markt, dessen Quote seit Serienbeginn ohne Tor um mehr als 15 % stieg, geht nicht in
+    # den Kanal — gematchtes Geld war dann eher Lay. Trades-Push (mit ⚠️) und Buch bleiben, gemessen wird weiter.
+    if art == "serie" and m.get("layVerdacht"):
         return False
     # Regel 5 (02.11. 21:35, Lucas „allgemein auf 1,5?"): Quote ab 1,50 für alle Arten außer Geld vor Anpfiff (Band 1,50–1,60:
     # 199 Tipps +8,0 %, besser als 1,60–1,80 mit +2,0 %; Geld vor Anpfiff dort −11,3 %), in allen Ligen gleich.
