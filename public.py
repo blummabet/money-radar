@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R8"   # R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R9"   # R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -193,15 +193,34 @@ def _termine_vorbei(f, jetzt):
     return sum(1 for t in TERMINE[f] if ab >= t)
 
 
-def auswahl(s, jetzt):
+LIVE_FRISCH_MIN = 10   # Regel 9
+
+
+def _ueberholt(c, jetzt, aktuell):
+    """Public-Regel 9 (Lucas 05.11. 20:05, Sparta Prag – Bournemouth: Signal zur Pause bei 1:0, im Kanal erst ~20 Min
+    später mit „45' · 1:0" — da stand es längst 1:1, Lucas hat es als void gewertet): ein Live-Kandidat geht nur raus,
+    solange seit dem Spielstand im Signal KEIN Tor fiel und das letzte Signal höchstens 10 Min alt ist."""
+    m = c.get("m") or {}
+    if not m.get("live"):
+        return False
+    letzt = _ts(c.get("letzt"))
+    if not letzt or (jetzt - letzt).total_seconds() > LIVE_FRISCH_MIN * 60:
+        return True
+    jetzt_stand = aktuell(m) if aktuell else None
+    alt = m.get("stand")
+    return bool(jetzt_stand and alt and list(jetzt_stand) != list(alt))
+
+
+def auswahl(s, jetzt, aktuell=None):
     """Was jetzt aus dem Topf in den Kanal geht: [(m, (nr, fenster), punkte, grund)]. Räumt Verfallenes ab
-    (mit seinen besten Punkten als „nicht gesendet" in der Liste — so lässt sich später messen, ob die Auswahl besser trifft)."""
+    (mit seinen besten Punkten als „nicht gesendet" in der Liste — so lässt sich später messen, ob die Auswahl besser trifft).
+    aktuell(m) → aktueller Spielstand [h, a] oder None (Regel 9)."""
     if jetzt < _ts(AB):
         return []
     t = s.setdefault("topf", {})
     bewertet = []
     for k, c in list(t.items()):
-        p = punkte(c, jetzt)
+        p = None if _ueberholt(c, jetzt, aktuell) else punkte(c, jetzt)
         if p is None or _norm((c.get("m") or {}).get("spiel")) in s.get("spiele", []):
             m = c.get("m") or {}
             if c.get("best") is not None and _norm(m.get("spiel")) not in s.get("spiele", []):

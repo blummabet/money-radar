@@ -1302,7 +1302,9 @@ def main() -> int:
         STAND.parent.mkdir(parents=True, exist_ok=True)
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
         try:                         # Public-Regel 4: zu den Terminen den besten Kandidaten aus dem Topf
-            for m_, pl_, pkt_, grund_ in public.auswahl(pub_stand, JETZT):
+            _jetzt_live = {public._norm(f"{x.get('heim')} – {x.get('gast')}"): (x.get("live") or {}).get("stand")
+                           for x in (d.get("radar") or {}).get("spiele") or [] if x.get("live")}
+            for m_, pl_, pkt_, grund_ in public.auswahl(pub_stand, JETZT, aktuell=lambda m: _jetzt_live.get(public._norm(m.get("spiel")))):
                 pt = public.text(m_, pl_, erkannt(), JETZT)
                 if senden(token, pub_chat, pt, link=False):
                     public.buchen(pub_stand, m_, pl_, JETZT, punkte=pkt_, grund=grund_)
