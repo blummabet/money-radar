@@ -2316,6 +2316,10 @@ def statistik(burst, finder):
             w_ = best[3]
             # 03.11. (Lucas: HellNight hat gewonnen, Stake hat die Wetten annulliert): Rendite 0 = void → bleibt 0, kein Verlust
             void = best[2] == 0 and w_ != 1
+            # 05.11. (Lucas: Sparta – Bournemouth kam mit „45' · 1:0", da stand es schon 1:1 — „muss in der Statistik richtig
+            # gewertet werden"): Public-Signale, die mit überholtem Spielstand rausgingen, zählen als void
+            if (t0.strftime("%Y-%m-%d"), nz(p.get("spiel"))[:12]) in PUBLIC_VOID:
+                void, w_ = True, None
             r_ = 0.0 if void else (round(q_p - 1, 3) if w_ == 1 else -1.0) if w_ is not None and q_p else None
             zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, r_, w_,
                            q_p, None, best[6], best[7], 1 if p.get("live") else 0, best[9], best[10], best[11] if len(best) > 11 else None])
@@ -2327,6 +2331,10 @@ def statistik(burst, finder):
     zeilen.sort(key=lambda z: z[0])
     (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return len(zeilen)
+
+# Public-Signale, die nachweislich mit überholtem Stand gesendet wurden (Datum UTC, Spiel normalisiert, 12 Zeichen) → void
+PUBLIC_VOID = {("2026-11-05", "spartaprague")}
+
 
 def verlauf(bf_buch, burst, finder, tr_led):
     """Jede gepushte Wette der letzten 60 Tage als [zeit, quelle, rendite, ergebnis] — Grundlage für die
