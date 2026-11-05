@@ -129,6 +129,11 @@ def rangliste(d, jetzt):
     auch = d.get("auchWoanders") or {}
     gruppen = (d.get("stake") or {}).get("gruppen") or []
     druck = {str(x.get("id")): x for x in (d.get("druck") or {}).get("spiele") or []}
+    # Lucas 05.11. 08:20 („wenn sich die Quote bei Pinnacle bewegt hat, war da Info — ich finde das als Signal gut, man sieht,
+    # dass Pinnacle es so sieht wie dort, wo das Geld hinfließt"): still mitschreiben, ob Pinnacle sich in dieselbe Richtung
+    # bewegt hat (vor Anpfiff seit dem ersten Abruf, live in den letzten 10–20 Min). Keine Punkte — erst messen (Regel 4).
+    pd_ = d.get("pinnDrops") or {}
+    pinn_mit = {(str(x.get("bfId")), x.get("ausgang")) for x in (pd_.get("vor") or []) + (pd_.get("live") or []) if x.get("bfId")}
     aus = []
     for s in (d.get("radar") or {}).get("spiele") or []:
         lv = s.get("live") or None
@@ -205,6 +210,7 @@ def rangliste(d, jetzt):
                     "anpfiff": s.get("anpfiff"), "live": bool(lv), "top5": bool(s.get("top5")), "normEur": s.get("normEur"), "ligaEur": s.get("ligaEur"), "markt": (fM or {}).get("name"),
                     "auswahl": fA.get("name"), "quote": q, "eur": s.get("eur"), "punkte": round(summe, 2),
                     "signale": sorted(p), "n": len(p), "familien": mm,
+                    "pinnMit": (str(s.get("id")), fk) in pinn_mit if fk in ("heim", "remis", "gast") and (fM or {}).get("name") == "Match Odds" else None,
                     # 30.10. (Volendam 37' 1:0, Geld auf den Führenden): Stand beim Einzug + Lage der Auswahl-Seite mitschreiben
                     "stand": stand if lv else None,
                     "lage": (None if not lv or fk not in ("heim", "gast") else
@@ -267,7 +273,7 @@ def eintragen(d, buch, jetzt):
             b["bestPunkte"] = max(b.get("bestPunkte") or 0, x["punkte"])
             continue
         b = {**x, "rang": rang, "bestRang": rang, "bestPunkte": x["punkte"], "ts": jetzt.isoformat(), "status": "offen",
-             "regel": 3}   # Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
+             "regel": 4}   # Regel 4 ab 05.11.: + „pinnMit" (still); Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
         buch.append(b)
         offen[k] = b
         neu += 1

@@ -359,6 +359,9 @@ def top3_messung(buch):
                                                    and "druck" not in (b.get("signale") or [])]),
                ("ohne mehrere Märkte (ab 25.10.)", [b for b in z if b.get("art") == "top3" and (b.get("regel") or 1) >= 2
                                                     and "maerkte" not in (b.get("signale") or [])]),
+               # Lucas 05.11.: bewegte sich Pinnacle mit dem Geld? Nur Sieg-Markt, ab Regel 4
+               ("🎯 Pinnacle bewegte sich mit (Sieg-Markt, ab 05.11.)", [b for b in z if b.get("pinnMit") is True]),
+               ("ohne Pinnacle-Bewegung (Sieg-Markt, ab 05.11.)", [b for b in z if b.get("pinnMit") is False]),
                *[(LIGA_NAME[n], [b for b in z if b.get("art") == "top3" and ligagroesse(b) == n]) for n in LIGA_STUFEN],
                # 30.10. (Volendam 37' 1:0): live Geld auf die Seite, die schon führt — trägt das, oder läuft es nur der Uhr nach?
                ("Live: Auswahl führt schon", [b for b in z if b.get("lage") == "vorn"]),
