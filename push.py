@@ -48,6 +48,7 @@ ZUFLUSS_PAUSE_H = 6          # dasselbe Spiel + dieselbe Seite höchstens alle 6
 FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als verpasst und werden nicht nachgeschickt
 WAL_MIN_USD = 1000
 WAL_MIN_USD_TOP5 = 3000      # in den Top-5 sind $1000 Alltag
+WAL_MIN_FAKTOR = 0.25        # Wal-Regel 2 (06.11.): mindestens ¼ des üblichen Einsatzes
 MAX_JE_LAUF = 12             # Notbremse gegen Spam
 SERIE_ABSTAND_MIN = 30       # Lucas 18.10. (Igdir 7× und 8× im 5-Min-Abstand): dieselbe Serie frühestens nach 30 Min wieder
 
@@ -711,6 +712,12 @@ def wale(d):
         if pub:
             pub["faktor"] = round(usd / float(schnitt), 2) if schnitt and usd else None     # Public-Regel 3
             _mit(pub, usd)
+        # Wal-Regel 2 (Lucas 06.11. 13:50, Dynamo Dresden: $1,1k bei einem Wallet, das sonst Ø $17k setzt): unter ¼ des
+        # üblichen Einsatzes kein Push — still als „walKlein" mitbuchen (bis 06.11.: unter ¼ n=13, −39 %)
+        if schnitt and usd and usd / float(schnitt) < WAL_MIN_FAKTOR:
+            if beleg:
+                yield f"wk|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}", None, None, {**beleg, "art": "walKlein"}
+            continue
         yield key, "\n".join(zeilen) + "\n", None, beleg, pub
 
 
@@ -1198,7 +1205,7 @@ def main() -> int:
 
     def erkannt():
         heute = JETZT.astimezone(ZoneInfo("Europe/Vienna")).date()
-        return sum(1 for k, v in gesehen.items() if not k.startswith(("wa|", "sf|", "lf|", "tm|", "lg|")) and ts(v)
+        return sum(1 for k, v in gesehen.items() if not k.startswith(("wa|", "sf|", "lf|", "tm|", "lg|", "wk|")) and ts(v)
                    and ts(v).astimezone(ZoneInfo("Europe/Vienna")).date() == heute)
 
     for art in ARTEN:
