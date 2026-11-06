@@ -67,7 +67,14 @@ def daten():
     except urllib.error.HTTPError as e:
         z = e.read().decode("utf-8", "ignore")
     m = re.search(r'data-stand="(d/\d+)\.json"', z)
-    return hol(f"{SEITE}{m.group(1)}.json") if m else hol(f"{SEITE}data.json?t={int(time.time())}")
+    d = hol(f"{SEITE}{m.group(1)}.json") if m else hol(f"{SEITE}data.json?t={int(time.time())}")
+    try:                                        # 06.11.: hängt GitHub Pages, ist der Zweig „live" neuer
+        s = hol(f"https://raw.githubusercontent.com/{REPO}/live/stand.json?t={int(time.time())}")
+        if s.get("generatedAt", "") > d.get("generatedAt", ""):
+            return hol(f"https://raw.githubusercontent.com/{REPO}/live/{s['datei']}?t={int(time.time())}")
+    except Exception:  # noqa: BLE001
+        pass
+    return d
 
 
 def bilder_zweig():

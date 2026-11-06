@@ -244,6 +244,19 @@ jobs:
           z = Path("site/404.html"); z.write_text(z.read_text(encoding="utf-8").replace("<body ", f'<body data-seite="{sv}" ', 1), encoding="utf-8")
           print("Zeiger:", stempel, "Seite:", sv)
           PY
+      - name: Ausweich-Stand in den Zweig live (falls GitHub Pages hängt, 06.11.)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          S=$(python3 -c "import json,re;print(re.sub(r'[^0-9]','',json.load(open('site/data.json'))['generatedAt'])[:14])")
+          W="$RUNNER_TEMP/live"; rm -rf "$W"; mkdir -p "$W/d"
+          cp "site/d/$S.json" "$W/d/"; [ -f "site/d/$S-s.json" ] && cp "site/d/$S-s.json" "$W/d/" || true
+          python3 -c "import json;d=json.load(open('site/data.json'));json.dump({'generatedAt':d['generatedAt'],'datei':'d/$S.json'},open('$W/stand.json','w'))"
+          cd "$W" && git init -q && git checkout -q --orphan live && git add -A
+          git -c user.name=geldradar-bot -c user.email=geldradar-bot@users.noreply.github.com commit -qm "Stand $S"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:live
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

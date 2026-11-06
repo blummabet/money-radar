@@ -4434,7 +4434,29 @@ function standZeigen(){
 // Lucas 26.10. („teilweise 10 Min nichts neu"): das CDN hält data.json bis 10 Min und ignoriert ?t=. Erst den Zeiger
 // holen (zufälliger Pfad → 404.html frisch vom Ursprung, ~1 KB), dann die Datei genau dieses Stands (nie gecacht).
 let ZEIGER = null;
+// 06.11. (Lucas „Unglaublich, wieder nicht aktuell"): GitHub Pages nahm neue Fassungen an, lieferte aber
+// über eine halbe Stunde die alte aus. Jeder Seitenbau legt den Stand deshalb zusätzlich in den Zweig „live";
+// ist der Pages-Stand älter als 12 Min, holt die Seite den neueren von dort.
+const AUSWEICH = "https://raw.githubusercontent.com/blummabet/money-radar/live/";
+async function ausweich(stand){
+  try{
+    const z = await fetch(AUSWEICH+"stand.json?t="+Date.now(), {cache:"no-store"}); if(!z.ok) return null;
+    const s = await z.json(); if(!s.datei || (stand && s.generatedAt <= stand)) return null;
+    const url = AUSWEICH+s.datei; if(url===ZEIGER && D) return null;
+    const r = await fetch(url+"?t="+Date.now(), {cache:"no-store"}); if(!r.ok) return null;
+    const neu = await r.json(); ZEIGER = url; return neu;
+  }catch(_){ return null; }
+}
 async function frischeDaten(){
+  const neu = await frischeDatenPages();
+  const stand = (neu||D||{}).generatedAt;
+  if(!stand || Date.now() - new Date(stand).getTime() > 12*60e3){
+    const a = await ausweich(stand);
+    if(a) return a;
+  }
+  return neu;
+}
+async function frischeDatenPages(){
   try{
     const z = await fetch("z/"+Date.now()+Math.random().toString(36).slice(2), {cache:"no-store"});
     const zt = await z.text();
