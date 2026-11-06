@@ -1041,6 +1041,15 @@ def serie(d):
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"],
                                 "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht}, pub
+        if lay_verdacht:
+            # 06.11. (Lucas „Ja bitte" — Anregung „Reverse Line Movement nicht nur filtern, sondern invertieren"): still die
+            # Gegenseite buchen = Lay der Auswahl zur Rück-Quote, auf 1 Einheit Risiko umgerechnet (gewinnt 1/(q−1), wenn die
+            # Auswahl NICHT gewinnt). Je Spiel + Auswahl einmal.
+            yield (f"lg|{x['id']}|{x['markt']}|{x['auswahl']}", None, None,
+                   {"art": "layGegen", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
+                    "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": True, "markt": x["markt"],
+                    "auswahl": x["auswahl"], "gegen": True, "quoteRueck": q, "quote": round(q / (q - 1), 3),
+                    "quoteStart": q0, "eur": x["eur"], "stand": (x.get("live") or {}).get("stand") if isinstance(x.get("live"), dict) else None})
     for x in d.get("polySerien") or []:
         # wie bei Betfair/Stake: Favoriten-Geld (Quote < 1,40 ≙ Preis > 71 ¢) wird nicht gepusht; ohne Preis auch nicht
         if not x.get("quote") or x["quote"] < SERIE_PUSH_MIN_QUOTE:
@@ -1189,7 +1198,7 @@ def main() -> int:
 
     def erkannt():
         heute = JETZT.astimezone(ZoneInfo("Europe/Vienna")).date()
-        return sum(1 for k, v in gesehen.items() if not k.startswith(("wa|", "sf|", "lf|", "tm|")) and ts(v)
+        return sum(1 for k, v in gesehen.items() if not k.startswith(("wa|", "sf|", "lf|", "tm|", "lg|")) and ts(v)
                    and ts(v).astimezone(ZoneInfo("Europe/Vienna")).date() == heute)
 
     for art in ARTEN:
