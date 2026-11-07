@@ -1506,6 +1506,7 @@ SERIE_BODEN = {True: 10000, False: 1000}     # neues Geld je Abruf, ab dem er al
 SERIE_SUMME = {True: 75000, False: 10000}    # Summe der Serie, ab der sie gezeigt wird
 SERIE_NORM_ANTEIL = 0.25                     # … und mind. ein Viertel dessen, was ein Spiel dieser Liga üblicherweise insgesamt hat
 SERIE_MIN_N = 3
+SERIEN_RUHIG = []                            # REGEL S4: abgeebbte Serien, nur zum Messen
 SAEULEN = 48                                 # 4 h in 5-Min-Schritten
 
 
@@ -1657,6 +1658,20 @@ def serien(takt, radar):
                           "dauerMin": round((kt[-1][0] - kt[0][0]).total_seconds() / 60) + 5})
                 if x.get("marktVerteilung"):
                     x["marktVerteilung"] = [[v[0], v[1], v[2], tor["seitStand"] if v[3] else 0] for v in x["marktVerteilung"]]
+    # REGEL S4 (Lucas 07.11., Boca – Defensa 45': „Dauerzufluss sollte halt wirklich was sein in einem gewissen Zeitfenster,
+    # wo Geld aktiv reinkommt"): die Kette lief mit ~€1k je Abruf weiter, obwohl der Fluss längst abgeebbt war.
+    # Eine Serie zählt nur, solange in den letzten 15 Min mind. die Hälfte ihres eigenen Schnitts je 15 Min kommt
+    # (und mind. zwei Treffer-Böden). Die anderen gehen still nach „serienRuhig" (Messung, kein Push, nicht auf der Seite).
+    SERIEN_RUHIG.clear()
+    aktiv = []
+    for x in out:
+        schnitt15 = x["eur"] / max(15, x.get("dauerMin") or 15) * 15
+        x["schnitt15"] = round(schnitt15)
+        if (x.get("letzte15") or 0) >= max(2 * SERIE_BODEN[bool(x.get("top5"))], 0.5 * schnitt15):
+            aktiv.append(x)
+        else:
+            SERIEN_RUHIG.append({**x, "regel": "S4"})
+    out = aktiv
     # je Spiel nur die stärkste Serie (sonst steht ein Spiel mit drei Märkten dreimal da)
     best = {}
     for x in sorted(out, key=lambda x: -x["eur"]):
@@ -2261,7 +2276,7 @@ VERLAUF_TAGE = 60
 
 # Lucas 30.10. („Statistiken optisch besser aufbereiten — nach Kategorien, Woche, Monat einstellbar"): jede gepushte
 # Wette seit Start als kompakte Zeile in einer EIGENEN Datei (site/statistik.json, wird erst beim Öffnen der Seite geladen).
-STAT_ARTEN = {"serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
+STAT_ARTEN = {"serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
 
 
 def statistik(burst, finder):
@@ -2559,6 +2574,7 @@ def main() -> int:
         "liveZufluss": live_zufluss(radar),
         "polyFluss": (pfl := poly_fluss()),
         "serien": serien(takt_fortschreiben(bf_hist), radar),
+        "serienRuhig": SERIEN_RUHIG[:20],
         "polySerien": poly_serien(pfl),
         "stakeSerien": stake_serien(hr),
         "bfEigen": BF_EIGEN["an"], "pinEigen": BF_EIGEN["pin"], "stakeEigen": BF_EIGEN["st"],

@@ -1011,6 +1011,15 @@ def serie(d):
     """Lucas 17.10.: wiederholter Zufluss auf dieselbe Auswahl („bei jedem Scan wieder 10.000") ist ein
     eigener KPI. Push ab 3 Abrufen in Folge, wieder bei 5, 8 und 12 — nicht bei jedem neuen Treffer."""
     tot_s = {str(s.get("id")) for s in (d.get("radar") or {}).get("spiele") or [] if s.get("entschieden") or s.get("klarVorn")}
+    # REGEL S4 (07.11.): abgeebbte Serien still ins Buch — einmal je Auswahl, zur Quote von jetzt
+    for x in d.get("serienRuhig") or []:
+        if str(x.get("id")) in tot_s or not x.get("quote"):
+            continue
+        yield (f"sr|{x['id']}|{x['markt']}|{x['auswahl']}", None, None,
+               {"art": "serieRuhig", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
+                "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")), "markt": x["markt"],
+                "auswahl": x["auswahl"], "quote": x["quote"], "eur": x["eur"], "n": x["n"],
+                "letzte15": x.get("letzte15"), "schnitt15": x.get("schnitt15")})
     for x in d.get("serien") or []:
         if str(x.get("id")) in tot_s:
             continue                  # 24.10.: auf der Seite sichtbar, gepusht wird wie bisher nicht
