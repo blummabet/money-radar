@@ -568,8 +568,13 @@ def main() -> int:
     print(f"  poly_markt: {len(maerkte)} Märkte im Fenster ({_STAT['ok']} Abrufe)")
 
     # Halter für die geldstärksten Spiele (live und vor Anpfiff), nicht für Kleinstmärkte
-    kandidaten = sorted((m for m in maerkte.values() if m["totalUsd"] >= MIN_VOL_HALTER),
-                        key=lambda m: (not m["live"], -m["totalUsd"]))[:HALTER_SPIELE]   # laufende Spiele zuerst, jedes Mal
+    # 07.11.: Nebenmärkte (Halbzeit, exaktes Ergebnis …) zeigt der Build ohnehin nicht — keine Halter-Abrufe dafür.
+    # Und laufende Spiele bekommen höchstens die Hälfte der Plätze: an einem Fußball-Samstag nahmen sie alle 80,
+    # die Spiele VOR Anpfiff (dort sitzen die Wale für die Story) blieben ohne Halter.
+    haupt = [m for m in maerkte.values() if m["totalUsd"] >= MIN_VOL_HALTER and re.search(r"\d{4}-\d{2}-\d{2}$", m["key"])]
+    live_k = sorted((m for m in haupt if m["live"]), key=lambda m: -m["totalUsd"])[:HALTER_SPIELE // 2]
+    vor_k = sorted((m for m in haupt if not m["live"]), key=lambda m: -m["totalUsd"])
+    kandidaten = live_k + vor_k[:HALTER_SPIELE - len(live_k)]
     pos_cache, pos_budget = {}, [POS_BUDGET]
     alte_open = track.get("open") or {}
     for m in kandidaten:
