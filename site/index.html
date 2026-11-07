@@ -828,6 +828,9 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
   .st-z{grid-template-columns:minmax(0,1fr) 38px 62px 58px 46px;gap:6px;font-size:12.5px} .st-ql{min-width:0;width:100%} .st-zn small{display:none} }
 /* Lucas 28.10.: Live-Statistik im Spiel-Fenster als Duell-Zeilen */
 .lsg{background:var(--flaeche);border:1px solid var(--rand);border-radius:14px;padding:8px 12px 4px}
+.lsg-ts{display:flex;gap:6px;justify-content:center;margin:6px 0 8px}
+.lsg-t{font:inherit;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--text-3);background:transparent;color:var(--text-2);cursor:pointer}
+.lsg-t.an{background:var(--text);color:var(--bg);border-color:transparent}
 .lsg-kopf{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;font-size:12px;font-weight:800;margin-bottom:2px}
 .lsg-kopf .h{color:var(--pin);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lsg-kopf .g{color:var(--hz);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -3191,6 +3194,7 @@ function rotTxt(id, heim, gast){
   const z = n => n>=2 ? `zu ${11-n===9?"neunt":11-n===8?"acht":(11-n)}` : "zu zehnt";
   return [h>0 ? `🟥 ${heim} ${z(h)}` : "", g>0 ? `🟥 ${gast} ${z(g)}` : ""].filter(Boolean).join(" · ");
 }
+let LS_TEIL = "ges";
 function liveStat(id, gross){
   const x = (D.liveStats||{})[String(id)]; if(!x || !x.statistik) return "";
   const h = x.statistik.heim||{}, g = x.statistik.gast||{};
@@ -3202,12 +3206,25 @@ function liveStat(id, gross){
   // Heim-Wert · Name · Gast-Wert, darunter ein geteilter Balken; die stärkere Seite kräftig.
   if(gross){
     const sp = (D.radar.spiele||[]).find(y=>String(y.id)===String(id)) || {};
-    const reihe = (f, lab, fmt=v=>v) => { if(h[f]==null || g[f]==null) return "";
-      const a = +h[f]||0, b = +g[f]||0, su = a+b, pa = su>0 ? a/su*100 : 50, vorn = a>b ? "h" : b>a ? "g" : "";
-      return `<div class="lsr ${vorn}"><b class="lsr-h">${fmt(h[f])}</b><span class="lsr-n">${lab}</span><b class="lsr-g">${fmt(g[f])}</b>
+    const reihe = (H, G, f, lab, fmt=v=>v) => { if(H[f]==null || G[f]==null) return "";
+      const a = +H[f]||0, b = +G[f]||0, su = a+b, pa = su>0 ? a/su*100 : 50, vorn = a>b ? "h" : b>a ? "g" : "";
+      return `<div class="lsr ${vorn}"><b class="lsr-h">${fmt(H[f])}</b><span class="lsr-n">${lab}</span><b class="lsr-g">${fmt(G[f])}</b>
         <div class="lsr-bar"><i class="h" style="width:${pa.toFixed(1)}%"></i><i class="g" style="width:${(100-pa).toFixed(1)}%"></i></div></div>`; };
-    const zeilen = [reihe("xg","xG",v=>dez(v,2)), reihe("aufsTor","Aufs Tor"), reihe("schuesse","Schüsse"), reihe("ecken","Ecken"), reihe("ballbesitz","Ballbesitz",v=>Math.round(v)+" %")].join("");
-    return `<div class="lsg"><div class="lsg-kopf"><span class="h">${esc(sp.heim||"Heim")}</span><em>📊 ${x.min?x.min+"'":"live"}</em><span class="g">${esc(sp.gast||"Gast")}</span></div>${zeilen}</div>`;
+    const block = (H, G, mitBall) => [reihe(H,G,"xg","xG",v=>dez(Math.max(0,v),2)), reihe(H,G,"aufsTor","Aufs Tor"), reihe(H,G,"schuesse","Schüsse"), reihe(H,G,"ecken","Ecken"),
+      mitBall ? reihe(H,G,"ballbesitz","Ballbesitz",v=>Math.round(v)+" %") : ""].join("");
+    // Lucas 07.11. 19:18 („erste Halbzeit geile Statistik, dann ist ein Loch — ein Button für die 2. Halbzeit"): Stand zur
+    // Pause aus dem Verlauf (letzter Wert bis zur 45.), 2. HZ = jetzt minus Pause. Ballbesitz gibt es nur gesamt.
+    const vl = x.verlauf||[], ht = [...vl].reverse().find(v=>v.m!=null && v.m<=46);
+    const pausePaar = (k, i) => { const v = ht && ht[k]; return v && v[i]!=null ? +v[i] : null; };
+    const hz1 = i => ({xg:pausePaar("xg",i), aufsTor:pausePaar("at",i), schuesse:pausePaar("sch",i), ecken:pausePaar("eck",i)});
+    const diff = (jetzt, pause) => { const o = {}; for(const k of ["xg","aufsTor","schuesse","ecken"]) o[k] = jetzt[k]!=null && pause[k]!=null ? +(jetzt[k]-pause[k]).toFixed(2) : null; return o; };
+    const zweite = ht && x.min!=null && x.min > 46;
+    const H1 = hz1(0), G1 = hz1(1);
+    const teil = zweite ? (LS_TEIL||"ges") : "ges";
+    const knopf = (k, lab) => `<button class="lsg-t${teil===k?" an":""}" data-lsteil="${k}">${lab}</button>`;
+    const kn = zweite ? `<div class="lsg-ts">${knopf("ges","Gesamt")}${knopf("hz1","1. HZ")}${knopf("hz2",`2. HZ (seit ${x.min-45} Min)`)}</div>` : "";
+    const inhalt = teil==="hz1" ? block(H1, G1, false) : teil==="hz2" ? block(diff(h, H1), diff(g, G1), false) : block(h, g, true);
+    return `<div class="lsg" data-lsid="${esc(String(id))}"><div class="lsg-kopf"><span class="h">${esc(sp.heim||"Heim")}</span><em>📊 ${x.min?x.min+"'":"live"}</em><span class="g">${esc(sp.gast||"Gast")}</span></div>${kn}${inhalt}</div>`;
   }
   return `<div class="ls${gross?" gross":""}"><span class="ls-k">📊${x.min?` ${x.min}'`:""}</span>${zeile}${xg!=null?`<div class="ls-b" title="xG-Anteil"><i style="width:${xg.toFixed(0)}%"></i></div>`:""}</div>`;
 }
@@ -4505,6 +4522,9 @@ function aufklappen(tr){
   tr.insertAdjacentHTML("afterend", art==="poly" ? polyDetail(s) : art==="pinn" ? pinDetail(s) : art==="hz" ? hzDetail(s) : art==="zf" ? (D.radar.spiele.find(x=>x.id===s.id) ? spielDetail(D.radar.spiele.find(x=>x.id===s.id)) : "") : spielDetail(s));
 }
 document.addEventListener("click", e=>{
+  const lt = e.target.closest("[data-lsteil]");
+  if(lt){ e.stopPropagation(); LS_TEIL = lt.dataset.lsteil; const box = lt.closest(".lsg"); if(box){ const neu = liveStat(box.dataset.lsid, true);
+    if(neu){ const t = document.createElement("div"); t.innerHTML = neu; box.replaceWith(t.firstElementChild); } } return; }
   if(e.target.closest("[data-zu]")){ drZu(); return; }
   const tl = e.target.closest("[data-teilen]"); if(tl){ e.stopPropagation(); teilen(tl.dataset.teilen); return; }
   const mk = e.target.closest("[data-merk]"); if(mk){ e.stopPropagation(); merkUmschalten(mk.dataset.merk); return; }
