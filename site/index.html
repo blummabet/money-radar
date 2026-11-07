@@ -3324,7 +3324,7 @@ function topDreiDaten(D){
       poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
       stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
     return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
-      kopf: `${flagge(s.land)} ${esc(ligaName(s.liga)||"")}`, live: s.live ? `${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}${rotTxt(s.id, s.heim, s.gast) ? " · "+esc(rotTxt(s.id, s.heim, s.gast)) : ""}` : null,
+      ligaRoh: s.liga, kopf: `${flagge(s.land)} ${esc(ligaName(s.liga)||"")}`, live: s.live ? `${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}${rotTxt(s.id, s.heim, s.gast) ? " · "+esc(rotTxt(s.id, s.heim, s.gast)) : ""}` : null,
       anpfiff: s.anpfiff, heim: s.heim, gast: s.gast, auf: auswahlDe(fA.name), quote: fA.quote, alt: p.quote ? fA.q60 : null, markt: marktDe(fM?.name||""),
       saeulen: s.saeulen?.w || [], wert: s.eur, einheit: "€", klick: klickSpiel({id:s.id, heim:s.heim, gast:s.gast})};
   }).filter(Boolean);
@@ -3354,7 +3354,7 @@ function topDreiDaten(D){
     return {key:"pm|"+m.key, p, summe, n:Object.keys(p).length, aus:"",
       g: {serie: se && `${se.n}× in Folge`, neu: `+${usd(neu)} netto in 30 Min`, poly: `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,x)=>a+(x.usd||0),0))}`,
           stake: burst && `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten`},
-      kopf: `${sportIco(m.sport)} ${esc(ligaName(m.liga)||m.sport||"")} · Polymarket`, live: m.live ? "live" : null, anpfiff: m.anpfiff,
+      ligaRoh: m.liga, kopf: `${sportIco(m.sport)} ${esc(ligaName(m.liga)||m.sport||"")} · Polymarket`, live: m.live ? "live" : null, anpfiff: m.anpfiff,
       heim, gast, auf: pmLabel(fokus, m.titel, m.sport), quote, alt: null, markt: `${Math.round((preis||1/quote)*100)} ¢`,
       saeulen: se?.saeulen || (m.takt||{})[fokus] || [], wert: m.usd, einheit: "$", klick: klick(titel, ohneHuelle(polyFenster(m.key)))};
   }).filter(Boolean);
@@ -3586,6 +3586,12 @@ function druckPanel(D){
     ${S.length > n ? `<div class="pr-m">${S.slice(n, n+4).map(druckZeile).join("")}</div>` : ""}
     ${tick}${druckMessung(D)}${welleMessung(D)}</div>`;
 }
+// Lucas 07.11. 16:47: Liga-Wertung (Public-Regel 13) als Chip — belegt statt Bauchgefühl
+function ligaChip(D, liga){
+  const w = (D.ligaWert||{})[liga]; if(!w || Math.abs(w[0]) < 1) return "";
+  const gut = w[0] > 0;
+  return `<span class="t3-g" style="--f:${gut?"var(--up)":"var(--down)"}" title="${w[1]} Tipps in dieser Liga: ${w[2]} % getroffen, die Quote erwartete ${w[3]} %"><i></i>${gut?"📈 Liga trifft":"📉 Liga schwach"} ${w[2]}/${w[3]} %</span>`;
+}
 function topDrei(D){
   const T = topDreiDaten(D);
   const modus = ligaModus==="ohne" ? "ohne Top-5" : ligaModus==="nur" ? "nur Top-5" : "alle Ligen";
@@ -3595,7 +3601,7 @@ function topDrei(D){
     const gross = i===0, p = x.p;
     const zeit = x.live ? `<span class="t3-live"><i></i>${x.live}</span>` : `<span class="t3-zeit">${wann(x.anpfiff)}</span>`;
     const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>`<span class="t3-g${k==="maerkte"||k==="druck"?" hl":""}" style="--f:${f}"><i></i>${esc(x.g[k]||n)}</span>`).join("")
-      + (x.aus ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>${x.aus}</span>` : "");
+      + (x.aus ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>${x.aus}</span>` : "") + ligaChip(D, x.ligaRoh);
     return `<div class="t3-k${gross?" eins":""}"${bk("t3|"+x.key, x.wert, x.einheit)} ${x.klick} style="--glow:${T3_SIG.find(([k])=>p[k])[2]}">
       ${t3Scheibe(p, x.summe, gross)}
       <div class="t3-i">

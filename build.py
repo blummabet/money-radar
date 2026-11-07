@@ -2164,6 +2164,27 @@ def endstaende():
     return out
 
 
+def liga_wert():
+    """Lucas 07.11. 16:47 (Liga-Wertung als Chip in den Top 3): {Liga roh: [Punkte, n, Treffer %, erwartet %]} —
+    dieselbe Rechnung wie Public-Regel 13 (public.liga_werte), je Ligenname, wie er in den Daten steht."""
+    try:
+        import bilanz as _b
+        import public as _p
+        buch = _b.laden()
+        w = _p.liga_werte(buch)
+        out = {}
+        for x in buch:
+            l = x.get("liga")
+            if l and l not in out:
+                v = w.get(_p.liga_schluessel(l))
+                if v:
+                    out[l] = list(v)
+        return out
+    except Exception as exc:  # noqa: BLE001
+        print("liga_wert:", exc)
+        return {}
+
+
 def push_bilanz():
     """Auswertung der neuen Pushes (bilanz.py schreibt sie nach jedem Push-Lauf in den Cache)."""
     try:
@@ -2536,6 +2557,7 @@ def main() -> int:
         "halbzeit": halbzeit(prices),
         "bfHtPushes": bf_ht_pushes(prices, bf_norm),
         "pushBilanz": push_bilanz(),
+        "ligaWert": liga_wert(),
         "verlauf": verlauf(push_bilanz(), burst, finder, tr_led),
         "ligaBilanz": liga_bilanz(),
         "sharp": sharp(consensus, history),
