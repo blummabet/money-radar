@@ -994,6 +994,19 @@ def _tor_zeile(x):
     return kopf + f"{geld(t['vorTor'])} kamen vorher, {geld(t['nachTor'])} danach\n"
 
 
+def _zeitlich(x) -> str:
+    """Lucas 07.11. (Boca – Defensa 45', „€57k in 75 Min"): die Summe las sich wie gerade eben gekommen, kam aber großteils
+    rund um den Anpfiff. Deshalb: wann das Geld kam — Beginn, die letzten 15 Min und der größte Abruf."""
+    if x.get("letzte15") is None:
+        return ""
+    wien = lambda i: ts(i).astimezone(ZoneInfo("Europe/Vienna")).strftime("%H:%M") if ts(i) else "?"
+    teile = [f"seit {wien(x.get('seit'))}", f"letzte 15 Min <b>{geld(x['letzte15'])}</b>"]
+    sp = x.get("spitze")
+    if sp and sp[0]:
+        teile.append(f"größter Schub {geld(sp[0])} um {wien(sp[1])}")
+    return "⏱ " + " · ".join(teile) + "\n"
+
+
 def serie(d):
     """Lucas 17.10.: wiederholter Zufluss auf dieselbe Auswahl („bei jedem Scan wieder 10.000") ist ein
     eigener KPI. Push ab 3 Abrufen in Folge, wieder bei 5, 8 und 12 — nicht bei jedem neuen Treffer."""
@@ -1057,6 +1070,7 @@ def serie(d):
                 f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n{e(x.get('liga'))} · {st}\n\n"
                 f"💶 <b>{geld(x['eur'])}</b> in {x['dauerMin']} Min auf <b>{e(remis(_auswahl_de(x['auswahl'])))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"<i>= im Schnitt {x.get('anteil')} % von allem, was je Abruf in diesem Markt neu kam</i>\n"
+                + _zeitlich(x)
                 + drop
                 + lay_hinweis
                 + (stat_zeile(d, x["id"]) if x.get("live") else "")

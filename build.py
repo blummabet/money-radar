@@ -1636,6 +1636,10 @@ def serien(takt, radar):
                         "quote": kette[-1][3], "quoteStart": kette[0][3],
                         "seit": iso(kette[0][0]), "dauerMin": round((kette[-1][0] - kette[0][0]).total_seconds() / 60) + 5,
                         "letzteVorMin": round((JETZT - kette[-1][0]).total_seconds() / 60), "saeulen": saeulen,
+                        # Lucas 07.11. (Boca 45': „€57k in 75 Min" las sich wie gerade eben — kam aber großteils um Anpfiff):
+                        # wie viel davon in den letzten 15 Min kam und wann der größte Abruf war (seit dem letzten Stand)
+                        "letzte15": round(sum(k[1] for k in kette if JETZT - k[0] <= timedelta(minutes=15))),
+                        "spitze": (lambda kk: [round(kk[1]), iso(kk[0])])(max((k for k in kette if nsc(k[4]) == st1), key=lambda k: k[1])),
                         "tor": tor,
                         # für den Push: wie der Markt jetzt insgesamt liegt (Lucas 18.10.)
                         "marktVerteilung": next(([[a["name"], a["eur"], a.get("quote"), round(summe) if a["name"] == auswahl else 0]
