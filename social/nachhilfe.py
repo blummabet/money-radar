@@ -25,6 +25,9 @@ gepostet = json.loads(base64.b64decode(json.loads(out)["content"])) if rc == 0 e
 if modus == "abend2":
     modus = "abend"
 offen = not gepostet.get(f"{modus}|{w:%Y-%m-%d}")
+g = gepostet.get(f"wal|{w:%Y-%m-%d}") or {}
+if modus == "wal" and g.get("keiner") and int(g.get("versuche") or 1) < 2 and (w.hour, w.minute) >= (19, 0):
+    offen = True                                # 07.11.: zweiter Wal-Versuch ab 19:00
 if modus == "wal" and not offen and not gepostet.get(f"abend|{w:%Y-%m-%d}"):
     modus, offen = "abend", True
 if modus == "morgen" and not offen:            # Morgenpost da — fehlt noch die Wal-Auflösung von gestern?

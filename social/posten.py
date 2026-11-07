@@ -184,7 +184,8 @@ def wal_abend(gepostet):
     w = wal.auswahl(daten(), JETZT)
     if not w:
         print("kein Wal heute (ab $10k, Fußball, Anpfiff in 5 h, Betfair-Spiel)")
-        gepostet[f"wal|{W:%Y-%m-%d}"] = {"zeit": W.isoformat(), "keiner": True}
+        alt = gepostet.get(f"wal|{W:%Y-%m-%d}") or {}
+        gepostet[f"wal|{W:%Y-%m-%d}"] = {"zeit": W.isoformat(), "keiner": True, "versuche": int(alt.get("versuche") or 1) + (1 if alt else 0)}
         if not os.environ.get("TROCKEN"):
             bilder_sichern(gepostet)
         return
@@ -231,7 +232,9 @@ def wal_aufloesung(gepostet):
 def main(modus):
     gepostet = bilder_zweig()
     if modus == "wal":
-        if gepostet.get(f"wal|{W:%Y-%m-%d}") and not os.environ.get("ERZWINGEN"):
+        # 07.11. (Lucas „Ja"): kein Wal um 18:13 → zweiter Versuch ab 19:00; erst nach zwei leeren Läufen ist der Tag erledigt
+        g = gepostet.get(f"wal|{W:%Y-%m-%d}") or {}
+        if g and not (g.get("keiner") and int(g.get("versuche") or 1) < 2) and not os.environ.get("ERZWINGEN"):
             print("Wal heute schon erledigt")
             return 0
         wal_abend(gepostet)

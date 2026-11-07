@@ -10,6 +10,7 @@ on:
     - cron: '23 8 * * *'
     - cron: '9 16 * * *'
     - cron: '13 17 * * *'
+    - cron: '3 18 * * *'
   workflow_dispatch:
     inputs:
       modus:
@@ -57,7 +58,7 @@ jobs:
           M="${{ inputs.modus }}"
           if [ -z "$M" ]; then
             case "${{ github.event.schedule }}" in
-              '13 17 * * *') M=wal ;;
+              '13 17 * * *'|'3 18 * * *') M=wal ;;
               '23 8 * * *') M=morgen ;;
               '9 16 * * *') M=abend ;;
               *) H=$(date -u +%H); [ "$H" -lt 12 ] && M=morgen || M=abend ;;
