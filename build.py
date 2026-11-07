@@ -2266,9 +2266,15 @@ def statistik(burst, finder):
         buch = json.loads((BASIS / ".push_state" / "buch.json").read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         buch = []
+    doppelt = set()
     for b in buch:
         if b.get("art") not in STAT_ARTEN or b.get("status") not in ("abgerechnet", "offen") or not ts(b.get("ts")):
             continue
+        if b.get("art") in ("ht", "fix"):     # 07.11.: alte Mehrfachbuchungen (Neumeldung bei +50 % Geld) nur einmal zählen
+            k_ = (b["art"], str(b.get("id")), b.get("markt"), b.get("auswahl"))
+            if k_ in doppelt:
+                continue
+            doppelt.add(k_)
         ab = b.get("status") == "abgerechnet"
         q, sl = b.get("quote"), b.get("schluss")
         clv = None

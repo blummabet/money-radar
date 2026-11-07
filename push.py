@@ -1303,6 +1303,12 @@ def main() -> int:
                             beleg["rot"] = r_
                             beleg["zahl"] = ("keine" if r_[0] == r_[1] == 0 else "unter" if r_[k_] > r_[1 - k_]
                                              else "ueber" if r_[k_] < r_[1 - k_] else "gleich")
+                    # 07.11. (Bucaramanga: derselbe Fix-Verdacht 4× im Buch, weil er bei +50 % Geld neu gemeldet wird):
+                    # Halbzeit-Geld und Fix je Spiel + Markt + Auswahl nur EINMAL buchen — sonst verzerren Wiederholungen die Bilanz
+                    if beleg.get("art") in ("ht", "fix") and any(
+                            b.get("art") == beleg["art"] and str(b.get("id")) == str(beleg.get("id"))
+                            and b.get("markt") == beleg.get("markt") and b.get("auswahl") == beleg.get("auswahl") for b in buch):
+                        continue
                     bilanz.eintragen(buch, beleg, JETZT)
     if not trocken:
         try:                         # Lucas 23.10.: Top 3 jetzt mitschreiben und abrechnen (Messung, kein Push)
