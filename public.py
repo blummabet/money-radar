@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R16"   # R16 07.11. ~17:30 Stake-Pakete auf ein Team → Team-Sieg zur Betfair-Quote · R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R17"   # R17 07.11. ~18:00 englische Championship in keiner Art im Kanal · R16 07.11. ~17:30 Stake-Pakete auf ein Team → Team-Sieg zur Betfair-Quote · R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -104,6 +104,10 @@ def passt(m) -> bool:
     # raus — Drecks-Liga zum Wetten"): Premier League in KEINER Art mehr im Kanal (auch Stake, Wal, Polymarket).
     # Polymarket nennt sie „EPL". Trades-Channel und Buch bleiben.
     if re.search(r"^(English )?Premier League$|^EPL$", liga.strip(), re.I):
+        return False
+    # Regel 17 (Lucas 07.11. 17:59: „bitte nimm diese Championship raus — die Liga macht mich aggressiv"; bei uns
+    # 29 Tipps, 34 % getroffen bei 50 % erwartet, −33 %): englische Championship in keiner Art im Kanal.
+    if re.search(r"^(English )?(Sky Bet )?Championship$|^EFL Championship$|^ELC$", liga.strip(), re.I):
         return False
     # Regel 3 (Lucas 02.11., Penafiel – Feirense „$2.770 auf Penafiel — wieso kam der?"): ein Wal nur, wenn die Wallet
     # mindestens doppelt so viel setzt wie sonst (Überzeugung statt Größe). Vor GROSS geprüft — sonst ließ „Segunda"
