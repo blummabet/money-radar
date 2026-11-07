@@ -117,6 +117,15 @@ def druck_von(e):
     for i, seite in enumerate(("heim", "gast")):
         xg = p["xg"][i]
         ueber = max(0.0, xg - _zahl(stand[i]))
+        # Druck-Regel 6 (Lucas 07.11. 19:24, Parma – Bologna: „wenn das Tor gefallen ist, auf Cooldown — wenn danach weiter
+        # Druck ist, kann es wieder rein"): hat das Team schon getroffen, zählt als „unbezahlter" Druck nur das xG SEIT
+        # seinem letzten Tor (erster Punkt mit dem jetzigen Torstand). Direkt nach dem Tor ist das fast 0 = Abkühlen;
+        # baut das Team weiter Druck auf, steigt der Index von selbst wieder.
+        if _zahl(stand[i]) > 0:
+            seit = next((r for r in vl if isinstance(r.get("m"), (int, float)) and _zahl((r.get("st") or [0, 0])[i]) >= _zahl(stand[i])
+                         and r["xg"][i] is not None), None)
+            if seit is not None:
+                ueber = max(0.0, xg - _zahl(seit["xg"][i]))
         # Lucas 25.10. (Porto B 1:0, Index 75 mit xG 0,9): das Tor selbst steckte im xG und im Schuss aufs Tor der
         # letzten 15 Min — Druck, der schon „bezahlt" ist. Tore im Fenster ziehen deshalb je 1 xG und 1 Schuss aufs Tor ab.
         tore_fenster = max(0.0, _zahl(stand[i]) - _zahl((q.get("st") or [0, 0])[i])) if q else 0.0
