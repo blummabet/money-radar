@@ -350,7 +350,11 @@ def statistik(resp, heim_id):
 
 def kandidaten(d):
     """Live-Spiele in der Reihenfolge, in der eine Statistik am meisten hilft."""
-    spiele = {s["id"]: s for s in (d.get("radar") or {}).get("spiele") or [] if s.get("live") and not s.get("entschieden")}
+    # 07.11. (Lucas, Parma – Bologna 55' 0:1, Parma mit Rot, Bologna @ 1,09: „Top-Statistik, auch 2. HZ viel Druck — nicht
+    # mal im Druck-Radar"): „entschieden" heißt nur, der SIEG ist durch — für Tore/Druck zählt das Spiel weiter. Diese Spiele
+    # kommen jetzt auch dran, aber erst NACH allen anderen (Budget reicht: 40 Abrufe je Lauf, meist ~26 genutzt).
+    alle = [s for s in (d.get("radar") or {}).get("spiele") or [] if s.get("live")]
+    spiele = {s["id"]: s for s in alle if not s.get("entschieden")}
     rang = []
     for quelle in (d.get("serien") or [], d.get("liveZufluss") or [], d.get("halbzeit") or []):
         for x in quelle:
@@ -364,7 +368,8 @@ def kandidaten(d):
     for s in sorted(spiele.values(), key=lambda s: -(s.get("d30") or 0)):
         if s["id"] not in rang:
             rang.append(s["id"])
-    return [spiele[i] for i in rang]
+    nach = [s for s in sorted(alle, key=lambda s: -(s.get("d30") or 0)) if s.get("entschieden") and s["id"] not in rang]
+    return [spiele[i] for i in rang] + nach
 
 
 PRUEF = BASIS / ".bf" / "apif_pruefung.json"
