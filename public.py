@@ -224,7 +224,7 @@ def _punkte_roh(c, jetzt):
     letzt = _ts(c.get("letzt"))
     alter = (jetzt - letzt).total_seconds() / 60 if letzt else 999
     if m.get("live"):
-        if alter > 20 or (isinstance(m.get("minute"), (int, float)) and m["minute"] > 75):
+        if alter > 20 or (isinstance(m.get("minute"), (int, float)) and m["minute"] >= 80):   # Lucas 07.11.: bis 79. ok, ab 80. nicht nachspielbar
             return None
     else:
         ko = _ts(m.get("anpfiff"))
