@@ -775,7 +775,11 @@ def _stake_team(gruppe, radar, t0):
 
 def _bf_sieg_quote(spiel, auswahl, markt, radar):
     """Betfair-Quote (Sieg-Markt) für eine Stake-Auswahl ohne eigene Quote — nur Team-Sieg oder Remis. REIN."""
-    if str(markt or "").lower() not in ("", "match result", "1x2", "winner", "match winner", "match odds"):
+    # 07.11. 17:30 (Lucas: „Stake trifft so gut, kommt aber nie in den Kanal"): auch Pakete aus mehreren Märkten
+    # („Asian Handicap, Match Result, …") — gemessen als stakeTeam: 33 Tipps, 67 % bei 50 % erwartet, +37,7 %.
+    # Nur Märkte, die eindeutig KEIN Team-Tipp sind (Tore, Ecken …), bleiben ohne Quote.
+    if markt and not re.search(r"match result|1x2|winner|match odds|asian handicap|draw no bet|double chance|handicap",
+                               str(markt), re.I):
         return None
     teile = [x.strip().lower() for x in str(spiel or "").split(" - ")]
     if len(teile) != 2:
@@ -892,7 +896,7 @@ def stake(d):
                 + (f"🗂 {e((mit_auswahl or g).get('markt'))}\n" if (mit_auswahl or g).get("markt") else ""))
         mk = (mit_auswahl or g).get("markt")
         pub = _pub("stake", str(g.get("spiel") or "").replace(" - ", " – "), g.get("liga"), quote, auswahl,
-                   markt=None if str(mk or "").lower() in ("match result", "1x2", "winner", "match winner")
+                   markt=None if quelle_q == "betfair" or str(mk or "").lower() in ("match result", "1x2", "winner", "match winner")
                    else re.sub(r"\s*-\s*Twoway$", "", str(mk or "")) or None,
                    anpfiff=g.get("anpfiff"), live=g.get("phase") == "live", minute=g.get("minute"), sport=g.get("kat"),
                    betrag=pubmod.geld(g.get("usd"), "$"),
