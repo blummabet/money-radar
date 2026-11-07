@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R14"   # R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R15"   # R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -33,7 +33,7 @@ AB = "2026-10-31T10:30:00+00:00"
 ZIEL = 60
 JE_FENSTER = 3
 FENSTER = ((0, 12, "12:00"), (12, 16, "16:00"), (16, 20, "20:00"), (20, 24, None))   # von, bis, „nächste ab"
-ARTEN = {"serie", "zufluss", "stake", "wal"}   # fix raus R14 (07.11. 17:05: seit 02.11. −22 %) · pserie war R10 (07.11. 8:45) – R12 (07.11. 16:05) wieder raus
+ARTEN = {"serie", "zufluss", "stake", "wal", "pserie"}   # pserie nur live + Team-Sieg (R15) · fix raus R14 (07.11. 17:05: seit 02.11. −22 %) · pserie war R10 (07.11. 8:45) – R12 (07.11. 16:05) wieder raus
 NUR_ALLE_LIGEN = {"stake", "fix"}
 
 GROSS = re.compile(
@@ -130,7 +130,14 @@ def passt(m) -> bool:
     # Geld"): Dauerzufluss aus ALLEN Ligen. Gemessen: kleine Ligen 315 Tipps +10,9 % (große 240 · +7,6 %).
     # Regel 10 (Lucas 07.11. 08:30, „mach beides, dann schauen wir, wie die nächsten Tage laufen"): Polymarket-Dauerzufluss
     # wie der Betfair-Dauerzufluss (seit 02.11.: 123 Tipps, 59 % getroffen bei 53 % erwartet, +9,3 %).
-    if art in ("serie", "pserie"):
+    # Regel 15 (Lucas 07.11. 17:17): Polymarket-Dauerzufluss nur LIVE und nur auf den Sieg eines Teams (live Team-Sieg
+    # 180 Tipps, 63 % bei 57 % erwartet, +16,2 %; vor Anpfiff −8,5 % — von dort kamen Leeds und Frosinone).
+    if art == "pserie":
+        roh = str(m.get("auswahlRoh") or m.get("auswahl") or "")
+        if not m.get("live") or re.match(r"^\s*(draw|remis|gegen |over|under|über|unter|both|yes|no)\b", roh, re.I):
+            return False
+        return 1.5 <= q < 3.0
+    if art == "serie":
         return 1.5 <= q < 3.0
     return art in NUR_ALLE_LIGEN and 1.5 <= q < 3.0     # Stake + Auffälliges Geld: alle Ligen ab 1,50 (vorher kleine Ligen erst ab 1,80)
 
