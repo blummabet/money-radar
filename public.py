@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R12"   # R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R13"   # R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -164,7 +164,49 @@ def sammeln(s, m, jetzt):
     t[k] = c
 
 
+# Regel 13 (Lucas 07.11. 16:44, „ein Ranking nach Liga — welche Liga trifft am besten, die kriegt Bonuspunkte"):
+# je Liga Bonus/Malus aus unseren eigenen abgerechneten Signalen (Betfair, Stake, Wal): Treffer minus Erwartung der
+# Quote, gedämpft mit n/(n+30), erst ab 20 Tipps, höchstens ±4 Punkte. push.py füllt LIGA_WERT vor der Auswahl.
+LIGA_WERT: dict = {}
+LIGA_MIN_N, LIGA_DAEMPFUNG, LIGA_FAKTOR, LIGA_MAX = 20, 30, 0.4, 4.0
+
+
+def liga_schluessel(liga):
+    l = LIGA_KURZ.get(str(liga or "").strip(), str(liga or "").strip())
+    return {"epl": "premier league", "english premier league": "premier league"}.get(l.lower(), l.lower())
+
+
+def liga_werte(buch):
+    """buch: Bilanz-Einträge → {liga: (punkte, n, treffer %, erwartet %)}. REIN."""
+    g = {}
+    for b in buch:
+        if b.get("status") != "abgerechnet" or b.get("art") not in ("serie", "zufluss", "live", "stake", "wal", "fix"):
+            continue
+        q = b.get("quote")
+        if not isinstance(q, (int, float)) or q <= 1 or b.get("win") is None or (b.get("r") == 0 and not b.get("win")):
+            continue
+        k = liga_schluessel(b.get("liga"))
+        x = g.setdefault(k, [0, 0.0, 0.0])
+        x[0] += 1; x[1] += 1 if b.get("win") else 0; x[2] += 1 / q
+    out = {}
+    for k, (n, t, e_) in g.items():
+        if n < LIGA_MIN_N:
+            continue
+        diff_pp = 100 * (t - e_) / n
+        pkt = max(-LIGA_MAX, min(LIGA_MAX, diff_pp * n / (n + LIGA_DAEMPFUNG) * LIGA_FAKTOR))
+        out[k] = (round(pkt, 1), n, round(100 * t / n), round(100 * e_ / n))
+    return out
+
+
 def punkte(c, jetzt):
+    p = _punkte_roh(c, jetzt)
+    if p is None:
+        return None
+    w = LIGA_WERT.get(liga_schluessel((c.get("m") or {}).get("liga")))
+    return round(p + (w[0] if w else 0), 1)
+
+
+def _punkte_roh(c, jetzt):
     """Stärke eines Kandidaten — None = nicht mehr spielbar (verfällt). REIN.
     Grundwert 2 · +1 je weiterem Signal (max. 5) · +4 je weiterer Quelle (Betfair/Stake/Polymarket) · Geld: +2 je
     Verdopplung über €5k (max. 8, je Art der höchste Stand, dann summiert) · Dauerzufluss-Kette: +½ je Glied (max. 4)

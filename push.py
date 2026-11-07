@@ -1348,6 +1348,10 @@ def main() -> int:
             print(f"  bilanz: {exc}")
         STAND.parent.mkdir(parents=True, exist_ok=True)
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
+        try:                         # Public-Regel 13: Liga-Wertung aus dem eigenen Buch
+            public.LIGA_WERT.clear(); public.LIGA_WERT.update(public.liga_werte(bilanz.laden()))
+        except Exception as exc:  # noqa: BLE001
+            print(f"  liga-wertung: {exc}")
         try:                         # Public-Regel 4: zu den Terminen den besten Kandidaten aus dem Topf
             _jetzt_live = {public._norm(f"{x.get('heim')} – {x.get('gast')}"): (x.get("live") or {}).get("stand")
                            for x in (d.get("radar") or {}).get("spiele") or [] if x.get("live")}
