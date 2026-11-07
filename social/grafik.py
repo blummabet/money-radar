@@ -299,6 +299,37 @@ def wal_story(w: dict, ergebnis: str | None = None) -> str:
     return _html(body, STORY_CSS)
 
 
+FEED_WAL_CSS = """
+html,body{height:1350px}
+.st{height:1350px;padding:64px 64px 0}
+.marke{margin-top:34px;font-size:38px}
+.betrag{font-size:170px;margin-top:14px}
+.auf{font-size:52px}
+.spiel{font-size:32px;margin-top:14px}
+.zwei{margin-top:30px}.zwei .w{font-size:68px}.zwei>div{padding:22px 28px}
+.balken{height:70px;margin-top:20px}
+.bew{margin-top:20px;font-size:28px;padding:16px 24px}
+.cliff{margin-bottom:22px}.cliff .f{font-size:72px}.cliff .h{font-size:30px}
+.ende{margin:0 -64px 0;padding:0 64px;height:120px}
+"""
+
+
+def wal_feed(w: dict) -> str:
+    """Lucas 07.11. (Instagram stuft die Morgen-Rückblicke als „anzüglich" ein, Konto aus den Empfehlungen): der Wal
+    wandert in den Feed (4:5), der Rückblick in die Story."""
+    return wal_story(w).replace("</style>", FEED_WAL_CSS + "</style>", 1)
+
+
+def story_huelle(bild: Path) -> str:
+    """Ein fertiges 4:5-Feed-Bild als Story (9:16): mittig auf Markenfläche, unten der Kanal."""
+    import base64 as _b
+    b64 = _b.b64encode(Path(bild).read_bytes()).decode()
+    css = """html,body{width:1080px;height:1920px;background:var(--bg)}
+.h{position:relative;width:1080px;height:1920px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.h img{width:1080px}"""
+    return _html(f"<div class='h'><img src='data:image/jpeg;base64,{b64}'></div>", css)
+
+
 def rendern(html_text: str, ziel: Path, hoehe: int = 1350):
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:

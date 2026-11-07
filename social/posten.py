@@ -59,6 +59,10 @@ def statistik():
     return hol(f"{SEITE}statistik.json?t={int(time.time())}")
 
 
+def _uhr(iso):
+    return datetime.fromisoformat(str(iso).replace("Z", "+00:00")).astimezone(WIEN).strftime("%H:%M")
+
+
 def daten():
     """Die ganze Seiten-Datei (d/<stand>.json) über den Zeiger."""
     zufall = "".join(random.choices(string.ascii_lowercase, k=10))
@@ -185,7 +189,16 @@ def wal_abend(gepostet):
             bilder_sichern(gepostet)
         return
     print("Wal:", json.dumps(w, ensure_ascii=False))
-    _veroeffentlichen(gepostet, f"wal|{W:%Y-%m-%d}", grafik.wal_story(w), f"Wal des Tages: ${w['usd']:,} auf {w['seite']} ({w['spiel']}) · Wallet {w['wallet']}", story=True)
+    # 07.11.: der Wal ist jetzt ein Feed-Post (der Rückblick wurde zur Story) — mit Text
+    plus = round(w["usd"] / w["preis"] - w["usd"])
+    usd = lambda v: "$" + f"{round(v):,}".replace(",", ".")
+    text = (f"🐋 Wal des Tages: {usd(w['usd'])} auf {w['seite']} – {w['spiel']}, heute {_uhr(w['anpfiff'])} Uhr ({w['liga']}).\n\n"
+            f"Geht es auf, kommen {usd(plus)} dazu. Sonst sind {usd(w['usd'])} weg. Auflösung morgen früh in der Story.\n\n"
+            + ("⭐ Das Wallet gehört zu den besten Fußball-Wallets auf Polymarket.\n\n" if w.get("bewiesen") else "")
+            + f"Öffentlich einsehbar auf Polymarket (Wallet {w['wallet'][:6]}…{w['wallet'][-4:]}).\n\n"
+            "Mehr Geldflüsse live im Telegram-Kanal: t.me/c0c0bet (Link in Bio)\n\n"
+            "18+ · Keine Wettempfehlung · Glücksspiel kann süchtig machen.\n\n" + TAGS)
+    _veroeffentlichen(gepostet, f"wal|{W:%Y-%m-%d}", grafik.wal_feed(w), text)
     if gepostet.get(f"wal|{W:%Y-%m-%d}"):
         gepostet[f"wal|{W:%Y-%m-%d}"]["wal"] = w
         bilder_sichern(gepostet)
@@ -226,7 +239,12 @@ def main(modus):
     schluessel = f"{modus}|{W:%Y-%m-%d}"
     if not (gepostet.get(schluessel) and not os.environ.get("ERZWINGEN")):
         r = morgen() if modus == "morgen" else abend()
-        if r:
+        if r and modus == "morgen":
+            # 07.11. (Instagram stufte die Rückblicke vom 04./05.11. als „anzüglich" ein): Rückblick als Story
+            roh = ARBEIT.parent / "rueckblick-feed.jpg"
+            grafik.rendern(r[0], roh)
+            _veroeffentlichen(gepostet, schluessel, grafik.story_huelle(roh), r[1], story=True)
+        elif r:
             _veroeffentlichen(gepostet, schluessel, *r)
         else:
             print("nichts zu posten")
