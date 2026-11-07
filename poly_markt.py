@@ -309,8 +309,12 @@ def avg_aus_positionen(data, token):
 def ereignisse():
     boden = (JETZT - timedelta(hours=FENSTER_NACH_H)).strftime("%Y-%m-%dT%H:%M:%SZ")
     gesehen = {}
+    # 07.11. (Lucas: kein Wal-Post am Samstag): nach endDate sortiert fressen an einem Fußball-Samstag die laufenden
+    # Spiele samt Nebenmärkten (Halbzeit, exaktes Ergebnis, more-markets) die 400 Plätze — Abend und Sonntag fehlten.
+    # Deshalb Fußball bis 15 Seiten und Schluss erst, wenn die Seite hinter dem Fenster endet.
+    decke = JETZT + timedelta(hours=FENSTER_VOR_H + 6)
     for tag in TAGS:
-        for seite in range(4):
+        for seite in range(15 if tag == "soccer" else 4):
             page = _get(f"{GAMMA}?tag_slug={tag}&limit=100&offset={seite * 100}&active=true&closed=false"
                         f"&order=endDate&ascending=true&end_date_min={boden}")
             if not isinstance(page, list) or not page:
@@ -319,6 +323,9 @@ def ereignisse():
                 if isinstance(ev, dict) and ev.get("slug"):
                     gesehen.setdefault(ev["slug"], (ev, tag))
             if len(page) < 100:
+                break
+            letzt = _ts((page[-1] or {}).get("endDate")) if isinstance(page[-1], dict) else None
+            if letzt and letzt > decke:
                 break
     for seite in range(3):                       # tag-los: die volumenstärksten (fängt Ligen ohne passenden Tag)
         page = _get(f"{GAMMA}?limit=100&offset={seite * 100}&active=true&closed=false&order=volume&ascending=false")
