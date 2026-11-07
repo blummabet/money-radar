@@ -773,6 +773,25 @@ def _stake_team(gruppe, radar, t0):
     return None
 
 
+def _bf_sieg_quote(spiel, auswahl, markt, radar):
+    """Betfair-Quote (Sieg-Markt) für eine Stake-Auswahl ohne eigene Quote — nur Team-Sieg oder Remis. REIN."""
+    if str(markt or "").lower() not in ("", "match result", "1x2", "winner", "match winner", "match odds"):
+        return None
+    teile = [x.strip().lower() for x in str(spiel or "").split(" - ")]
+    if len(teile) != 2:
+        return None
+    a = str(auswahl or "").lower()
+    for sp in radar:
+        h, gg = str(sp.get("heim") or "").lower(), str(sp.get("gast") or "").lower()
+        if not (h[:5] and gg[:5] and h[:5] in teile[0] and gg[:5] in teile[1]):
+            continue
+        k = ("remis" if a in ("draw", "remis", "unentschieden", "x") else
+             "heim" if (h[:5] in a or teile[0][:5] in a) else "gast" if (gg[:5] in a or teile[1][:5] in a) else None)
+        q = (sp.get("quoten") or {}).get(k) if k else None
+        return q if isinstance(q, (int, float)) and q > 1 else None
+    return None
+
+
 def stake(d):
     """Lucas 18.10. (Brighton 3:0: Push „$127k @ 1,48, live" — die $127k und 1,48 waren der Burst von VOR dem Spiel,
     ausgelöst hat ein neuer $17k-Spiel-Burst bei 3:0): je Push nur die Signale, die zusammen kamen (≤ 5 Min), mit
@@ -824,6 +843,12 @@ def stake(d):
         mit_auswahl = next((z for z in sorted(gruppe, key=lambda z: -(z.get("usd") or 0)) if z.get("auswahl")), None)
         auswahl = (mit_auswahl or {}).get("auswahl")
         quote = (mit_auswahl or {}).get("quote") or g.get("quote")
+        quelle_q = "stake"
+        if not quote and auswahl:
+            # Public-Regel 10 (Lucas 07.11.): 83 von 123 Stake-Signalen kamen ohne Quote → nie im Kanal, nie abgerechnet.
+            # Sieg-Markt: die Betfair-Quote derselben Auswahl nehmen (wie bei stakeTeam).
+            quote = _bf_sieg_quote(g.get("spiel"), auswahl, (mit_auswahl or g).get("markt"), radar)
+            quelle_q = "betfair" if quote else "stake"
         if (isinstance(quote, (int, float)) and quote < 1.40) or (g.get("phase") == "live" and klar_vorn(g.get("spiel"))):
             continue
         # Lucas 31.10. (Accrington – Northampton 40' 1:0, $18k auf Accrington @ 1,40: „Macht keinen Sinn, oder?"): REGEL S2 —
@@ -862,7 +887,7 @@ def stake(d):
         text = (f"🟢 <b>Stake · {e(' + '.join(arten))}</b>\n"
                 f"<b>{e(g.get('spiel'))}</b>\n{e(g.get('liga'))} · {phase}\n\n"
                 f"💵 <b>{geld(g.get('usd'), '$')}</b> in {g.get('wetten')} Wetten" + (f" auf <b>{e(auswahl)}</b>" if auswahl else "")
-                + (f" @ {q2(quote)}" if quote else "") + "\n"
+                + (f" @ {q2(quote)}" + (" (Betfair-Quote)" if quelle_q == "betfair" else "") if quote else "") + "\n"
                 + (f"📏 {q2(g.get('faktor'))}-mal so viel wie in dieser Liga üblich\n" if g.get("faktor") else "")
                 + (f"🗂 {e((mit_auswahl or g).get('markt'))}\n" if (mit_auswahl or g).get("markt") else ""))
         mk = (mit_auswahl or g).get("markt")
@@ -1086,12 +1111,18 @@ def serie(d):
                 + f"<i>alle Polymarket-Käufe in diesem Markt in dem Zeitraum: {geld(round(x['usd'] * 100 / max(1, x.get('anteil') or 100)), '$')}, nicht nur Wale</i>\n"
                 + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
+        # Public-Regel 10 (Lucas 07.11.): Polymarket-Dauerzufluss darf in den Kanal, Regeln wie Betfair-Dauerzufluss
+        pub = _pub("pserie", _re.sub(r"\s+vs\.?\s+", " – ", str(x.get("titel") or ""), flags=_re.I), x.get("liga"), x["quote"], lab,
+                   roh=x["auswahl"], anpfiff=x.get("anpfiff"), live=bool(x.get("live")), sport=x.get("sport") or "Fußball",
+                   betrag=pubmod.geld(x.get("usd"), "$"),
+                   gruende=[f"🔁 {x['n']}× in Folge neues Geld auf diese Seite", f"{round(x.get('anteil') or 0)} % der Käufe"])
+        _mit(pub, x.get("usd"), x.get("n"))
         # Lucas 20.10.: Polymarket-Dauerzufluss ins Buch — Preis zum Push, abgerechnet über das Gamma-Ereignis
         yield key, text, None, {"art": "pserie", "id": x["id"], "titel": x.get("titel"), "heim": None, "gast": None,
                                 "liga": x.get("liga"), "sport": x.get("sport") or "Fußball", "anpfiff": x.get("anpfiff"),
                                 "markt": "Polymarket", "auswahl": x["auswahl"], "anzeige": lab, "quote": x["quote"],
                                 "preis": x.get("preis"), "live": bool(x.get("live")), "top5": bool(x.get("top5")), "n": x["n"],
-                                "gegenrichtung": bool(gegen)}
+                                "gegenrichtung": bool(gegen)}, pub
     for x in d.get("stakeSerien") or []:
         if isinstance(x.get("quote"), (int, float)) and x["quote"] < SERIE_PUSH_MIN_QUOTE:
             continue

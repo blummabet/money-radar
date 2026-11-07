@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R9"   # R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R10"   # R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -33,7 +33,7 @@ AB = "2026-10-31T10:30:00+00:00"
 ZIEL = 60
 JE_FENSTER = 3
 FENSTER = ((0, 12, "12:00"), (12, 16, "16:00"), (16, 20, "20:00"), (20, 24, None))   # von, bis, „nächste ab"
-ARTEN = {"serie", "zufluss", "fix", "stake", "wal"}
+ARTEN = {"serie", "zufluss", "fix", "stake", "wal", "pserie"}   # pserie ab R10 (07.11.)
 NUR_ALLE_LIGEN = {"stake", "fix"}
 
 GROSS = re.compile(
@@ -45,7 +45,7 @@ GROSS = re.compile(
 # Lucas 02.11. („so simpel wie möglich, dass es der dümmste User versteht"): Namen nach der Quelle, je Nachricht nur
 # noch die Geld-Zeile + höchstens der Anteil-Balken, Fußzeile ohne „heute N Geldbewegungen erkannt".
 KOPF = {"serie": ("🔁", "BETFAIR INFO"), "zufluss": ("💶", "BETFAIR VOR ANPFIFF"), "fix": ("🚨", "AUFFÄLLIGES GELD"),
-        "stake": ("🟢", "STAKE.com GELD"), "wal": ("🐋", "POLYMARKET WAL")}
+        "stake": ("🟢", "STAKE.com GELD"), "wal": ("🐋", "POLYMARKET WAL"), "pserie": ("🔁", "POLYMARKET INFO")}
 LIGA_KURZ = {"English Premier League": "Premier League", "Spanish La Liga": "La Liga", "German Bundesliga": "Bundesliga",
              "Italian Serie A": "Serie A", "French Ligue 1": "Ligue 1", "English Sky Bet Championship": "Championship",
              "German Bundesliga 2": "2. Bundesliga", "Italian Serie B": "Serie B", "French Ligue 2": "Ligue 2",
@@ -123,7 +123,9 @@ def passt(m) -> bool:
         return 1.5 <= q < 3.0
     # Regel 5 (Lucas 02.11. 21:29: „diese Sperre hab ich nie definiert — ich bin größter Fan von kleinen Ligen und viel
     # Geld"): Dauerzufluss aus ALLEN Ligen. Gemessen: kleine Ligen 315 Tipps +10,9 % (große 240 · +7,6 %).
-    if art == "serie":
+    # Regel 10 (Lucas 07.11. 08:30, „mach beides, dann schauen wir, wie die nächsten Tage laufen"): Polymarket-Dauerzufluss
+    # wie der Betfair-Dauerzufluss (seit 02.11.: 123 Tipps, 59 % getroffen bei 53 % erwartet, +9,3 %).
+    if art in ("serie", "pserie"):
         return 1.5 <= q < 3.0
     return art in NUR_ALLE_LIGEN and 1.5 <= q < 3.0     # Stake + Auffälliges Geld: alle Ligen ab 1,50 (vorher kleine Ligen erst ab 1,80)
 
@@ -136,7 +138,7 @@ def passt(m) -> bool:
 TERMINE = {0: (540, 620, 700), 1: (60, 140, 220), 2: (60, 140, 220), 3: (60, 140, 220)}   # Minuten ab Fensterbeginn (0–12: 9:00 10:20 11:40)
 MIN_PUNKTE, EXPRESS, LETZTE_CHANCE, NAH_H = 5.0, 14.0, 9.0, 4
 LIVE_VORZIEHEN = 10.0  # 02.11. 16 Uhr: ein Live-Kandidat lebt nur 20 Min, die Termine liegen 80 Min auseinander → er darf vorziehen
-QUELLE = {"serie": "betfair", "zufluss": "betfair", "fix": "betfair", "stake": "stake", "wal": "poly"}
+QUELLE = {"serie": "betfair", "zufluss": "betfair", "fix": "betfair", "stake": "stake", "wal": "poly", "pserie": "poly"}
 
 
 def _key(m):
@@ -180,7 +182,7 @@ def punkte(c, jetzt):
         if isinstance(e.get("eur"), (int, float)):
             je_art[e["art"]] = max(je_art.get(e["art"], 0), e["eur"])
     geld = sum(je_art.values())
-    kette = max([e.get("n") or 0 for e in ev if e.get("art") == "serie"] or [0])
+    kette = max([e.get("n") or 0 for e in ev if e.get("art") in ("serie", "pserie")] or [0])
     p = 2 + min(5, len(ev) - 1) + 4 * (len(quellen) - 1) + (min(8, max(0, 2 * math.log2(geld / 5000))) if geld > 0 else 0) \
         + min(4, kette / 2) + min(4, max([e.get("faktor") or 0 for e in ev if e.get("art") == "wal"] or [0])) \
         - (3 if alter > 90 else 0)
