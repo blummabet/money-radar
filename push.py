@@ -1112,7 +1112,7 @@ def serie(d):
                 + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
         # Public-Regel 10 (Lucas 07.11.): Polymarket-Dauerzufluss darf in den Kanal, Regeln wie Betfair-Dauerzufluss
-        pub = _pub("pserie", _re.sub(r"\s+vs\.?\s+", " – ", str(x.get("titel") or ""), flags=_re.I), x.get("liga"), x["quote"], lab,
+        pub = _pub("pserie", _re.sub(r"\s+(A?FC|CF)\b", "", _re.sub(r"\s+vs\.?\s+", " – ", str(x.get("titel") or ""), flags=_re.I)), x.get("liga"), x["quote"], _re.sub(r"\s+(A?FC|CF)\b", "", str(lab)),
                    roh=x["auswahl"], anpfiff=x.get("anpfiff"), live=bool(x.get("live")), sport=x.get("sport") or "Fußball",
                    betrag=pubmod.geld(x.get("usd"), "$"),
                    gruende=[f"🔁 {x['n']}× in Folge neues Geld auf diese Seite", f"{round(x.get('anteil') or 0)} % der Käufe"])
