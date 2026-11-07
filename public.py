@@ -444,7 +444,9 @@ def text(m, nr_f, erkannt, jetzt) -> str:
     z += [x for x in m.get("gruende") or [] if x and ("▰" in x or "▱" in x)][:1]
     z.append("")
     bis = FENSTER[f][1]
-    z.append(f"📡 Signal {n} von {JE_FENSTER} " + (f"bis {bis} Uhr" if bis < 24 else "heute Nacht"))
+    # 07.11. (Lucas: „bis 20 Uhr" + „Nächste ab 20:00" las sich wie ein Widerspruch) → beim letzten eine Zeile
     if n == JE_FENSTER and FENSTER[f][2]:
-        z.append(f"⏳ Nächste Signale ab {FENSTER[f][2]}")
+        z.append(f"📡 Signal {n} von {JE_FENSTER} · nächste ab {bis} Uhr")
+    else:
+        z.append(f"📡 Signal {n} von {JE_FENSTER} " + (f"bis {bis} Uhr" if bis < 24 else "heute Nacht"))
     return "\n".join(z)
