@@ -330,6 +330,75 @@ def story_huelle(bild: Path) -> str:
     return _html(f"<div class='h'><img src='data:image/jpeg;base64,{b64}'></div>", css)
 
 
+def woche(montag: datetime, signale: list[dict]) -> str:
+    """Lucas 08.11.: Wochenabrechnung Mo–So für den Telegram-Kanal, Montag früh.
+    signale: [{zeit (UTC ISO), spiel, auswahl, quote, r, w}] — nur die gesendeten Public-Signale der Woche."""
+    from datetime import timedelta
+    ab = [s for s in signale if s.get("r") is not None and not (s["r"] == 0 and s.get("w") != 1)]
+    gew = sum(1 for s in ab if s.get("w") == 1)
+    ein = sum(s["r"] for s in ab)
+    erw = sum(1 / s["quote"] for s in ab if s.get("quote")) / max(1, len(ab))
+    tage = [0.0] * 7
+    nje = [0] * 7
+    for s in ab:
+        t = datetime.fromisoformat(str(s["zeit"]) + ("" if "+" in str(s["zeit"]) else "+00:00")).astimezone(WIEN)
+        i = (t.date() - montag.date()).days
+        if 0 <= i < 7:
+            tage[i] += s["r"]
+            nje[i] += 1
+    gross_ = max(1.0, max(abs(x) for x in tage))
+    saeulen = []
+    for i, x in enumerate(tage):
+        h = round(abs(x) / gross_ * 290)
+        k = "plus" if x > 0 else "minus" if x < 0 else "null"
+        saeulen.append(f"<div class='tg'><div class='w {k}'>{('+' if x > 0 else '−' if x < 0 else '±') + q2(abs(x)) if nje[i] else '–'}</div>"
+                       f"<div class='ach'><div class='bar {k}' style='height:{max(h, 4) if nje[i] else 0}px'></div></div>"
+                       f"<div class='n'>{TAGE[i][:2]}</div></div>")
+    beste = max((s for s in ab if s.get("w") == 1), key=lambda s: s.get("quote") or 0, default=None)
+    so = montag + timedelta(days=6)
+    unter = f"Montag {montag.day}. bis Sonntag {so.day}. {MONATE[so.month - 1]}"
+    vz = "+" if ein > 0 else "−" if ein < 0 else "±"
+    beste_html = (f"<div class='best'><span class='bl'>Höchste Quote getroffen</span><b>{e(auswahl_de(beste.get('auswahl'), beste.get('spiel')))}</b>"
+                  f"<span class='bq'>{q2(beste['quote'])}</span></div>") if beste else ""
+    body = (f"<div class='seite'>{_kopf('Die Woche im Kanal', unter)}"
+            f"<div class='gross'><div class='ein {'plus' if ein >= 0 else 'minus'}'>{vz}{q2(abs(ein))}</div>"
+            f"<div class='el'>Einheiten<br>bei {len(ab)} Signalen</div></div>"
+            f"<div class='kacheln'><div class='k'><b>{gew}<i>–</i>{len(ab) - gew}</b><span>getroffen – daneben</span></div>"
+            f"<div class='k'><b>{round(100 * gew / max(1, len(ab)))} %</b><span>Trefferquote</span></div>"
+            f"<div class='k'><b class='g'>{round(100 * erw)} %</b><span>laut Quote erwartet</span></div></div>"
+            f"<div class='karte'><div class='kt'>Je Tag, in Einheiten</div><div class='tage'>{''.join(saeulen)}</div></div>"
+            f"{beste_html}"
+            f"<div class='hinweis'>Jedes Signal mit 1 Einheit zur Quote im Moment des Posts.</div>{FUSS}</div>")
+    css = """
+.gross{display:flex;align-items:flex-end;gap:28px;margin:40px 0 28px}
+.ein{font-family:'Barlow Condensed';font-weight:800;font-size:220px;line-height:.78;letter-spacing:-3px}
+.ein.plus{color:var(--gewinn)}.ein.minus{color:var(--verlust)}
+.el{font-size:30px;color:var(--grau);line-height:1.3;padding-bottom:10px;font-weight:500}
+.kacheln{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.k{background:var(--karte);border-radius:24px;padding:22px 26px}
+.k b{display:block;font-family:'Barlow Condensed';font-weight:700;font-size:64px;line-height:1}
+.k b i{font-style:normal;color:var(--hell);margin:0 4px}
+.k b.g{color:var(--grau)}
+.k span{font-size:21px;color:var(--grau)}
+.karte{background:var(--karte);border-radius:28px;padding:24px 30px 18px;margin-top:16px}
+.kt{font-size:22px;color:var(--grau);font-weight:600}
+.tage{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-top:8px}
+.tg{display:flex;flex-direction:column;align-items:center}
+.w{font-family:'Barlow Condensed';font-weight:700;font-size:28px;height:38px}
+.w.plus{color:var(--gewinn)}.w.minus{color:var(--verlust)}.w.null{color:var(--hell)}
+.ach{height:296px;width:100%;display:flex;align-items:flex-end;justify-content:center;border-bottom:3px solid var(--tinte)}
+.bar{width:64%;border-radius:10px 10px 0 0}
+.bar.plus{background:var(--gewinn)}.bar.minus{background:var(--verlust)}.bar.null{background:var(--hell)}
+.n{font-size:22px;font-weight:600;margin-top:8px}
+.best{display:flex;align-items:center;gap:18px;background:var(--tinte);color:#fff;border-radius:24px;padding:20px 28px;margin-top:16px}
+.best .bl{font-size:21px;color:#B9BEC5}
+.best b{font-size:28px;font-weight:600}
+.best .bq{margin-left:auto;font-family:'Barlow Condensed';font-weight:800;font-size:52px;color:var(--gelb)}
+.hinweis{font-size:20px;color:var(--grau);margin-top:16px}
+"""
+    return _html(body, css)
+
+
 def rendern(html_text: str, ziel: Path, hoehe: int = 1350):
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
