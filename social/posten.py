@@ -127,6 +127,80 @@ def morgen():
     return html, text
 
 
+def woche_signale(montag):
+    """Lucas 08.11.: Wochenabrechnung Mo–So (Wiener Kalendertage) aller gesendeten Public-Signale."""
+    d = statistik()
+    F = d["felder"]
+    rows = [dict(zip(F, z)) for z in d["zeilen"] if z[1] == "public"]
+    bis = montag + timedelta(days=7)
+    sig = [{"zeit": r["zeit"], "spiel": r["titel"], "auswahl": r["auswahl"], "quote": r["quote"], "r": r["r"], "w": r["w"]}
+           for r in rows if montag <= datetime.fromisoformat(r["zeit"] + "+00:00").astimezone(WIEN).date() < bis]
+    return sig
+
+
+def woche():
+    montag = (W - timedelta(days=7)).date()
+    montag -= timedelta(days=montag.weekday())
+    sig = woche_signale(montag)
+    if not sig:
+        return None
+    ab = [s for s in sig if s["r"] is not None and not (s["r"] == 0 and s["w"] != 1)]
+    gew = sum(1 for s in ab if s["w"] == 1)
+    ein = sum(s["r"] for s in ab)
+    so = montag + timedelta(days=6)
+    zeile = (f"{gew} von {len(ab)} Signalen getroffen, {'+' if ein >= 0 else '−'}{grafik.q2(abs(ein))} Einheiten. "
+             "Jedes Signal mit 1 Einheit zur Quote im Moment des Posts – auch die verlorenen zählen.")
+    tg = f"📊 <b>Die Woche im Kanal</b> · {montag.day}.–{so.day}. {grafik.MONATE[so.month - 1]}\n\n{zeile}"
+    ig = (f"Die Woche im Kanal ({montag.day}.–{so.day}. {grafik.MONATE[so.month - 1]}): {zeile}\n\n"
+          "Die Signale kommen live im Telegram-Kanal: t.me/c0c0bet (Link in Bio)\n\n"
+          "18+ · Keine Wettempfehlung · Glücksspiel kann süchtig machen.\n\n" + TAGS)
+    return grafik.woche(datetime.combine(montag, datetime.min.time()), sig), tg, ig, montag
+
+
+def telegram_foto(bild: Path, text: str, chat: str) -> bool:
+    """Bild mit Text an einen Telegram-Kanal (multipart, ohne Zusatzpakete)."""
+    tok = os.environ.get("TELEGRAM_TOKEN", "").strip()
+    if not tok or not chat:
+        print("Telegram: Token/Chat fehlt — nichts gesendet")
+        return False
+    grenze = "----geldradar" + "".join(random.choices(string.ascii_lowercase, k=12))
+    teile = []
+    for k, v in (("chat_id", chat), ("caption", text), ("parse_mode", "HTML")):
+        teile.append(f"--{grenze}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode())
+    teile.append(f"--{grenze}\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"{bild.name}\"\r\n"
+                 "Content-Type: image/jpeg\r\n\r\n".encode() + bild.read_bytes() + b"\r\n")
+    teile.append(f"--{grenze}--\r\n".encode())
+    req = urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendPhoto", data=b"".join(teile),
+                                 headers={"Content-Type": f"multipart/form-data; boundary={grenze}"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            ok = json.loads(r.read()).get("ok")
+    except urllib.error.HTTPError as ex:
+        print("Telegram-Fehler:", ex.code, ex.read()[:300])
+        return False
+    print("Telegram:", "gesendet" if ok else "nicht ok")
+    return bool(ok)
+
+
+def woche_posten(gepostet, chat, nur_tg=False):
+    w = woche()
+    if not w:
+        print("keine Signale in der Vorwoche")
+        return None
+    html, tg, ig, montag = w
+    bild = ARBEIT / f"woche-{montag:%Y%m%d}.jpg"
+    grafik.rendern(html, bild)
+    schl = f"wocheTg|{montag}|{chat}"
+    if gepostet.get(schl) and not os.environ.get("ERZWINGEN"):
+        print("Woche schon im Kanal:", gepostet[schl])
+    elif os.environ.get("TROCKEN"):
+        print("TROCKEN — Woche:", tg)
+    elif telegram_foto(bild, tg, chat):
+        gepostet[schl] = {"zeit": W.isoformat()}
+        bilder_sichern(gepostet)
+    return None if nur_tg else (html, ig)
+
+
 def abend():
     heute = W.strftime("%Y-%m-%d")
     for _ in range(12):                        # die Datei entsteht im ersten Seitenbau ab 17:00 — notfalls kurz warten
@@ -231,6 +305,12 @@ def wal_aufloesung(gepostet):
 
 def main(modus):
     gepostet = bilder_zweig()
+    if modus == "woche_test":                   # Lucas 08.11.: Wochenabrechnung erst in den Testkanal
+        global W
+        if os.environ.get("WOCHE_AB"):
+            W = datetime.fromisoformat(os.environ["WOCHE_AB"]).replace(tzinfo=WIEN)
+        woche_posten(gepostet, os.environ.get("TELEGRAM_TEST_CHAT_ID", "").strip(), nur_tg=True)
+        return 0
     if modus == "wal":
         # 07.11. (Lucas „Ja"): kein Wal um 18:13 → zweiter Versuch ab 19:00; erst nach zwei leeren Läufen ist der Tag erledigt
         g = gepostet.get(f"wal|{W:%Y-%m-%d}") or {}
@@ -242,6 +322,12 @@ def main(modus):
     schluessel = f"{modus}|{W:%Y-%m-%d}"
     if not (gepostet.get(schluessel) and not os.environ.get("ERZWINGEN")):
         r = morgen() if modus == "morgen" else abend()
+        if modus == "morgen" and W.weekday() == 0:
+            # Lucas 08.11.: montags statt „Gestern im Kanal" die Wochenabrechnung — Public-Kanal + Instagram-Story
+            wk = woche_posten(gepostet, os.environ.get("PUBLIC_CHAT_ID", "").strip())
+            if wk:
+                _veroeffentlichen(gepostet, schluessel, wk[0], wk[1], story=True)
+                r = None
         if r and modus == "morgen":
             # 07.11. (Instagram stufte die Rückblicke vom 04./05.11. als „anzüglich" ein): Rückblick als Story
             roh = ARBEIT.parent / "rueckblick-feed.jpg"

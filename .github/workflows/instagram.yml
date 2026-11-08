@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       modus:
-        description: 'morgen, abend oder wal (Story)'
+        description: 'morgen, abend, wal oder woche_test'
         default: 'morgen'
       trocken:
         description: 'nur Bild bauen, nicht posten'
@@ -24,6 +24,9 @@ on:
         description: 'auch wenn heute schon gepostet'
         type: boolean
         default: false
+      woche_ab:
+        description: 'nur woche_test: so tun, als wäre es dieser Montag (z. B. 2026-11-09T09:00)'
+        default: ''
 
 permissions:
   contents: write
@@ -50,6 +53,10 @@ jobs:
         env:
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_TEST_CHAT_ID: ${{ secrets.TELEGRAM_TEST_CHAT_ID }}
+          PUBLIC_CHAT_ID: "-1003819239615"
+          WOCHE_AB: ${{ inputs.woche_ab }}
           GH_TOKEN: ${{ github.token }}
           TROCKEN: ${{ github.event_name == 'workflow_dispatch' && inputs.trocken && '1' || '' }}
           ERZWINGEN: ${{ inputs.erzwingen && '1' || '' }}
