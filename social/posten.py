@@ -148,7 +148,8 @@ def woche():
     gew = sum(1 for s in ab if s["w"] == 1)
     ein = sum(s["r"] for s in ab)
     so = montag + timedelta(days=6)
-    zeile = (f"{gew} von {len(ab)} Signalen getroffen, {'+' if ein >= 0 else '−'}{grafik.q2(abs(ein))} Einheiten. "
+    yld = str(round(100 * abs(ein) / max(1, len(ab)), 1)).replace(".", ",")
+    zeile = (f"{gew} von {len(ab)} Signalen getroffen, {'+' if ein >= 0 else '−'}{grafik.q2(abs(ein))} Einheiten, Yield {'+' if ein >= 0 else '−'}{yld} %. "
              "Jedes Signal mit 1 Einheit zur Quote im Moment des Posts – auch die verlorenen zählen.")
     tg = f"📊 <b>Die Woche im Kanal</b> · {montag.day}.–{so.day}. {grafik.MONATE[so.month - 1]}\n\n{zeile}"
     ig = (f"Die Woche im Kanal ({montag.day}.–{so.day}. {grafik.MONATE[so.month - 1]}): {zeile}\n\n"

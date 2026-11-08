@@ -364,8 +364,8 @@ def woche(montag: datetime, signale: list[dict]) -> str:
             f"<div class='gross'><div class='ein {'plus' if ein >= 0 else 'minus'}'>{vz}{q2(abs(ein))}</div>"
             f"<div class='el'>Einheiten<br>bei {len(ab)} Signalen</div></div>"
             f"<div class='kacheln'><div class='k'><b>{gew}<i>–</i>{len(ab) - gew}</b><span>getroffen – daneben</span></div>"
-            f"<div class='k'><b>{round(100 * gew / max(1, len(ab)))} %</b><span>Trefferquote</span></div>"
-            f"<div class='k'><b class='g'>{round(100 * erw)} %</b><span>laut Quote erwartet</span></div></div>"
+            f"<div class='k'><b class='{'gp' if ein >= 0 else 'gm'}'>{vz}{str(round(100 * abs(ein) / max(1, len(ab)), 1)).replace('.', ',')} %</b><span>Yield je Einsatz</span></div>"
+            f"<div class='k'><b>{round(100 * gew / max(1, len(ab)))} %</b><span>Treffer · erwartet {round(100 * erw)} %</span></div></div>"
             f"<div class='karte'><div class='kt'>Je Tag, in Einheiten</div><div class='tage'>{''.join(saeulen)}</div></div>"
             f"{beste_html}"
             f"<div class='hinweis'>Jedes Signal mit 1 Einheit zur Quote im Moment des Posts.</div>{FUSS}</div>")
@@ -379,6 +379,7 @@ def woche(montag: datetime, signale: list[dict]) -> str:
 .k b{display:block;font-family:'Barlow Condensed';font-weight:700;font-size:64px;line-height:1}
 .k b i{font-style:normal;color:var(--hell);margin:0 4px}
 .k b.g{color:var(--grau)}
+.k b.gp{color:var(--gewinn)}.k b.gm{color:var(--verlust)}
 .k span{font-size:21px;color:var(--grau)}
 .karte{background:var(--karte);border-radius:28px;padding:24px 30px 18px;margin-top:16px}
 .kt{font-size:22px;color:var(--grau);font-weight:600}
