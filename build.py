@@ -2295,7 +2295,7 @@ VERLAUF_TAGE = 60
 
 # Lucas 30.10. („Statistiken optisch besser aufbereiten — nach Kategorien, Woche, Monat einstellbar"): jede gepushte
 # Wette seit Start als kompakte Zeile in einer EIGENEN Datei (site/statistik.json, wird erst beim Öffnen der Seite geladen).
-STAT_ARTEN = {"serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
+STAT_ARTEN = {"serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen

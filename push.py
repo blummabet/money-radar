@@ -495,7 +495,21 @@ def bf_halbzeit(d):
     """Lucas 17.10.: die Betfair-HZ-Pushes aus dem alten Projekt („die sollen auch rein") —
     🔵 Halbzeit-Geld (einseitig) und ⚫ Fix-Verdacht. Erneut gemeldet erst, wenn das Geld um +50 % wuchs."""
     import math
+    spiele_ = {str(s.get("id")): s for s in (d.get("radar") or {}).get("spiele") or []}
     for a in d.get("bfHtPushes") or []:
+        # Lucas 09.11. 20:37 („bei Unter 1,5 in der 1. Halbzeit spiele ich dagegen das Over — ich gehe davon aus, das
+        # ist gelayt"): still mitmessen, Über 0,5 und Über 1,5 1. HZ zur Betfair-Quote beim Push (einmal je Spiel)
+        if str(a.get("markt")) == "First Half Goals 1.5" and str(a.get("auf") or "").lower().startswith("under"):
+            sp_ = spiele_.get(str(a.get("id"))) or {}
+            lv_ = sp_.get("live") or {}
+            for mk_, aus_, art_ in (("First Half Goals 0.5", "Over 0.5 Goals", "htGegen05"), ("First Half Goals 1.5", "Over 1.5 Goals", "htGegen15")):
+                m_ = next((m for m in sp_.get("maerkteDetail") or [] if m.get("name") == mk_), None)
+                q_ = next((r.get("quote") for r in (m_ or {}).get("auswahl") or [] if r.get("name") == aus_), None)
+                if isinstance(q_, (int, float)) and q_ > 1:
+                    yield (f"hzg|{a.get('id')}|{art_}", None, None,
+                           {"art": art_, "id": str(a.get("id")), "heim": a.get("heim"), "gast": a.get("gast"), "liga": a.get("liga"),
+                            "anpfiff": a.get("anpfiff"), "top5": a.get("top5"), "live": bool(lv_), "markt": mk_, "auswahl": aus_,
+                            "quote": q_, "stand": lv_.get("stand"), "minute": lv_.get("min"), "pushArt": a.get("art")})
         stufe = int(math.log(max(a.get("eur") or 1, 1)) / math.log(1.5))
         key = f"bfht|{a.get('art')}|{a.get('id')}|{a.get('markt')}|{a.get('auf')}|{stufe}"
         lv = a.get("live")
