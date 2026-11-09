@@ -18,6 +18,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -125,6 +126,31 @@ def morgen():
             "Die Signale kommen live im Telegram-Kanal: t.me/c0c0bet (Link in Bio)\n\n"
             "18+ · Keine Wettempfehlung · Glücksspiel kann süchtig machen.\n\n" + TAGS)
     return html, text
+
+
+def reddit_senden(gepostet):
+    """Lucas 09.11.: gegen 17 Uhr ein englischer Text für die Reddit-Daily-Threads in den Push-Kanal (nicht Public)."""
+    import reddit
+    schl = f"reddit|{W:%Y-%m-%d}"
+    if gepostet.get(schl) and not os.environ.get("ERZWINGEN"):
+        return
+    msg = reddit.nachricht(daten(), JETZT)
+    if not msg:
+        print("Reddit: heute Abend nichts mit genug Geld")
+        return
+    if os.environ.get("TROCKEN"):
+        print(msg)
+        return
+    tok, chat = os.environ.get("TELEGRAM_TOKEN", "").strip(), os.environ.get("TELEGRAM_TEST_CHAT_ID", "").strip()
+    if not (tok and chat):
+        print("Reddit: Token/Chat fehlt")
+        return
+    body = urllib.parse.urlencode({"chat_id": chat, "text": msg, "parse_mode": "HTML", "disable_web_page_preview": "true"}).encode()
+    with urllib.request.urlopen(f"https://api.telegram.org/bot{tok}/sendMessage", body, timeout=20) as r:
+        if json.loads(r.read()).get("ok"):
+            gepostet[schl] = {"zeit": W.isoformat()}
+            bilder_sichern(gepostet)
+            print("Reddit-Text gesendet")
 
 
 def woche_signale(montag):
@@ -312,6 +338,9 @@ def main(modus):
             W = datetime.fromisoformat(os.environ["WOCHE_AB"]).replace(tzinfo=WIEN)
         woche_posten(gepostet, os.environ.get("TELEGRAM_TEST_CHAT_ID", "").strip(), nur_tg=True)
         return 0
+    if modus == "reddit":                       # nur der Reddit-Text, ohne Instagram
+        reddit_senden(gepostet)
+        return 0
     if modus == "wal":
         # 07.11. (Lucas „Ja"): kein Wal um 18:13 → zweiter Versuch ab 19:00; erst nach zwei leeren Läufen ist der Tag erledigt
         g = gepostet.get(f"wal|{W:%Y-%m-%d}") or {}
@@ -340,6 +369,11 @@ def main(modus):
             print("nichts zu posten")
     else:
         print("heute schon gepostet:", gepostet[schluessel])
+    if modus in ("abend", "reddit"):
+        try:
+            reddit_senden(gepostet)
+        except Exception as ex:  # noqa: BLE001 — darf den Abendpost nicht reißen
+            print("Reddit-Text fehlgeschlagen:", ex)
     if modus == "morgen":
         try:
             wal_aufloesung(gepostet)
