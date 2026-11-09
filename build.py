@@ -2005,14 +2005,16 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
                           # Lucas 08.11. (Polymarket-Schattenbuch): bester Ask und Liquidität bis +2 Cent je Seite
                           "ask": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("ask") or {}).items()},
                           "tiefe": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("tiefe") or {}).items()},
-                          "buchTs": m.get("buchTs")}
+                          "buchTs": m.get("buchTs"),
+                          "labels": {(_seite(n, g["heim"], g["gast"]) or n): n for n in (m.get("prices") or {})}}
 
     # Lucas 08.11. (Polymarket-Schattenbuch): ALLE Spiele mit Polymarket-Orderbuch für push.py — auch die, die der
     # Topf später wegkürzt. Nur Laufzeit-Datei, nicht auf der Seite.
     try:
         (BASIS / "poly_buch.json").write_text(json.dumps(
             [{"heim": g["heim"], "gast": g["gast"], "anpfiff": g.get("anpfiff"), "key": g["q"]["poly"]["key"],
-              "ask": g["q"]["poly"].get("ask"), "tiefe": g["q"]["poly"].get("tiefe"), "buchTs": g["q"]["poly"].get("buchTs")}
+              "ask": g["q"]["poly"].get("ask"), "tiefe": g["q"]["poly"].get("tiefe"), "buchTs": g["q"]["poly"].get("buchTs"),
+              "labels": g["q"]["poly"].get("labels")}
              for g in spiele if (g.get("q") or {}).get("poly")], ensure_ascii=False), encoding="utf-8")
         print(f"  poly_buch: {sum(1 for g in spiele if (g.get('q') or {}).get('poly'))} Spiele, "
               f"{sum(1 for g in spiele if ((g.get('q') or {}).get('poly') or {}).get('ask'))} mit Orderbuch")
@@ -2295,6 +2297,59 @@ VERLAUF_TAGE = 60
 STAT_ARTEN = {"serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
 
 
+# 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
+# Abrechnen (Ergebnisbuch / Polymarket) lagen und die Nachbarzeile falsch zuordnete. Quelle jeweils dabei.
+PUBLIC_ERGEBNIS = {
+    ("2026-11-03", "furiaesports"): True,     # FURIA schlägt NaVi, IEM Beijing 2026 (rg.org, esports.ru)
+    ("2026-11-04", "natusvincere"): False,    # NaVi schlägt Falcons → Public „Team Falcons" verloren (rg.org)
+}
+
+
+def _public_ergebnisse():
+    """Ergebnisbuch (.bf/ergebnisse.json): [(t0-Team Heim, Gast, Anpfiff, ft)] nur fertige Spiele."""
+    try:
+        erg = json.loads((BASIS / ".bf" / "ergebnisse.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return []
+    import bilanz as _b
+    return [(_b._team(e.get("h")), _b._team(e.get("a")), ts(e.get("ko")), e.get("ft"), e.get("h"), e.get("a"))
+            for e in erg.values() if isinstance(e, dict) and e.get("ft") and ts(e.get("ko"))]
+
+
+def _public_gewonnen(p, t0, erg):
+    """True/False für ein Public-Signal aus dem eigenen Ergebnis, None wenn nicht sicher zuordenbar."""
+    import bilanz as _b
+    teile = re.split(r"\s+[–-]\s+", str(p.get("spiel") or ""), maxsplit=1)
+    if len(teile) != 2 or not t0:
+        return None
+    th, tg = _b._team(teile[0]), _b._team(teile[1])
+    if not th or not tg:
+        return None
+    treffer = [e for e in erg if e[0] == th and e[1] == tg and timedelta(hours=-6) <= (e[2] - t0) <= timedelta(hours=36)]
+    if not treffer and p.get("live"):
+        treffer = [e for e in erg if e[0] == th and e[1] == tg and timedelta(hours=-3) <= (e[2] - t0) <= timedelta(hours=1)]
+    if len(treffer) != 1:
+        return None
+    _, _, _, ft, heim, gast = treffer[0]
+    a = str(p.get("auswahl") or "")
+    m = re.match(r"^(Over|Under|Über|Unter)\s+(\d+)[.,]5", a, re.I)
+    if m:
+        markt, a = f"Over/Under {m.group(2)}.5 Goals", ("Over" if m.group(1).lower() in ("over", "über") else "Under") + f" {m.group(2)}.5 Goals"
+    elif re.match(r"^(remis|unentschieden|draw|the draw|x)$", a, re.I):
+        markt, a = "Match Odds", "The Draw"
+    else:
+        markt = "Match Odds"
+        if _b._team(a) == th:
+            a = heim
+        elif _b._team(a) == tg:
+            a = gast
+        else:
+            return None
+    if p.get("markt") and not str(p.get("markt")).startswith(("Match", "Sieg")):
+        return None                     # Handicap, 1. Halbzeit … nicht aus dem Endstand
+    return _b.gewonnen(markt, a, heim, gast, ft, None)
+
+
 def statistik(burst, finder):
     zeilen = []
     try:
@@ -2354,6 +2409,10 @@ def statistik(burst, finder):
     except Exception:  # noqa: BLE001
         pl = []
     nz = lambda s: re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+    erg_pub = _public_ergebnisse()
+    # 09.11.: Public-Signale, die über Polymarket abgerechnet werden (E-Sport, Tennis, alles mit Polymarket-Markt)
+    erg_poly = {(str(b.get("pubZeit")), nz(b.get("spiel"))[:12]): bool(b.get("win")) for b in buch
+                if b.get("art") == "publicErg" and b.get("status") == "abgerechnet"}
     for p in pl:
         t0 = ts(p.get("zeit") + "+00:00") if len(str(p.get("zeit") or "")) == 16 else ts(p.get("zeit"))
         if not t0:
@@ -2381,6 +2440,19 @@ def statistik(burst, finder):
             rang = (0 if ausw_ok else 1, dt)
             if (titel_ok or ausw_ok) and (bd is None or rang < bd):
                 best, bd = z, rang
+        # 09.11. (Lucas: Barcelona „offen", FURIA/Falcons falsch): Fußball-Signale direkt am eigenen Ergebnis abrechnen
+        # (Ergebnisbuch .bf/ergebnisse.json, Teamnamen + Anpfiff) — die Nachbarzeile ist nur noch der Notnagel.
+        w_eigen = _public_gewonnen(p, t0, erg_pub)
+        if w_eigen is None:
+            w_eigen = erg_poly.get((str(p.get("zeit"))[:16], nz(p.get("spiel"))[:12]))
+        if w_eigen is None:
+            w_eigen = PUBLIC_ERGEBNIS.get((t0.strftime("%Y-%m-%d"), nz(p.get("spiel"))[:12]))
+        if w_eigen is not None and r4:
+            if not best:
+                best = [t0.strftime("%Y-%m-%dT%H:%M"), "x", None, None, p.get("quote"), None, p.get("liga") or "", 0,
+                        1 if p.get("live") else 0, str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40], None]
+            best = list(best)
+            best[2], best[3] = (1.0 if w_eigen else -1.0), int(w_eigen)
         if best and r4:
             q_p = p.get("quote") if isinstance(p.get("quote"), (int, float)) else best[4]
             w_ = best[3]

@@ -237,7 +237,8 @@ def poly_schatten(m) -> dict:
             if t:
                 alter = round((JETZT - t).total_seconds() / 60)
             return {"key": e["key"], "seite": seite, "ask": ask, "quote": round(1 / ask, 3),
-                    "tiefe": (e.get("tiefe") or {}).get(seite), "alterMin": alter}
+                    "tiefe": (e.get("tiefe") or {}).get(seite), "alterMin": alter,
+                    "label": (e.get("labels") or {}).get(seite), "anpfiff": e.get("anpfiff")}
     return {"fehlt": "Spiel nicht auf Polymarket"}
 
 
@@ -1444,7 +1445,15 @@ def main() -> int:
                     public.buchen(pub_stand, m_, pl_, JETZT, punkte=pkt_, grund=grund_)
                     if JETZT.strftime("%Y-%m-%d") >= POLY_SCHATTEN_AB:
                         try:
-                            pub_stand["liste"][-1]["poly"] = poly_schatten(m_)
+                            pp_ = pub_stand["liste"][-1]["poly"] = poly_schatten(m_)
+                            # 09.11.: über Polymarket selbst abrechnen lassen (E-Sport/Tennis haben kein eigenes Ergebnisbuch)
+                            if pp_.get("key") and pp_.get("label") and not trocken:
+                                b_ = bilanz.laden()
+                                bilanz.eintragen(b_, {"art": "publicErg", "id": pp_["key"], "auswahl": pp_["label"],
+                                                      "quote": m_.get("quote"), "anpfiff": pp_.get("anpfiff") or m_.get("anpfiff"),
+                                                      "spiel": m_.get("spiel"), "pubZeit": JETZT.strftime("%Y-%m-%dT%H:%M"),
+                                                      "liga": m_.get("liga")}, JETZT)
+                                bilanz.schreiben(b_, JETZT)
                         except Exception as exc:  # noqa: BLE001
                             print(f"  poly-schatten: {exc}")
                     print(f"  public: {m_.get('spiel')} · {pkt_} Punkte · {grund_}")

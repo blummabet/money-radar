@@ -33,7 +33,7 @@ ERGEBNISSE = BASIS / ".bf" / "ergebnisse.json"
 KOMMISSION = 0.02
 VERFALL_TAGE = 4          # nach 4 Tagen ohne Ergebnis: „unaufgelöst"
 BEHALTEN = 6000           # 23.10.: Top-3-Messung kommt dazu
-POLY_ARTEN = ("pserie", "wal", "top3p", "walKlein")
+POLY_ARTEN = ("pserie", "wal", "top3p", "walKlein", "publicErg")   # publicErg: 09.11. Public-Signal über Polymarket abrechnen
 ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "Wal-Einstieg Polymarket", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht", "pinn": "Pinnacle + Geld",
          "serieFuehrt": "Live-Dauerzufluss auf den Führenden (nicht gepusht, ab 30.10.)",
          "serieRuhig": "Dauerzufluss, der abgeebbt ist (Regel S4, nicht gepusht, ab 07.11.)",
