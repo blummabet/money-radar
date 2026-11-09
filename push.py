@@ -990,6 +990,30 @@ def _poly_geld_block(d, x, lab):
         e_ = None
     gesamt = gesamt or float((e_ or {}).get("betrag") or 0)
     seiten = {(e_.get("labels") or {}).get(k, k): float(v or 0) for k, v in ((e_ or {}).get("seiten") or {}).items() if float(v or 0) >= 1} if e_ else {}
+    # Lucas 09.11. 20:41 (Tecnico – Manta, Über 2,5 auf „More Markets"): Nebenmärkte haben keine Halter-Positionen —
+    # dann die Käufe je Seite aus dem Polymarket-Fluss (so weit die Abfrage zurückreicht), nur dieselbe Linie
+    if not (seiten and sum(seiten.values()) >= neu) and pf.get("alle"):
+        alle = {str(k): float(v or 0) for k, v in pf["alle"].items() if float(v or 0) >= 1}
+        m_ = re.search(r"\(([^)]*)\)\s*$", str(x.get("auswahl") or ""))
+        if m_:
+            alle = {k: v for k, v in alle.items() if k.endswith(f"({m_.group(1)})")}
+        if alle and sum(alle.values()) >= neu:
+            summe = sum(alle.values())
+            reihen = sorted(alle.items(), key=lambda kv: -kv[1])[:4]
+            name = lambda n: _pm_label(n)[:16]
+            breite = max(len(name(n)) for n, _ in reihen)
+            zeilen = []
+            for n, v in reihen:
+                k = max(0, min(10, round(10 * v / summe)))
+                z = f"{name(n).ljust(breite)} {'▓' * k}{'░' * (10 - k)} {geld(v, '$'):>6}"
+                if n == str(x.get("auswahl")) and neu >= 500:
+                    z += f" (davon {geld(neu, '$')} neu)"
+                zeilen.append(z)
+            rw = pf.get("alleReichweiteMin")
+            zeit = (f"letzte {round(rw / 60)} h" if rw and rw >= 90 else f"letzte {round(rw)} Min" if rw else "zuletzt")
+            return (f"🏦 So liegt der Markt ({zeit}: {geld(summe, '$')} gekauft"
+                    + (f", {geld(gesamt, '$')} gehandelt" if gesamt > summe * 1.05 else "") + "):\n"
+                    + "<code>" + e("\n".join(zeilen)) + "</code>\n")
     if seiten and sum(seiten.values()) >= neu:
         summe = sum(seiten.values())
         reihen = sorted(seiten.items(), key=lambda kv: -kv[1])
