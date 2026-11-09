@@ -2014,7 +2014,8 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
         (BASIS / "poly_buch.json").write_text(json.dumps(
             [{"heim": g["heim"], "gast": g["gast"], "anpfiff": g.get("anpfiff"), "key": g["q"]["poly"]["key"],
               "ask": g["q"]["poly"].get("ask"), "tiefe": g["q"]["poly"].get("tiefe"), "buchTs": g["q"]["poly"].get("buchTs"),
-              "labels": g["q"]["poly"].get("labels")}
+              "labels": g["q"]["poly"].get("labels"), "seiten": g["q"]["poly"].get("seiten"),
+              "seitenAus": g["q"]["poly"].get("seitenAus"), "betrag": g["q"]["poly"].get("betrag")}
              for g in spiele if (g.get("q") or {}).get("poly")], ensure_ascii=False), encoding="utf-8")
         print(f"  poly_buch: {sum(1 for g in spiele if (g.get('q') or {}).get('poly'))} Spiele, "
               f"{sum(1 for g in spiele if ((g.get('q') or {}).get('poly') or {}).get('ask'))} mit Orderbuch")

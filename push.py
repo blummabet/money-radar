@@ -976,6 +976,41 @@ def _geld_block(fl, minuten):
     return kopf + "<code>" + e("\n".join(zeilen)) + "</code>\n"
 
 
+def _poly_geld_block(d, x, lab):
+    """Lucas 09.11. (Phantom – ILLYRIANS: „$9,3k — ist das jetzt viel oder wenig? Keinen Plan, wie viel gesamt auf dem
+    Markt liegt"): wie beim Betfair-Push der ganze Markt je Seite als Balken, das neue Geld dahinter.
+    Quelle: offene Positionen je Seite (Halter) aus poly_buch.json; sonst nur das gehandelte Volumen."""
+    key = str(x.get("id"))
+    neu = float(x.get("usd") or 0)
+    pf = next((m for m in (d.get("polyFluss") or {}).get("maerkte") or [] if str(m.get("key")) == key), {})
+    gesamt = float(pf.get("usd") or 0)
+    try:
+        e_ = next((b for b in json.loads((BASIS / "poly_buch.json").read_text(encoding="utf-8")) if str(b.get("key")) == key), None)
+    except Exception:  # noqa: BLE001
+        e_ = None
+    gesamt = gesamt or float((e_ or {}).get("betrag") or 0)
+    seiten = {(e_.get("labels") or {}).get(k, k): float(v or 0) for k, v in ((e_ or {}).get("seiten") or {}).items() if float(v or 0) >= 1} if e_ else {}
+    if seiten and sum(seiten.values()) >= neu:
+        summe = sum(seiten.values())
+        reihen = sorted(seiten.items(), key=lambda kv: -kv[1])
+        kurz = lambda n: "Remis" if str(n).lower().startswith("draw") else re.sub(r"\s+(A?FC|CF|CE|SC)\b", "", str(n))[:16]
+        breite = max(len(kurz(n)) for n, _ in reihen)
+        zeilen = []
+        for n, v in reihen:
+            k = max(0, min(10, round(10 * v / summe)))
+            z = f"{kurz(n).ljust(breite)} {'▓' * k}{'░' * (10 - k)} {geld(v, '$'):>6}"
+            if str(n) in (str(lab), str(x.get("auswahl"))) and neu >= 500:
+                z += f" (davon {geld(neu, '$')} neu)"
+            zeilen.append(z)
+        kopf = (f"🏦 So liegt der Markt jetzt ({geld(summe, '$')} in offenen Positionen"
+                + (f", {geld(gesamt, '$')} gehandelt" if gesamt > summe else "") + "):\n")
+        return kopf + "<code>" + e("\n".join(zeilen)) + "</code>\n"
+    if gesamt:
+        return (f"🏦 Im ganzen Markt bisher <b>{geld(gesamt, '$')}</b> gehandelt — die {geld(neu, '$')} der letzten "
+                f"{x.get('dauerMin')} Min sind <b>{max(1, round(100 * neu / gesamt))} %</b> davon\n")
+    return ""
+
+
 def _wie_einseitig(pct):
     p = pct or 0
     return (f"praktisch das ganze ({p} %)" if p >= 95 else f"fast das ganze ({p} %)" if p >= 85
@@ -1185,8 +1220,9 @@ def serie(d):
                 f" @ {round(x['preis'] * 100)} ¢ = Quote <b>{q2(x['quote'])}</b>\n"
                 # Lucas 26.10. („erst 92 %, dann 97 % auf die andere Seite — wie geht das?"): der Anteil gilt nur für DIESES
                 # Zeitfenster, nicht für den ganzen Markt — steht jetzt dabei, samt Summe aller Käufe darin
-                + _anteil_balken(lab, x.get("anteil"), f" der Käufe in diesen {x['dauerMin']} Min")
-                + f"<i>alle Polymarket-Käufe in diesem Markt in dem Zeitraum: {geld(round(x['usd'] * 100 / max(1, x.get('anteil') or 100)), '$')}, nicht nur Wale</i>\n"
+                + f"<i>= {round(x.get('anteil') or 0)} % aller Käufe in diesen {x['dauerMin']} Min "
+                  f"({geld(round(x['usd'] * 100 / max(1, x.get('anteil') or 100)), '$')}, nicht nur Wale)</i>\n\n"
+                + _poly_geld_block(d, x, lab)
                 + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
         # Public-Regel 10 (Lucas 07.11.): Polymarket-Dauerzufluss darf in den Kanal, Regeln wie Betfair-Dauerzufluss
