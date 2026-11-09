@@ -353,7 +353,7 @@ def export(s, jetzt):
                      "arten": [e.get("art") for e in ev][-8:], "geld": round(sum(je_art.values())), "seit": c.get("erst"), "zuletzt": c.get("letzt"),
                      "nah": bool(m.get("live") or (ko and (ko - jetzt).total_seconds() <= NAH_H * 3600))})
     kand.sort(key=lambda x: -x["punkte"])
-    heute = [x for x in s.get("liste") or [] if x.get("zeit", "")[:10] == jetzt.strftime("%Y-%m-%d") and str(x.get("regel") or "") >= "R4"]
+    heute = [x for x in s.get("liste") or [] if x.get("zeit", "")[:10] == jetzt.strftime("%Y-%m-%d") and int((re.search(r"\d+", str(x.get("regel") or "")) or [0])[0] or 0) >= 4]
     return {"stand": jetzt.isoformat(), "regel": REGEL, "fenster": f"{v}–{b} Uhr", "gesendet": gesendet, "max": JE_FENSTER, "termine": termine,
             "schwellen": {"termin": MIN_PUNKTE, "sofort": EXPRESS, "live": LIVE_VORZIEHEN, "kurzVorAnpfiff": LETZTE_CHANCE, "nahStunden": NAH_H},
             "kandidaten": kand[:15], "heute": [{"zeit": x.get("zeit"), "spiel": x.get("spiel"), "auswahl": x.get("auswahl"), "quote": x.get("quote"),

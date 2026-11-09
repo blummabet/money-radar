@@ -2360,7 +2360,9 @@ def statistik(burst, finder):
             continue
         # Public-Regel 4 (02.11.): gesendet wird zeitversetzt aus dem Topf → derselbe Tipp (Spiel + Auswahl) aus irgendeiner
         # Art bis 36 h davor; Rendite neu zur gesendeten Quote. Nicht gesendete Kandidaten als eigene Art „publicNein".
-        r4 = str(p.get("regel") or "") >= "R4"      # ab R4 aus dem Topf (zeitversetzt)
+        # ab R4 aus dem Topf (zeitversetzt). 09.11. (Lucas: Barcelona stand „offen", obwohl gewonnen): der Vergleich lief
+        # als Text — „R17" < „R4" —, seit Regel 10 fiel jedes Signal in den alten Zweig (nur dieselbe Art, ±20 Min)
+        r4 = int((re.search(r"\d+", str(p.get("regel") or "")) or [0])[0] or 0) >= 4
         art_p = "publicNein" if p.get("gesendet") is False else "public"
         best, bd = None, None
         for z in zeilen:
@@ -2371,8 +2373,14 @@ def statistik(burst, finder):
                 continue
             titel_ok = nz(z[9])[:10] and nz(z[9])[:10] == nz(p.get("spiel"))[:10]
             ausw_ok = nz(z[10]) and nz(p.get("auswahl")) and (nz(z[10]) in nz(p.get("auswahl")) or nz(p.get("auswahl")) in nz(z[10]))
-            if (titel_ok or ausw_ok) and (bd is None or dt < bd):
-                best, bd = z, dt
+            if str(z[10] or "").lower().startswith("gegen ") != str(p.get("auswahl") or "").lower().startswith("gegen "):
+                ausw_ok = False                 # „gegen Barcelona" ist nicht „Barcelona"
+            # 09.11.: dieselbe Auswahl schlägt bloß dasselbe Spiel (ein Stake-Paket im selben Spiel ist ein anderer Tipp)
+            if titel_ok and not ausw_ok and nz(z[10]) and nz(p.get("auswahl")):
+                continue                        # selbes Spiel, andere Auswahl (z. B. Atlético statt Barcelona)
+            rang = (0 if ausw_ok else 1, dt)
+            if (titel_ok or ausw_ok) and (bd is None or rang < bd):
+                best, bd = z, rang
         if best and r4:
             q_p = p.get("quote") if isinstance(p.get("quote"), (int, float)) else best[4]
             w_ = best[3]
@@ -2384,7 +2392,8 @@ def statistik(burst, finder):
                 void, w_ = True, None
             r_ = 0.0 if void else (round(q_p - 1, 3) if w_ == 1 else -1.0) if w_ is not None and q_p else None
             zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, r_, w_,
-                           q_p, None, best[6], best[7], 1 if p.get("live") else 0, best[9], best[10], best[11] if len(best) > 11 else None])
+                           q_p, None, best[6], best[7], 1 if p.get("live") else 0, best[9],
+                           str(p.get("auswahl") or "")[:40] or best[10], best[11] if len(best) > 11 else None])
             # Lucas 08.11.: Polymarket-Schattenbuch — derselbe Tipp zum Polymarket-Preis im Moment des Posts.
             # „publicPoly": zur Poly-Quote abgerechnet, usd = Liquidität bis +2 Cent, faktor = gepostete Quote.
             # „publicPolyNein": gab es auf Polymarket nicht — Grund in Spalte „lage", Ergebnis zur geposteten Quote.
