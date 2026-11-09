@@ -1195,6 +1195,18 @@ def serie(d):
                    betrag=pubmod.geld(x.get("usd"), "$"),
                    gruende=[f"🔁 {x['n']}× in Folge neues Geld auf diese Seite", f"{round(x.get('anteil') or 0)} % der Käufe"])
         _mit(pub, x.get("usd"), x.get("n"))
+        # Public-Regel 18 (Lucas 09.11. FOKUS – Alliance: „solang sich die Seiten nicht einig sind, ist es ein Coinflip"):
+        # hält ein bewährtes Wallet (Rangliste, CLV-Untergrenze > 0) ≥ $5k auf der Gegenseite, oder kam in den letzten 6 h
+        # ein Wal-Push auf die Gegenseite, geht die Serie nicht in den Public-Kanal — still gemessen als „pserieGegen".
+        gw = _poly_gegenwal(d, x)
+        if gw and pub:
+            pub = None
+            yield (f"pg|{x['id']}|{x['auswahl']}", None, None,
+                   {"art": "pserieGegen", "id": x["id"], "titel": x.get("titel"), "heim": None, "gast": None,
+                    "liga": x.get("liga"), "sport": x.get("sport") or "Fußball", "anpfiff": x.get("anpfiff"),
+                    "markt": "Polymarket", "auswahl": x["auswahl"], "anzeige": lab, "quote": x["quote"],
+                    "preis": x.get("preis"), "live": bool(x.get("live")), "top5": bool(x.get("top5")), "n": x["n"],
+                    "gegenWal": gw})
         # Lucas 20.10.: Polymarket-Dauerzufluss ins Buch — Preis zum Push, abgerechnet über das Gamma-Ereignis
         yield key, text, None, {"art": "pserie", "id": x["id"], "titel": x.get("titel"), "heim": None, "gast": None,
                                 "liga": x.get("liga"), "sport": x.get("sport") or "Fußball", "anpfiff": x.get("anpfiff"),
@@ -1213,6 +1225,24 @@ def serie(d):
                 + _anteil_balken(x['auswahl'], x.get("anteil"), " der großen Wetten")
                 + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n")
         yield key, text, None
+
+
+GEGENWAL_MIN_USD = 5000
+
+
+def _poly_gegenwal(d, x):
+    """Public-Regel 18: bewährtes Geld auf der Gegenseite desselben Polymarket-Markts — Beschreibung oder None."""
+    key, ausw = str(x.get("id")), str(x.get("auswahl"))
+    gegen = [w for w in (d.get("polyBelegt") or {}).get(key) or []
+             if str(w.get("seite")) != ausw and (w.get("usd") or 0) >= GEGENWAL_MIN_USD and (w.get("clvUg") or 0) > 0]
+    if gegen:
+        w = max(gegen, key=lambda w: w.get("usd") or 0)
+        return {"quelle": "belegt", "seite": w.get("seite"), "usd": round(w.get("usd") or 0), "wallet": str(w.get("wallet"))[-4:]}
+    for w in ((d.get("pushBilanz") or {}).get("walVerlauf") or [])[-300:]:
+        t = ts(str(w.get("zeit") or "") + ("" if "+" in str(w.get("zeit") or "") else "+00:00"))
+        if (str(w.get("key")) == key and str(w.get("seite")) != ausw and t and JETZT - t <= timedelta(hours=6)):
+            return {"quelle": "walPush", "seite": w.get("seite"), "usd": round(w.get("usd") or 0), "wallet": str(w.get("wallet"))[-4:]}
+    return None
 
 
 def _poly_gegenrichtung(x):
