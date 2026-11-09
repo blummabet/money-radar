@@ -2014,6 +2014,8 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
             [{"heim": g["heim"], "gast": g["gast"], "anpfiff": g.get("anpfiff"), "key": g["q"]["poly"]["key"],
               "ask": g["q"]["poly"].get("ask"), "tiefe": g["q"]["poly"].get("tiefe"), "buchTs": g["q"]["poly"].get("buchTs")}
              for g in spiele if (g.get("q") or {}).get("poly")], ensure_ascii=False), encoding="utf-8")
+        print(f"  poly_buch: {sum(1 for g in spiele if (g.get('q') or {}).get('poly'))} Spiele, "
+              f"{sum(1 for g in spiele if ((g.get('q') or {}).get('poly') or {}).get('ask'))} mit Orderbuch")
     except Exception as exc:  # noqa: BLE001
         print(f"  poly_buch: {exc}")
 
