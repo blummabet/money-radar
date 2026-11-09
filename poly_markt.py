@@ -94,6 +94,73 @@ def _get(url):
     return None
 
 
+CLOB_BUECHER = "https://clob.polymarket.com/books"
+BUCH_FENSTER_H = (-2.5, 12)                  # Spiele, die gerade laufen oder in den nächsten 12 h beginnen
+BUCH_SPANNE = 0.02                           # Liquidität: alles bis 2 Cent über dem besten Ask
+
+
+def _post(url, daten):
+    for versuch in range(2):
+        try:
+            req = urllib.request.Request(url, data=json.dumps(daten).encode(), method="POST",
+                                         headers={"User-Agent": "Geldradar/1.0", "Accept": "application/json",
+                                                  "Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                _STAT["ok"] += 1
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            if (e.code == 429 or e.code >= 500) and versuch == 0:
+                time.sleep(2)
+                continue
+            break
+        except Exception:  # noqa: BLE001
+            if versuch == 0:
+                time.sleep(1)
+                continue
+    _STAT["fehler"] += 1
+    return None
+
+
+def buecher(maerkte, oc_je):
+    """Lucas 08.11. (Polymarket-Schattenbuch): bester Ask und Liquidität bis +2 Cent je Ausgang — damit der Build
+    zu jedem Public-Signal festhalten kann, zu welchem Preis und wie viel man auf Polymarket hätte setzen können."""
+    ziele = []
+    for k, m in maerkte.items():
+        if not re.search(r"\d{4}-\d{2}-\d{2}$", k):
+            continue
+        if not (BUCH_FENSTER_H[0] <= m.get("hoursToKickoff", 99) <= BUCH_FENSTER_H[1]):
+            continue
+        ziele += [(k, o["label"], str(o["token"])) for o in oc_je.get(k) or [] if o.get("token")]
+    n_ok = 0
+    for i in range(0, len(ziele), 100):
+        if not _zeit_ok():
+            break
+        teil = ziele[i:i + 100]
+        antwort = _post(CLOB_BUECHER, [{"token_id": t} for _, _, t in teil])
+        if not isinstance(antwort, list):
+            continue
+        je_token = {str(b.get("asset_id")): b for b in antwort if isinstance(b, dict)}
+        for k, label, t in teil:
+            b = je_token.get(t)
+            if not b:
+                continue
+            try:
+                asks = sorted((float(x["price"]), float(x["size"])) for x in b.get("asks") or [])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not asks:
+                continue
+            best = asks[0][0]
+            tiefe = sum(p * sz for p, sz in asks if p <= best + BUCH_SPANNE + 1e-9)
+            maerkte[k].setdefault("ask", {})[label] = round(best, 4)
+            maerkte[k].setdefault("tiefe", {})[label] = round(tiefe)
+            n_ok += 1
+    for k in {k for k, _, _ in ziele}:
+        if maerkte[k].get("ask"):
+            maerkte[k]["buchTs"] = JETZT.isoformat()
+    print(f"  poly_markt: Orderbuch für {n_ok} von {len(ziele)} Ausgängen")
+
+
 def _zeit_ok():
     return time.time() - _START < LAUFZEIT_MAX_S
 
@@ -566,6 +633,10 @@ def main() -> int:
             if not alt or zeile["totalUsd"] > alt["totalUsd"]:
                 maerkte[zeile["key"]], oc_je[zeile["key"]] = zeile, oc
     print(f"  poly_markt: {len(maerkte)} Märkte im Fenster ({_STAT['ok']} Abrufe)")
+    try:
+        buecher(maerkte, oc_je)
+    except Exception as exc:  # noqa: BLE001 — das Schattenbuch darf den Scan nie aufhalten
+        print(f"  poly_markt: Orderbuch fehlgeschlagen: {exc}")
 
     # Halter für die geldstärksten Spiele (live und vor Anpfiff), nicht für Kleinstmärkte
     # 07.11.: Nebenmärkte (Halbzeit, exaktes Ergebnis …) zeigt der Build ohnehin nicht — keine Halter-Abrufe dafür.

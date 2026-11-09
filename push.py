@@ -191,6 +191,56 @@ def _pub(art, spiel, liga, quote, auswahl, *, roh=None, markt=None, anpfiff=None
             "live": bool(live), "minute": minute, "stand": stand, "sport": sport, "betrag": betrag, "gruende": list(gruende)}
 
 
+POLY_SCHATTEN_AB = "2026-11-09"
+_TEAM_WEG = re.compile(r"\b(fc|cf|sc|ac|afc|cd|ca|fk|sk|bk|if|club|de|the|u\d\d)\b")
+
+
+def _tn(x):
+    x = _TEAM_WEG.sub(" ", str(x or "").lower())
+    return re.sub(r"[^a-z0-9]", "", x)
+
+
+def _team_gleich(a, b):
+    a, b = _tn(a), _tn(b)
+    return bool(a and b) and (a in b or b in a or a[:5] == b[:5])
+
+
+def poly_schatten(m) -> dict:
+    """Lucas 08.11. („so als würden wir auf Polymarket im Hintergrund mitspielen"): zu jedem gesendeten Public-Signal
+    der Polymarket-Preis (bester Ask) und die Liquidität bis +2 Cent im Moment des Posts — oder warum es ihn nicht gab."""
+    teile = re.split(r"\s+[–-]\s+", str(m.get("spiel") or ""), maxsplit=1)
+    if len(teile) != 2:
+        return {"fehlt": "Spiel nicht lesbar"}
+    ausw = str(m.get("auswahlRoh") or m.get("auswahl") or "")
+    if m.get("markt") or re.match(r"^(über|unter|over|under|beide|btts|ja|nein|yes|no)\b", ausw, re.I) or re.search(r"\d[.,]5", ausw):
+        return {"fehlt": "Markt nicht auf Polymarket"}
+    try:
+        buch = json.loads((BASIS / "poly_buch.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {"fehlt": "Polymarket-Daten fehlten"}
+    h, g = teile
+    for e in buch:
+        if (_team_gleich(h, e["heim"]) and _team_gleich(g, e["gast"])) or (_team_gleich(h, e["gast"]) and _team_gleich(g, e["heim"])):
+            if re.match(r"^(remis|unentschieden|draw|x)\b", ausw, re.I):
+                seite = "remis"
+            elif _team_gleich(ausw, e["heim"]) and not _team_gleich(ausw, e["gast"]):
+                seite = "heim"
+            elif _team_gleich(ausw, e["gast"]) and not _team_gleich(ausw, e["heim"]):
+                seite = "gast"
+            else:
+                return {"fehlt": "Auswahl nicht zuzuordnen", "key": e["key"]}
+            ask = (e.get("ask") or {}).get(seite)
+            if not isinstance(ask, (int, float)) or not 0 < ask < 1:
+                return {"fehlt": "kein Orderbuch", "key": e["key"]}
+            alter = None
+            t = ts(e.get("buchTs"))
+            if t:
+                alter = round((JETZT - t).total_seconds() / 60)
+            return {"key": e["key"], "seite": seite, "ask": ask, "quote": round(1 / ask, 3),
+                    "tiefe": (e.get("tiefe") or {}).get(seite), "alterMin": alter}
+    return {"fehlt": "Spiel nicht auf Polymarket"}
+
+
 def liga_zeile(d, liga):
     """Lucas 19.10.: Liga-Bilanz in den Pushes — trägt hohes Geld in DIESER Liga bisher?"""
     lb = ((d.get("ligaBilanz") or {}).get("ligen") or {}).get(liga)
@@ -1392,6 +1442,11 @@ def main() -> int:
                 pt = public.text(m_, pl_, erkannt(), JETZT)
                 if senden(token, pub_chat, pt, link=False):
                     public.buchen(pub_stand, m_, pl_, JETZT, punkte=pkt_, grund=grund_)
+                    if JETZT.strftime("%Y-%m-%d") >= POLY_SCHATTEN_AB:
+                        try:
+                            pub_stand["liste"][-1]["poly"] = poly_schatten(m_)
+                        except Exception as exc:  # noqa: BLE001
+                            print(f"  poly-schatten: {exc}")
                     print(f"  public: {m_.get('spiel')} · {pkt_} Punkte · {grund_}")
         except Exception as exc:  # noqa: BLE001
             print(f"  public: {exc}")

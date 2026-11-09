@@ -2001,7 +2001,21 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
             if not alt or alt["usd"] < pf_30[key][0]:
                 AUCH_WOANDERS[g["id"]]["poly"] = {"usd": round(pf_30[key][0]), "auf": pf_30[key][1]}
         g["q"]["poly"] = {"betrag": round(betrag), "seiten": seiten, "key": key, "seitenAus": herkunft if seiten else None,
-                          "preise": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("prices") or {}).items()}}
+                          "preise": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("prices") or {}).items()},
+                          # Lucas 08.11. (Polymarket-Schattenbuch): bester Ask und Liquidität bis +2 Cent je Seite
+                          "ask": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("ask") or {}).items()},
+                          "tiefe": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("tiefe") or {}).items()},
+                          "buchTs": m.get("buchTs")}
+
+    # Lucas 08.11. (Polymarket-Schattenbuch): ALLE Spiele mit Polymarket-Orderbuch für push.py — auch die, die der
+    # Topf später wegkürzt. Nur Laufzeit-Datei, nicht auf der Seite.
+    try:
+        (BASIS / "poly_buch.json").write_text(json.dumps(
+            [{"heim": g["heim"], "gast": g["gast"], "anpfiff": g.get("anpfiff"), "key": g["q"]["poly"]["key"],
+              "ask": g["q"]["poly"].get("ask"), "tiefe": g["q"]["poly"].get("tiefe"), "buchTs": g["q"]["poly"].get("buchTs")}
+             for g in spiele if (g.get("q") or {}).get("poly")], ensure_ascii=False), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  poly_buch: {exc}")
 
     # 3) Stake: große Einzelwetten der letzten Stunden (Highroller ab $1000)
     je_event = {}
@@ -2369,11 +2383,30 @@ def statistik(burst, finder):
             r_ = 0.0 if void else (round(q_p - 1, 3) if w_ == 1 else -1.0) if w_ is not None and q_p else None
             zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, r_, w_,
                            q_p, None, best[6], best[7], 1 if p.get("live") else 0, best[9], best[10], best[11] if len(best) > 11 else None])
+            # Lucas 08.11.: Polymarket-Schattenbuch — derselbe Tipp zum Polymarket-Preis im Moment des Posts.
+            # „publicPoly": zur Poly-Quote abgerechnet, usd = Liquidität bis +2 Cent, faktor = gepostete Quote.
+            # „publicPolyNein": gab es auf Polymarket nicht — Grund in Spalte „lage", Ergebnis zur geposteten Quote.
+            pp = p.get("poly") if art_p == "public" else None
+            if isinstance(pp, dict):
+                kopf_ = [t0.strftime("%Y-%m-%dT%H:%M")]
+                rest_ = [best[6], best[7], 1 if p.get("live") else 0, best[9], best[10]]
+                if pp.get("quote"):
+                    qpm = float(pp["quote"])
+                    r_pm = 0.0 if void else (round(qpm - 1, 3) if w_ == 1 else -1.0) if w_ is not None else None
+                    zeilen.append(kopf_ + ["publicPoly", r_pm, w_, qpm, None] + rest_ + [pp.get("seite"), pp.get("tiefe"), q_p])
+                else:
+                    zeilen.append(kopf_ + ["publicPolyNein", r_, w_, q_p, None] + rest_ + [pp.get("fehlt"), None, q_p])
         elif best:
             zeilen.append([best[0], art_p, *best[2:]])
         else:
             zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, None, None, p.get("quote"), None, p.get("liga") or "", 0,
                            1 if p.get("live") else 0, str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40], None])
+            pp = p.get("poly") if art_p == "public" else None
+            if isinstance(pp, dict):
+                zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), "publicPoly" if pp.get("quote") else "publicPolyNein", None, None,
+                               pp.get("quote") or p.get("quote"), None, p.get("liga") or "", 0, 1 if p.get("live") else 0,
+                               str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40],
+                               pp.get("seite") if pp.get("quote") else pp.get("fehlt"), pp.get("tiefe"), p.get("quote")])
     zeilen.sort(key=lambda z: z[0])
     (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return len(zeilen)

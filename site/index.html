@@ -820,6 +820,15 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .st-zn small{margin-left:4px}
 .st-eh{font-weight:900}
 .st-z[data-stnur]{cursor:pointer} .st-z[data-stnur]:hover{background:var(--hover)}
+.ps-erkl{margin:2px 0 14px;color:var(--text-2);font-size:13.5px;line-height:1.5;max-width:72ch}
+.ps-g{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.ps-z{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.ps-sp{display:flex;flex-direction:column;min-width:0} .ps-sp small{color:var(--text-3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps-q{display:flex;flex-direction:column;align-items:flex-end;font-variant-numeric:tabular-nums;font-weight:600;min-width:52px}
+.ps-q small{color:var(--text-3);font-weight:400;font-size:10.5px} .ps-q em{font-style:normal;font-weight:400;color:var(--text-3);font-size:11.5px;max-width:120px;text-align:right}
+.ps-z.nein .ps-sp b{color:var(--text-2)}
+.ps-qs{display:flex;gap:14px}
+@media (max-width:640px){.ps-z{grid-template-columns:10px minmax(0,1fr);row-gap:6px}.ps-qs{grid-column:2;justify-content:space-between}}
 .st-l{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
 .st-lp{width:10px;height:10px;border-radius:3px;background:var(--text-3)} .st-lp.w{background:var(--up)} .st-lp.l{background:var(--down)} .st-lp.o{background:none;border:1.5px solid var(--text-3)} .st-lp.v{background:var(--text-3)}
 .st-lt{display:flex;flex-direction:column;min-width:0} .st-lt small{color:var(--text-3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -4121,7 +4130,9 @@ const STAT_K = {
   layGegen:["Lay-Verdacht: Gegenseite","Nur gemessen","color-mix(in srgb, var(--down) 60%, var(--text-3))"],
   walKlein:["Wal unter ¼ seines Einsatzes","Nur gemessen","color-mix(in srgb, var(--pm, var(--up)) 50%, var(--text-3))"],
   public:["Public-Signale","Public-Kanal","var(--up)"],
-  publicNein:["Kandidat, nicht gesendet","Public-Kanal","var(--text-3)"]};   // Lucas 31.10.: Auswahl aus den Arten oben, deshalb nicht vorgewählt
+  publicNein:["Kandidat, nicht gesendet","Public-Kanal","var(--text-3)"],
+  publicPoly:["Public auf Polymarket","Polymarket-Schattenbuch","var(--poly)"],
+  publicPolyNein:["Public, nicht auf Polymarket","Polymarket-Schattenbuch","var(--text-3)"]};   // Lucas 31.10.: Auswahl aus den Arten oben, deshalb nicht vorgewählt
 const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche", lage:"alle"};
 const MONAT = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 // Lucas 02.11.: der Public-Topf (Regel 4) auf der Statistik-Seite — was liegt drin, mit wie vielen Punkten, welcher Termin kommt
@@ -4130,6 +4141,43 @@ async function topfLaden(){
   try{ const r = await fetch("topf.json?t="+Date.now(), {cache:"no-store"}); ST.topf = r.ok ? await r.json() : null; ST.topfZeit = Date.now(); }catch(e){ ST.topf = null; ST.topfZeit = Date.now(); }
   ST.topfLaedt = false;
   try{ if(aktiv==="statistik") $("#s-statistik").innerHTML = seiteStatistik(); }catch(e){ console.error(e); }
+}
+// Lucas 08.11. („so als würden wir auf Polymarket im Hintergrund mitspielen"): jedes Public-Signal zum Polymarket-Preis
+// im Moment des Posts. Zeilen: publicPoly (Spalte 4 = Poly-Quote, 11 = Seite, 12 = Liquidität $, 13 = gepostete Quote)
+// und publicPolyNein (11 = warum nicht).
+function polyPanel(basis){
+  const P = basis.filter(z=>z[1]==="publicPoly"), N = basis.filter(z=>z[1]==="publicPolyNein"), ges = P.length + N.length;
+  const erkl = `<p class="ps-erkl">Jedes Signal aus dem Public-Kanal, so als hätten wir es auf Polymarket nachgespielt: zum besten Preis im Orderbuch im Moment des Posts, 1 Einheit je Signal. Daneben, wie viel Geld zu diesem Preis (bis 2 Cent darüber) im Buch lag. Gemessen ab 9. November.</p>`;
+  if(!ges) return `<div class="panel c12"><div class="ph"><h3>Polymarket-Schattenbuch</h3></div>${erkl}<div class="leer">Noch kein Public-Signal seit Messbeginn im gewählten Zeitraum.</div></div>`;
+  const kPoly = stKennz(P);
+  const gepostet = P.map(z=>{ const q = z[13]; const r = z[2]==null ? null : stVoid(z) ? 0 : z[3]===1 ? q-1 : -1; const y = z.slice(); y[2] = r; y[4] = q; return y; });
+  const kPost = stKennz(gepostet);
+  const abst = P.filter(z=>z[4]>1 && z[13]>1).map(z=>100*(z[4]/z[13]-1));
+  const liq = P.map(z=>z[12]).filter(v=>typeof v==="number").sort((a,b)=>a-b);
+  const med = liq.length ? liq[Math.floor((liq.length-1)/2)] : null, mit = liq.length ? liq.reduce((a,v)=>a+v,0)/liq.length : null;
+  const usd = v => v==null ? "–" : "$" + (v>=1000 ? dez(v/1000, v>=10000?0:1)+"k" : Math.round(v));
+  const kpi = (wert, name, sub, farbe) => `<div class="st-kpi"><b style="color:${farbe||"var(--text)"}">${wert}</b><span>${name}</span>${sub?`<small>${sub}</small>`:""}</div>`;
+  const gruende = {}; for(const z of N){ const g = z[11]||"unbekannt"; gruende[g] = (gruende[g]||0)+1; }
+  const nicht = Object.entries(gruende).sort((a,b)=>b[1]-a[1]).map(([g,n])=>`<div class="ps-g"><span>${esc(g)}</span><b>${n}</b></div>`).join("");
+  const kN = stKennz(N);
+  const liste = [...P, ...N].sort((a,b)=>a[0]<b[0]?1:-1).slice(0,40).map(z=>{
+    const da = z[1]==="publicPoly", erg = z[2]==null ? "offen" : stVoid(z) ? "void" : stVz(z[2],2);
+    return `<div class="ps-z${da?"":" nein"}"><span class="st-lp ${stVoid(z)?"v":z[3]===1?"w":z[3]===0?"l":"o"}"></span>
+      <span class="ps-sp"><b>${esc(z[10]||"")}</b><small>${esc(z[9]||"")} · ${stLokal(z[0]).toLocaleDateString("de-AT",{day:"numeric",month:"short"})} ${stLokal(z[0]).toLocaleTimeString("de-AT",{hour:"2-digit",minute:"2-digit"})}</small></span>
+      <span class="ps-qs"><span class="ps-q"><small>gepostet</small>${q2(z[13])}</span>
+      <span class="ps-q"><small>Polymarket</small>${da?q2(z[4]):`<em>${esc(z[11]||"–")}</em>`}</span>
+      <span class="ps-q"><small>im Buch</small>${da?usd(z[12]):"–"}</span>
+      <span class="ps-q ps-e" style="color:${stFarbe(z[2])}"><small>${da?"zu Poly":"zu gepostet"}</small>${erg}</span></span></div>`; }).join("");
+  return `<div class="panel c12"><div class="ph"><h3>Polymarket-Schattenbuch</h3><span class="hint">nur Messung, nichts gesetzt</span></div>${erkl}
+    <div class="st-kpis">
+      ${kpi(`${P.length} von ${ges}`, "auf Polymarket", `${dez(100*P.length/ges,0)} % der Signale`)}
+      ${kpi(kPoly.roi==null?"–":stVz(kPoly.roi)+" %", "Rendite zu Poly-Preisen", kPoly.n?`${kPoly.n} abgerechnet · ${stVz(kPoly.einheiten,2)} Einh.`:"noch nichts abgerechnet", stFarbe(kPoly.roi))}
+      ${kpi(kPost.roi==null?"–":stVz(kPost.roi)+" %", "dieselben zur geposteten Quote", "zum Vergleich", stFarbe(kPost.roi))}
+      ${kpi(abst.length?stVz(abst.reduce((a,v)=>a+v,0)/abst.length)+" %":"–", "Poly-Quote gegenüber gepostet", "Ø Abstand, + = Poly zahlt mehr", abst.length?stFarbe(abst.reduce((a,v)=>a+v,0)):null)}
+      ${kpi(usd(med), "Liquidität im Median", mit!=null?`Ø ${usd(mit)} bis 2 Cent über dem Preis`:"")}
+    </div></div>
+    ${N.length?`<div class="panel c6"><div class="ph"><h3>Nicht auf Polymarket</h3><span class="hint">${N.length} Signale · zur geposteten Quote ${kN.roi==null?"–":stVz(kN.roi)+" %"}</span></div>${nicht}</div>`:""}
+    <div class="panel ${N.length?"c6":"c12"}"><div class="ph"><h3>Einzelne Signale</h3><span class="hint">die 40 neuesten</span></div>${liste}</div>`;
 }
 function topfPanel(){
   if(!ST.topfZeit || Date.now()-ST.topfZeit > 60000) topfLaden();
@@ -4213,6 +4261,7 @@ function seiteStatistik(){
   // Lucas 01.11. („wenn ich's klick, passiert darunter nichts"): Public-Signale sind eine Auswahl AUS den Pushes, nicht
   // eine weitere Art → eigener Umschalter oben. Ein Chip antippen zeigt nur diese Kategorie, nochmal antippen = wieder alle.
   const pubModus = ST.kat.size===1 && ST.kat.has("public"), neinModus = ST.kat.size===1 && ST.kat.has("publicNein");
+  const polyModus = ST.kat.size===1 && ST.kat.has("publicPoly");
   // Kopfzahlen
   const kpi = (wert, name, sub, farbe) => `<div class="st-kpi"><b style="color:${farbe||"var(--text)"}">${wert}</b><span>${name}</span>${sub?`<small>${sub}</small>`:""}</div>`;
   const kopf = `<div class="st-kpis">
@@ -4262,12 +4311,13 @@ function seiteStatistik(){
   const zuletzt = Z.slice(-12).reverse().map(z=>`<div class="st-l"><span class="st-lp ${stVoid(z)?"v":z[3]===1?"w":z[3]===0?"l":"o"}"></span><span class="st-lt"><b>${esc(z[10]||"")}</b>${z[4]?` @ ${q2(z[4])}`:""}<small>${esc(z[9]||"")} · ${STAT_K[z[1]]?.[0]||z[1]} · ${stLokal(z[0]).toLocaleDateString("de-AT",{day:"numeric",month:"short"})}</small></span><span style="color:${stFarbe(z[2])}">${z[2]==null?"offen":stVoid(z)?"void":stVz(z[2],2)}</span></div>`).join("");
   return `<div class="grid">
     <div class="panel c12 st-filter">
-      ${katsDa.includes("public")?`<div class="seg st-seg st-modus"><button class="${pubModus||neinModus?"":"an"}" data-stmodus="alle">Alle Pushes</button><button class="${pubModus?"an":""}" data-stmodus="public">📣 Public-Kanal</button>${katsDa.includes("publicNein")?`<button class="${neinModus?"an":""}" data-stmodus="publicNein">Nicht gesendet</button>`:""}</div>`:""}
+      ${katsDa.includes("public")?`<div class="seg st-seg st-modus"><button class="${pubModus||neinModus||polyModus?"":"an"}" data-stmodus="alle">Alle Pushes</button><button class="${pubModus?"an":""}" data-stmodus="public">📣 Public-Kanal</button>${katsDa.includes("publicNein")?`<button class="${neinModus?"an":""}" data-stmodus="publicNein">Nicht gesendet</button>`:""}<button class="${polyModus?"an":""}" data-stmodus="publicPoly">Polymarket</button></div>`:""}
       ${seg("zeit", zr)}
       <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}${seg("lage", [["alle","Jeder Stand"],["vorn","Live: Auswahl führt"],["gleich","Live: gleich"],["hinten","Live: hinten"]])}</div>
-      ${pubModus||neinModus?"":`<div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div><div class="hint st-chiphint">Kategorie antippen = nur diese · nochmal antippen = wieder alle</div>`}
+      ${pubModus||neinModus||polyModus?"":`<div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div><div class="hint st-chiphint">Kategorie antippen = nur diese · nochmal antippen = wieder alle</div>`}
     </div>
     ${pubModus ? topfPanel() : ""}
+    ${polyModus ? polyPanel(basis) : ""}
     <div class="panel c12">${kopf}${kurve}</div>
     <div class="panel c12"><div class="ph"><h3>Je Kategorie</h3><span class="hint">antippen = nur diese</span></div>${jeKat?tkopf("Kategorie")+jeKat:`<div class="leer">Keine Tipps im Ausschnitt.</div>`}</div>
     <div class="panel c6"><div class="ph"><h3>Je ${ST.gruppe==="monat"?"Monat":"Woche"}</h3>${seg("gruppe", [["woche","Woche"],["monat","Monat"]])}</div>${jeZeit?tkopf(ST.gruppe==="monat"?"Monat":"Woche")+jeZeit:`<div class="leer">–</div>`}</div>
