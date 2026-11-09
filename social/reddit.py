@@ -12,8 +12,6 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 WIEN = ZoneInfo("Europe/Vienna")
-MIN_EUR = 3000            # unter €3k gematcht ist ein Abendspiel kein Thema
-HOECHSTENS = 6
 
 
 def _ts(s):
@@ -32,48 +30,89 @@ def _seite(g, k):
     return {"heim": g["heim"], "gast": g["gast"], "remis": "the draw"}.get(k or "", "")
 
 
+MIN_QUOTE = 1.50          # Lucas 09.11.: „nichts mit einer 1,2" — jeder kennt die Favoriten
+MIN_ANTEIL = 60
+SPORTARTEN = {"Fußball": "⚽", "E-Sport": "🎮", "Tennis": "🎾"}
+
+
+def _kandidat(g, serien, pserien):
+    """Lucas 09.11. 18:20: nur Spiele mit Geschichte — die Märkte sind sich einig, Quote ab 1,50, und dazu ein großes
+    oder bewährtes Wallet und/oder Geld, das über den Tag schon geflossen ist. Gegen-Wal (bewährt, ≥ $5k) = raus."""
+    q = g.get("q") or {}
+    bf, po, st = q.get("betfair") or {}, q.get("poly") or {}, q.get("stake") or {}
+    seiten = {k: v.get("auf") for k, v in (("betfair", bf), ("poly", po), ("stake", st))
+              if v.get("auf") and (v.get("anteil") or 0) >= MIN_ANTEIL and float(v.get("betrag") or 0) >= (10000 if k != "stake" else 3000)}
+    if not seiten:
+        return None
+    k = max(set(seiten.values()), key=list(seiten.values()).count)
+    if any(v != k for v in seiten.values()):
+        return None                                    # Märkte uneinig → Coinflip, kein Thema
+    quote = (bf.get("quoten") or {}).get(k) if bf.get("auf") == k else None
+    if not isinstance(quote, (int, float)):
+        pr = (po.get("ask") or {}).get(k) or (po.get("preise") or {}).get(k)
+        quote = round(1 / pr, 2) if isinstance(pr, (int, float)) and 0 < pr < 1 else None
+    if not isinstance(quote, (int, float)) or quote < MIN_QUOTE:
+        return None
+    wale = g.get("wale") or []
+    if any(w.get("k") != k and (w.get("usd") or 0) >= 5000 and (w.get("clvUg") or 0) > 0 for w in wale):
+        return None
+    wal = max((w for w in wale if w.get("k") == k), key=lambda w: w.get("usd") or 0, default=None)
+    fluss = serien.get(str(g.get("id"))) or pserien.get(str(po.get("key")))
+    story, punkte = [], 0
+    if len(seiten) >= 2:
+        nm = [{"betfair": "Betfair", "poly": "Polymarket", "stake": "Stake high rollers"}[m] for m in seiten]
+        story.append((", ".join(nm[:-1]) + " and " + nm[-1]) + " on the same side")
+        punkte += 2 * (len(seiten) - 1)
+    if wal and (wal.get("usd") or 0) >= 10000:
+        story.append(f"a single wallet with {_geld(wal['usd'], '$')} on it" + (" – one with a winning record" if (wal.get("clvUg") or 0) > 0 else ""))
+        punkte += 2 + (1 if (wal.get("clvUg") or 0) > 0 else 0)
+    if fluss:
+        story.append(f"money has been coming in for {fluss.get('dauerMin') or '?'} min" if fluss.get("dauerMin") else "a steady flow all day")
+        punkte += 1
+    if punkte < 2:
+        return None                                    # keine Geschichte → nicht posten
+    geld = float(bf.get("betrag") or 0) + 0.9 * float(po.get("betrag") or 0)
+    return {"g": g, "k": k, "quote": quote, "bf": bf, "po": po, "st": st, "wal": wal, "story": story,
+            "punkte": punkte, "geld": geld, "fluss": fluss}
+
+
 def text(d: dict, jetzt: datetime) -> str | None:
     w = jetzt.astimezone(WIEN)
     bis = (w + timedelta(days=1)).replace(hour=1, minute=0, second=0, microsecond=0)
     serien = {str(x.get("id")): x for x in d.get("serien") or []}
-    pm = {m.get("key"): m for m in (d.get("poly") or {}).get("maerkte") or []}
-    spiele = []
+    pserien = {str(x.get("id")): x for x in d.get("polySerien") or []}
+    ks = []
     for g in d.get("toepfe") or []:
-        if g.get("sport") != "Fußball" or g.get("live") or g.get("entschieden"):
+        if g.get("sport") not in SPORTARTEN or g.get("live") or g.get("entschieden"):
             continue
         ko = _ts(g.get("anpfiff"))
         if not ko or not (jetzt <= ko <= bis):
             continue
-        bf, po = (g.get("q") or {}).get("betfair") or {}, (g.get("q") or {}).get("poly") or {}
-        if float(bf.get("betrag") or 0) < MIN_EUR:
-            continue
-        spiele.append((float(bf.get("betrag") or 0) + 0.9 * float(po.get("betrag") or 0), g, ko, bf, po))
-    if not spiele:
+        k = _kandidat(g, serien, pserien)
+        if k:
+            k["ko"] = ko
+            ks.append(k)
+    if not ks:
         return None
-    spiele.sort(key=lambda x: -x[0])
-    zeilen = [f"**Where the money is tonight** ({w:%a %d %b}, kick-offs CET)", ""]
-    for _, g, ko, bf, po in spiele[:HOECHSTENS]:
-        zeilen.append(f"**{g['heim']} vs {g['gast']}** – {ko.astimezone(WIEN):%H:%M}, {g.get('liga') or ''}")
-        auf, q = bf.get("auf"), (bf.get("quoten") or {}).get(bf.get("auf") or "")
-        teil = f"Betfair: {_geld(bf.get('betrag'))} matched"
-        if auf and bf.get("anteil"):
-            teil += f", {bf['anteil']}% on {_seite(g, auf)}" + (f" ({q:.2f})" if isinstance(q, (int, float)) else "")
-        zeilen.append(f"- {teil}")
-        x = serien.get(str(g.get("id")))
-        if x and x.get("letzte15"):
-            zeilen.append(f"- Still coming in: {_geld(x['letzte15'])} in the last 15 min on {x.get('auswahl')}")
-        if float(po.get("betrag") or 0) >= 2000:
-            p = f"Polymarket: {_geld(po['betrag'], '$')} traded"
-            if po.get("auf") and po.get("anteil"):
-                p += f", {po['anteil']}% on {_seite(g, po['auf'])}"
-            wal = max((wh for wh in (pm.get(po.get("key")) or {}).get("wale") or [] if (wh.get("usd") or 0) >= 3000),
-                      key=lambda wh: wh["usd"], default=None)
-            if wal:
-                p += f" · biggest wallet {_geld(wal['usd'], '$')} on {wal['seite']}"
-            zeilen.append(f"- {p}")
-        zeilen.append("")
-    zeilen.append("*Just market data, not a tip. Matched money has a backer and a layer – odds direction tells you who's pushing.*")
-    return "\n".join(zeilen)
+    ks.sort(key=lambda k: (-k["punkte"], -k["geld"]))
+    ks = ks[:3]
+    a = ks[0]
+    z = [f"**Where the money agrees tonight** ({w:%a %d %b}, times CET)", "",
+         f"Biggest one: **{_seite(a['g'], a['k'])}** @ {a['quote']:.2f} – {a['story'][0]}" + (f", plus {a['story'][1]}" if len(a["story"]) > 1 else "") + ".", ""]
+    for k in ks:
+        g = k["g"]
+        z.append(f"{SPORTARTEN[g['sport']]} **{g['heim']} vs {g['gast']}** – {k['ko'].astimezone(WIEN):%H:%M}, {g.get('liga') or ''}")
+        z.append(f"- Money on **{_seite(g, k['k'])}** @ {k['quote']:.2f}")
+        if k["bf"].get("auf") == k["k"]:
+            z.append(f"- Betfair: {_geld(k['bf'].get('betrag'))} matched, {k['bf'].get('anteil')}% on that side")
+        if k["po"].get("auf") == k["k"]:
+            z.append(f"- Polymarket: {_geld(k['po'].get('betrag'), '$')} traded, {k['po'].get('anteil')}% on that side"
+                     + (f", biggest wallet {_geld(k['wal']['usd'], '$')}" if k["wal"] and (k["wal"].get("usd") or 0) >= 3000 else ""))
+        if k["st"].get("auf") == k["k"]:
+            z.append(f"- Stake: {_geld(k['st'].get('betrag'), '$')} from high rollers")
+        z.append("")
+    z.append("*Only games where the markets point the same way and the odds are 1.50+. Just data, not a tip.*")
+    return "\n".join(z)
 
 
 def nachricht(d: dict, jetzt: datetime) -> str | None:
