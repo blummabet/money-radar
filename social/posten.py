@@ -94,7 +94,9 @@ def bilder_zweig():
 
 def bilder_sichern(gepostet):
     (ARBEIT / "gepostet.json").write_text(json.dumps(gepostet, indent=1))
-    jpgs = sorted(ARBEIT.glob("*.jpg"))
+    # 09.11.: nach Alter, nicht nach Name — sonst flog das frische „abend-…" (alphabetisch vorn) sofort wieder raus,
+    # Meta bekam eine 404 („Only photo or video can be accepted")
+    jpgs = sorted(ARBEIT.glob("*.jpg"), key=lambda f: f.stat().st_mtime)
     for alt in jpgs[:-20]:
         alt.unlink()
     import shutil
