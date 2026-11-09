@@ -31,7 +31,8 @@ def _seite(g, k):
 
 
 MIN_QUOTE = 1.50          # Lucas 09.11.: „nichts mit einer 1,2" — jeder kennt die Favoriten
-MIN_ANTEIL = 60
+UEBER_MIN = 10            # Punkte über der Quote-Erwartung, je einigem Markt
+UEBER_STARK = 20          # mindestens ein Markt so weit drüber
 SPORTARTEN = {"Fußball": "⚽", "E-Sport": "🎮", "Tennis": "🎾"}
 
 
@@ -41,7 +42,7 @@ def _kandidat(g, serien, pserien):
     q = g.get("q") or {}
     bf, po, st = q.get("betfair") or {}, q.get("poly") or {}, q.get("stake") or {}
     seiten = {k: v.get("auf") for k, v in (("betfair", bf), ("poly", po), ("stake", st))
-              if v.get("auf") and (v.get("anteil") or 0) >= MIN_ANTEIL and float(v.get("betrag") or 0) >= (10000 if k != "stake" else 3000)}
+              if v.get("auf") and float(v.get("betrag") or 0) >= (10000 if k != "stake" else 3000)}
     if not seiten:
         return None
     k = max(set(seiten.values()), key=list(seiten.values()).count)
@@ -52,6 +53,12 @@ def _kandidat(g, serien, pserien):
         pr = (po.get("ask") or {}).get(k) or (po.get("preise") or {}).get(k)
         quote = round(1 / pr, 2) if isinstance(pr, (int, float)) and 0 < pr < 1 else None
     if not isinstance(quote, (int, float)) or quote < MIN_QUOTE:
+        return None
+    # Lucas 09.11. 18:24 („60 % einig kommt mir wenig vor"): nicht der Anteil zählt, sondern wie weit er über dem liegt,
+    # was die Quote erwartet. Jeder einige Markt ≥ +10 Punkte, mindestens einer ≥ +20.
+    erwartet = 100 / quote
+    ueber = {m: (q.get(m if m != "poly" else "poly") or {}).get("anteil", 0) - erwartet for m in seiten}
+    if min(ueber.values()) < UEBER_MIN or max(ueber.values()) < UEBER_STARK:
         return None
     wale = g.get("wale") or []
     if any(w.get("k") != k and (w.get("usd") or 0) >= 5000 and (w.get("clvUg") or 0) > 0 for w in wale):
@@ -73,7 +80,7 @@ def _kandidat(g, serien, pserien):
         return None                                    # keine Geschichte → nicht posten
     geld = float(bf.get("betrag") or 0) + 0.9 * float(po.get("betrag") or 0)
     return {"g": g, "k": k, "quote": quote, "bf": bf, "po": po, "st": st, "wal": wal, "story": story,
-            "punkte": punkte, "geld": geld, "fluss": fluss}
+            "punkte": punkte, "geld": geld, "fluss": fluss, "ueber": ueber, "erwartet": erwartet}
 
 
 def text(d: dict, jetzt: datetime) -> str | None:
@@ -102,7 +109,7 @@ def text(d: dict, jetzt: datetime) -> str | None:
     for k in ks:
         g = k["g"]
         z.append(f"{SPORTARTEN[g['sport']]} **{g['heim']} vs {g['gast']}** – {k['ko'].astimezone(WIEN):%H:%M}, {g.get('liga') or ''}")
-        z.append(f"- Money on **{_seite(g, k['k'])}** @ {k['quote']:.2f}")
+        z.append(f"- Money on **{_seite(g, k['k'])}** @ {k['quote']:.2f} (the odds imply ~{k['erwartet']:.0f}%)")
         if k["bf"].get("auf") == k["k"]:
             z.append(f"- Betfair: {_geld(k['bf'].get('betrag'))} matched, {k['bf'].get('anteil')}% on that side")
         if k["po"].get("auf") == k["k"]:
@@ -111,7 +118,7 @@ def text(d: dict, jetzt: datetime) -> str | None:
         if k["st"].get("auf") == k["k"]:
             z.append(f"- Stake: {_geld(k['st'].get('betrag'), '$')} from high rollers")
         z.append("")
-    z.append("*Only games where the markets point the same way and the odds are 1.50+. Just data, not a tip.*")
+    z.append("*Only games where the markets point the same way and the odds are 1.50+, with more money on one side than the odds suggest. Just data, not a tip.*")
     return "\n".join(z)
 
 
