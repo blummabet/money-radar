@@ -1619,6 +1619,28 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .ki-mehr{font-size:12px;color:var(--text-3);margin-top:6px}
 .ki-fuss{margin-top:10px;font-size:11.5px;color:var(--text-3)}
 .leer-filter{display:block;margin-top:6px;font-size:12px;color:var(--text-3)} .leer-filter .chip{margin-left:6px}
+/* 10.11. Belegte Wale je Spiel (Wal-Duell) */
+.wd-l{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.wd{padding:12px 14px;border-radius:14px;background:var(--flaeche);border:1px solid var(--rand);display:grid;gap:8px;align-content:start}
+.wd.um{opacity:.82}
+.wd-k{display:flex;align-items:baseline;gap:8px;min-width:0}
+.wd-sp{font-weight:800;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wd-t{font-size:12px;color:var(--text-3);white-space:nowrap}
+.wd-chip{justify-self:start;font-size:11.5px;font-weight:800;border-radius:999px;padding:2px 9px}
+.wd-chip.klar{background:color-mix(in srgb,var(--up) 16%,transparent);color:var(--up)}
+.wd-chip.um{background:color-mix(in srgb,var(--bf) 18%,transparent);color:var(--bf)}
+.wd-z{display:grid;gap:3px}
+.wd-n{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:700}
+.wd-n small{font-weight:500;color:var(--text-3)}
+.wd-n b{font-variant-numeric:tabular-nums;color:var(--poly)}
+.wd-z:not(.vorn) .wd-n b{color:var(--text-2)}
+.wd-bar{height:7px;border-radius:7px;background:var(--flaeche-2);overflow:hidden}
+.wd-bar i{display:block;height:100%;border-radius:7px;background:color-mix(in srgb,var(--poly) 45%,transparent)}
+.wd-z.vorn .wd-bar i{background:var(--poly)}
+.wd-w{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:11.5px}
+.wd-w a{color:var(--text-2);text-decoration:none;font-variant-numeric:tabular-nums}
+.wd-w a:hover{text-decoration:underline}
+.wd-w em{font-style:normal;color:var(--poly)}
 </style>
 </head>
 <body>
@@ -2630,11 +2652,29 @@ function polyTabelle(liste, id){
 }
 function setzenKarten(liste){
   if(!liste.length) return `<div class="leer">Gerade hält keine belegte Wallet eine Position in einem kommenden Spiel.</div>`;
-  return `<div class="karten">${liste.map(o=>{
-    const diff = o.jetzt!=null && o.preis!=null ? Math.round((o.jetzt-o.preis)*100) : null;
-    return `<div class="karte"><div class="k1"><div style="min-width:0"><div class="auf">${sportIco(o.sport)} ${esc(nm(/^draw/i.test(o.seite)?"Draw":o.seite))}</div><div class="sp">${esc(o.spiel)}, ${wann(o.anpfiff)}</div></div><div class="pp" style="color:var(--poly)">${usd(o.usd)}</div></div>
-      <div class="unten"><span>Einstieg <b style="color:var(--text)">${o.preis!=null?Math.round(o.preis*100)+" ¢":"–"}</b>${o.jetzt!=null?`, jetzt <b style="color:var(--text)">${Math.round(o.jetzt*100)} ¢</b>${diff?` <span style="color:${diff>0?"var(--up)":"var(--down)"}">${diff>0?"+":""}${diff}</span>`:""}`:""}</span></div>
-      <div class="unten"><a href="https://polymarket.com/profile/${encodeURIComponent(o.wallet)}" target="_blank" rel="noopener">Wallet ${esc(String(o.wallet).slice(2,6))}</a><span style="color:var(--poly);font-weight:700">+${dez(o.clv)} pp auf Schlusskurs</span></div></div>`;}).join("")}</div>`;
+  // Lucas 10.11. 10:09: „da sind viele Spiele drin, wo ein Wal auf A und einer auf B setzt — stell's pro Spiel dar,
+  // umstritten als Chip, eindeutig auch". Eindeutig = ≥ 75 % des belegten Geldes auf einer Seite und auf der Gegenseite
+  // kein belegter Wal mit ≥ $5k (dieselbe Grenze wie Public-Regel 18).
+  const G = {};
+  for(const o of liste){ const g = G[o.markt] ||= {markt:o.markt, spiel:o.spiel, anpfiff:o.anpfiff, sport:o.sport, seiten:{}};
+    const sd = g.seiten[o.seite] ||= {seite:o.seite, usd:0, w:[], jetzt:o.jetzt}; sd.usd += o.usd||0; sd.w.push(o); }
+  const spiele = Object.values(G).map(g=>{
+    const S = Object.values(g.seiten).sort((a,b)=>b.usd-a.usd), ges = S.reduce((a,x)=>a+x.usd,0)||1;
+    const gegenMax = Math.max(0, ...S.slice(1).flatMap(x=>x.w.map(w=>w.usd||0)));
+    const anteil = S[0].usd/ges, klar = anteil>=0.75 && gegenMax<5000;
+    return {...g, S, ges, anteil, klar, gegenMax};
+  }).sort((a,b)=>(b.klar-a.klar) || (b.S[0].usd-a.S[0].usd));
+  const seiteName = n => esc(nm(/^draw/i.test(n)?"Draw":n));
+  return `<div class="wd-l">${spiele.map(g=>{
+    const chip = g.klar
+      ? `<span class="wd-chip klar">✓ eindeutig · ${Math.round(100*g.anteil)} % auf ${seiteName(g.S[0].seite)}</span>`
+      : `<span class="wd-chip um" title="${g.gegenMax>=5000?`belegter Wal mit ${usd(g.gegenMax)} auf der Gegenseite`:`nur ${Math.round(100*g.anteil)} % auf einer Seite`}">⚔ umstritten · ${Math.round(100*g.anteil)} : ${100-Math.round(100*g.anteil)}</span>`;
+    const zeilen = g.S.map((x,i)=>`<div class="wd-z${i===0?" vorn":""}">
+        <div class="wd-n"><span>${seiteName(x.seite)}${x.jetzt!=null?` <small>${Math.round(x.jetzt*100)} ¢</small>`:""}</span><b>${usd(x.usd)}</b></div>
+        <div class="wd-bar"><i style="width:${(100*x.usd/g.ges).toFixed(0)}%"></i></div>
+        <div class="wd-w">${x.w.sort((a,b)=>b.usd-a.usd).map(w=>`<a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" title="Einstieg ${w.preis!=null?Math.round(w.preis*100)+" ¢":"–"} · ${w.n||"?"} gewertete Wetten">${esc(String(w.wallet).slice(2,6))} ${usd(w.usd)} <em>+${dez(w.clv)} pp</em></a>`).join("")}</div></div>`).join("");
+    return `<div class="wd${g.klar?" klar":" um"}"><div class="wd-k"><span class="wd-sp">${sportIco(g.sport)} ${esc(g.spiel)}</span><span class="wd-t">${wann(g.anpfiff)}</span></div>${chip}${zeilen}</div>`;
+  }).join("")}</div>`;
 }
 // ── Liga-Filter (Lucas 17.10.: Top-5 sollen raus, aber per Knopf noch da sein) ──
 // Namen je Quelle: Betfair („Spanish La Liga"), Polymarket-Kürzel („LALIGA", „SEA", „FL1"), Stake („La Liga", „Premier League")
