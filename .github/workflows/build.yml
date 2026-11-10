@@ -152,6 +152,12 @@ jobs:
           # alten Projekt, kein Geheimnis). Dort sind Betfair-Moneyflow, Poly-Wal und Serien-Posts gleichzeitig aus.
           PUBLIC_CHAT_ID: "-1003819239615"
           PUSH_TEST: ${{ inputs.push_test && '1' || '' }}
+          # 10.11. Cocobet auf X: ohne X_LIVE=1 (Repo-Variable) nur Entwürfe im Testkanal; Schlüssel als Secrets
+          X_LIVE: ${{ vars.X_LIVE }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
         run: python3 push.py
       # 04.11. (Lucas: „Speicherthema … mach das, was am besten ist, ohne Aufwand für mich"): Die Bücher liegen sonst NUR
       # im Actions-Cache (letzte 8 Stände). Einmal am Tag eine Sicherung in den eigenen Zweig „daten" — getrennt vom Code,

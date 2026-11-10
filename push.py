@@ -1464,6 +1464,12 @@ def waechter(d, gesehen):
 STATUS = {"fehler": []}
 
 
+def _x_post():
+    sys.path.insert(0, str(BASIS / "social"))
+    import x_post
+    return x_post
+
+
 def senden(token, chat, text, link=True) -> bool:
     body = urllib.parse.urlencode({"chat_id": chat, "text": text + (f'\n<a href="{SEITE}">Geldradar</a>' if link else ""),
                                    "parse_mode": "HTML", "disable_web_page_preview": "true"}).encode()
@@ -1561,6 +1567,12 @@ def main() -> int:
                         public.sammeln(pub_stand, pub, JETZT)
                 except Exception as exc:  # noqa: BLE001
                     print(f"  public: {exc}")
+                try:                 # 10.11. (Lucas): jeder gesendete Push wird X-Kandidat (Cocobet auf X, Entwurf/echt)
+                    if not trocken:
+                        _xd = pub or beleg
+                        _x_post().merken((_xd or {}).get("art"), _xd, key, JETZT)
+                except Exception as exc:  # noqa: BLE001
+                    print(f"  x merken: {exc}")
                 if beleg and not trocken:
                     # Lucas 25.10. („kleine Ligen mit 30k sagen mehr als 1 Mio auf Chelsea — nicht pauschal auswerten"):
                     # die Liga-Norm (übliches Geld je Spiel in dieser Liga) beim Push mitschreiben → Auswertung je Ligagröße
@@ -1662,6 +1674,12 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             print(f"  public: {exc}")
         public.speichern(pub_stand)
+        try:                         # 10.11.: Cocobet auf X — höchstens 3 je Stunde, nichts, was im Public steht
+            nx = _x_post().lauf(pub_stand, JETZT, lambda t: senden(token, chat, t, link=False), public._norm)
+            if nx:
+                print(f"  x: {nx} {'gepostet' if os.environ.get('X_LIVE') == '1' else 'als Entwurf'}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  x: {exc}")
         try:                         # 02.11.: den Topf auf der Seite zeigen (Statistik → Public-Kanal)
             (BASIS / "site" / "topf.json").write_text(json.dumps(public.export(pub_stand, JETZT), ensure_ascii=False), encoding="utf-8")
         except Exception as exc:  # noqa: BLE001
