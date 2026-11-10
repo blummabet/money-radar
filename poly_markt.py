@@ -591,6 +591,7 @@ def aufloesungen(track, gesehen_keys):
         if preise:
             out[key] = preise
     track["geprueft"] = geprueft
+    print(f"  poly_markt: Auflösung — {len(faellig)} Märkte fällig, {len(reihe)} nachgeschlagen, {len(out)} entschieden")
     return out
 
 
