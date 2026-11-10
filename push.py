@@ -333,6 +333,7 @@ def zufluss(d):
                    gruende=[f"{_pbalken(fl.get('anteil'))} {fl.get('anteil')} % des neuen Geldes",
                             f"⚡ +{geld(fl.get('eur'))} in den letzten 30 Min" + (f" · Quote {q2(qv)} → {q2(q)}" if gedr else "")])
         _mit(pub, fl.get("eur"))
+        pub["x"] = {"anteil": fl.get("anteil"), "min": 30, "qv": qv}
         yield key, text, ZUFLUSS_PAUSE_H, _beleg("zufluss", z, fl), pub
 
 
@@ -777,6 +778,10 @@ def wale(d):
         if pub:
             pub["faktor"] = round(usd / float(schnitt), 2) if schnitt and usd else None     # Public-Regel 3
             _mit(pub, usd)
+            # 10.11. (Lucas: X-Post „lieblos"): dieselben Bausteine wie der Telegram-Push, für die englische X-Fassung
+            pub["x"] = {"bars": [[str(namen[sk] or ""), round(p, 3), sk == k] for sk, p in reihe] if (k and reihe) else [],
+                        "pnl": pnl, "n": n, "clv": o.get("clv"), "preis": preis, "ein": ein,
+                        "faktor": round(usd / float(schnitt), 2) if schnitt and usd else None}
         # Wal-Regel 2 (Lucas 06.11. 13:50, Dynamo Dresden: $1,1k bei einem Wallet, das sonst Ø $17k setzt): unter ¼ des
         # üblichen Einsatzes kein Push — still als „walKlein" mitbuchen (bis 06.11.: unter ¼ n=13, −39 %)
         if schnitt and usd and usd / float(schnitt) < WAL_MIN_FAKTOR:
@@ -1017,6 +1022,8 @@ def stake(d):
                    gruende=[f"🎯 {g.get('wetten')} Großwetten innerhalb weniger Minuten",
                             f"📏 {q2(g.get('faktor'))}× so viel wie in dieser Liga üblich" if g.get("faktor") else ""]) if auswahl else None
         _mit(pub, g.get("usd"))
+        if pub:
+            pub["x"] = {"wetten": g.get("wetten"), "faktor": g.get("faktor")}
         try:
             beleg = _stake_beleg(g, mit_auswahl or g, auswahl, quote, radar)
         except Exception as exc:  # noqa: BLE001
@@ -1274,6 +1281,7 @@ def serie(d):
                             f"⏱ {x['n']}× in Folge · +{geld(x['eur'])} in {_dauer(x.get('dauerMin'))}"])
         pub["layVerdacht"] = lay_verdacht           # Public-Regel 8
         _mit(pub, x.get("eur"), x.get("n"))
+        pub["x"] = {"n": x["n"], "min": x.get("dauerMin"), "anteil": x.get("anteil"), "q0": q0, "saeulen": (x.get("saeulen") or [])[-24:]}
         yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"],
@@ -1323,6 +1331,8 @@ def serie(d):
                    betrag=pubmod.geld(x.get("usd"), "$"),
                    gruende=[f"🔁 {x['n']}× in Folge neues Geld auf diese Seite", f"{round(x.get('anteil') or 0)} % der Käufe"])
         _mit(pub, x.get("usd"), x.get("n"))
+        if pub:
+            pub["x"] = {"n": x["n"], "min": x.get("dauerMin"), "anteil": x.get("anteil"), "preis": x.get("preis"), "saeulen": x.get("saeulen") or []}
         # Public-Regel 18 (Lucas 09.11. FOKUS – Alliance: „solang sich die Seiten nicht einig sind, ist es ein Coinflip"):
         # hält ein bewährtes Wallet (Rangliste, CLV-Untergrenze > 0) ≥ $5k auf der Gegenseite, oder kam in den letzten 6 h
         # ein Wal-Push auf die Gegenseite, geht die Serie nicht in den Public-Kanal — still gemessen als „pserieGegen".

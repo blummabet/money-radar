@@ -65,7 +65,13 @@ def _betrag(s):
     m = re.match(r"^[€$]?\s*([\d.,]+)\s*([km]?)", str(s or "").strip(), re.I)
     if not m:
         return 0.0
-    v = float(m.group(1).replace(".", "").replace(",", ".")) if m.group(1).count(",") == 1 else float(m.group(1).replace(",", ""))
+    z = m.group(1)
+    if re.fullmatch(r"\d{1,3}(\.\d{3})+(,\d+)?", z):            # 69.000 / 1.250.000,5 (deutsch)
+        v = float(z.replace(".", "").replace(",", "."))
+    elif z.count(",") == 1 and not re.fullmatch(r"\d{1,3}(,\d{3})+", z):
+        v = float(z.replace(".", "").replace(",", "."))
+    else:
+        v = float(z.replace(",", ""))
     return v * (1000 if m.group(2).lower() == "k" else 1e6 if m.group(2).lower() == "m" else 1)
 
 
@@ -100,10 +106,14 @@ def merken(art, d, key, jetzt):
     if any(x.get("key") == key for x in q):
         return
     waehrung = "$" if art in ("stake", "pserie", "wal") else "€"
-    betrag = _betrag(d.get("betrag")) or float(d.get("usd") or d.get("eur") or 0)
+    # 10.11. (erster echter Post „$69" statt $69k): public.geld schreibt „$69.000" — der Punkt ist ein Tausender-Trenner.
+    # Deshalb zuerst die Zahl (eur/usd), den Text nur als Notnagel.
+    zahl = next((float(d[f]) for f in ("eur", "usd") if isinstance(d.get(f), (int, float)) and d[f] > 0), None)
+    betrag = zahl or _betrag(d.get("betrag"))
     q.append({"key": key, "art": art, "ts": jetzt.isoformat(), "spiel": spiel, "liga": d.get("liga"), "sport": d.get("sport"),
               "auswahl": auswahl, "markt": d.get("markt"), "quote": d.get("quote"), "live": bool(d.get("live")),
-              "minute": d.get("minute"), "betrag": betrag, "waehrung": waehrung, "anpfiff": d.get("anpfiff")})
+              "minute": d.get("minute"), "stand": d.get("stand"), "betrag": betrag, "waehrung": waehrung,
+              "anpfiff": d.get("anpfiff"), "x": d.get("x") or {}})
     grenze = jetzt - timedelta(hours=24)
     _speichern(QUEUE, [x for x in q if (_ts(x.get("ts")) or jetzt) >= grenze][-300:])
 
@@ -159,6 +169,12 @@ def _wahl(liste, key):
 
 
 def text(k, jetzt) -> str:
+    try:
+        neu = text_neu(k, jetzt)
+        if neu:
+            return neu
+    except Exception as exc:  # noqa: BLE001
+        print(f"  x: neue Fassung fehlgeschlagen ({str(exc)[:80]}), alte Vorlage")
     vorlagen = TEXTE.get(k["art"]) or TEXTE[""]
     v, h = _wahl(vorlagen, k["key"])
     q = k.get("quote")
@@ -176,6 +192,101 @@ def text(k, jetzt) -> str:
     s = re.sub(r"\s·\s*\n", "\n", s).replace(" · \n", "\n").replace("()", "").strip()
     vor = EINSTIEG[(h >> 8) % len(EINSTIEG)] if s[:1].isalnum() else ""
     return (vor + s)[:270]
+
+
+# ── 10.11. (Lucas: „wirkt sehr lieblos … sieht sehr wenig"): X-Fassung mit denselben Bausteinen wie der Telegram-Push ──
+KOPF = {
+    "wal": ("🐋", "𝗪𝗛𝗔𝗟𝗘 𝗔𝗟𝗘𝗥𝗧", "Polymarket", "🟪"),
+    "serie": ("🔁", "𝗦𝗧𝗘𝗔𝗗𝗬 𝗙𝗟𝗢𝗪", "Betfair", "🟧"),
+    "zufluss": ("⚡", "𝗙𝗥𝗘𝗦𝗛 𝗠𝗢𝗡𝗘𝗬", "Betfair", "🟧"),
+    "live": ("🔴", "𝗟𝗜𝗩𝗘 𝗠𝗢𝗡𝗘𝗬", "Betfair", "🟧"),
+    "stake": ("🟢", "𝗛𝗜𝗚𝗛 𝗥𝗢𝗟𝗟𝗘𝗥𝗦", "Stake", "🟩"),
+    "pserie": ("🔁", "𝗦𝗧𝗘𝗔𝗗𝗬 𝗙𝗟𝗢𝗪", "Polymarket", "🟪"),
+    "pinn": ("📉", "𝗦𝗛𝗔𝗥𝗣 𝗠𝗢𝗩𝗘", "Pinnacle + Betfair", "🟦"),
+}
+SPORT_EMOJI = {"Fußball": "⚽", "Tennis": "🎾", "E-Sport": "🎮"}
+TAGS = {"Polymarket": "#Polymarket", "Betfair": "#Betfair", "Stake": "#Stake"}
+
+
+def _gewicht(t):
+    """X zählt CJK/Emoji doppelt — grob nachgebaut (Latein/Kyrillisch/Satzzeichen = 1)."""
+    return sum(1 if (ord(c) <= 0x10FF or 0x2000 <= ord(c) <= 0x206F) else 2 for c in t)
+
+
+def _kaesten(anteil, farbe, n=10):
+    k = max(0, min(n, round((anteil or 0) / 100 * n)))
+    return farbe * k + "⬜" * (n - k)
+
+
+def _spark(werte):
+    w = [float(x or 0) for x in werte or []]
+    if len(w) < 4 or max(w) <= 0:
+        return ""
+    z = "▁▂▃▄▅▆▇█"
+    return "".join(z[min(7, round(x / max(w) * 7))] for x in w)
+
+
+def text_neu(k, jetzt) -> str | None:
+    art = k.get("art")
+    if art not in KOPF:
+        return None
+    emo, titel, quelle, farbe = KOPF[art]
+    x = k.get("x") or {}
+    q = k.get("quote")
+    sel = _en(k["auswahl"])
+    if k.get("markt") and not re.search(r"over|under|goals", sel, re.I):
+        sel += f" ({_en(k['markt'])})"
+    spiel = k["spiel"].replace(" – ", " vs ")
+    geld = _geld(k.get("betrag"), k.get("waehrung") or "€")
+    kopf = f"{emo} {titel} · {quelle}"
+    if art in ("serie", "pserie") and x.get("n"):
+        kopf += f" · {x['n']}× in a row"
+    zeit = ""
+    if k.get("live"):
+        st = k.get("stand")
+        zeit = "🔴 LIVE" + (f" {k['minute']}'" if k.get("minute") else "") + (f" · {st[0]}-{st[1]}" if isinstance(st, (list, tuple)) and len(st) == 2 else "")
+    elif k.get("anpfiff"):
+        t = _ts(k["anpfiff"])
+        if t and t > jetzt:
+            zeit = f"⏰ {t.astimezone(WIEN):%H:%M} CET" + ("" if t.astimezone(WIEN).date() == jetzt.astimezone(WIEN).date() else f" ({t.astimezone(WIEN):%d %b})")
+    wo = " · ".join(v for v in (spiel, k.get("liga") if k.get("liga") and not str(k.get("liga")).isupper() else None) if v)
+    at = f" @ {q:.2f}" if isinstance(q, (int, float)) else ""
+    fenster = f" in {x['min']} min" if x.get("min") and art in ("zufluss", "serie", "pserie") else ""
+    zeilen = [kopf, "", f"💰 {geld} on {sel}{at}{fenster}", f"{SPORT_EMOJI.get(k.get('sport') or 'Fußball', '⚽')} {wo}"]
+    if zeit:
+        zeilen.append(zeit)
+    block, extra = [], []
+    if art == "wal":
+        for name, p, mein in (x.get("bars") or [])[:3]:
+            name = "Draw" if name == "Remis" else name
+            block.append(f"{round(p * 100):>2}% {_kaesten(p * 100, farbe if mein else '⬛', 8)} {name}{' ◀' if mein else ''}")
+        if x.get("pnl") and x["pnl"] > 0:
+            extra.append(f"🧠 Wallet up {_geld(x['pnl'], '$')}" + (f", beats the closing price by {x['clv']:.1f}pp on avg" if isinstance(x.get("clv"), (int, float)) and x["clv"] > 0 else ""))
+        if x.get("faktor") and x["faktor"] >= 1.5:
+            extra.append(f"🔥 {x['faktor']:.1f}× its usual stake")
+        if x.get("ein") and x.get("preis") and abs(x["preis"] - x["ein"]) >= 0.01:
+            extra.append(f"📈 Entry {round(x['ein'] * 100)}¢ → now {round(x['preis'] * 100)}¢")
+    elif art in ("serie", "pserie", "zufluss"):
+        if x.get("anteil"):
+            block.append(f"{_kaesten(x['anteil'], farbe)} {round(x['anteil'])}% of all new money in this market")
+        sp = _spark(x.get("saeulen"))
+        if sp:
+            block.append(f"{sp} last {'2h' if art == 'serie' else '4h'}")
+        q0 = x.get("q0") or x.get("qv")
+        if isinstance(q0, (int, float)) and isinstance(q, (int, float)) and abs(q - q0) >= 0.03:
+            extra.append(f"{'📉' if q < q0 else '📈'} Odds {q0:.2f} → {q:.2f}")
+    elif art == "stake":
+        if x.get("wetten"):
+            extra.append(f"🎯 {x['wetten']} big tickets within minutes")
+        if x.get("faktor"):
+            extra.append(f"📏 {x['faktor']:.1f}× the usual money for this league")
+    teile = zeilen + ([""] + block if block else []) + ([""] + extra if extra else []) + ["", TAGS.get(quelle.split()[0], "")]
+    t = "\n".join(teile).strip()
+    while _gewicht(t) > 280 and (extra or block):     # zu lang: erst Zusatz, dann Balken kürzen
+        (extra if extra else block).pop()
+        teile = zeilen + ([""] + block if block else []) + ([""] + extra if extra else []) + ["", TAGS.get(quelle.split()[0], "")]
+        t = "\n".join(teile).strip()
+    return t if _gewicht(t) <= 280 else None
 
 
 def _ruhe(jetzt):
