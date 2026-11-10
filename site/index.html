@@ -1706,6 +1706,27 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .svz-u{font-size:11.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
 .svz-i{position:relative;z-index:1;text-align:center;background:var(--panel);border-radius:50%;font-size:13px;line-height:20px;width:20px;height:20px;box-shadow:0 0 0 2px var(--f)}
 .svz-t{font-size:13px} .svz-t b.ok{color:var(--up)} .svz-t b.nein{color:var(--down)}
+/* 10.11. Phasenband */
+:root{--ph-h:#e08600;--ph-a:#2f6fe0;--ph-x:#9aa1ad}
+.ph{display:grid;gap:5px}
+.ph-z{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:8px}
+.ph > h4 + .ph-z{margin-top:26px}
+.ph-l{font-size:10.5px;font-weight:800;color:var(--text-3)}
+.ph-b{position:relative;height:26px;border-radius:6px;background:var(--flaeche-2)}
+.ph-b.t{height:12px}
+.ph-b i{position:absolute;top:0;bottom:0;border-radius:2px}
+.ph-mk{position:absolute;top:-3px;bottom:-3px;width:0;border-left:1.5px dashed var(--text-2)}
+.ph-mk.jetzt{border-left:2px solid var(--down)}
+.ph-mk em{position:absolute;left:0;transform:translateX(-50%);font-style:normal;font-size:10px;font-weight:800;white-space:nowrap;color:var(--text)}
+.ph-a{position:relative;height:13px}
+.ph-a span{position:absolute;transform:translateX(-50%);font-size:10px;color:var(--text-3)}
+.ph-a span:first-child{transform:none} .ph-a span:last-child{transform:translateX(-100%)}
+.ph-leg{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:11px;color:var(--text-2)}
+.ph-leg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.ph-leg .r{margin-left:auto}
+.ph.mini{margin-top:6px}
+.ph.mini .ph-b{height:7px;border-radius:4px}
+.ph.mini .ph-mk{border-left-width:1px;top:-2px;bottom:-2px}
 </style>
 </head>
 <body>
@@ -2376,7 +2397,8 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
   return `<tr class="detail"><td colspan="6"><div class="det">
     ${ohneKopf?"":dKopf(s)}${s.live?liveStat(s.id,true):""}${dChips(s, fl, fm)}
     ${saeulen?`<div class="sv">${saeulen}</div>`:""}
-    ${(()=>{ try{ return spielVerlauf(s); }catch(e){ console.error(e); return ""; } })()}
+    ${(()=>{ try{ return phasenBand(s); }catch(e){ console.error(e); return ""; } })()}
+    ${(()=>{ try{ return spielZeitleiste(s); }catch(e){ console.error(e); return ""; } })()}
     <div><h4>Märkte <small>größere Kachel = mehr Geld im Markt</small></h4>${marktWand2(s)||"–"}</div>
     ${ohneVerlauf?"":quotenKurve(s)}
   </div></td></tr>`;
@@ -3837,6 +3859,7 @@ function topDrei(D){
         <div class="t3-t">${esc(x.heim)} <span>–</span> ${esc(x.gast)}</div>
         <div class="t3-tipp"><span class="t3-auf">${esc(x.auf)}</span>${x.quote?`<span class="t3-q">${x.alt?`<s>${q2(x.alt)}</s>`:""}${q2(x.quote)}</span>`:""}<small>${esc(x.markt)}</small></div>
         ${gross ? t3Saeulen(x.saeulen) : ""}
+        ${(()=>{ try{ const sp = x.key.startsWith("bf|") ? (D.radar.spiele||[]).find(q=>"bf|"+q.id===x.key) : null; return sp ? phasenBand(sp, true) : ""; }catch(e){ return ""; } })()}
         <div class="t3-gs">${gruende}</div>
       </div></div>`; };
   return `<div class="t3${erst?" erst":""}">${T.map(karte).join("")}</div>
@@ -4816,7 +4839,43 @@ function tickerBauen(D){
   l.innerHTML = g0 ? `<span class="puls"></span>${nNeu?`<b class="tl-neu">${nNeu} neu</b>`:""}<span class="tl-t"><i style="background:${FARBE[e0.q]}"></i>${esc(g0.heim)}${g0.gast?" – "+esc(g0.gast):""} · ${esc(e0.aus||"")}${e0.b?` <b>${esc(e0.b)}</b>`:""}</span><span class="tl-auf">▲</span>` : `<span class="tl-t">Live-Ticker · gerade ruhig</span>`;
 }
 // Spiel-Verlauf: was zu diesem Spiel wann passiert ist — Signale, Pushes, Top 3, AI-Pick, Tore, Endstand
-function spielVerlauf(s){
+// Lucas 10.11. 12:18: Phasenband — je 5 Minuten, wohin das neue Geld ging (Sieg-Markt) und ob auf Über oder Unter,
+// dazu Anpfiff, Halbzeit, Tore. Kräftig = viel Geld. Groß im Spiel-Detail, klein auf den Top-3-Karten.
+function phasenBand(s, mini=false){
+  const Z = (D.phasen||{})[String(s.id)]; if(!Z || Z.length < 3) return "";
+  const T = z => new Date(z[0]+":00Z").getTime(), M = 6e4;
+  const ko = s.anpfiff ? new Date(s.anpfiff).getTime() : null, jetzt = Date.now();
+  const t0 = T(Z[0]), last = T(Z.at(-1)) + 5*M;
+  const nachKo = ko && (s.live || jetzt > ko);
+  const t1 = Math.max(last, nachKo ? ko + 110*M : (ko||0) + 5*M);
+  const x = t => Math.max(0, Math.min(100, (t - t0) / (t1 - t0) * 100));
+  const maxE = Math.max(1, ...Z.map(z=>z[2]||0)), maxT = Math.max(1, ...Z.map(z=>Math.abs(z[4]||0)));
+  const op = (v, m) => (0.2 + 0.8*Math.log1p(v)/Math.log1p(m)).toFixed(2);
+  const FS = {h:"var(--ph-h)", a:"var(--ph-a)", x:"var(--ph-x)"};
+  const stueck = (z, i, wert, farbe) => { const a = x(T(z)), b = i+1<Z.length ? x(T(Z[i+1])) : x(T(z)+5*M);
+    return `<i style="left:${a.toFixed(2)}%;width:${Math.max(0.5, b-a-0.3).toFixed(2)}%;background:${farbe};opacity:${wert}"></i>`; };
+  const sieg = Z.map((z,i)=>z[1] ? stueck(z, i, op(z[2]||0, maxE), FS[z[1]]) : "").join("");
+  const tore = mini ? "" : Z.map((z,i)=>z[4] ? stueck(z, i, op(Math.abs(z[4]), maxT), z[4]>0?"var(--up)":"var(--down)") : "").join("");
+  const mk = [];
+  if(ko && ko >= t0 && ko <= t1) mk.push([ko, "Anpfiff"]);
+  if(nachKo && ko + 47*M <= Math.min(t1, jetzt)) mk.push([ko + 47*M, "HZ"]);
+  let vor = null; for(const z of Z){ if(z[5] && vor && (z[5][0]!==vor[0] || z[5][1]!==vor[1])) mk.push([T(z) - 2*M, `⚽ ${z[5][0]}:${z[5][1]}`]); if(z[5]) vor = z[5]; }
+  if(s.live && jetzt < t1) mk.push([jetzt, "jetzt"]);
+  mk.sort((a,b)=>a[0]-b[0]);
+  let letzteX = -99, reihe = 0;
+  const marker = mk.map(([t, txt])=>{ const p = x(t); reihe = p - letzteX < 13 ? (reihe+1)%2 : 0; letzteX = p;
+    const rand = p > 88 ? "transform:translateX(-100%)" : p < 8 ? "transform:none" : "";
+    return `<span class="ph-mk${txt==="jetzt"?" jetzt":""}" style="left:${p.toFixed(2)}%">${mini?"":`<em style="top:${reihe?-28:-15}px;${rand}">${esc(txt)}</em>`}</span>`; }).join("");
+  if(mini) return `<div class="ph mini" title="Wohin das neue Sieg-Geld je 5 Minuten ging"><div class="ph-b">${sieg}${marker}</div></div>`;
+  const uhrzeit = t => new Date(t).toLocaleTimeString("de-AT",{timeZone:TZ,hour:"2-digit",minute:"2-digit"});
+  const achse = [0, 0.25, 0.5, 0.75, 1].map(f=>`<span style="left:${(f*100).toFixed(0)}%">${uhrzeit(t0 + f*(t1-t0))}</span>`).join("");
+  return `<div class="ph"><h4>Phasenband <small>je 5 Minuten: wohin das neue Geld ging · kräftig = viel</small></h4>
+    <div class="ph-z"><span class="ph-l">Sieg</span><div class="ph-b">${sieg}${marker}</div></div>
+    <div class="ph-z"><span class="ph-l">Tore</span><div class="ph-b t">${tore}</div></div>
+    <div class="ph-z"><span class="ph-l"></span><div class="ph-a">${achse}</div></div>
+    <div class="ph-leg"><span><i style="background:var(--ph-h)"></i>${esc(s.heim)}</span><span><i style="background:var(--ph-x)"></i>Remis</span><span><i style="background:var(--ph-a)"></i>${esc(s.gast)}</span><span class="r"><i style="background:var(--up)"></i>Über <i style="background:var(--down);margin-left:6px"></i>Unter</span></div></div>`;
+}
+function spielZeitleiste(s){
   const fk = feedKey(s.heim, s.gast), Z = [];
   const ko = s.anpfiff ? new Date(s.anpfiff) : null;
   const add = (t, ico, f, txt, st) => { if(t) Z.push({t:new Date(t), ico, f, txt, st}); };

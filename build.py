@@ -1557,6 +1557,34 @@ def takt_fortschreiben(bf_hist):
     return takt
 
 
+def phasen(takt, radar):
+    """Lucas 10.11. 12:18 (Phasenband, „auch für Instagram"): je Betfair-Spiel der Verlauf in 5-Min-Stücken —
+    [Zeit, Seite des neuen Sieg-Geldes h/x/a, € dorthin, Anteil %, Tore-Geld netto (+ Über / − Unter), Stand]."""
+    spiele = {str(sp.get("id")): sp for sp in (radar or {}).get("spiele") or []}
+    out = {}
+    for mid, liste in (takt or {}).items():
+        sp = spiele.get(str(mid))
+        if not sp:
+            continue
+        z = []
+        for x in liste:
+            mo = [(k.split("|", 1)[1], v) for k, v in (x.get("h") or {}).items() if k.startswith("Match Odds|")]
+            seite = eur = anteil = None
+            if mo:
+                n, v = mo[0]
+                seite = "h" if n == sp.get("heim") else "a" if n == sp.get("gast") else "x" if n == "The Draw" else None
+                eur, anteil = v[0], v[1]
+            tore = sum((v[0] if k.split("|", 1)[1].startswith("Over") else -v[0])
+                       for k, v in (x.get("h") or {}).items() if k.startswith("Over/Under ") and "Goals" in k)
+            if seite is None and not tore:
+                continue
+            t = ts(x.get("t"))
+            z.append([t.strftime("%Y-%m-%dT%H:%M") if t else None, seite, eur, anteil, round(tore), x.get("sc")])
+        if len(z) >= 3:
+            out[str(mid)] = z
+    return out
+
+
 def serien(takt, radar):
     spiele = {sp["id"]: sp for sp in (radar or {}).get("spiele") or []}
     out = []
@@ -2746,7 +2774,8 @@ def main() -> int:
         "zufluss30": zufluss_liste(radar, consensus),
         "liveZufluss": live_zufluss(radar),
         "polyFluss": (pfl := poly_fluss()),
-        "serien": serien(takt_fortschreiben(bf_hist), radar),
+        "serien": serien((takt_ := takt_fortschreiben(bf_hist)), radar),
+        "phasen": phasen(takt_, radar),
         "serienRuhig": SERIEN_RUHIG[:20],
         "polySerien": poly_serien(pfl),
         "stakeSerien": stake_serien(hr),
