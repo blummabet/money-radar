@@ -483,6 +483,17 @@ def track_fortschreiben(track, maerkte, aufgeloest):
                 e["closePrice"] = round(p, 4)          # letzter Preis vor Anpfiff = Schlusspreis
             if isinstance(wh.get("avgPrice"), (int, float)):
                 e["entryPrice"] = wh["avgPrice"]
+    # 10.11. (Polymarket-Check): Preise ALLER offenen Positionen fortschreiben, nicht nur in Märkten, deren Halter
+    # in diesem Lauf abgerufen wurden. Vorher hatten 70 % der Positionen nach Anpfiff keinen Schlusspreis und fielen
+    # bei der Auflösung ungewertet raus — die Rangliste sah nur ein Drittel der Wetten.
+    for e in openp.values():
+        m = maerkte.get(e.get("key"))
+        p = ((m or {}).get("prices") or {}).get(e.get("side"))
+        if not isinstance(p, (int, float)):
+            continue
+        e["lastPrice"] = round(p, 4)
+        if not m.get("live"):
+            e["closePrice"] = round(p, 4)
     for ok in list(openp):
         e = openp[ok]
         preise = aufgeloest.get(e.get("key"))
@@ -523,7 +534,7 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         ko = _ts(e.get("koTs")) or _ts(e.get("firstTs"))
         if ko and ko < grenze:
             del openp[ok]                              # nie aufgelöst gesehen → raus
-    return {"open": openp, "scores": scores, "updatedAt": JETZT.isoformat()}
+    return {"open": openp, "scores": scores, "updatedAt": JETZT.isoformat(), "geprueft": track.get("geprueft") or {}}
 
 
 def aufloesung_ev(ev):
@@ -565,15 +576,21 @@ def aufloesungen(track, gesehen_keys):
         if e.get("key") and ko and JETZT - ko > timedelta(hours=2.5):
             faellig.setdefault(e["key"], ko)
     out = {}
-    for key in sorted(faellig, key=lambda k: faellig[k])[:AUFLOES_BUDGET]:
+    # 10.11.: reihum statt immer die ältesten — Ereignisse, die (noch) nicht aufgelöst sind, belegten sonst jeden Lauf
+    # das ganze Budget, und frisch beendete Spiele warteten. Zuerst nie bzw. am längsten nicht geprüfte.
+    geprueft = {k: v for k, v in (track.get("geprueft") or {}).items() if k in faellig}
+    reihe = sorted(faellig, key=lambda k: (geprueft.get(k) or "", faellig[k]))[:AUFLOES_BUDGET]
+    for key in reihe:
         if not _zeit_ok():
             break
+        geprueft[key] = JETZT.isoformat()
         ev = _get(f"{GAMMA}?slug={urllib.parse.quote(key)}")
         if not isinstance(ev, list) or not ev:
             continue
         preise = aufloesung_ev(ev[0])
         if preise:
             out[key] = preise
+    track["geprueft"] = geprueft
     return out
 
 
