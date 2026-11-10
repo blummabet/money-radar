@@ -552,6 +552,7 @@ def bf_halbzeit(d):
 SPORT = {"Fußball": "⚽", "E-Sport": "🎮", "Tennis": "🎾"}
 
 
+X_EXTRA = {}          # 10.11.: Zusatz-Bausteine für die X-Fassung je Push-Schlüssel (nur im Lauf)
 PINN_PUSH_MIN_QUOTE = 1.40
 PINN_PAUSE_H = 3
 
@@ -606,6 +607,14 @@ def pinnacle(d):
                     + (f"<code>{kurve}</code> <i>Pinnacle-Chance{' je 5 Min' if live else ''}</i>\n" if len(kurve) >= 3 else ""))
         text += "\n<b>Das Geld zieht mit:</b>\n" + "\n".join(belege) + "\n"
         q_bf = a.get("quote")
+        # 10.11. (Lucas: „€44 on CD Pamplona … die Beträge sind irgendwas"): beim Pinnacle-Push ist der Kurs das Signal,
+        # nicht der Betrag (oft zieht nur die Betfair-Quote mit). Für X die Bausteine des Telegram-Pushes mitgeben.
+        X_EXTRA[key] = {"von": x.get("vonQuote"), "nach": x.get("quote"), "vonPct": x.get("vonPct"), "nachPct": x.get("nachPct"),
+                        "pp60": x.get("pp60"), "min": x.get("fensterMin"), "verlauf": v, "bfNeu": neu,
+                        "bfVon": a.get("q60") if a.get("q60") and a.get("quote") and a["quote"] < a["q60"] * 0.97 else None,
+                        "bfNach": a.get("quote"), "poly": pm.get("usd") if (pm.get("usd") or 0) >= 1000 and
+                        top3.seite_von(sp.get("heim"), sp.get("gast"), pm.get("auf")) == x.get("ausgang") else None,
+                        "auf": x.get("auf"), "stand": x.get("stand") if live else None, "minute": x.get("min") if live else None}
         beleg = ({"art": "pinn", "id": str(sp.get("id")), "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga"),
                   "anpfiff": sp.get("anpfiff"), "top5": bool(sp.get("top5")), "live": live, "markt": "Match Odds",
                   "auswahl": a.get("name"), "quote": q_bf, "eur": neu}
@@ -1580,6 +1589,8 @@ def main() -> int:
                 try:                 # 10.11. (Lucas): jeder gesendete Push wird X-Kandidat (Cocobet auf X, Entwurf/echt)
                     if not trocken:
                         _xd = pub or beleg
+                        if _xd and key in X_EXTRA:
+                            _xd = {**_xd, "x": X_EXTRA[key]}
                         _x_post().merken((_xd or {}).get("art"), _xd, key, JETZT)
                 except Exception as exc:  # noqa: BLE001
                     print(f"  x merken: {exc}")

@@ -169,6 +169,8 @@ def _wahl(liste, key):
 
 
 def text(k, jetzt) -> str:
+    if k.get("art") == "pinn" and not (k.get("x") or {}).get("von"):
+        return ""                                    # Pinnacle ohne Kurs: der Betrag allein sagt nichts (10.11.)
     try:
         neu = text_neu(k, jetzt)
         if neu:
@@ -202,7 +204,7 @@ KOPF = {
     "live": ("🔴", "𝗟𝗜𝗩𝗘 𝗠𝗢𝗡𝗘𝗬", "Betfair", "🟧"),
     "stake": ("🟢", "𝗛𝗜𝗚𝗛 𝗥𝗢𝗟𝗟𝗘𝗥𝗦", "Stake", "🟩"),
     "pserie": ("🔁", "𝗦𝗧𝗘𝗔𝗗𝗬 𝗙𝗟𝗢𝗪", "Polymarket", "🟪"),
-    "pinn": ("📉", "𝗦𝗛𝗔𝗥𝗣 𝗠𝗢𝗩𝗘", "Pinnacle + Betfair", "🟦"),
+    "pinn": ("📉", "𝗦𝗛𝗔𝗥𝗣 𝗠𝗢𝗩𝗘", "Pinnacle", "🟦"),
 }
 SPORT_EMOJI = {"Fußball": "⚽", "Tennis": "🎾", "E-Sport": "🎮"}
 TAGS = {"Polymarket": "#Polymarket", "Betfair": "#Betfair", "Stake": "#Stake"}
@@ -222,8 +224,8 @@ def _spark(werte):
     w = [float(x or 0) for x in werte or []]
     if len(w) < 4 or max(w) <= 0:
         return ""
-    z = "▁▂▃▄▅▆▇█"
-    return "".join(z[min(7, round(x / max(w) * 7))] for x in w)
+    z, lo, hi = "▁▂▃▄▅▆▇█", (min(w) if min(w) > 0 else 0), max(w)
+    return "".join(z[min(7, round((x - lo) / ((hi - lo) or 1) * 7))] for x in w)
 
 
 def text_neu(k, jetzt) -> str | None:
@@ -234,7 +236,7 @@ def text_neu(k, jetzt) -> str | None:
     x = k.get("x") or {}
     q = k.get("quote")
     sel = _en(k["auswahl"])
-    if k.get("markt") and not re.search(r"over|under|goals", sel, re.I):
+    if k.get("markt") and k["markt"] not in ("Match Odds", "Sieg-Markt", "Polymarket") and not re.search(r"over|under|goals", sel, re.I):
         sel += f" ({_en(k['markt'])})"
     spiel = k["spiel"].replace(" – ", " vs ")
     geld = _geld(k.get("betrag"), k.get("waehrung") or "€")
@@ -275,11 +277,27 @@ def text_neu(k, jetzt) -> str | None:
         q0 = x.get("q0") or x.get("qv")
         if isinstance(q0, (int, float)) and isinstance(q, (int, float)) and abs(q - q0) >= 0.03:
             extra.append(f"{'📉' if q < q0 else '📈'} Odds {q0:.2f} → {q:.2f}")
+    elif art == "pinn" and x.get("von") and x.get("nach"):
+        # Pinnacle: der Kurs ist das Signal — Betrag nur, wenn er etwas sagt
+        zeilen[2] = f"🎯 {sel}: {x['von']:.2f} → {x['nach']:.2f} at Pinnacle"
+        if isinstance(x.get("vonPct"), (int, float)) and isinstance(x.get("nachPct"), (int, float)):
+            block.append(f"Implied chance {x['vonPct']:.1f}% → {x['nachPct']:.1f}%" + (f" (+{x['pp60']:.1f}pp in the last hour)" if x.get("pp60") else ""))
+        sp = _spark(x.get("verlauf"))
+        if sp:
+            block.append(f"{sp} Pinnacle chance")
+        if x.get("bfVon") and x.get("bfNach"):
+            extra.append(f"📉 Betfair follows: {x['bfVon']:.2f} → {x['bfNach']:.2f}")
+        if (x.get("bfNeu") or 0) >= 1000:
+            extra.append(f"💶 +{_geld(x['bfNeu'], '€')} new on Betfair")
+        if x.get("poly"):
+            extra.append(f"🟣 +{_geld(x['poly'], '$')} on Polymarket")
     elif art == "stake":
         if x.get("wetten"):
             extra.append(f"🎯 {x['wetten']} big tickets within minutes")
         if x.get("faktor"):
             extra.append(f"📏 {x['faktor']:.1f}× the usual money for this league")
+    if art == "pinn" and not x.get("von"):
+        return None                                   # alte Kandidaten ohne Kurs: lieber nicht posten (Betrag sagt nichts)
     teile = zeilen + ([""] + block if block else []) + ([""] + extra if extra else []) + ["", TAGS.get(quelle.split()[0], "")]
     t = "\n".join(teile).strip()
     while _gewicht(t) > 280 and (extra or block):     # zu lang: erst Zusatz, dann Balken kürzen
@@ -315,6 +333,8 @@ def lauf(pub_stand, jetzt, entwurf_senden, public_norm=lambda s: s) -> int:
         if public_norm(k["spiel"]) in spiele_schon:
             continue
         t = text(k, jetzt)
+        if not t:
+            continue
         if posten(t, entwurf_senden):
             st["gepostet"].append([k["key"], jetzt.isoformat(), public_norm(k["spiel"])])
             spiele_schon.add(public_norm(k["spiel"]))
