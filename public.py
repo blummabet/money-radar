@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R19"   # R19 09.11. ~18:50 Geld vor Anpfiff aus allen Ligen (Regel-5-Sperre auf große Ligen aufgehoben, Regel 2 entfernt) · R18 09.11. ~15:30 Polymarket-Dauerzufluss nicht public, wenn bewährtes Geld (≥ $5k, CLV-Untergrenze > 0) oder ein Wal-Push der letzten 6 h auf der Gegenseite liegt (FOKUS – Alliance) · R17 07.11. ~18:00 englische Championship in keiner Art im Kanal · R16 07.11. ~17:30 Stake-Pakete auf ein Team → Team-Sieg zur Betfair-Quote · R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R20"   # R20 10.11. ~9:00 Liga-Wertung aus dem Liga-Buch (Fußball, 90 Tage, alle Spiele mit klarem hohem Geld) bzw. allen eigenen Messungen, jedes Spiel+Auswahl einmal · R19 09.11. ~18:50 Geld vor Anpfiff aus allen Ligen (Regel-5-Sperre auf große Ligen aufgehoben, Regel 2 entfernt) · R18 09.11. ~15:30 Polymarket-Dauerzufluss nicht public, wenn bewährtes Geld (≥ $5k, CLV-Untergrenze > 0) oder ein Wal-Push der letzten 6 h auf der Gegenseite liegt (FOKUS – Alliance) · R17 07.11. ~18:00 englische Championship in keiner Art im Kanal · R16 07.11. ~17:30 Stake-Pakete auf ein Team → Team-Sieg zur Betfair-Quote · R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -185,25 +185,43 @@ def liga_schluessel(liga):
     return {"epl": "premier league", "english premier league": "premier league"}.get(l.lower(), l.lower())
 
 
-def liga_werte(buch):
-    """buch: Bilanz-Einträge → {liga: (punkte, n, treffer %, erwartet %)}. REIN."""
-    g = {}
-    for b in buch:
-        if b.get("status") != "abgerechnet" or b.get("art") not in ("serie", "zufluss", "live", "stake", "wal", "fix"):
+# R20 (Lucas 10.11. 08:55, „das mit der Liga ist mir sehr wichtig"): die Liga-Wertung stützt sich nicht mehr nur auf ein
+# paar Push-Arten der letzten 11 Tage. Fußball auf Betfair: das Liga-Buch (jedes Spiel × Markt, 90 Tage — dort, wo hohe
+# Einsätze klar auf einer Seite lagen, wie im Liga-Reiter). Sonst (E-Sport, Tennis, Ligen ohne genug Liga-Buch): alle
+# eigenen abgerechneten Messungen, still oder gesendet, jedes Spiel + Auswahl nur einmal.
+LIGA_ARTEN_AUS = {"publicErg", "layGegen"}     # publicErg = Doppel einer anderen Zeile; layGegen = Gegenseite der Quote
+
+
+def liga_werte(buch, liga_bilanz=None):
+    """buch: Bilanz-Einträge, liga_bilanz: build.liga_bilanz()["ligen"] → {liga: (punkte, n, treffer %, erwartet %, quelle)}. REIN."""
+    g, gesehen = {}, set()
+    for b in sorted(buch, key=lambda x: x.get("ts") or ""):
+        if b.get("status") != "abgerechnet" or b.get("art") in LIGA_ARTEN_AUS or b.get("gegen") or b.get("void"):
             continue
         q = b.get("quote")
         if not isinstance(q, (int, float)) or q <= 1 or b.get("win") is None or (b.get("r") == 0 and not b.get("win")):
             continue
+        sk = (str(b.get("id")), b.get("markt"), b.get("auswahl"))
+        if sk in gesehen:
+            continue
+        gesehen.add(sk)
         k = liga_schluessel(b.get("liga"))
-        x = g.setdefault(k, [0, 0.0, 0.0])
+        if not k:
+            continue
+        x = g.setdefault(k, [0, 0.0, 0.0, "eigen"])
         x[0] += 1; x[1] += 1 if b.get("win") else 0; x[2] += 1 / q
+    for l, v in (liga_bilanz or {}).items():
+        h = (v or {}).get("hoch") or {}
+        n = h.get("n") or 0
+        if n >= LIGA_MIN_N and isinstance(h.get("treffer"), (int, float)) and isinstance(h.get("erwartet"), (int, float)):
+            g[liga_schluessel(l)] = [n, n * h["treffer"] / 100, n * h["erwartet"] / 100, "ligabuch"]
     out = {}
-    for k, (n, t, e_) in g.items():
+    for k, (n, t, e_, quelle) in g.items():
         if n < LIGA_MIN_N:
             continue
         diff_pp = 100 * (t - e_) / n
         pkt = max(-LIGA_MAX, min(LIGA_MAX, diff_pp * n / (n + LIGA_DAEMPFUNG) * LIGA_FAKTOR))
-        out[k] = (round(pkt, 1), n, round(100 * t / n), round(100 * e_ / n))
+        out[k] = (round(pkt, 1), n, round(100 * t / n), round(100 * e_ / n), quelle)
     return out
 
 

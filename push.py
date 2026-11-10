@@ -1537,7 +1537,7 @@ def main() -> int:
         STAND.parent.mkdir(parents=True, exist_ok=True)
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
         try:                         # Public-Regel 13: Liga-Wertung aus dem eigenen Buch
-            public.LIGA_WERT.clear(); public.LIGA_WERT.update(public.liga_werte(bilanz.laden()))
+            public.LIGA_WERT.clear(); public.LIGA_WERT.update(public.liga_werte(bilanz.laden(), ((d.get("ligaBilanz") or {}).get("ligen"))))
         except Exception as exc:  # noqa: BLE001
             print(f"  liga-wertung: {exc}")
         try:                         # Public-Regel 4: zu den Terminen den besten Kandidaten aus dem Topf

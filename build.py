@@ -2205,17 +2205,17 @@ def endstaende():
     return out
 
 
-def liga_wert():
+def liga_wert(liga_bilanz_cache=None):
     """Lucas 07.11. 16:47 (Liga-Wertung als Chip in den Top 3): {Liga roh: [Punkte, n, Treffer %, erwartet %]} —
     dieselbe Rechnung wie Public-Regel 13 (public.liga_werte), je Ligenname, wie er in den Daten steht."""
     try:
         import bilanz as _b
         import public as _p
         buch = _b.laden()
-        w = _p.liga_werte(buch)
+        lb = (liga_bilanz_cache or {}).get("ligen")
+        w = _p.liga_werte(buch, lb)
         out = {}
-        for x in buch:
-            l = x.get("liga")
+        for l in [x.get("liga") for x in buch] + list(lb or {}):
             if l and l not in out:
                 v = w.get(_p.liga_schluessel(l))
                 if v:
@@ -2709,9 +2709,9 @@ def main() -> int:
         "halbzeit": halbzeit(prices),
         "bfHtPushes": bf_ht_pushes(prices, bf_norm),
         "pushBilanz": push_bilanz(),
-        "ligaWert": liga_wert(),
+        "ligaWert": liga_wert(lbz := liga_bilanz()),
         "verlauf": verlauf(push_bilanz(), burst, finder, tr_led),
-        "ligaBilanz": liga_bilanz(),
+        "ligaBilanz": lbz,
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
         "pinnDrops": pinn_drops(prices),

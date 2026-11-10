@@ -3616,7 +3616,7 @@ function druckPanel(D){
 function ligaChip(D, liga){
   const w = (D.ligaWert||{})[liga]; if(!w || Math.abs(w[0]) < 1) return "";
   const gut = w[0] > 0;
-  return `<span class="t3-g" style="--f:${gut?"var(--up)":"var(--down)"}" title="${w[1]} Tipps in dieser Liga: ${w[2]} % getroffen, die Quote erwartete ${w[3]} %"><i></i>${gut?"📈 Liga trifft":"📉 Liga schwach"} ${w[2]}/${w[3]} %</span>`;
+  return `<span class="t3-g" style="--f:${gut?"var(--up)":"var(--down)"}" title="${w[4]==="ligabuch" ? `${w[1]} Spiele (90 Tage), bei denen hohes Geld klar auf einer Seite lag` : `${w[1]} eigene Signale in dieser Liga`}: ${w[2]} % getroffen, die Quote erwartete ${w[3]} %"><i></i>${gut?"📈 Liga trifft":"📉 Liga schwach"} ${w[2]}/${w[3]} %</span>`;
 }
 function topDrei(D){
   const T = topDreiDaten(D);
