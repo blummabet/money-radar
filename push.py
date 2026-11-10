@@ -861,6 +861,48 @@ def _bf_sieg_quote(spiel, auswahl, markt, radar):
     return None
 
 
+def _stake_beleg(g, z, auswahl, quote, radar):
+    """10.11. (Stake-Check, Lucas „ja"): den GESENDETEN Stake-Push selbst ins Buch — genau diese Auswahl zu genau dieser
+    Quote. Fußball mit Betfair-Spiel und Sieg-/Tor-Markt: über unsere Ergebnisse; sonst (E-Sport, Sondermärkte): über die
+    abgerechnete Stake-Wette derselben Auswahl. Vorher maß die Statistik das Gesamtergebnis des Wals. REIN."""
+    if not auswahl:
+        return None
+    markt = str(z.get("markt") or "").strip()
+    nur_sieg = "Spiel-Burst" in str(z.get("art") or "") or "," in markt
+    basis = {"art": "stake", "liga": g.get("liga"), "anpfiff": g.get("anpfiff"), "live": g.get("phase") == "live",
+             "quote": quote if isinstance(quote, (int, float)) else None, "usd": g.get("usd"), "faktor": g.get("faktor"),
+             "sport": g.get("kat"), "stakeArt": z.get("art"), "stakeMarkt": markt or None, "minute": g.get("minute")}
+    teile = [x.strip().lower() for x in str(g.get("spiel") or "").split(" - ")]
+    a = str(auswahl).strip()
+    if (g.get("kat") or "Fußball") == "Fußball" and len(teile) == 2:
+        for sp in radar:
+            h, gg = str(sp.get("heim") or "").lower(), str(sp.get("gast") or "").lower()
+            if not (h[:5] and gg[:5] and h[:5] in teile[0] and gg[:5] in teile[1]):
+                continue
+            bf = None
+            if nur_sieg or re.search(r"^(1x2|match result|match winner|winner|fulltime result|match odds)$", markt, re.I):
+                al = a.lower()
+                k = ("The Draw" if al in ("draw", "remis", "x", "unentschieden") else
+                     sp.get("heim") if (h[:5] in al or teile[0][:5] in al) else sp.get("gast") if (gg[:5] in al or teile[1][:5] in al) else None)
+                if k:
+                    bf = ("Match Odds", k)
+            else:
+                m_ = re.match(r"^(over|under)\s+(\d+\.5)$", a, re.I)
+                if m_ and re.search(r"^(total|total goals|asian total|over/under|goals over/under)$", markt, re.I):
+                    bf = (f"Over/Under {m_.group(2)} Goals", f"{m_.group(1).capitalize()} {m_.group(2)} Goals")
+            if bf:
+                return {**basis, "id": str(sp.get("id")), "heim": sp.get("heim"), "gast": sp.get("gast"),
+                        "anpfiff": sp.get("anpfiff") or g.get("anpfiff"), "top5": bool(sp.get("top5")),
+                        "markt": bf[0], "auswahl": bf[1], "liga": sp.get("liga") or g.get("liga")}
+            break
+    if not z.get("betIds"):
+        return None
+    hg = [x.strip() for x in str(g.get("spiel") or "").split(" - ")]
+    return {**basis, "id": f"stake:{z.get('eventId') or g.get('spiel')}", "heim": hg[0] if len(hg) == 2 else g.get("spiel"),
+            "gast": hg[1] if len(hg) == 2 else "", "markt": markt or None, "auswahl": a,
+            "stakeBets": list(z.get("betIds") or []), "nurSieg": nur_sieg}
+
+
 def stake(d):
     """Lucas 18.10. (Brighton 3:0: Push „$127k @ 1,48, live" — die $127k und 1,48 waren der Burst von VOR dem Spiel,
     ausgelöst hat ein neuer $17k-Spiel-Burst bei 3:0): je Push nur die Signale, die zusammen kamen (≤ 5 Min), mit
@@ -975,7 +1017,12 @@ def stake(d):
                    gruende=[f"🎯 {g.get('wetten')} Großwetten innerhalb weniger Minuten",
                             f"📏 {q2(g.get('faktor'))}× so viel wie in dieser Liga üblich" if g.get("faktor") else ""]) if auswahl else None
         _mit(pub, g.get("usd"))
-        yield key, text, None, None, pub
+        try:
+            beleg = _stake_beleg(g, mit_auswahl or g, auswahl, quote, radar)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  stake-beleg: {exc}")
+            beleg = None
+        yield key, text, None, beleg, pub
 
 
 def _geld_block(fl, minuten):

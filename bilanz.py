@@ -43,6 +43,7 @@ ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "W
          "liveFuehrt": "Live-Zufluss auf den Führenden (nicht gepusht, ab 30.10.)",
          "stakeFuehrt": "Stake live auf den Führenden (nicht gepusht, ab 31.10.)",
          "stakeTeam": "Stake-Spiel-Burst: nur der Sieg des Teams (nicht gepusht, ab 03.11.)",
+         "stake": "Stake-Push: genau die gesendete Auswahl zur gesendeten Quote (ab 10.11.)",
          "walKlein": "Wal unter ¼ seines üblichen Einsatzes (nicht gepusht, Wal-Regel 2 ab 06.11.)",
          "layGegen": "Gegenseite bei Lay-Verdacht (Live-Dauerzufluss, Quote +15 % ohne Tor) — nicht gepusht, ab 06.11.",
          "ueberQuote": "Geld über der Quote (≥ 25 pp, nicht gepusht, ab 04.11.)",
@@ -175,7 +176,9 @@ def aktualisieren(buch, jetzt):
                 b["schlussTs"] = jetzt.isoformat()
 
     # 2) Ergebnis: ab ~2 h nach Anpfiff
+    stake_abrechnen(buch, jetzt)                  # 10.11.: Stake-Pushes ohne Betfair-Spiel über die Stake-Wetten
     warten = {str(b.get("id")) for b in buch if b.get("status") == "offen" and b.get("art") not in POLY_ARTEN
+              and not str(b.get("id")).startswith("stake:")
               and _ts(b.get("anpfiff")) and jetzt - _ts(b["anpfiff"]) > timedelta(hours=2)}
     erg = _ergebnisse(warten)
     for b in buch:
@@ -227,9 +230,72 @@ def aktualisieren(buch, jetzt):
         if w != b.get("win"):
             q = b.get("quote") or 0
             b["win"], b["r"], b["korrigiert"] = w, (round((q - 1) * (1 - KOMMISSION), 4) if w else -1.0), jetzt.isoformat()
+    for b in buch:                                # Stake über die Stake-Wetten: nach 4 Tagen ohne Endstand aufgeben
+        if (b.get("status") == "offen" and str(b.get("id")).startswith("stake:") and _ts(b.get("ts"))
+                and jetzt - _ts(b["ts"]) > timedelta(days=VERFALL_TAGE)):
+            b["status"] = "unaufgelöst"
     poly_kurse(buch, jetzt)
     poly_abrechnen(buch, jetzt)
     return buch[-BEHALTEN:]
+
+
+# ── Stake (10.11., Stake-Check): gesendete Pushes ohne Betfair-Spiel (E-Sport, Sondermärkte) ─────────────────
+STAKE_LEDGER = BASIS / ".st" / "stake_bet_ledger.json"
+
+
+def stake_ergebnis(bets, auswahl, nur_sieg=False):
+    """True/False/'void' aus den abgerechneten Stake-Wetten derselben Auswahl, None = noch nicht/keine. REIN."""
+    a = str(auswahl or "").strip().lower()
+    for w in bets:
+        wa = str(w.get("auswahl") or "").strip().lower()
+        # Torlinien-Burst: gepusht ist nur die Richtung („over") — dann die erste Wette dieser Richtung
+        if not isinstance(w, dict) or w.get("kombi") or not (wa == a or (a in ("over", "under") and wa.startswith(a + " "))):
+            continue
+        if nur_sieg and not re.search(r"^(1x2|match result|match winner|winner|fulltime result|match winner - twoway)$",
+                                      str(w.get("markt") or "").strip(), re.I):
+            continue
+        ab = w.get("abrechnung") or {}
+        if not ab.get("endstand"):
+            return None
+        st = str(((ab.get("beine") or [{}])[0] or {}).get("status") or ab.get("status") or "").lower()
+        if st == "won":
+            return True
+        if st == "lost":
+            return False
+        if st in ("voided", "cancelled", "void", "refunded", "push"):
+            return "void"
+    return None
+
+
+def stake_abrechnen(buch, jetzt):
+    offen = [b for b in buch if b.get("art") == "stake" and b.get("status") == "offen" and str(b.get("id")).startswith("stake:")]
+    if not offen:
+        return
+    try:
+        idx = {w.get("id"): w for w in json.loads(STAKE_LEDGER.read_text(encoding="utf-8")).get("wetten") or [] if isinstance(w, dict)}
+    except Exception as exc:  # noqa: BLE001
+        print(f"  bilanz: Stake-Ledger nicht lesbar ({str(exc)[:80]})")
+        return
+    for b in offen:
+        bets = [idx[i] for i in b.get("stakeBets") or [] if i in idx]
+        w = stake_ergebnis(bets, b.get("auswahl"), nur_sieg=bool(b.get("nurSieg")))
+        if w is None:
+            continue
+        if w == "void":
+            b["status"], b["void"] = "nicht abrechenbar", True
+            continue
+        q = b.get("quote")
+        if not isinstance(q, (int, float)) or q <= 1:
+            a_ = str(b.get("auswahl") or "").strip().lower()
+            q = next((x.get("beinQuote") or x.get("quote") for x in bets
+                      if str(x.get("auswahl") or "").strip().lower() == a_
+                      or (a_ in ("over", "under") and str(x.get("auswahl") or "").strip().lower().startswith(a_ + " "))), None)
+            b["quote"] = q
+        if not isinstance(q, (int, float)) or q <= 1:
+            b["status"] = "nicht abrechenbar"
+            continue
+        b["status"], b["win"] = "abgerechnet", w
+        b["r"] = round(q - 1, 4) if w else -1.0          # Stake: keine Kommission
 
 
 # ── Polymarket (Lucas 20.10.: Dauerzufluss auf Polymarket ins Buch) ───────────────────────────────────────
@@ -549,14 +615,14 @@ def zusammenfassen(buch):
                  "wal": teile([b for b in buch if b.get("art") == "wal"])}
     letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "titel", "anzeige", "eur", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
-              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3")][:40]
+              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "stake")][:40]
     # Lucas 20.10. („Übersichtskurve auf die neuen Betfair-Pushes, weil das zählt"): jeder Push als
     # [Zeit UTC, Rendite je Einheit, 1/0] — offen mit None. build.py baut daraus die Bilanz-Kurve.
     grenze = datetime.now(timezone.utc) - timedelta(days=60)
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "norm", "normMeist", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "norm", "normMeist", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "stake"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,

@@ -649,7 +649,9 @@ def stake(ledger):
                       "usd": z.get("summeUsd"), "wetten": z.get("nWetten"), "quote": z.get("quote"),
                       "phase": z.get("phase"), "minute": z.get("spielminute"), "faktor": z.get("faktor"),
                       "anpfiff": z.get("anpfiff"), "kat": z.get("kat"),
-                      "zeit": z.get("sentAt"), "status": z.get("status"), "rendite": z.get("rendite")})
+                      "zeit": z.get("sentAt"), "status": z.get("status"), "rendite": z.get("rendite"),
+                      # 10.11. (Stake-Check): damit push.py den gesendeten Tipp selbst abrechnen kann
+                      "betIds": z.get("betIds") or [], "eventId": z.get("eventId"), "sport": z.get("sport")})
     heute.sort(key=lambda r: r["zeit"] or "", reverse=True)
     # Lucas 17.10.: dieselbe Wette (Spiel + Auswahl) steht als Burst UND Spiel-Burst da → zusammenfassen.
     # Betrag = der größte Einzelwert, nicht die Summe: die Signale überlappen und zählen dieselben Wetten.
@@ -664,7 +666,7 @@ def stake(ledger):
             g["arten"].append(z["art"])
         g["ersteZeit"] = min(g["ersteZeit"] or "", z["zeit"] or "")
         if (z["usd"] or 0) > (g["usd"] or 0):
-            g.update(usd=z["usd"], wetten=z["wetten"], quote=z["quote"] or g["quote"])
+            g.update(usd=z["usd"], wetten=z["wetten"], quote=z["quote"] or g["quote"], betIds=z.get("betIds") or g.get("betIds"))
         if z["faktor"] and (z["faktor"] > (g["faktor"] or 0)):
             g["faktor"] = z["faktor"]
         if z["status"] == "abgerechnet" and g["status"] != "abgerechnet":
@@ -2298,8 +2300,9 @@ VERLAUF_TAGE = 60
 
 # Lucas 30.10. („Statistiken optisch besser aufbereiten — nach Kategorien, Woche, Monat einstellbar"): jede gepushte
 # Wette seit Start als kompakte Zeile in einer EIGENEN Datei (site/statistik.json, wird erst beim Öffnen der Seite geladen).
-WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal")
-STAT_ARTEN = {"serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
+STAKE_EIGEN_AB = "2026-11-10T09:30"   # ab hier bucht push.py jeden gesendeten Stake-Push selbst (Stake-Check 10.11.)
+WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
+STAT_ARTEN = {"stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -2396,7 +2399,10 @@ def statistik(burst, finder):
         ab = z.get("status") == "abgerechnet" and isinstance(r, (int, float))
         if not ab and z.get("status") != "pending":
             continue
-        zeilen.append([ts(z["sentAt"]).strftime("%Y-%m-%dT%H:%M"), "stake", round(float(r), 3) if ab else None, int(r > 0) if ab else None,
+        # 10.11. (Stake-Check, Lucas „ja"): das ist das Ergebnis des WALS über alle seine Tickets im Burst (auch Ecken,
+        # Totals …) und jede vom Stake-Skript markierte Zeile — nicht dein Tipp. Darum eigene Zeile „stakeWal";
+        # „stake" sind ab jetzt die tatsächlich gesendeten Pushes mit Auswahl und Quote aus dem Push (bilanz.py).
+        zeilen.append([ts(z["sentAt"]).strftime("%Y-%m-%dT%H:%M"), "stakeWal", round(float(r), 3) if ab else None, int(r > 0) if ab else None,
                        z.get("quote") if isinstance(z.get("quote"), (int, float)) else None, None, z.get("liga") or z.get("kat") or "",
                        0, 1 if z.get("phase") == "live" else 0, str(z.get("event") or "")[:60], str(z.get("seite") or "")[:40]])
     for e in (finder or {}).get("eintraege") or []:
@@ -2525,14 +2531,25 @@ def verlauf(bf_buch, burst, finder, tr_led):
     for z in (bf_buch or {}).get("verlauf") or []:
         if isinstance(z, list) and len(z) == 3:
             dazu(z[0] + "+00:00" if len(z[0]) == 16 else z[0], "betfair", z[1], z[2])
+    # 10.11.: Stake ab STAKE_EIGEN_AB aus dem eigenen Buch (gesendete Pushes, dein Tipp), davor wie bisher das Wal-Ergebnis
     for z in burst or []:
-        if not isinstance(z, dict) or not z.get("push") or not stake_ok(z):
+        if not isinstance(z, dict) or not z.get("push") or not stake_ok(z) or str(z.get("sentAt") or "") >= STAKE_EIGEN_AB:
             continue
         r = z.get("rendite")
         if z.get("status") == "abgerechnet" and isinstance(r, (int, float)):
             dazu(z.get("sentAt"), "stake", r, int(r > 0))
         elif z.get("status") == "pending":
             dazu(z.get("sentAt"), "stake", None, None)
+    try:
+        for b_ in json.loads((BASIS / ".push_state" / "buch.json").read_text(encoding="utf-8")):
+            if b_.get("art") != "stake" or str(b_.get("ts") or "") < STAKE_EIGEN_AB:
+                continue
+            if b_.get("status") == "abgerechnet" and isinstance(b_.get("r"), (int, float)):
+                dazu(b_["ts"], "stake", b_["r"], int(bool(b_.get("win"))))
+            elif b_.get("status") == "offen":
+                dazu(b_["ts"], "stake", None, None)
+    except Exception:  # noqa: BLE001
+        pass
     for e in (finder or {}).get("eintraege") or []:
         w = e.get("wetten") or {}
         for gruppe, wette in (("tore", "over05"), ("heim", "heim")):
