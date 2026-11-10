@@ -219,7 +219,7 @@ LIGA_TAGS = [
     (r"atp finals", "#ATPFinals"), (r"wta finals", "#WTAFinals"), (r"davis cup", "#DavisCup"), (r"billie jean king", "#BJKCup"),
     (r"australian open", "#AusOpen"), (r"roland garros|french open", "#RolandGarros"), (r"wimbledon", "#Wimbledon"),
     (r"us open", "#USOpen"),
-    (r"counter.?strike|\bcs2\b|\biem\b|\bblast\b|\bpgl\b|esl pro", "#CS2"), (r"dota", "#Dota2"),
+    (r"counter.?strike|intel extreme masters|\bcs2\b|\biem\b|\bblast\b|\bpgl\b|esl pro", "#CS2"), (r"dota", "#Dota2"),
     (r"league of legends|\blol\b|\blck\b|\blec\b|\blpl\b", "#LeagueOfLegends"), (r"valorant|\bvct\b", "#VALORANT"),
 ]
 SLUG_TAGS = {"cs2": "#CS2", "csgo": "#CS2", "dota2": "#Dota2", "lol": "#LeagueOfLegends", "val": "#VALORANT",
