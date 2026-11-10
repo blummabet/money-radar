@@ -397,6 +397,10 @@ def x_bilder(gepostet):
 
 def main(modus):
     gepostet = bilder_zweig()
+    if modus == "x_test":                       # 10.11.: Schlüssel prüfen, nur lesend
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import x_post
+        return 0 if x_post.pruefen() else 1
     if modus == "x_bilder":
         x_bilder(gepostet)
         return 0

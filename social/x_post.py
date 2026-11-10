@@ -272,6 +272,27 @@ def _oauth_kopf(methode, url, extra=None):
     return "OAuth " + ", ".join(f'{enc(k)}="{enc(v)}"' for k, v in sorted(o.items()))
 
 
+def pruefen() -> bool:
+    """Nur lesend: GET /2/users/me — stimmen die vier Schlüssel, welcher Account gehört dazu? Postet nichts."""
+    fehlt = [k for k in ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET") if not os.environ.get(k)]
+    if fehlt:
+        print(f"  x-test: fehlende Secrets {fehlt}")
+        return False
+    print("  x-test: Längen", {k: len(os.environ[k]) for k in ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET")})
+    url = "https://api.x.com/2/users/me"
+    req = urllib.request.Request(url, headers={"Authorization": _oauth_kopf("GET", url)})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            d = (json.loads(r.read().decode()).get("data") or {})
+            print(f"  x-test: OK → @{d.get('username')} ({d.get('name')}) · X_LIVE={os.environ.get('X_LIVE') or 'aus'}")
+            return True
+    except urllib.error.HTTPError as exc:
+        print(f"  x-test: HTTP {exc.code} {exc.read().decode()[:300]}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  x-test: Fehler {str(exc)[:200]}")
+    return False
+
+
 def _medien_upload(bild):
     """POST /2/media/upload (multipart, OAuth 1.0a). Gibt die media id zurück oder None."""
     url = "https://api.x.com/2/media/upload"

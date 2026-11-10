@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       modus:
-        description: 'morgen, abend, wal, woche_test oder x_bilder'
+        description: 'morgen, abend, wal, woche_test, x_bilder oder x_test'
         default: 'morgen'
       trocken:
         description: 'nur Bild bauen, nicht posten'
