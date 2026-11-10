@@ -2298,6 +2298,7 @@ VERLAUF_TAGE = 60
 
 # Lucas 30.10. („Statistiken optisch besser aufbereiten — nach Kategorien, Woche, Monat einstellbar"): jede gepushte
 # Wette seit Start als kompakte Zeile in einer EIGENEN Datei (site/statistik.json, wird erst beim Öffnen der Seite geladen).
+WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal")
 STAT_ARTEN = {"serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
 
 
@@ -2364,10 +2365,15 @@ def statistik(burst, finder):
     for b in buch:
         if b.get("art") not in STAT_ARTEN or b.get("status") not in ("abgerechnet", "offen") or not ts(b.get("ts")):
             continue
-        if b.get("art") in ("ht", "fix"):     # 07.11.: alte Mehrfachbuchungen (Neumeldung bei +50 % Geld) nur einmal zählen
-            k_ = (b["art"], str(b.get("id")), b.get("markt"), b.get("auswahl"))
+        art_ = b["art"]
+        k_ = (art_, str(b.get("id")), b.get("markt"), b.get("auswahl"))
+        if art_ in ("ht", "fix"):             # 07.11.: alte Mehrfachbuchungen (Neumeldung bei +50 % Geld) nur einmal zählen
             if k_ in doppelt:
                 continue
+            doppelt.add(k_)
+        elif art_ in WDH_ARTEN:               # 10.11. (Betfair-Check, Lucas „ja"): nur der erste Push zu Spiel+Auswahl zählt,
+            if k_ in doppelt:                 # jeder weitere wird eigens gemessen („…Wdh")
+                art_ = art_ + "Wdh"
             doppelt.add(k_)
         ab = b.get("status") == "abgerechnet"
         q, sl = b.get("quote"), b.get("schluss")
@@ -2376,7 +2382,7 @@ def statistik(burst, finder):
                 and ts(b.get("schlussTs")) and ts(b.get("anpfiff")) and ts(b["schlussTs"]) >= ts(b["anpfiff"]) - timedelta(minutes=20)):
             clv = round(100 * (q / sl - 1), 1)
         titel = b.get("anzeige") or b.get("titel") or (f"{b.get('heim')} – {b.get('gast')}" if b.get("heim") else "")
-        zeilen.append([ts(b["ts"]).strftime("%Y-%m-%dT%H:%M"), b["art"],
+        zeilen.append([ts(b["ts"]).strftime("%Y-%m-%dT%H:%M"), art_,
                        round(float(b["r"]), 3) if ab and isinstance(b.get("r"), (int, float)) else None,
                        (1 if b.get("win") else 0) if ab else None,
                        round(float(q), 2) if isinstance(q, (int, float)) else None, clv,
