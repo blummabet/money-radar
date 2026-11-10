@@ -20,6 +20,14 @@ REGEL A1 (vorab festgelegt, 10.11.2026 ~10:00 Wien):
   Mitgemessen (still, art „kiModell"): jeder Modell-Pick, egal ob Geld mitgeht — zeigt, ob das Geld etwas dazugibt.
   Gebucht zur Marktquote beim Pick, Abrechnung wie die Betfair-Pushes (bilanz.py). Ziel 100 abgerechnete „ki".
   „Nächstes Tor" gibt es bei Betfair in unseren Daten nicht → als „noch ein Tor" = Über (Tore + 0,5).
+
+REGEL A2 (10.11.2026 19:40 Wien, Lucas: „was sind das für wilde Picks?" — Remis @ 5,40 bei 0:0 in der 42., Unter 1,5
+  @ 7,80 bei 0:0 in der 29., Chelsea führt 1:0 und steht @ 1,25 über der Startquote 1,15): in dünnen Live-Märkten
+  bleibt die Betwatch-Quote oft auf dem Stand vor Anpfiff stehen — der „Wert" ist dann ein Datenfehler. Alles wie A1, dazu:
+    • Wert über 40 % gilt als unplausibel (so falsch bepreist ist ein Live-Markt nicht) → weder Pick noch „Im Blick".
+    • Sieg-Markt: liegt die Lage für die Auswahl (Team führt / Remis bei Gleichstand ab der 20. Minute), muss ihre Quote
+      UNTER der Startquote liegen; steht sie gleich oder darüber, ist sie veraltet → raus.
+    • Unter 2,5 bei weniger als 3 Toren ab der 20. Minute: dasselbe gegen die Start-Unter-2,5-Quote.
 """
 from __future__ import annotations
 
@@ -36,10 +44,11 @@ PREISE = BASIS / ".bf" / "betfair_prices.json"
 START = BASIS / ".push_state" / "ki_start.json"
 JETZT = datetime.now(timezone.utc)
 
-REGEL = "A1"
+REGEL = "A2"
 MIN_VON, MIN_BIS = 15, 80
 WERT_MIN, PP_MIN = 0.08, 0.03
 Q_MIN, Q_MAX = 1.25, 8.0
+WERT_MAX = 0.40                     # A2: darüber ist es ein Datenfehler, kein Wert
 GELD_MIN, GELD_ANTEIL = 500, 0.50
 STATS_MAX_MIN = 15
 SPIELZEIT = 94                      # inkl. Nachspielzeit
@@ -232,6 +241,21 @@ def _text(sp, k, auswahl):
     return f"{'Über' if k[2] == 'over' else 'Unter'} {str(k[1]).replace('.', ',')} Tore"
 
 
+def veraltet(k, q, st, minute, stand):
+    """A2: Quote steht noch auf dem Stand vor Anpfiff, obwohl die Lage sie längst gedrückt haben müsste."""
+    if minute < 20 or not st:
+        return False
+    h, g = stand
+    if k[0] == "mo":
+        s_q = {"heim": st.get("hw"), "gast": st.get("aw"), "remis": st.get("dr")}.get(k[1])
+        fuer = (k[1] == "heim" and h > g) or (k[1] == "gast" and g > h) or (k[1] == "remis" and h == g)
+        return bool(fuer and isinstance(s_q, (int, float)) and q >= s_q * 0.98)
+    if k[0] == "ou" and k[1] == 2.5 and k[2] == "under" and h + g < 3:
+        s_q = st.get("u25")
+        return bool(isinstance(s_q, (int, float)) and q >= s_q * 0.98)
+    return False
+
+
 def kandidaten(d, preise, start):
     """Alle Live-Spiele bewerten. Gibt (Kandidaten, Info) zurück — Kandidaten mit Feld 'geldOk'."""
     pm = {str(m.get("matchId")): m for m in preise.get("matches") or []}
@@ -288,6 +312,9 @@ def kandidaten(d, preise, start):
             if not (Q_MIN <= q <= Q_MAX) or p <= 0:
                 continue
             wert = p * q - 1
+            if wert > WERT_MAX or veraltet(k, q, st, minute, stand):
+                info["veraltet"] = info.get("veraltet", 0) + 1
+                continue
             if not naechster or wert > naechster[0]:
                 naechster = (wert, k, markt, auswahl, q, p)
             if wert < WERT_MIN or p - 1 / q < PP_MIN:

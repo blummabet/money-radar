@@ -3984,11 +3984,15 @@ function kiBox(D){
   const zeile = x => {
     const kopf = `<div class="n">${esc(x.heim)} – ${esc(x.gast)}<small>${x.minute}' · ${(x.stand||[]).join(":")}</small></div>`;
     if(x.fehlt) return `<div class="ki-b warte">${kopf}<div class="t">wartet auf ${x.fehlt.map(esc).join(", ")}</div><div class="g"><span class="pz">–</span></div></div>`;
+    // Lucas 10.11. („oben Chelsea gepickt, drunter Remis bei Chelsea in Grün — check ich nicht"): je Spiel zählt nur der
+    // erste Pick; die Zeile sagt das, statt eine zweite Richtung grün anzuzeigen
+    const pk = H.find(p=>String(p.id)===String(x.id));
+    if(pk) return `<div class="ki-b warte">${kopf}<div class="t">schon gepickt: <b>${esc(pk.tipp||pk.auswahl)} @ ${q2(pk.quote)}</b></div><div class="g"><span class="pz">✓</span></div></div>`;
     const w = Math.max(0, x.wert||0), ant = Math.min(100, w/(2*schw)*100);
     // Lucas 10.11. (Inspiration „Send Halo"): je näher an der Schwelle, desto stärker glimmt die Zeile
     const h = Math.min(1, w/schw), heiss = !x.wertOk && h>=0.75;
     const tip = `fair ${q2(x.fair)}${x.xg&&x.xg[0]!=null?` · xG ${dez(x.xg[0])} : ${dez(x.xg[1])}${x.xgQuelle==="xG"?"":" (geschätzt)"}`:""} · Geld ${eur(x.geldEur)} (${x.geldAnteil} %)`;
-    return `<div class="ki-b halo${heiss?" heiss":""}${x.wertOk?" ok":""}" style="--h:${h.toFixed(2)}" title="${esc(tip)}">${kopf}<div class="t">${esc(x.tipp)} <b>@ ${q2(x.quote)}</b>${gepickt.has(String(x.id))?" · ✓ gepickt":""}</div>
+    return `<div class="ki-b halo${heiss?" heiss":""}${x.wertOk?" ok":""}" style="--h:${h.toFixed(2)}" title="${esc(tip)}">${kopf}<div class="t">${esc(x.tipp)} <b>@ ${q2(x.quote)}</b></div>
       <div class="g"><span class="leiste"><i class="${x.wertOk?"ok":""}" style="width:${ant.toFixed(0)}%"></i><u></u></span>
       <span class="pz"><b>${(x.wert||0)>0?"+":""}${dez(100*(x.wert||0),0)} %</b> · <span class="${x.geldOk?"ja":""}">${x.geldOk?"€ ✓":"€ ○"}</span></span></div></div>`; };
   const B = K.blick||[], zeig = B.slice(0,5);
