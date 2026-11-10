@@ -408,7 +408,10 @@ def pinn_drops(prices):
 # ── Polymarket ───────────────────────────────────────────────────────────────────
 MIN_N = 12           # wie im alten Projekt (PW_RANK_MIN_N): darunter adelt Zufall Verlierer
 MIN_SCHNITT_USD = 500
-MIN_FENSTER = 8     # Aufloesungen im Messfenster, ab denen eine Untergrenze etwas sagt
+MIN_FENSTER = 15    # Aufloesungen im Messfenster, ab denen eine Untergrenze etwas sagt (10.11.: 8 → 15)
+# 10.11. (Lucas: „Messlatte höher, dass Glückstreffer weg sind"): bei ~200 geprüften Wallets wirkten mit 90 % (z 1,645)
+# rund 10 nur durch Zufall „bewährt" — jetzt 99 % (z 2,33). Stand 10.11.: 32 → 17 bewährte.
+BEWAEHRT_Z = 2.33
 
 
 POLY_TOP5 = {"epl", "bun", "lal", "sea", "fl1", "lig1", "ucl"}   # 19.10. (Lucas): Champions League zählt zu den Top-5     # Polymarket-Schlüssel-Präfixe der Top-5-Ligen
@@ -468,7 +471,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
             continue
         fm = fs / fn
         var = max(0.0, (fq - fn * fm * fm) / (fn - 1))
-        ug = fm - 1.645 * math.sqrt(var / fn)
+        ug = fm - BEWAEHRT_Z * math.sqrt(var / fn)
         offen_jetzt = sorted(pos_je.get(w) or [], key=lambda p: -float(p.get("usd") or 0))
         wallets.append({
             "wallet": w, "n": n, "clv": round(float(s.get("clvSumPP") or 0) / n, 2),
