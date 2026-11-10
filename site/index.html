@@ -3391,6 +3391,7 @@ function topDreiDaten(D){
       stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
     return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
       wechsel: t3Wechsel(D, s.id, fM?.name, fA.name, n=>auswahlDe(n), n=>marktDe(n||"")),
+      marktRoh: fM?.name, auswahlRoh: fA.name,
       ligaRoh: s.liga, kopf: `${flagge(s.land)} ${esc(ligaName(s.liga)||"")}`, live: s.live ? `${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}${rotTxt(s.id, s.heim, s.gast) ? " · "+esc(rotTxt(s.id, s.heim, s.gast)) : ""}` : null,
       anpfiff: s.anpfiff, heim: s.heim, gast: s.gast, auf: auswahlDe(fA.name), quote: fA.quote, alt: p.quote ? fA.q60 : null, markt: marktDe(fM?.name||""),
       saeulen: s.saeulen?.w || [], wert: s.eur, einheit: "€", klick: klickSpiel({id:s.id, heim:s.heim, gast:s.gast})};
@@ -3670,7 +3671,9 @@ function topDrei(D){
     const zeit = x.live ? `<span class="t3-live"><i></i>${x.live}</span>` : `<span class="t3-zeit">${wann(x.anpfiff)}</span>`;
     const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>`<span class="t3-g${k==="maerkte"||k==="druck"?" hl":""}" style="--f:${f}"><i></i>${esc(x.g[k]||n)}</span>`).join("")
       + (x.aus ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>${x.aus}</span>` : "") + ligaChip(D, x.ligaRoh)
-      + (x.wechsel ? `<span class="t3-g aus" style="--f:var(--down)" title="${esc(x.wechsel.tip)}"><i></i>${esc(x.wechsel.txt)}</span>` : "");
+      + (x.wechsel ? `<span class="t3-g aus" style="--f:var(--down)" title="${esc(x.wechsel.tip)}"><i></i>${esc(x.wechsel.txt)}</span>` : "")
+      + ((D.kiPicks?.heute||[]).some(k=>k.status==="offen" && "bf|"+k.id===x.key && kiGleich(k.markt, k.auswahl, x.marktRoh, x.auswahlRoh))
+         ? `<span class="t3-g hl" style="--f:var(--pin)" title="Das Modell hat dieses Spiel unabhängig in dieselbe Richtung gepickt"><i></i>🤖 auch AI-Pick</span>` : "");
     return `<div class="t3-k${gross?" eins":""}"${bk("t3|"+x.key, x.wert, x.einheit)} ${x.klick} style="--glow:${T3_SIG.find(([k])=>p[k])[2]}">
       ${t3Scheibe(p, x.summe, gross)}
       <div class="t3-i">
@@ -3686,15 +3689,30 @@ function topDrei(D){
 }
 // Lucas 10.11. 09:26 (TEST): „AI-Picks — erst nur die Live-Statistik, daraus Quoten rechnen, dann schauen, ob das Geld
 // übereinstimmt". ki_picks.py rechnet (Regel A1), hier nur die Anzeige.
+// Lucas 10.11. 09:42: überschneiden sich AI-Pick und Top 3 (dasselbe Spiel, dieselbe Richtung) → hervorheben
+function kiGleich(m1, a1, m2, a2){
+  m1=String(m1||""); m2=String(m2||""); a1=String(a1||"").toLowerCase(); a2=String(a2||"").toLowerCase();
+  if(m1==="Match Odds" && m2==="Match Odds") return a1===a2;
+  if(m1.startsWith("Over/Under") && m2.startsWith("Over/Under")) return a1.slice(0,4)===a2.slice(0,4) && ["over","unde"].includes(a1.slice(0,4));
+  return false;
+}
+function kiTop3Paar(D){
+  const T = topDreiDaten(D), out = {};
+  for(const x of (D.kiPicks?.heute||[]).filter(x=>x.status==="offen"))
+    T.forEach((t,i)=>{ if(t.key==="bf|"+x.id && kiGleich(x.markt, x.auswahl, t.marktRoh, t.auswahlRoh)) out[String(x.id)] = i+1; });
+  return out;
+}
 function kiBox(D){
   const K = D.kiPicks; if(!K) return "";
   const f = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
+  const paar = (()=>{ try { return kiTop3Paar(D); } catch(e){ return {}; } })();
   const zeile = x => {
-    const st = x.status==="abgerechnet" ? (x.win ? `<span class="ki-st w">✓ gewonnen</span>` : `<span class="ki-st l">✗ verloren</span>`)
-      : x.status==="offen" ? `<span class="ki-st">läuft</span>` : `<span class="ki-st">${esc(x.status||"")}</span>`;
+    const t3 = paar[String(x.id)];
+    const st = (t3 ? `<span class="ki-st w" title="dasselbe Spiel steht in den Top 3 in dieselbe Richtung">⭐ Top 3 · Platz ${t3}</span> ` : "") + (x.status==="abgerechnet" ? (x.win ? `<span class="ki-st w">✓ gewonnen</span>` : `<span class="ki-st l">✗ verloren</span>`)
+      : x.status==="offen" ? `<span class="ki-st">läuft</span>` : `<span class="ki-st">${esc(x.status||"")}</span>`);
     const xg = x.xg && x.xg[0]!=null ? `xG ${dez(x.xg[0])} : ${dez(x.xg[1])}${x.xgQuelle==="xG"?"":" (aus Schüssen geschätzt)"}` : "ohne xG";
     return `<div class="ki-p">
-      <div class="ki-sp">${esc(x.heim)} – ${esc(x.gast)}</div>${st}
+      <div class="ki-sp">${esc(x.heim)} – ${esc(x.gast)}</div><div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${st}</div>
       <div class="ki-meta">${flagge(x.land)} ${esc(ligaName(x.liga)||x.liga||"")} · Pick in der ${x.minute}. Min beim Stand ${(x.stand||[]).join(":")} · ${uhr(x.ts)}</div>
       <div class="ki-tipp" style="grid-column:1/-1">${esc(x.tipp||x.auswahl)} <b>@ ${q2(x.quote)}</b></div>
       <div class="ki-zahl"><span><em>fair</em> ${q2(x.fair)}</span><span><em>spielbar ab</em> ${q2(x.mindest)}</span><span><em>Wert</em> +${dez(100*x.wert)} %</span><span><em>Geld drauf</em> ${eur(x.geldEur)} (${x.geldAnteil} %)</span></div>

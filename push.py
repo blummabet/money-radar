@@ -1390,7 +1390,51 @@ def _poly_gegenrichtung(x):
     return None
 
 
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake)
+def _gleiche_richtung(m1, a1, m2, a2):
+    """Zeigen zwei Tipps in dieselbe Richtung? Sieg: dieselbe Auswahl; Tore: beide Über bzw. beide Unter. REIN."""
+    m1, m2, a1, a2 = str(m1 or ""), str(m2 or ""), str(a1 or ""), str(a2 or "")
+    if m1 == "Match Odds" and m2 == "Match Odds":
+        return a1 == a2
+    if m1.startswith("Over/Under") and m2.startswith("Over/Under"):
+        return a1.lower()[:4] == a2.lower()[:4] and a1.lower()[:4] in ("over", "unde")
+    return False
+
+
+def ki_top3(d):
+    """Lucas 10.11. 09:42 (TEST): „wenn ein Spiel sich überschneidet (AI-Pick und Top 3) — highlighten und in den
+    CocoBet-Money-Push". Offener AI-Pick (≤ 60 Min alt) + dasselbe Spiel jetzt in den Top 3 in dieselbe Richtung →
+    einmal je Spiel melden und still als „kiTop3" zur Quote des AI-Picks buchen."""
+    K = d.get("kiPicks") or {}
+    picks = [x for x in K.get("heute") or [] if x.get("status") == "offen" and ts(x.get("ts"))
+             and (JETZT - ts(x["ts"])).total_seconds() <= 3600]
+    if not picks:
+        return
+    try:
+        import top3 as _t3
+        oben = _t3.rangliste(d, JETZT)[:3]
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ki_top3: {exc}")
+        return
+    for x in picks:
+        for rang, t in enumerate(oben, 1):
+            if str(t.get("id")) != str(x.get("id")) or not _gleiche_richtung(x.get("markt"), x.get("auswahl"), t.get("markt"), t.get("auswahl")):
+                continue
+            nm = {"serie": "Dauerzufluss", "neu": "neues Geld", "norm": "Liga-Norm", "quote": "Quote gedrückt", "poly": "Polymarket",
+                  "stake": "Stake", "maerkte": "mehrere Märkte", "druck": "Druck", "push": "HZ-Push", "liga": "Liga trägt"}
+            sig = ", ".join(nm.get(k, k) for k in t.get("signale") or [])
+            text = (f"🤖⭐ <b>AI-Pick + Top 3</b> <i>(Test)</i>\n<b>{e(x.get('heim'))} – {e(x.get('gast'))}</b>\n"
+                    f"{e(x.get('liga'))} · Pick in der {x.get('minute')}. Min beim Stand {':'.join(str(v) for v in x.get('stand') or [])}\n\n"
+                    f"🎯 <b>{e(x.get('tipp') or x.get('auswahl'))}</b> @ {q2(x.get('quote'))} · fair {q2(x.get('fair'))} · spielbar ab {q2(x.get('mindest'))}\n"
+                    f"🤖 Modell: Wert +{100 * (x.get('wert') or 0):.0f} % · Geld drauf {geld(x.get('geldEur'))} ({x.get('geldAnteil')} %)\n"
+                    f"🏆 Top 3: Platz {rang} mit {str(t.get('punkte')).replace('.', ',')} Punkten ({e(sig)})\n"
+                    f"<i>Zwei unabhängige Wege zeigen auf dieselbe Wette — nur Test, nicht public.</i>")
+            beleg = {k: x.get(k) for k in ("id", "heim", "gast", "liga", "markt", "auswahl", "tipp", "quote", "fair", "wert", "minute", "stand", "geldEur")}
+            beleg.update({"art": "kiTop3", "live": True, "anpfiff": t.get("anpfiff"), "top3Rang": rang, "top3Punkte": t.get("punkte")})
+            yield f"kt|{x.get('id')}", text, None, beleg, None
+            break
+
+
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, ki_top3)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────

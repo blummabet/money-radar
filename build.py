@@ -2332,7 +2332,7 @@ VERLAUF_TAGE = 60
 # Wette seit Start als kompakte Zeile in einer EIGENEN Datei (site/statistik.json, wird erst beim Öffnen der Seite geladen).
 STAKE_EIGEN_AB = "2026-11-10T09:30"   # ab hier bucht push.py jeden gesendeten Stake-Push selbst (Stake-Check 10.11.)
 WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
-STAT_ARTEN = {"ki", "kiModell", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
+STAT_ARTEN = {"ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
