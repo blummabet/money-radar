@@ -207,7 +207,37 @@ KOPF = {
     "pinn": ("📉", "𝗦𝗛𝗔𝗥𝗣 𝗠𝗢𝗩𝗘", "Pinnacle", "🟦"),
 }
 SPORT_EMOJI = {"Fußball": "⚽", "Tennis": "🎾", "E-Sport": "🎮"}
-TAGS = {"Polymarket": "#Polymarket", "Betfair": "#Betfair", "Stake": "#Stake"}
+# 10.11. (Lucas „Tags … für Suche gut?" → „ja"): höchstens 2 — das Liga-/Spiel-Tag, dem Leute live folgen, und
+# #Polymarket nur bei Polymarket. Kein #Betfair/#Stake (sucht kaum wer, #Stake ist Glücksspiel-Werbung). Unbekannte Liga = kein Tag.
+LIGA_TAGS = [
+    (r"women.?s champions league", "#UWCL"), (r"champions league", "#UCL"), (r"europa league", "#UEL"), (r"conference league", "#UECL"),
+    (r"premier league", "#PremierLeague"), (r"la liga|laliga|primera division", "#LaLiga"), (r"serie a\b", "#SerieA"),
+    (r"bundesliga", "#Bundesliga"), (r"ligue 1", "#Ligue1"), (r"eredivisie", "#Eredivisie"),
+    (r"primeira liga|liga portugal", "#LigaPortugal"), (r"championship", "#EFLChampionship"), (r"fa cup", "#FACup"),
+    (r"copa del rey", "#CopaDelRey"), (r"dfb.?pokal", "#DFBPokal"), (r"coppa italia", "#CoppaItalia"), (r"mls\b", "#MLS"),
+    (r"saudi", "#SPL"), (r"libertadores", "#Libertadores"), (r"world cup", "#WorldCup"), (r"nations league", "#NationsLeague"),
+    (r"atp finals", "#ATPFinals"), (r"wta finals", "#WTAFinals"), (r"davis cup", "#DavisCup"), (r"billie jean king", "#BJKCup"),
+    (r"australian open", "#AusOpen"), (r"roland garros|french open", "#RolandGarros"), (r"wimbledon", "#Wimbledon"),
+    (r"us open", "#USOpen"),
+    (r"counter.?strike|\bcs2\b|\biem\b|\bblast\b|\bpgl\b|esl pro", "#CS2"), (r"dota", "#Dota2"),
+    (r"league of legends|\blol\b|\blck\b|\blec\b|\blpl\b", "#LeagueOfLegends"), (r"valorant|\bvct\b", "#VALORANT"),
+]
+SLUG_TAGS = {"cs2": "#CS2", "csgo": "#CS2", "dota2": "#Dota2", "lol": "#LeagueOfLegends", "val": "#VALORANT",
+             "ucl": "#UCL", "uel": "#UEL", "epl": "#PremierLeague", "lal": "#LaLiga", "sea": "#SerieA", "bun": "#Bundesliga",
+             "fl1": "#Ligue1", "lig1": "#Ligue1", "mls": "#MLS"}
+
+
+def _tags(k, quelle):
+    x = k.get("x") or {}
+    tag = None
+    slug = str(x.get("slug") or "").split("-")[0].lower()
+    if slug in SLUG_TAGS:
+        tag = SLUG_TAGS[slug]
+    if not tag:
+        wo = f"{k.get('liga') or ''} {k.get('spiel') or ''}".lower()
+        tag = next((t for muster, t in LIGA_TAGS if re.search(muster, wo)), None)
+    tags = [t for t in (tag, "#Polymarket" if quelle == "Polymarket" else None) if t]
+    return " ".join(tags)
 
 
 def _gewicht(t):
@@ -298,11 +328,11 @@ def text_neu(k, jetzt) -> str | None:
             extra.append(f"📏 {x['faktor']:.1f}× the usual money for this league")
     if art == "pinn" and not x.get("von"):
         return None                                   # alte Kandidaten ohne Kurs: lieber nicht posten (Betrag sagt nichts)
-    teile = zeilen + ([""] + block if block else []) + ([""] + extra if extra else []) + ["", TAGS.get(quelle.split()[0], "")]
+    teile = zeilen + ([""] + block if block else []) + ([""] + extra if extra else []) + ["", _tags(k, quelle)]
     t = "\n".join(teile).strip()
     while _gewicht(t) > 280 and (extra or block):     # zu lang: erst Zusatz, dann Balken kürzen
         (extra if extra else block).pop()
-        teile = zeilen + ([""] + block if block else []) + ([""] + extra if extra else []) + ["", TAGS.get(quelle.split()[0], "")]
+        teile = zeilen + ([""] + block if block else []) + ([""] + extra if extra else []) + ["", _tags(k, quelle)]
         t = "\n".join(teile).strip()
     return t if _gewicht(t) <= 280 else None
 

@@ -790,7 +790,7 @@ def wale(d):
             # 10.11. (Lucas: X-Post „lieblos"): dieselben Bausteine wie der Telegram-Push, für die englische X-Fassung
             pub["x"] = {"bars": [[str(namen[sk] or ""), round(p, 3), sk == k] for sk, p in reihe] if (k and reihe) else [],
                         "pnl": pnl, "n": n, "clv": o.get("clv"), "preis": preis, "ein": ein,
-                        "faktor": round(usd / float(schnitt), 2) if schnitt and usd else None}
+                        "faktor": round(usd / float(schnitt), 2) if schnitt and usd else None, "slug": o.get("markt")}
         # Wal-Regel 2 (Lucas 06.11. 13:50, Dynamo Dresden: $1,1k bei einem Wallet, das sonst Ø $17k setzt): unter ¼ des
         # üblichen Einsatzes kein Push — still als „walKlein" mitbuchen (bis 06.11.: unter ¼ n=13, −39 %)
         if schnitt and usd and usd / float(schnitt) < WAL_MIN_FAKTOR:
@@ -1341,7 +1341,7 @@ def serie(d):
                    gruende=[f"🔁 {x['n']}× in Folge neues Geld auf diese Seite", f"{round(x.get('anteil') or 0)} % der Käufe"])
         _mit(pub, x.get("usd"), x.get("n"))
         if pub:
-            pub["x"] = {"n": x["n"], "min": x.get("dauerMin"), "anteil": x.get("anteil"), "preis": x.get("preis"), "saeulen": x.get("saeulen") or []}
+            pub["x"] = {"n": x["n"], "min": x.get("dauerMin"), "anteil": x.get("anteil"), "preis": x.get("preis"), "saeulen": x.get("saeulen") or [], "slug": x.get("id")}
         # Public-Regel 18 (Lucas 09.11. FOKUS – Alliance: „solang sich die Seiten nicht einig sind, ist es ein Coinflip"):
         # hält ein bewährtes Wallet (Rangliste, CLV-Untergrenze > 0) ≥ $5k auf der Gegenseite, oder kam in den letzten 6 h
         # ein Wal-Push auf die Gegenseite, geht die Serie nicht in den Public-Kanal — still gemessen als „pserieGegen".
