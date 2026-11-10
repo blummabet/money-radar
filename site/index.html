@@ -4013,7 +4013,7 @@ function seiteStart(D){
   const mobil = window.innerWidth < 860;
   return `<div class="grid">
     ${(()=>{ try{ return seitStreifen(D); }catch(e){ console.error(e); return ""; } })()}
-    ${kiBox(D)}
+    ${""/* 10.11. 21:19 Lucas: AI-Picks raus aus der Übersicht — Auswertung nur unter Statistik */}
     <div class="panel c12 merk-panel" id="merk-start"${MERK.length?"":" hidden"}><div class="ph"><h3>★ Deine Spiele</h3><span class="hint">seit du sie gemerkt hast</span><button class="chip rechts" data-merkliste>Liste</button></div><div class="merk-inhalt">${MERK.length?merkListe(false):""}</div></div>
     <div class="panel c12 t3-panel"><div class="ph"><h3>Top 3 jetzt</h3><span class="hint">wo gerade die meisten Signale gleichzeitig ziehen</span></div>${topDrei(D)}</div>
     ${druckPanel(D)}
