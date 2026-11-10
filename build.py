@@ -2004,7 +2004,10 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
         if key in pf_30 and not str(g["id"]).startswith(("pm:", "st:")):
             alt = AUCH_WOANDERS.setdefault(g["id"], {}).get("poly")
             if not alt or alt["usd"] < pf_30[key][0]:
-                AUCH_WOANDERS[g["id"]]["poly"] = {"usd": round(pf_30[key][0]), "auf": pf_30[key][1]}
+                auf_ = pf_30[key][1]
+                # 10.11. (Top-3-Regel 5): auf welche Seite (heim/gast/remis) das 30-Min-Geld ging — „gegen X" = keine Seite
+                AUCH_WOANDERS[g["id"]]["poly"] = {"usd": round(pf_30[key][0]), "auf": auf_,
+                                                  "k": None if str(auf_ or "").startswith("gegen ") else _seite(auf_, g["heim"], g["gast"])}
         g["q"]["poly"] = {"betrag": round(betrag), "seiten": seiten, "key": key, "seitenAus": herkunft if seiten else None,
                           "preise": {(_seite(n, g["heim"], g["gast"]) or n): p for n, p in (m.get("prices") or {}).items()},
                           # Lucas 08.11. (Polymarket-Schattenbuch): bester Ask und Liquidität bis +2 Cent je Seite
@@ -2038,7 +2041,8 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
         e = je_event.setdefault(w.get("eventId"), {"w": w, "summe": 0.0, "n": 0, "seiten": {}})
         e["summe"] += w.get("einsatzUsd") or 0
         e["n"] += 1
-        if JETZT - t <= timedelta(minutes=30):
+        jung = JETZT - t <= timedelta(minutes=30)
+        if jung:
             e["s30"] = e.get("s30", 0.0) + (w.get("einsatzUsd") or 0)
             e["n30"] = e.get("n30", 0) + 1
         mk = str(w.get("markt") or "").lower()
@@ -2048,6 +2052,9 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
                 or ("winner" in mk and "set" not in mk and "game" not in mk):
             e["seiten"].setdefault(w.get("auswahl"), 0.0)
             e["seiten"][w.get("auswahl")] += w.get("einsatzUsd") or 0
+            if jung:
+                e.setdefault("seiten30", {}).setdefault(w.get("auswahl"), 0.0)
+                e["seiten30"][w.get("auswahl")] += w.get("einsatzUsd") or 0
     for e in je_event.values():
         w = e["w"]
         h, gst = _teams(w.get("event"))
@@ -2066,7 +2073,14 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
                 seiten[k] = seiten.get(k, 0) + v
         g["q"]["stake"] = {"betrag": round(e["summe"]), "seiten": seiten, "wetten": e["n"]}
         if e.get("s30") and not str(g["id"]).startswith(("pm:", "st:")):
-            AUCH_WOANDERS.setdefault(g["id"], {})["stake"] = {"usd": round(e["s30"]), "n": e["n30"]}
+            s30k = {}
+            for n, v in (e.get("seiten30") or {}).items():
+                k = _seite(n, g["heim"], g["gast"])
+                if k:
+                    s30k[k] = s30k.get(k, 0) + v
+            # 10.11. (Top-3-Regel 5): Seite des 30-Min-Geldes (nur aus Sieg-/Handicap-Märkten; Tore-Geld hat keine Seite)
+            AUCH_WOANDERS.setdefault(g["id"], {})["stake"] = {"usd": round(e["s30"]), "n": e["n30"],
+                                                              "k": max(s30k, key=s30k.get) if s30k else None}
 
     # Lucas 18.10. (Kasimpasa 55' 2:1 mit „79 % auf Kasimpasa" oben in der Liste): live verstopfen führende Teams die
     # Liste, und ihr Betfair-Anteil wächst nur, weil nach dem Tor zu Mini-Quoten auf den Führenden gehandelt wird.

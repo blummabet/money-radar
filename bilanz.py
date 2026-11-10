@@ -457,8 +457,16 @@ def _gruppe(z):
 def top3_messung(buch):
     """Top 3 jetzt: jeder erste Einzug zur Quote in dem Moment — gesamt, je Platz, je Punkte, Betfair/Polymarket."""
     ab = _ts(TOP3_AB)
-    z = [b for b in buch if b.get("art") in ("top3", "top3p") and _ts(b.get("ts")) and _ts(b["ts"]) >= ab]
-    gruppen = [("Alle", z), ("Platz 1 beim Einzug", [b for b in z if b.get("rang") == 1]),
+    alle = sorted((b for b in buch if b.get("art") in ("top3", "top3p") and _ts(b.get("ts")) and _ts(b["ts"]) >= ab),
+                  key=lambda b: b.get("ts") or "")
+    # 10.11. (Top-3-Check, Lucas „ja"): nur der ERSTE Einzug je Spiel zählt. Vorher stand jede neue Auswahl desselben Spiels
+    # eigens im Buch (bis 9 je Spiel, bei 149 von 708 Spielen beide Sieg-Seiten) — die Messung wettete gegen sich selbst.
+    erst, z, spaet = set(), [], []
+    for b in alle:
+        (spaet if str(b.get("id")) in erst else z).append(b)
+        erst.add(str(b.get("id")))
+    gruppen = [("Alle", z),
+               ("Spätere Auswahl im selben Spiel (nur gemessen)", spaet), ("Platz 1 beim Einzug", [b for b in z if b.get("rang") == 1]),
                ("Platz 2–3 beim Einzug", [b for b in z if (b.get("rang") or 9) > 1]),
                ("Irgendwann Platz 1", [b for b in z if b.get("bestRang") == 1]),
                ("ab 6 Punkte", [b for b in z if (b.get("punkte") or 0) >= 6]), ("unter 6 Punkte", [b for b in z if (b.get("punkte") or 0) < 6]),

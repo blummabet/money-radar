@@ -3334,11 +3334,12 @@ function topDreiDaten(D){
     // belegter Wal bzw. Stake-Burst auf DIESELBE Seite = 2 Punkte, nur Geld dort in den letzten 30 Min = 1 Punkt
     const aw = (D.auchWoanders||{})[s.id] || {}, fk = {h:"heim", g:"gast", x:"remis"}[seiteVon(s, fA.name)];
     const wale = fk ? ((D.toepfe||[]).find(x=>x.id===s.id)?.wale||[]).filter(w=>w.bewiesen && w.k===fk) : [];
-    if(wale.length) p.poly = 2; else if(aw.poly?.usd>=1000) p.poly = 1;
+    // Top-3-Regel 5 (10.11.): der 1-Punkt für Geld auf Polymarket/Stake nur, wenn es auf DIESELBE Seite geht — muss zu top3.py passen
+    if(wale.length) p.poly = 2; else if(aw.poly?.usd>=1000 && fk && aw.poly.k===fk) p.poly = 1;
     const fkey = feedKey(s.heim, s.gast);
     const gleicheSeite = g => fk ? {h:"heim", g:"gast", x:"remis"}[seiteVon(s, g.auswahl)] === fk : !!(ou(fA.name) && ou(fA.name)===ou(g.auswahl));
     const burst = (D.stake?.gruppen||[]).find(g=>istBurst(g) && feedKey(...String(g.spiel||"").split(/\s+-\s+/)) === fkey && gleicheSeite(g));
-    if(burst) p.stake = 2; else if(aw.stake?.usd>=1000) p.stake = 1;
+    if(burst) p.stake = 2; else if(aw.stake?.usd>=1000 && fk && aw.stake.k===fk) p.stake = 1;
     // Lucas 25.10. (Sturm – Ried): Druck-Radar stützt die Richtung des Geldes — muss zu top3.py passen
     const dr = ((D.druck||{}).spiele||[]).find(x=>String(x.id)===String(s.id));
     const drPasst = dr && dr.index>=40 && (fk===dr.seite || ou(fA.name)==="over");

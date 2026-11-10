@@ -183,8 +183,8 @@ def rangliste(d, jetzt):
         wale = [w for w in (toepfe.get(str(s.get("id"))) or {}).get("wale") or [] if fk and w.get("bewiesen") and w.get("k") == fk]
         if wale:
             p["poly"] = 2
-        elif ((aw.get("poly") or {}).get("usd") or 0) >= 1000:
-            p["poly"] = 1
+        elif ((aw.get("poly") or {}).get("usd") or 0) >= 1000 and fk and (aw.get("poly") or {}).get("k") == fk:
+            p["poly"] = 1          # Regel 5 (10.11.): nur Geld auf DIESELBE Seite — vorher zählte jede Seite
         sk = schluessel(s.get("heim"), s.get("gast"))
 
         def gleich(g):
@@ -195,8 +195,8 @@ def rangliste(d, jetzt):
                       and gleich(g)), None)
         if burst:
             p["stake"] = 2
-        elif ((aw.get("stake") or {}).get("usd") or 0) >= 1000:
-            p["stake"] = 1
+        elif ((aw.get("stake") or {}).get("usd") or 0) >= 1000 and fk and (aw.get("stake") or {}).get("k") == fk:
+            p["stake"] = 1         # Regel 5 (10.11.): nur Geld auf dieselbe Seite
         # Lucas 25.10. (Sturm – Ried, 23': xG 0,77 : 0, Schüsse 9 : 0, Geld auf Sturm): das Druck-Radar stützt die
         # Richtung des Geldes → Punkte. Druck-Team = Seite der Auswahl, oder Auswahl ist ein Über. Ab Index 40: 1, ab 70: 2.
         dr = druck.get(str(s.get("id")))
@@ -273,7 +273,7 @@ def eintragen(d, buch, jetzt):
             b["bestPunkte"] = max(b.get("bestPunkte") or 0, x["punkte"])
             continue
         b = {**x, "rang": rang, "bestRang": rang, "bestPunkte": x["punkte"], "ts": jetzt.isoformat(), "status": "offen",
-             "regel": 4}   # Regel 4 ab 05.11.: + „pinnMit" (still); Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
+             "regel": 5}   # Regel 5 ab 10.11. ~9:30: Polymarket-/Stake-Punkt (1) nur bei Geld auf dieselbe Seite; Regel 4 ab 05.11.: + „pinnMit" (still); Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
         buch.append(b)
         offen[k] = b
         neu += 1
