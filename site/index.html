@@ -1570,36 +1570,54 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .cd-bz .bar{grid-column:1/-1;height:5px;border-radius:3px;background:var(--panel-3);overflow:hidden}
 .cd-bz .bar i{display:block;height:100%;background:var(--up)}
 @media (max-width:420px){ .cd-grid{grid-template-columns:1fr} }
-/* 10.11. AI-Picks (Test) — eigenes Modell aus Startquote + Live-Statistik, Geld als Bestätigung */
-.ki-panel .ph h3 .ki-test{font-size:11px;font-weight:700;color:var(--text-3);border:1px solid var(--rand);border-radius:999px;padding:1px 8px;margin-left:8px;vertical-align:middle}
+/* 10.11. AI-Picks (Test) — eigenes Modell aus Startquote + Live-Statistik, Geld als Bestätigung.
+   09:48 (Lucas: „optisch cooler, am Desktop nimmt es ewig Platz ein"): zwei Spalten am Desktop — links die Picks,
+   rechts „Im Blick" als dichte Zeilen mit Schwellen-Leiste; mobil untereinander. */
+.ki-panel{position:relative;overflow:hidden}
+.ki-panel::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--pin),var(--poly),var(--up))}
+.ki-kopf{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-bottom:10px}
+.ki-kopf h3{margin:0;font-size:17px;letter-spacing:-.01em}
+.ki-kopf .ki-test{font-size:11px;font-weight:700;color:var(--text-3);border:1px solid var(--rand);border-radius:999px;padding:1px 8px}
+.ki-kopf .ki-sum{margin-left:auto;font-size:12.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.ki-kopf .ki-sum b{color:var(--text)}
+.ki-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px}
+@media (max-width:860px){.ki-grid{grid-template-columns:1fr}}
+.ki-grid>div{min-width:0}
+@media (max-width:560px){.ki-p .r1{flex-wrap:wrap}.ki-p .sp{flex-basis:100%}.ki-kopf .ki-sum{margin-left:0;flex-basis:100%}}
+.ki-sec{font-size:12px;font-weight:700;color:var(--text-3);margin:0 0 6px}
 .ki-l{display:grid;gap:8px}
-.ki-p{display:grid;grid-template-columns:1fr auto;gap:4px 14px;padding:10px 12px;border-radius:12px;background:var(--flaeche);border:1px solid var(--rand)}
-.ki-p .ki-sp{font-weight:800;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ki-p .ki-meta{grid-column:1/-1;font-size:12px;color:var(--text-3)}
-.ki-p .ki-tipp{font-size:15px;font-weight:800}
-.ki-p .ki-tipp b{font-variant-numeric:tabular-nums}
-.ki-p .ki-st{align-self:start;font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px;background:var(--flaeche-2);color:var(--text-2);white-space:nowrap}
-.ki-p .ki-st.w{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
-.ki-p .ki-st.l{background:color-mix(in srgb,var(--down) 18%,transparent);color:var(--down)}
-.ki-p .ki-zahl{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--text-2);font-variant-numeric:tabular-nums}
-.ki-p .ki-zahl em{font-style:normal;color:var(--text-3)}
-.ki-p .ki-warum{grid-column:1/-1;font-size:12.5px;color:var(--text-2)}
-.ki-fuss{margin-top:10px;font-size:12px;color:var(--text-3);display:flex;flex-wrap:wrap;gap:4px 16px}
-.ki-fuss b{color:var(--text-2)}
-.ki-blick{margin-top:12px;border-top:1px solid var(--rand);padding-top:10px}
-.ki-blick h4{margin:0 0 6px;font-size:13px;color:var(--text-2)}
-.ki-b{display:grid;grid-template-columns:1fr auto;gap:3px 10px;padding:8px 0;border-bottom:1px dashed var(--rand)}
+.ki-p{position:relative;padding:10px 12px 10px 15px;border-radius:12px;background:var(--flaeche);border:1px solid var(--rand)}
+.ki-p::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:3px;background:var(--pin)}
+.ki-p.w::before{background:var(--up)} .ki-p.l::before{background:var(--down)}
+.ki-p .r1{display:flex;align-items:center;gap:8px;min-width:0}
+.ki-p .sp{font-weight:700;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.ki-p .mi{font-size:12px;color:var(--text-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ki-p .r2{display:flex;align-items:baseline;gap:10px;margin:3px 0 2px}
+.ki-p .tp{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.ki-p .q{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--pin)}
+.ki-p .r3{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums}
+.ki-p .r3 em{font-style:normal;color:var(--text-3)}
+.ki-st{font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;background:var(--flaeche-2);color:var(--text-2);white-space:nowrap}
+.ki-st.w{background:color-mix(in srgb,var(--up) 16%,transparent);color:var(--up)}
+.ki-st.l{background:color-mix(in srgb,var(--down) 16%,transparent);color:var(--down)}
+.ki-st.t3{background:color-mix(in srgb,var(--bf) 18%,transparent);color:var(--bf)}
+.ki-leer{font-size:13px;color:var(--text-2);padding:12px;border-radius:12px;border:1px dashed var(--rand)}
+.ki-b{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--rand)}
 .ki-b:last-child{border-bottom:0}
-.ki-b .n{font-size:13px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ki-b .m{font-size:12px;color:var(--text-3);white-space:nowrap}
-.ki-b .t{grid-column:1/-1;font-size:12.5px;color:var(--text-2)}
-.ki-b .t b{color:var(--text)}
-.ki-b .bar{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-3)}
-.ki-b .bar span{flex:1;height:6px;border-radius:6px;background:var(--flaeche-2);overflow:hidden;position:relative}
-.ki-b .bar i{position:absolute;inset:0 auto 0 0;border-radius:6px;background:var(--pin)}
-.ki-b .bar i.ok{background:var(--up)}
-.ki-b .ck{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--text-3)}
-.ki-b .ck .ja{color:var(--up);font-weight:700} .ki-b .ck .nein{color:var(--text-3)}
+.ki-b .n{font-size:12.5px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ki-b .n small{font-weight:500;color:var(--text-3);margin-left:4px}
+.ki-b .t{font-size:12px;color:var(--text-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ki-b .t b{color:var(--text);font-variant-numeric:tabular-nums}
+.ki-b .g{grid-row:1/3;grid-column:2;display:grid;gap:3px;justify-items:end}
+.ki-b .leiste{position:relative;width:92px;height:6px;border-radius:6px;background:var(--flaeche-2)}
+.ki-b .leiste i{position:absolute;inset:0 auto 0 0;border-radius:6px;background:var(--pin)}
+.ki-b .leiste i.ok{background:var(--up)}
+.ki-b .leiste u{position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;background:var(--text-3);opacity:.6}
+.ki-b .pz{display:block;font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.ki-b .pz b{color:var(--text-2)} .ki-b .pz .ja{color:var(--up)}
+.ki-b.warte .t{color:var(--text-3)}
+.ki-mehr{font-size:12px;color:var(--text-3);margin-top:6px}
+.ki-fuss{margin-top:10px;font-size:11.5px;color:var(--text-3)}
 </style>
 </head>
 <body>
@@ -3705,41 +3723,40 @@ function kiTop3Paar(D){
 function kiBox(D){
   const K = D.kiPicks; if(!K) return "";
   const f = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
-  const paar = (()=>{ try { return kiTop3Paar(D); } catch(e){ return {}; } })();
-  const zeile = x => {
-    const t3 = paar[String(x.id)];
-    const st = (t3 ? `<span class="ki-st w" title="dasselbe Spiel steht in den Top 3 in dieselbe Richtung">⭐ Top 3 · Platz ${t3}</span> ` : "") + (x.status==="abgerechnet" ? (x.win ? `<span class="ki-st w">✓ gewonnen</span>` : `<span class="ki-st l">✗ verloren</span>`)
-      : x.status==="offen" ? `<span class="ki-st">läuft</span>` : `<span class="ki-st">${esc(x.status||"")}</span>`);
-    const xg = x.xg && x.xg[0]!=null ? `xG ${dez(x.xg[0])} : ${dez(x.xg[1])}${x.xgQuelle==="xG"?"":" (aus Schüssen geschätzt)"}` : "ohne xG";
-    return `<div class="ki-p">
-      <div class="ki-sp">${esc(x.heim)} – ${esc(x.gast)}</div><div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${st}</div>
-      <div class="ki-meta">${flagge(x.land)} ${esc(ligaName(x.liga)||x.liga||"")} · Pick in der ${x.minute}. Min beim Stand ${(x.stand||[]).join(":")} · ${uhr(x.ts)}</div>
-      <div class="ki-tipp" style="grid-column:1/-1">${esc(x.tipp||x.auswahl)} <b>@ ${q2(x.quote)}</b></div>
-      <div class="ki-zahl"><span><em>fair</em> ${q2(x.fair)}</span><span><em>spielbar ab</em> ${q2(x.mindest)}</span><span><em>Wert</em> +${dez(100*x.wert)} %</span><span><em>Geld drauf</em> ${eur(x.geldEur)} (${x.geldAnteil} %)</span></div>
-      <div class="ki-warum">${xg} · Startquote erwartete ${dez(x.startTore)} Tore · Modell erwartet noch ${dez((x.lamRest||[0,0])[0])} : ${dez((x.lamRest||[0,0])[1])} Tore</div>
-    </div>`; };
   const H = K.heute||[], b = K.bilanz||{}, ki = b.ki||{}, mo = b.kiModell||{}, inf = K.info||{};
-  // Lucas 10.11. 09:35 („mitfiebern, bevor er eingetütet wird"): was das Modell gerade anschaut — bester Tipp je Live-Spiel,
-  // wie nah er am Pick ist (Wert bis 8 %) und ob das Geld schon mitgeht
+  const paar = (()=>{ try { return kiTop3Paar(D); } catch(e){ return {}; } })();
   const gepickt = new Set(H.map(x=>String(x.id)));
   const schw = (K.schwelle||{}).wert || 0.08;
-  const blickZeile = x => {
-    const kopf = `<div class="n">${esc(x.heim)} – ${esc(x.gast)}</div><div class="m">${x.minute}' · ${(x.stand||[]).join(":")}</div>`;
-    if(x.fehlt) return `<div class="ki-b">${kopf}<div class="ck"><span>wartet auf: ${x.fehlt.map(esc).join(", ")}</span></div></div>`;
-    const w = Math.max(0, x.wert||0), ant = Math.min(100, w/schw*100);
-    const xg = x.xg && x.xg[0]!=null ? ` · xG ${dez(x.xg[0])} : ${dez(x.xg[1])}${x.xgQuelle==="xG"?"":" (geschätzt)"}` : "";
-    return `<div class="ki-b">${kopf}
-      <div class="t">bester Tipp: <b>${esc(x.tipp)} @ ${q2(x.quote)}</b> · fair ${q2(x.fair)}${xg}</div>
-      <div class="bar"><span><i class="${x.wertOk?"ok":""}" style="width:${ant.toFixed(0)}%"></i></span>${(x.wert||0)>0?"+":""}${dez(100*(x.wert||0))} % Wert / ${dez(100*schw,0)} %</div>
-      <div class="ck"><span class="${x.wertOk?"ja":"nein"}">${x.wertOk?"✓":"○"} Wert</span><span class="${x.geldOk?"ja":"nein"}">${x.geldOk?"✓":"○"} Geld ${eur(x.geldEur)} (${x.geldAnteil} %)</span>${gepickt.has(String(x.id))?`<span class="ja">✓ schon gepickt</span>`:""}</div></div>`; };
-  const B = K.blick||[];
-  const blick = B.length ? `<div class="ki-blick"><h4>👀 Im Blick (${B.length})</h4>${B.slice(0,8).map(blickZeile).join("")}</div>` : "";
-  const leer = `<div class="leer">Gerade kein Pick. Das Modell prüft ${inf.imFenster||0} Live-Spiele zwischen der 15. und 80. Minute${inf.bewertet!=null?`, ${inf.bewertet} davon mit Statistik und Startquote`:""}. Ein Pick braucht ≥ 8 % Wert gegen die Betfair-Quote und Geld auf derselben Auswahl.</div>`;
-  return `<div class="panel c12 ki-panel"><div class="ph"><h3>🤖 AI-Picks<span class="ki-test">Test · Regel ${esc(K.regel||"A1")}</span></h3><span class="hint">eigenes Modell aus Startquote + Live-Statistik, nur wenn das Geld mitgeht</span></div>
-    ${H.length ? `<div class="ki-l">${H.slice(0,6).map(zeile).join("")}</div>` : leer}
-    ${blick}
-    <div class="ki-fuss"><span><b>AI-Picks</b> ${ki.abgerechnet||0} abgerechnet${ki.abgerechnet?` · ${ki.treffer} % Treffer (erwartet ${ki.erwartet} %) · ${f(ki.roi)}`:""}</span>
-      <span><b>Modell allein</b> ${mo.abgerechnet||0}${mo.abgerechnet?` · ${f(mo.roi)}`:""}</span><span>Ziel 100 · nichts davon geht in den Kanal</span></div></div>`;
+  const karte = x => {
+    const t3 = paar[String(x.id)], kl = x.status==="abgerechnet" ? (x.win?"w":"l") : "";
+    const st = x.status==="abgerechnet" ? `<span class="ki-st ${kl}">${x.win?"✓ gewonnen":"✗ verloren"}</span>`
+      : x.status==="offen" ? `<span class="ki-st">läuft</span>` : `<span class="ki-st">${esc(x.status||"")}</span>`;
+    const xg = x.xg && x.xg[0]!=null ? `xG ${dez(x.xg[0])} : ${dez(x.xg[1])}${x.xgQuelle==="xG"?"":" (geschätzt)"}` : "ohne xG";
+    const warum = `${xg} · Startquote erwartete ${dez(x.startTore)} Tore · Modell erwartet noch ${dez((x.lamRest||[0,0])[0])} : ${dez((x.lamRest||[0,0])[1])} Tore · ${esc(ligaName(x.liga)||x.liga||"")}`;
+    return `<div class="ki-p ${kl}" title="${esc(warum)}">
+      <div class="r1"><span class="sp">${esc(x.heim)} – ${esc(x.gast)}</span><span class="mi">${x.minute}' · ${(x.stand||[]).join(":")} · ${uhr(x.ts)}</span>${t3?`<span class="ki-st t3" title="dasselbe Spiel steht in den Top 3 in dieselbe Richtung">⭐ Top 3</span>`:""}${st}</div>
+      <div class="r2"><span class="tp">${esc(x.tipp||x.auswahl)}</span><span class="q">${q2(x.quote)}</span></div>
+      <div class="r3"><span><em>fair</em> ${q2(x.fair)}</span><span><em>ab</em> ${q2(x.mindest)}</span><span><em>Wert</em> +${dez(100*x.wert,0)} %</span><span><em>Geld</em> ${eur(x.geldEur)} · ${x.geldAnteil} %</span><span><em>${xg}</em></span></div>
+    </div>`; };
+  // Im Blick: Leiste bis zum doppelten Schwellenwert, der Strich in der Mitte ist die 8-%-Schwelle
+  const zeile = x => {
+    const kopf = `<div class="n">${esc(x.heim)} – ${esc(x.gast)}<small>${x.minute}' · ${(x.stand||[]).join(":")}</small></div>`;
+    if(x.fehlt) return `<div class="ki-b warte">${kopf}<div class="t">wartet auf ${x.fehlt.map(esc).join(", ")}</div><div class="g"><span class="pz">–</span></div></div>`;
+    const w = Math.max(0, x.wert||0), ant = Math.min(100, w/(2*schw)*100);
+    const tip = `fair ${q2(x.fair)}${x.xg&&x.xg[0]!=null?` · xG ${dez(x.xg[0])} : ${dez(x.xg[1])}${x.xgQuelle==="xG"?"":" (geschätzt)"}`:""} · Geld ${eur(x.geldEur)} (${x.geldAnteil} %)`;
+    return `<div class="ki-b" title="${esc(tip)}">${kopf}<div class="t">${esc(x.tipp)} <b>@ ${q2(x.quote)}</b>${gepickt.has(String(x.id))?" · ✓ gepickt":""}</div>
+      <div class="g"><span class="leiste"><i class="${x.wertOk?"ok":""}" style="width:${ant.toFixed(0)}%"></i><u></u></span>
+      <span class="pz"><b>${(x.wert||0)>0?"+":""}${dez(100*(x.wert||0),0)} %</b> · <span class="${x.geldOk?"ja":""}">${x.geldOk?"€ ✓":"€ ○"}</span></span></div></div>`; };
+  const B = K.blick||[], zeig = B.slice(0,5);
+  const links = H.length ? `<div class="ki-l">${H.slice(0,4).map(karte).join("")}</div>`
+    : `<div class="ki-leer">Gerade kein Pick. Einer braucht ≥ ${dez(100*schw,0)} % Wert gegen die Betfair-Quote <i>und</i> Geld auf derselben Auswahl.</div>`;
+  const rechts = B.length ? `${zeig.map(zeile).join("")}${B.length>zeig.length?`<div class="ki-mehr">+ ${B.length-zeig.length} weitere</div>`:""}`
+    : `<div class="ki-leer">${inf.imFenster||0} Live-Spiele zwischen der 15. und 80. Minute — keines mit Statistik und Startquote.</div>`;
+  return `<div class="panel c12 ki-panel">
+    <div class="ki-kopf"><h3>🤖 AI-Picks</h3><span class="ki-test">Test · Regel ${esc(K.regel||"A1")}</span>
+      <span class="ki-sum"><b>${ki.abgerechnet||0}</b> abgerechnet${ki.abgerechnet?` · ${ki.treffer} % (erw. ${ki.erwartet} %) · <b>${f(ki.roi)}</b>`:""} · Modell allein ${mo.abgerechnet||0}${mo.abgerechnet?` · ${f(mo.roi)}`:""}</span></div>
+    <div class="ki-grid"><div><div class="ki-sec">Picks heute</div>${links}</div><div><div class="ki-sec">👀 Im Blick · Strich = ${dez(100*schw,0)} %-Schwelle</div>${rechts}</div></div>
+    <div class="ki-fuss">Eigenes Modell aus Startquote + Live-Statistik, Geld nur als Bestätigung · Ziel 100 · nichts davon geht in den Kanal</div></div>`;
 }
 function seiteStart(D){
   // Lucas 18.10.: Dauerzufluss ist sein wichtigster KPI → läuft eine Serie, steht sie direkt unter „Gerade passiert"
