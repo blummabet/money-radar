@@ -803,6 +803,19 @@ def build_spiel_card(b, unterdrueckt=0) -> str:
     return "\n".join(lines)
 
 
+def _spielzeit(g) -> dict:
+    """10.11. (Stake-Check): Anpfiff und spaeteste Spielminute der Wetten mit in die Buchzeile. Ohne sie konnte der
+    Geldradar Schlussgeld (ab der 88. Minute / >100 Min nach Anpfiff) nicht erkennen — 2 von 3 Live-Zeilen hatten keins."""
+    ko = next((x.get("anpfiff") for x in g if x.get("anpfiff")), None)
+    mins = []
+    for x in g:
+        try:
+            mins.append(float(x.get("spielminute")))
+        except (TypeError, ValueError):
+            pass
+    return {"anpfiff": ko, "spielminute": int(max(mins)) if mins else None}
+
+
 def spiel_buch_zeile(b, ts) -> dict:
     """Eigene Buchzeile mit `art: "spiel"`. Die zwei Arten duerfen NIE in einer Zahl
     zusammenfallen — sie messen verschiedene Einheiten, und genau daran ist am 07.09. die
@@ -821,6 +834,7 @@ def spiel_buch_zeile(b, ts) -> dict:
         "phase": ("live" if all(x.get("phase") == "live" for x in g)
                   else "vor" if all(x.get("phase") == "vor" for x in g) else "gemischt"),
         "betIds": [x.get("id") for x in g],
+        **_spielzeit(g),
         "sentAt": ts, "status": "pending",
     }
 
@@ -1064,6 +1078,7 @@ def tor_buch_zeile(b, ts) -> dict:
         "nWetten": len(g), "sekunden": round(float(b["sekunden"]), 1),
         "phase": _phase(g), "anpfiff": erste.get("anpfiff"),
         "betIds": [x.get("id") for x in g],
+        **_spielzeit(g),
         "sentAt": ts, "status": "pending",
     }
 
@@ -1196,6 +1211,7 @@ def buch_zeile(b, ts) -> dict:
         # 26.09.2026: getrennt messen — „gleich" und „fallend" sind zwei Hypothesen.
         "quotenArt": b.get("quotenArt") or "gleich",
         "quotenVerlauf": [_quote(x) for x in g],
+        **_spielzeit(g),
         "sentAt": ts, "status": "pending",
     }
 

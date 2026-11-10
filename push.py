@@ -936,9 +936,16 @@ def stake(d):
         # Lucas 20.10. (Fenerbahçe – Slavia: Spiel-Burst kam ~10 Min nach Abpfiff, „live"): Fußball ist ~110 Min nach
         # Anpfiff aus. Kam der Burst so spät oder ab der 88. Minute, ist es Schluss-/Abrechnungsgeld, kein Signal.
         ko = ts(g.get("anpfiff"))
+        minute = g.get("minute")
+        # 10.11. (Stake-Check): 2 von 3 Live-Zeilen kamen ohne Anpfiff/Minute → Schlussgeld rutschte durch (bei denen mit
+        # Anpfiff lagen 19 von 67 über 100 Min nach Anpfiff). Fehlt beides, die Minute beim Geld aus dem Betfair-Stand schätzen.
+        if not ko and not isinstance(minute, (int, float)) and g.get("phase") == "live":
+            jl0 = jetzt_live(g.get("spiel"))
+            if jl0:
+                minute = jl0[0] - (JETZT - t0).total_seconds() / 60
         if (g.get("kat") or "Fußball") == "Fußball" and g.get("phase") == "live" and (
                 (ko and ((JETZT - ko).total_seconds() > 110 * 60 or (t0 - ko).total_seconds() > 100 * 60))
-                or (isinstance(g.get("minute"), (int, float)) and g["minute"] >= 88)):
+                or (isinstance(minute, (int, float)) and minute >= 88)):
             continue
         arten = []
         for z in gruppe:
