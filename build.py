@@ -1557,15 +1557,31 @@ def takt_fortschreiben(bf_hist):
     return takt
 
 
+PHASEN_META: dict = {}
+
+
 def phasen(takt, radar):
     """Lucas 10.11. 12:18 (Phasenband, „auch für Instagram"): je Betfair-Spiel der Verlauf in 5-Min-Stücken —
     [Zeit, Seite des neuen Sieg-Geldes h/x/a, € dorthin, Anteil %, Tore-Geld netto (+ Über / − Unter), Stand]."""
     spiele = {str(sp.get("id")): sp for sp in (radar or {}).get("spiele") or []}
+    # 10.11. (X-Bilder „How the money moved"): auch beendete Spiele, die nicht mehr im Radar stehen — Namen/Endstand
+    # aus dem Ergebnisbuch; PHASEN_META sammelt Anpfiff, Liga und Endstand dazu
+    try:
+        erg = json.loads((BASIS / ".bf" / "ergebnisse.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        erg = {}
     out = {}
+    PHASEN_META.clear()
     for mid, liste in (takt or {}).items():
         sp = spiele.get(str(mid))
+        e_ = erg.get(str(mid)) or {}
+        if not sp and e_.get("h") and e_.get("a"):
+            sp = {"id": str(mid), "heim": e_["h"], "gast": e_["a"], "anpfiff": e_.get("ko"), "liga": e_.get("l")}
         if not sp:
             continue
+        PHASEN_META[str(mid)] = {"heim": sp.get("heim"), "gast": sp.get("gast"), "anpfiff": sp.get("anpfiff") or e_.get("ko"),
+                                 "liga": sp.get("liga") or e_.get("l"), "land": sp.get("land"), "ft": e_.get("ft"),
+                                 "imRadar": str(mid) in spiele}
         z = []
         for x in liste:
             mo = [(k.split("|", 1)[1], v) for k, v in (x.get("h") or {}).items() if k.startswith("Match Odds|")]
@@ -2776,6 +2792,7 @@ def main() -> int:
         "polyFluss": (pfl := poly_fluss()),
         "serien": serien((takt_ := takt_fortschreiben(bf_hist)), radar),
         "phasen": phasen(takt_, radar),
+        "phasenMeta": PHASEN_META,
         "serienRuhig": SERIEN_RUHIG[:20],
         "polySerien": poly_serien(pfl),
         "stakeSerien": stake_serien(hr),

@@ -11,10 +11,12 @@ on:
     - cron: '9 16 * * *'
     - cron: '13 17 * * *'
     - cron: '3 18 * * *'
+    # 10.11. Cocobet auf X: Bilder (Phasenband, Wal) alle 2 h von ~12:40 bis ~0:40 Wien
+    - cron: '41 11-23/2 * * *'
   workflow_dispatch:
     inputs:
       modus:
-        description: 'morgen, abend, wal oder woche_test'
+        description: 'morgen, abend, wal, woche_test oder x_bilder'
         default: 'morgen'
       trocken:
         description: 'nur Bild bauen, nicht posten'
@@ -58,6 +60,11 @@ jobs:
           PUBLIC_CHAT_ID: "-1003819239615"
           WOCHE_AB: ${{ inputs.woche_ab }}
           GH_TOKEN: ${{ github.token }}
+          X_LIVE: ${{ vars.X_LIVE }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
           TROCKEN: ${{ github.event_name == 'workflow_dispatch' && inputs.trocken && '1' || '' }}
           ERZWINGEN: ${{ inputs.erzwingen && '1' || '' }}
           WAL_FENSTER_H: ${{ inputs.trocken && '9' || '' }}
@@ -68,6 +75,7 @@ jobs:
               '13 17 * * *'|'3 18 * * *') M=wal ;;
               '23 8 * * *') M=morgen ;;
               '9 16 * * *') M=abend ;;
+              '41 11-23/2 * * *') M=x_bilder ;;
               *) H=$(date -u +%H); [ "$H" -lt 12 ] && M=morgen || M=abend ;;
             esac
           fi

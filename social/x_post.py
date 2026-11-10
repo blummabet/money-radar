@@ -229,7 +229,7 @@ def posten(t, entwurf_senden, mit_link=False) -> bool:
     return _tweet(t)
 
 
-def _tweet(t) -> bool:
+def _tweet(t, medien=None) -> bool:
     """POST https://api.x.com/2/tweets mit OAuth 1.0a (Nutzer-Kontext)."""
     url = "https://api.x.com/2/tweets"
     ck, cs = os.environ["X_API_KEY"], os.environ["X_API_SECRET"]
@@ -241,7 +241,7 @@ def _tweet(t) -> bool:
     sig = base64.b64encode(hmac.new(f"{enc(cs)}&{enc(ts_)}".encode(), basis.encode(), hashlib.sha1).digest()).decode()
     o["oauth_signature"] = sig
     kopf = "OAuth " + ", ".join(f'{enc(k)}="{enc(v)}"' for k, v in sorted(o.items()))
-    req = urllib.request.Request(url, data=json.dumps({"text": t}).encode(), method="POST",
+    req = urllib.request.Request(url, data=json.dumps({"text": t, **({"media": {"media_ids": medien}} if medien else {})}).encode(), method="POST",
                                  headers={"Authorization": kopf, "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
@@ -249,3 +249,43 @@ def _tweet(t) -> bool:
     except Exception as exc:  # noqa: BLE001
         print(f"  x: Fehler {str(exc)[:120]}")
         return False
+
+
+# ── Bilder (Lucas 10.11. 12:48: „schöne Grafiken dazwischen") ───────────────────────────────────────────────
+def bild_posten(bild, t, foto_entwurf) -> bool:
+    """Bild + Text: Entwurf → Foto in den Testkanal; live → Upload bei X, dann Post mit dem Bild."""
+    if not _live():
+        return bool(foto_entwurf(bild, f"𝕏 Entwurf (Bild) · {len(t)} Zeichen\n\n{html.escape(t)}"))
+    mid = _medien_upload(bild)
+    return bool(mid) and _tweet(t, [mid])
+
+
+def _oauth_kopf(methode, url, extra=None):
+    ck, cs = os.environ["X_API_KEY"], os.environ["X_API_SECRET"]
+    tk, ts_ = os.environ["X_ACCESS_TOKEN"], os.environ["X_ACCESS_SECRET"]
+    o = {"oauth_consumer_key": ck, "oauth_nonce": secrets.token_hex(16), "oauth_signature_method": "HMAC-SHA1",
+         "oauth_timestamp": str(int(time.time())), "oauth_token": tk, "oauth_version": "1.0"}
+    enc = lambda x: urllib.parse.quote(str(x), safe="~")  # noqa: E731
+    alle = {**o, **(extra or {})}
+    basis = "&".join([methode, enc(url), enc("&".join(f"{enc(k)}={enc(v)}" for k, v in sorted(alle.items())))])
+    o["oauth_signature"] = base64.b64encode(hmac.new(f"{enc(cs)}&{enc(ts_)}".encode(), basis.encode(), hashlib.sha1).digest()).decode()
+    return "OAuth " + ", ".join(f'{enc(k)}="{enc(v)}"' for k, v in sorted(o.items()))
+
+
+def _medien_upload(bild):
+    """POST /2/media/upload (multipart, OAuth 1.0a). Gibt die media id zurück oder None."""
+    url = "https://api.x.com/2/media/upload"
+    grenze = "----cocobet" + secrets.token_hex(8)
+    daten = Path(bild).read_bytes()
+    body = (f"--{grenze}\r\nContent-Disposition: form-data; name=\"media_category\"\r\n\r\ntweet_image\r\n"
+            f"--{grenze}\r\nContent-Disposition: form-data; name=\"media\"; filename=\"{Path(bild).name}\"\r\n"
+            f"Content-Type: image/jpeg\r\n\r\n").encode() + daten + f"\r\n--{grenze}--\r\n".encode()
+    req = urllib.request.Request(url, data=body, method="POST", headers={"Authorization": _oauth_kopf("POST", url),
+                                                                          "Content-Type": f"multipart/form-data; boundary={grenze}"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            j = json.loads(r.read().decode())
+            return (j.get("data") or {}).get("id") or j.get("media_id_string")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  x: Bild-Upload fehlgeschlagen {str(exc)[:160]}")
+        return None

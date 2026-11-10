@@ -332,8 +332,74 @@ def wal_aufloesung(gepostet):
                           f"Auflösung {art}: {ergebnis} ({endstand})", story=True)
 
 
+# ── Cocobet auf X: Bilder (Lucas 10.11. 12:48) ───────────────────────────────────────────────────────────────
+# „How the money moved" (Phasenband eines beendeten Spiels, höchstens 2 am Tag) und „Smart money split" (eindeutiger
+# Wal ab $20k, höchstens 1 am Tag). Entwurf: Foto in den Testkanal; mit X_LIVE=1 echt auf X.
+def x_bilder(gepostet):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import x_grafik
+    import x_post
+    d = daten()
+    tag = f"{W:%Y-%m-%d}"
+    chat = os.environ.get("TELEGRAM_TEST_CHAT_ID", "").strip()
+    foto = lambda bild, text: telegram_foto(bild, text, chat)  # noqa: E731
+    n_band = sum(1 for k in gepostet if k.startswith("xband|") and str(gepostet[k]).startswith(tag))
+    if n_band < 2:
+        kand = []
+        for sid, Z in (d.get("phasen") or {}).items():
+            m = (d.get("phasenMeta") or {}).get(sid) or {}
+            ko = m.get("anpfiff") and datetime.fromisoformat(str(m["anpfiff"]).replace("Z", "+00:00"))
+            if not m.get("ft") or not ko or JETZT - ko > timedelta(hours=5) or f"xband|{sid}" in gepostet or len(Z) < 8:
+                continue
+            t = x_grafik.band_text(m, Z)
+            if t:
+                kand.append((x_grafik.band_score(m, Z), sid, m, Z, t))
+        if kand:
+            _, sid, m, Z, t = max(kand, key=lambda k: k[0])
+            bild = ARBEIT.parent / f"xband-{sid}.jpg"
+            ARBEIT.parent.mkdir(parents=True, exist_ok=True)
+            grafik.rendern(x_grafik.band(m, Z), bild, 675, 1200, 2)
+            print(t)
+            if not os.environ.get("TROCKEN") and x_post.bild_posten(bild, t, foto):
+                gepostet[f"xband|{sid}"] = W.isoformat()
+        else:
+            print("x: kein Spiel mit Geschichte fürs Band")
+    if not any(k.startswith("xwal|") and str(gepostet[k]).startswith(tag) for k in gepostet):
+        G = {}
+        for o in (d.get("poly") or {}).get("setzen") or []:
+            g = G.setdefault(o["markt"], {"spiel": o.get("spiel"), "anpfiff": o.get("anpfiff"), "sport": o.get("sport"), "s": {}})
+            x = g["s"].setdefault(o.get("seite"), {"name": o.get("seite"), "usd": 0, "wallets": []})
+            x["usd"] += o.get("usd") or 0
+            x["wallets"].append((str(o.get("wallet"))[2:6], o.get("usd") or 0, o.get("clv") or 0))
+        best = None
+        for key, g in G.items():
+            S = sorted(g["s"].values(), key=lambda v: -v["usd"])
+            ges = sum(v["usd"] for v in S) or 1
+            gegen = max([w[1] for v in S[1:] for w in v["wallets"]] + [0])
+            anteil = S[0]["usd"] / ges
+            if S[0]["usd"] >= 20000 and anteil >= 0.75 and gegen < 5000 and f"xwal|{key}" not in gepostet:
+                if not best or S[0]["usd"] > best[1]["seiten"][0]["usd"]:
+                    best = (key, {**g, "seiten": S, "klar": True, "anteil": anteil})
+        if best:
+            key, g = best
+            bild = ARBEIT.parent / "xwal.jpg"
+            grafik.rendern(x_grafik.wal(g), bild, 675, 1200, 2)
+            s0 = g["seiten"][0]
+            t = (f"🐋 Smart money split: {g['spiel']}\n\nProven Polymarket wallets have ${s0['usd'] / 1000:.0f}k on {s0['name']} – "
+                 f"{g['anteil'] * 100:.0f}% of all proven money in this market.")
+            print(t)
+            if not os.environ.get("TROCKEN") and x_post.bild_posten(bild, t, foto):
+                gepostet[f"xwal|{key}"] = W.isoformat()
+        else:
+            print("x: kein eindeutiger Wal ab $20k")
+    bilder_sichern(gepostet)
+
+
 def main(modus):
     gepostet = bilder_zweig()
+    if modus == "x_bilder":
+        x_bilder(gepostet)
+        return 0
     if modus == "woche_test":                   # Lucas 08.11.: Wochenabrechnung erst in den Testkanal
         global W
         if os.environ.get("WOCHE_AB"):
