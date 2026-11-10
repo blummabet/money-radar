@@ -28,6 +28,11 @@ REGEL A2 (10.11.2026 19:40 Wien, Lucas: „was sind das für wilde Picks?" — R
     • Sieg-Markt: liegt die Lage für die Auswahl (Team führt / Remis bei Gleichstand ab der 20. Minute), muss ihre Quote
       UNTER der Startquote liegen; steht sie gleich oder darüber, ist sie veraltet → raus.
     • Unter 2,5 bei weniger als 3 Toren ab der 20. Minute: dasselbe gegen die Start-Unter-2,5-Quote.
+
+REGEL A3 (10.11.2026 20:00 Wien, Lucas „ja" — Häcken – Chelsea W: Pick in der 28. bei 0:1, in der 42. stand 0:0):
+  alles wie A2, dazu: verschwindet in den Live-Daten ein Tor (Spielstand geht zurück — aberkannt oder Datenfehler),
+  gilt der Spielstand dieses Spiels als unsicher → für den Rest der Partie keine AI-Picks mehr, offene AI-Picks des
+  Spiels werden „nicht abrechenbar" (void).
 """
 from __future__ import annotations
 
@@ -42,9 +47,10 @@ BASIS = Path(__file__).resolve().parent
 DATEN = BASIS / "site" / "data.json"
 PREISE = BASIS / ".bf" / "betfair_prices.json"
 START = BASIS / ".push_state" / "ki_start.json"
+STANDMAX = BASIS / ".push_state" / "ki_standmax.json"     # A3: höchster gesehener Stand je Spiel
 JETZT = datetime.now(timezone.utc)
 
-REGEL = "A2"
+REGEL = "A3"
 MIN_VON, MIN_BIS = 15, 80
 WERT_MIN, PP_MIN = 0.08, 0.03
 Q_MIN, Q_MAX = 1.25, 8.0
@@ -256,7 +262,25 @@ def veraltet(k, q, st, minute, stand):
     return False
 
 
-def kandidaten(d, preise, start):
+def stand_pruefen(d, mx):
+    """A3: höchsten Stand je Live-Spiel merken; geht er zurück, ist das Spiel „unsicher". Gibt die unsicheren Ids zurück."""
+    for sp in (d.get("radar") or {}).get("spiele") or []:
+        st = (sp.get("live") or {}).get("stand")
+        if not st or None in st:
+            continue
+        sid = str(sp.get("id"))
+        alt = mx.get(sid) or {"h": 0, "g": 0, "unsicher": False}
+        if st[0] < alt["h"] or st[1] < alt["g"]:
+            alt["unsicher"] = True
+        alt["h"], alt["g"], alt["t"] = max(alt["h"], st[0]), max(alt["g"], st[1]), JETZT.isoformat()
+        mx[sid] = alt
+    grenze = JETZT - timedelta(hours=12)
+    for k in [k for k, v in mx.items() if (_ts(v.get("t")) or JETZT) < grenze]:
+        del mx[k]
+    return {k for k, v in mx.items() if v.get("unsicher")}
+
+
+def kandidaten(d, preise, start, unsicher=frozenset()):
     """Alle Live-Spiele bewerten. Gibt (Kandidaten, Info) zurück — Kandidaten mit Feld 'geldOk'."""
     pm = {str(m.get("matchId")): m for m in preise.get("matches") or []}
     ls = d.get("liveStats") or {}
@@ -282,6 +306,9 @@ def kandidaten(d, preise, start):
         kopf = {"id": sid, "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga"), "land": sp.get("land"),
                 "minute": int(minute), "stand": list(stand)}
         if sp.get("entschieden") or minute > MIN_BIS:
+            continue
+        if sid in unsicher:
+            blick.append({**kopf, "fehlt": ["sicheren Spielstand (ein Tor verschwand aus den Live-Daten)"]})
             continue
         stats_ok = bool(e and _ts(e.get("ts")) and JETZT - _ts(e["ts"]) <= timedelta(minutes=STATS_MAX_MIN))
         if minute < MIN_VON or not st or not stats_ok:
@@ -380,8 +407,14 @@ def main() -> int:
     start = startquoten_fortschreiben(preise, _laden(START, {}))
     START.parent.mkdir(parents=True, exist_ok=True)
     START.write_text(json.dumps(start, separators=(",", ":")), encoding="utf-8")
-    kands, info = kandidaten(d, preise, start)
+    mx = _laden(STANDMAX, {})
+    unsicher = stand_pruefen(d, mx)
+    STANDMAX.write_text(json.dumps(mx, separators=(",", ":")), encoding="utf-8")
+    kands, info = kandidaten(d, preise, start, unsicher)
     buch = bilanz.laden()
+    for b in buch:                                   # A3: offene AI-Picks eines Spiels mit verschwundenem Tor → void
+        if b.get("art") in ("ki", "kiModell", "kiTop3") and b.get("status") == "offen" and str(b.get("id")) in unsicher:
+            b["status"], b["void"], b["voidGrund"] = "nicht abrechenbar", True, "Spielstand unsicher (Tor verschwand)"
     neu = buchen(buch, kands)
     bilanz.schreiben(buch, JETZT)
     grenze = JETZT - timedelta(hours=24)
