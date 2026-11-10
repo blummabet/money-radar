@@ -92,9 +92,23 @@ def ergebnisse_fortschreiben(jetzt, abfrage=None):
         if bis45 and spaeter and not erg[mid].get("ht"):
             erg[mid]["ht"] = bis45[-1]["sc"]
     # Endstand nachfragen
-    fehlen = [mid for mid, e in erg.items() if not e.get("ft") and _ts(e.get("ko"))
-              and jetzt - _ts(e["ko"]) > timedelta(hours=ABFRAGE_AB_H)]
-    fehlen.sort(key=lambda mid: erg[mid].get("ko") or "", reverse=True)
+    # 10.11. (Betfair-Check): auch nachfragen, wenn der Endstand nur „zuletzt gesehen ab Minute 85" ist (späte Tore
+    # fehlten) oder der Halbzeitstand unsicher — aber nur die ersten 2 Tage, danach gilt, was da ist
+    def _nachfragen(e):
+        ko = _ts(e.get("ko"))
+        if not ko or jetzt - ko <= timedelta(hours=ABFRAGE_AB_H):
+            return False
+        if not e.get("ft"):
+            return True
+        return jetzt - ko < timedelta(days=2) and (e.get("q") == "zuletzt" or (e.get("ht") is not None and not e.get("htSicher")))
+    fehlen = [mid for mid, e in erg.items() if _nachfragen(e)]
+    # Reihenfolge: fehlender Endstand der letzten 4 Tage → Nachprüfungen → ältere Lücken (die liefert der Dienst
+    # meist nie; früher fraßen sie alle 50 Plätze)
+    def _rang(mid):
+        e = erg[mid]
+        alt = jetzt - _ts(e["ko"]) > timedelta(days=4)
+        return (2 if alt else 0 if not e.get("ft") else 1, [-ord(c) for c in (e.get("ko") or "")])
+    fehlen.sort(key=_rang)
     if fehlen and abfrage:
         try:
             antw = abfrage(fehlen[:ABFRAGE_MAX]) or {}

@@ -110,13 +110,20 @@ def gewonnen(markt, auswahl, heim, gast, ft, ht):
         if a.lower() == "no":
             return not (h > 0 and g > 0)
         return None
+    if m == "Draw no Bet":                           # 10.11. (Betfair-Check): bei Remis Einsatz zurück
+        seite = heim if (a == heim or _team(a) == _team(heim)) else gast if (a == gast or _team(a) == _team(gast)) else None
+        if not seite or _team(heim) == _team(gast):
+            return None
+        if h == g:
+            return "void"
+        return (h > g) if seite == heim else (g > h)
     if m in ("Correct Score", "Half Time Score"):
         cs = re.match(r"^(\d+)\s*-\s*(\d+)$", a)
         return (h, g) == (int(cs.group(1)), int(cs.group(2))) if cs else None
     return None
 
 
-def _ergebnisse(noetig):
+def _ergebnisse(noetig, nur_dienst=False):
     """matchId -> (ft, ht) aus dem EIGENEN Ergebnisbuch (.bf/ergebnisse.json, ergebnisse.py) — Lucas 20.10.:
     unabhängig vom alten Projekt."""
     if not noetig:
@@ -126,7 +133,10 @@ def _ergebnisse(noetig):
     except Exception as exc:  # noqa: BLE001
         print(f"  bilanz: Ergebnisbuch nicht lesbar ({str(exc)[:80]})")
         return {}
-    return {mid: (e.get("ft"), e.get("ht")) for mid, e in erg.items() if mid in noetig and e.get("ft")}
+    # 10.11.: dazu, ob der Halbzeitstand sicher ist (Pause gesehen oder vom Ergebnisdienst) — Halbzeit-Märkte warten
+    # darauf (ergebnisse.py fragt dafür nach)
+    return {mid: (e.get("ft"), e.get("ht"), bool(e.get("htSicher"))) for mid, e in erg.items()
+            if mid in noetig and e.get("ft") and (not nur_dienst or e.get("q") == "results")}
 
 
 def _hz_ungueltig(b):
@@ -146,6 +156,8 @@ def aktualisieren(buch, jetzt):
     spiele = {str(m.get("matchId")): m for m in preise.get("matches") or []}
 
     for b in buch:
+        if b.get("status") == "nicht abrechenbar" and b.get("markt") == "Draw no Bet" and not b.get("void"):
+            b["status"] = "offen"                          # 10.11.: Draw no Bet ist jetzt abrechenbar → neu versuchen
         if b.get("status") in ("offen", "abgerechnet") and _hz_ungueltig(b):
             b["status"] = "ungültig"
     # 1) Schlussquote: solange vor Anpfiff, die aktuelle Quote derselben Auswahl nachziehen
@@ -169,14 +181,20 @@ def aktualisieren(buch, jetzt):
     for b in buch:
         if b.get("status") != "offen" or b.get("art") in POLY_ARTEN or str(b.get("id")) not in warten:
             continue
-        ft, ht = erg.get(str(b["id"]), (None, None))
+        ft, ht, ht_sicher = erg.get(str(b["id"]), (None, None, False))
         if not ft:
             m = spiele.get(str(b["id"]))
             li = (m or {}).get("liveInfo") or {}
             if li.get("finished") and li.get("goal_v1") is not None:
                 ft = [li["goal_v1"], li["goal_v2"]]
+        halbzeit = str(b.get("markt") or "") in ("Half Time", "Half Time Score") or str(b.get("markt") or "").startswith("First Half")
+        if ft and halbzeit and not ht_sicher and jetzt - _ts(b["anpfiff"]) < timedelta(hours=36):
+            continue                                       # Halbzeitstand noch nicht sicher → bis 36 h warten, dann nehmen, was da ist
         if ft:
             w = gewonnen(b.get("markt"), b.get("auswahl"), b.get("heim"), b.get("gast"), ft, ht)
+            if w == "void":
+                b["ft"], b["ht"], b["status"], b["void"] = ft, ht, "nicht abrechenbar", True   # wie Polymarket-void
+                continue
             if w is not None and b.get("gegen"):          # layGegen: gewinnt, wenn die Auswahl verliert
                 w = not w
             b["ft"], b["ht"] = ft, ht
@@ -189,6 +207,26 @@ def aktualisieren(buch, jetzt):
                 b["r"] = round((q - 1) * (1 - KOMMISSION), 4) if w else -1.0
         elif jetzt - _ts(b["anpfiff"]) > timedelta(days=VERFALL_TAGE):
             b["status"] = "unaufgelöst"
+    # 10.11. (Betfair-Check): ein Endstand „zuletzt gesehen ab Min. 85" kann ein spätes Tor verpassen. Kommt danach der
+    # echte Endstand vom Ergebnisdienst, die letzten 2 Tage nachkorrigieren.
+    pruefen = {str(b.get("id")) for b in buch if b.get("status") == "abgerechnet" and b.get("art") not in POLY_ARTEN
+               and b.get("ft") and _ts(b.get("anpfiff")) and jetzt - _ts(b["anpfiff"]) < timedelta(days=2)}
+    erg2 = _ergebnisse(pruefen, nur_dienst=True) if pruefen else {}
+    for b in buch:
+        if b.get("status") != "abgerechnet" or str(b.get("id")) not in erg2 or b.get("art") in POLY_ARTEN:
+            continue
+        ft, ht, _ = erg2[str(b["id"])]
+        if list(ft) == list(b.get("ft") or []) and (ht is None or list(ht) == list(b.get("ht") or [])):
+            continue
+        w = gewonnen(b.get("markt"), b.get("auswahl"), b.get("heim"), b.get("gast"), ft, ht or b.get("ht"))
+        if w is None or w == "void":
+            continue
+        if b.get("gegen"):
+            w = not w
+        b["ft"], b["ht"] = ft, ht or b.get("ht")
+        if w != b.get("win"):
+            q = b.get("quote") or 0
+            b["win"], b["r"], b["korrigiert"] = w, (round((q - 1) * (1 - KOMMISSION), 4) if w else -1.0), jetzt.isoformat()
     poly_kurse(buch, jetzt)
     poly_abrechnen(buch, jetzt)
     return buch[-BEHALTEN:]
