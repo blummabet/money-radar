@@ -510,14 +510,20 @@ def top3_messung(buch):
 VOID_MANUELL = [
     # Butterfly – Honvéd: Public-Push 19:05 „@ 1,62", Polymarket stand schon bei 99 % (Preis-Schnitt ohne Käufe ≥ 92 ¢)
     ("cs2-btf-hon1-2026-11-10", "2026-11-10T17:30:00+00:00", "2026-11-10T19:30:00+00:00", "Preis war veraltet (Spiel schon entschieden)"),
+    # AI-Pick Chelsea (W) @ 1,25 in der 28. bei 0:1 — Betwatch-Quote stand noch auf dem Stand vor Anpfiff (Regel A2)
+    ("BK Hacken (W) – Chelsea (W)", "2026-11-10T18:00:00+00:00", "2026-11-10T20:00:00+00:00", "Quote veraltet (Live-Markt nicht aktualisiert)",
+     {"ki", "kiModell", "kiTop3"}),
 ]
 
 
 def manuell_void(buch):
     for b in buch:
         t = _ts(b.get("ts"))
-        for mid, von, bis, grund in VOID_MANUELL:
-            if str(b.get("id")) == mid and t and _ts(von) <= t <= _ts(bis) and not b.get("voidManuell"):
+        for mid, von, bis, grund, *arten in VOID_MANUELL:
+            if arten and b.get("art") not in arten[0]:
+                continue
+            treffer = str(b.get("id")) == mid or f"{b.get('heim')} – {b.get('gast')}" == mid
+            if treffer and t and _ts(von) <= t <= _ts(bis) and not b.get("voidManuell"):
                 b["status"], b["void"], b["voidManuell"], b["voidGrund"] = "nicht abrechenbar", True, True, grund
                 b["win"], b["r"] = None, None
 
