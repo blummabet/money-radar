@@ -9,3 +9,5 @@ site/push_status.json
 site/stand.json
 .st/
 site/ig_top3.json
+.rp/
+site/report.json

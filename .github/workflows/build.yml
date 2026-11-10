@@ -44,6 +44,7 @@ jobs:
             .bf
             .pin
             .push_state
+            .rp
           key: radar-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: radar-
       - name: Polymarket vom Mac-Runner laden (Fluss .pf, Märkte + Wallets .pm)
@@ -125,6 +126,9 @@ jobs:
           rm -f poly_money_broad_close.json poly_money_upcoming.json poly_money_broad_live.json liga_poly_prices.json pinnacle_poly_scan.json
       - name: Daten verdichten
         run: python3 build.py
+      # 10.11. (Lucas): Report-Tageswerte (Stake, Betfair, Polymarket) — getrennt von Picks und Pushes, nur gelesen
+      - name: Report-Tageswerte sammeln
+        run: timeout 120 python3 report_sammler.py || echo "Report-Sammler fehlgeschlagen, Seite läuft ohne"
       - name: Cards (Top-5-Picks aus dem alten Projekt, neu sobald das alte Repo neue Picks hat)
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -175,8 +179,8 @@ jobs:
             git reset -q
           fi
           [ -s .push_state/bilanz.json ] || { echo "kein Push-Buch — keine Sicherung (leeres Gedächtnis nicht sichern)"; exit 0; }
-          find .bf .pin .push_state .pm .pf .st -type f -size -25M 2>/dev/null > /tmp/liste
-          find .bf .pin .push_state .pm .pf .st -type f -size +25M 2>/dev/null | sed 's/^/  ohne (zu groß): /'
+          find .bf .pin .push_state .pm .pf .st .rp -type f -size -25M 2>/dev/null > /tmp/liste
+          find .bf .pin .push_state .pm .pf .st .rp -type f -size +25M 2>/dev/null | sed 's/^/  ohne (zu groß): /'
           tar czf "$W/sicherung-$TAG.tar.gz" -T /tmp/liste
           ls -1 "$W"/sicherung-*.tar.gz | sort | head -n -14 | xargs -r rm -f
           echo "$TAG" > "$W/LETZTE"
@@ -193,6 +197,7 @@ jobs:
             .bf
             .pin
             .push_state
+            .rp
           key: radar-${{ github.run_id }}-${{ github.run_attempt }}
       # 23.10.: Jeder Lauf (und jeder Mac-Lauf) legt einen neuen Cache an — 3.560 Stück, 10,7 GB, über der Grenze von
       # 10 GB. Dann räumt GitHub selbst ab und erwischte zeitweise den frischen Polymarket-Stand (Seite ohne Polymarket).
