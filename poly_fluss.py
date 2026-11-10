@@ -171,6 +171,22 @@ def fluss_fuer(m):
     takt, takt_summe, aeltester = {}, [0.0] * TAKT_N, 0.0
     preis_summe = {}                             # Etikett -> [usd*preis, usd] der letzten 60 Min
     alle = {}                                    # Etikett -> usd über ALLE geholten Käufe (bis 500 je Markt)
+    # Lucas 10.11. (Butterfly – Honvéd, Push 19:05 „@ 1,62" — auf Polymarket stand Butterfly da schon bei 99 %): Käufe
+    # ≥ 92 ¢ zählen nicht als Fluss, deshalb sah der Durchschnittspreis der letzten Stunde aus wie ein offenes Spiel.
+    # Jetzt der AKTUELLE Preis je Seite aus dem Event (outcomePrices) + der jüngste Kauf ≥ 92 ¢ als Zeichen „entschieden".
+    jetzt, spaet_hoch = {}, None
+    conds = {c for c, _l, _f in seiten(event, m.get("sport"))}
+    for mk in event.get("markets") or []:
+        if mk.get("conditionId") not in conds:
+            continue
+        try:
+            outs = json.loads(mk.get("outcomes") or "[]")
+            prs = [float(x) for x in json.loads(mk.get("outcomePrices") or "[]")]
+        except Exception:  # noqa: BLE001
+            continue
+        lab_m = dict(next((l for c, l, _f in seiten(event, m.get("sport")) if c == mk.get("conditionId")), {}))
+        for o, pr in zip(outs, prs):
+            jetzt[lab_m.get(o) or o] = round(pr, 3)
     for cond, lab, frage in seiten(event, m.get("sport")):
         tr = trades_v2(cond)
         if not isinstance(tr, list):
@@ -190,6 +206,8 @@ def fluss_fuer(m):
             # Lucas 17.10. (Betis–Barça, Push 10 Min nach Abpfiff): Käufe zu 92 ¢ und mehr sind Geld auf
             # das praktisch Entschiedene (oder Einsammeln nach Spielende) — kein Fluss, zählt nirgends.
             if preis >= PREIS_ENTSCHIEDEN:
+                if alter <= 15:
+                    spaet_hoch = min(spaet_hoch, alter) if spaet_hoch is not None else alter
                 continue
             etikett = lab.get(t.get("outcome")) or t.get("outcome") or "?"
             aeltester = max(aeltester, alter)
@@ -239,7 +257,8 @@ def fluss_fuer(m):
         if not alle:
             return None
         return {"key": m["key"], "nurAlle": True, "alle": {k: round(v) for k, v in alle.items()},
-                "alleReichweiteMin": round(aeltester)}
+                "alleReichweiteMin": round(aeltester), "jetzt": jetzt,
+                "entschieden": bool(spaet_hoch is not None or any(v >= PREIS_ENTSCHIEDEN for v in jetzt.values()))}
     gross.sort(key=lambda g: -g["usd"])
     top = sorted(takt.items(), key=lambda kv: -sum(kv[1]))[:4]
     return {**m, "titel": titel, "fenster": fenster, "gross": gross[:5],
@@ -248,7 +267,9 @@ def fluss_fuer(m):
             "preise": {k: round(v[0] / v[1], 3) for k, v in preis_summe.items() if v[1] > 0},
             # die Trade-Abfrage holt höchstens 500 je Markt — so weit zurück reichen die Säulen wirklich
             "taktReichweiteMin": round(aeltester),
-            "alle": {k: round(v) for k, v in alle.items()}, "alleReichweiteMin": round(aeltester)}
+            "alle": {k: round(v) for k, v in alle.items()}, "alleReichweiteMin": round(aeltester),
+            # 10.11.: aktueller Preis je Seite + „entschieden" (eine Seite ≥ 92 ¢ jetzt oder Käufe ≥ 92 ¢ in den letzten 15 Min)
+            "jetzt": jetzt, "entschieden": bool(spaet_hoch is not None or any(v >= PREIS_ENTSCHIEDEN for v in jetzt.values()))}
 
 
 def main() -> int:

@@ -1732,6 +1732,8 @@ def poly_serien(pf):
     """Dieselbe Idee für Polymarket, aus den 10-Min-Säulen von poly_fluss.py (Trades mit Zeitstempel)."""
     out = []
     for m in (pf or {}).get("maerkte") or []:
+        if m.get("entschieden"):
+            continue                    # 10.11. (Butterfly – Honvéd): Markt praktisch entschieden → kein Dauerzufluss
         takt, summe_b = m.get("takt") or {}, m.get("taktSumme") or []
         for lab, werte in takt.items():
             n = len(werte)
@@ -1749,7 +1751,7 @@ def poly_serien(pf):
             summe = sum(werte[i] for i in kette)
             if summe < (25000 if m.get("top5") else 6000):
                 continue
-            preis = (m.get("preise") or {}).get(lab)
+            preis = (m.get("jetzt") or {}).get(lab) or (m.get("preise") or {}).get(lab)   # 10.11.: aktueller Preis zuerst
             ko = ts(m.get("anpfiff"))
             # Lucas 17.10. (Betis–Barça 5:2, Push 10 Min nach Abpfiff): gut 2 h nach Anpfiff ist das Spiel aus
             if ko and (m.get("sport") or "Fußball") == "Fußball" and JETZT - ko > timedelta(minutes=115):

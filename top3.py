@@ -223,6 +223,8 @@ def rangliste(d, jetzt):
     for m in (d.get("polyFluss") or {}).get("maerkte") or []:
         if re.search(r"\d{4}-\d{2}-\d{2}-.+$", str(m.get("key") or "")):   # jeder Nebenmarkt (29.10.: auch -total-corners)
             continue
+        if m.get("entschieden"):            # 10.11. (Butterfly – Honvéd): eine Seite schon ≥ 92 ¢ → kein Kandidat
+            continue
         heim, gast = _teams_aus_titel(m.get("titel"))
         if not heim:
             continue
@@ -235,7 +237,7 @@ def rangliste(d, jetzt):
         fokus = se.get("auswahl") if se else (w.get("auf") if (w.get("anteil") or 0) >= 60 else None)
         if not fokus:
             continue
-        preis = (m.get("preise") or {}).get(fokus) or (se or {}).get("preis")
+        preis = (m.get("jetzt") or {}).get(fokus) or (m.get("preise") or {}).get(fokus) or (se or {}).get("preis")
         quote = 1 / preis if preis else (se or {}).get("quote")
         if not quote or quote < 1.20:
             continue
