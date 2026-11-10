@@ -34,7 +34,7 @@ RUHE_VON, RUHE_BIS = 3, 7          # Uhr Wien
 FRISCH_MIN = 20                    # ältere Kandidaten verfallen (live zählt jede Minute)
 WERBUNG_ALLE_H = 72
 TELEGRAM = "t.me/c0c0bet"
-ARTEN_AUS = {"fix", "ht", "kiTop3", "hz"}   # Fix-Verdacht nie öffentlich behaupten; HZ/Test nicht
+ARTEN_AUS = {"fix", "ht", "kiTop3", "hz", "pinn"}   # Fix-Verdacht nie öffentlich; HZ/Test nicht; Pinnacle nicht (10.11. Lucas: Kurs, kein Geld)
 
 LIGA_EN = {}
 
@@ -353,7 +353,7 @@ def lauf(pub_stand, jetzt, entwurf_senden, public_norm=lambda s: s) -> int:
     schon = {t[0] for t in st["gepostet"]}
     spiele_schon = {t[2] for t in st["gepostet"] if len(t) > 2 and _ts(t[1]) and jetzt - _ts(t[1]) < timedelta(hours=3)}
     public_heute = set((pub_stand or {}).get("spiele") or [])
-    kand = [k for k in q if k["key"] not in schon and _ts(k["ts"]) and jetzt - _ts(k["ts"]) <= timedelta(minutes=FRISCH_MIN)
+    kand = [k for k in q if k.get("art") not in ARTEN_AUS and k["key"] not in schon and _ts(k["ts"]) and jetzt - _ts(k["ts"]) <= timedelta(minutes=FRISCH_MIN)
             and public_norm(k["spiel"]) not in public_heute and public_norm(k["spiel"]) not in spiele_schon]
     kand.sort(key=lambda k: -(k.get("betrag") or 0))
     n = 0
