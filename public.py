@@ -120,6 +120,15 @@ def passt(m) -> bool:
     # den Kanal — gematchtes Geld war dann eher Lay. Trades-Push (mit ⚠️) und Buch bleiben, gemessen wird weiter.
     if art == "serie" and m.get("layVerdacht"):
         return False
+    # Regel 21 (Lucas 10.11. 20:26, Metalul Buzau – Steaua 74' 1:1 „Geld auf Remis @ 1,90", Endstand 2:1: „wenn es Remis
+    # steht in der 75. und viel Geld kommt rein, lädt da jemand das Remis oder steigt aus … Back the Draw"): Betfair-Geld
+    # live auf Remis, während es unentschieden steht, geht nicht in den Kanal (Stand unbekannt = auch nicht). Remis-Geld,
+    # während ein Team führt, bleibt erlaubt. Trades-Channel und Buch bleiben, gemessen wird weiter.
+    if art in ("serie", "zufluss", "fix", "live") and m.get("live") \
+            and re.match(r"^\s*(the draw|draw|remis|unentschieden)\b", str(m.get("auswahlRoh") or m.get("auswahl") or ""), re.I):
+        st = m.get("stand")
+        if not (isinstance(st, (list, tuple)) and len(st) == 2 and None not in st and st[0] != st[1]):
+            return False
     # Regel 5 (02.11. 21:35, Lucas „allgemein auf 1,5?"): Quote ab 1,50 für alle Arten außer Geld vor Anpfiff (Band 1,50–1,60:
     # 199 Tipps +8,0 %, besser als 1,60–1,80 mit +2,0 %; Geld vor Anpfiff dort −11,3 %), in allen Ligen gleich.
     # Regel 19 (Lucas 09.11. 18:44, Regel-Durchsicht): Geld vor Anpfiff aus ALLEN Ligen — kleine Ligen seit 16.10.
