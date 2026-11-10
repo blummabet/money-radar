@@ -505,8 +505,26 @@ def top3_messung(buch):
     return {"ab": TOP3_AB, "ziel": TOP3_ZIEL, "urteil": urteil, "gruppen": aus, "letzte": letzte}
 
 
+# Lucas 10.11. („muss void sein, darf nicht zählen"): Pushes, die zu einem Preis rausgingen, den es nie gab. Je Eintrag
+# Markt-/Spiel-Id + Zeitfenster (UTC) der Belege. Gilt für alle Arten (pserie, top3p, publicErg …), auch nachträglich.
+VOID_MANUELL = [
+    # Butterfly – Honvéd: Public-Push 19:05 „@ 1,62", Polymarket stand schon bei 99 % (Preis-Schnitt ohne Käufe ≥ 92 ¢)
+    ("cs2-btf-hon1-2026-11-10", "2026-11-10T17:30:00+00:00", "2026-11-10T19:30:00+00:00", "Preis war veraltet (Spiel schon entschieden)"),
+]
+
+
+def manuell_void(buch):
+    for b in buch:
+        t = _ts(b.get("ts"))
+        for mid, von, bis, grund in VOID_MANUELL:
+            if str(b.get("id")) == mid and t and _ts(von) <= t <= _ts(bis) and not b.get("voidManuell"):
+                b["status"], b["void"], b["voidManuell"], b["voidGrund"] = "nicht abrechenbar", True, True, grund
+                b["win"], b["r"] = None, None
+
+
 def poly_abrechnen(buch, jetzt):
     """Polymarket-Pushes (Dauerzufluss „pserie", Wal-Einstiege „wal") über die nachgeschlagenen Ereignisse abrechnen."""
+    manuell_void(buch)
     try:
         evs = json.loads(POLY_EREIGNISSE.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
