@@ -44,6 +44,8 @@ ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "W
          "stakeFuehrt": "Stake live auf den Führenden (nicht gepusht, ab 31.10.)",
          "stakeTeam": "Stake-Spiel-Burst: nur der Sieg des Teams (nicht gepusht, ab 03.11.)",
          "stake": "Stake-Push: genau die gesendete Auswahl zur gesendeten Quote (ab 10.11.)",
+         "ki": "AI-Pick (Test, Regel A1): eigenes Modell aus Startquote + Live-Statistik, Geld geht mit (ab 10.11.)",
+         "kiModell": "AI-Modell allein, ohne Geld-Bedingung (still, ab 10.11.)",
          "walKlein": "Wal unter ¼ seines üblichen Einsatzes (nicht gepusht, Wal-Regel 2 ab 06.11.)",
          "layGegen": "Gegenseite bei Lay-Verdacht (Live-Dauerzufluss, Quote +15 % ohne Tor) — nicht gepusht, ab 06.11.",
          "ueberQuote": "Geld über der Quote (≥ 25 pp, nicht gepusht, ab 04.11.)",
@@ -623,14 +625,14 @@ def zusammenfassen(buch):
                  "wal": teile([b for b in buch if b.get("art") == "wal"])}
     letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "titel", "anzeige", "eur", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
-              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "stake")][:40]
+              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell")][:40]
     # Lucas 20.10. („Übersichtskurve auf die neuen Betfair-Pushes, weil das zählt"): jeder Push als
     # [Zeit UTC, Rendite je Einheit, 1/0] — offen mit None. build.py baut daraus die Bilanz-Kurve.
     grenze = datetime.now(timezone.utc) - timedelta(days=60)
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "norm", "normMeist", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "stake"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "norm", "normMeist", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,

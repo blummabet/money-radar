@@ -1570,6 +1570,22 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .cd-bz .bar{grid-column:1/-1;height:5px;border-radius:3px;background:var(--panel-3);overflow:hidden}
 .cd-bz .bar i{display:block;height:100%;background:var(--up)}
 @media (max-width:420px){ .cd-grid{grid-template-columns:1fr} }
+/* 10.11. AI-Picks (Test) — eigenes Modell aus Startquote + Live-Statistik, Geld als Bestätigung */
+.ki-panel .ph h3 .ki-test{font-size:11px;font-weight:700;color:var(--text-3);border:1px solid var(--rand);border-radius:999px;padding:1px 8px;margin-left:8px;vertical-align:middle}
+.ki-l{display:grid;gap:8px}
+.ki-p{display:grid;grid-template-columns:1fr auto;gap:4px 14px;padding:10px 12px;border-radius:12px;background:var(--flaeche);border:1px solid var(--rand)}
+.ki-p .ki-sp{font-weight:800;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ki-p .ki-meta{grid-column:1/-1;font-size:12px;color:var(--text-3)}
+.ki-p .ki-tipp{font-size:15px;font-weight:800}
+.ki-p .ki-tipp b{font-variant-numeric:tabular-nums}
+.ki-p .ki-st{align-self:start;font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px;background:var(--flaeche-2);color:var(--text-2);white-space:nowrap}
+.ki-p .ki-st.w{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
+.ki-p .ki-st.l{background:color-mix(in srgb,var(--down) 18%,transparent);color:var(--down)}
+.ki-p .ki-zahl{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--text-2);font-variant-numeric:tabular-nums}
+.ki-p .ki-zahl em{font-style:normal;color:var(--text-3)}
+.ki-p .ki-warum{grid-column:1/-1;font-size:12.5px;color:var(--text-2)}
+.ki-fuss{margin-top:10px;font-size:12px;color:var(--text-3);display:flex;flex-wrap:wrap;gap:4px 16px}
+.ki-fuss b{color:var(--text-2)}
 </style>
 </head>
 <body>
@@ -3654,12 +3670,36 @@ function topDrei(D){
     ${t3Messung(D)}
     <div class="t3-fuss">${T3_SIG.map(([k,n,f])=>`<span style="--f:${f}"><i></i>${n.replace(/^\S+ /,"")}</span>`).join("")}<em>leuchtendes Feld = Signal zieht · ${modus}</em></div>`;
 }
+// Lucas 10.11. 09:26 (TEST): „AI-Picks — erst nur die Live-Statistik, daraus Quoten rechnen, dann schauen, ob das Geld
+// übereinstimmt". ki_picks.py rechnet (Regel A1), hier nur die Anzeige.
+function kiBox(D){
+  const K = D.kiPicks; if(!K) return "";
+  const f = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
+  const zeile = x => {
+    const st = x.status==="abgerechnet" ? (x.win ? `<span class="ki-st w">✓ gewonnen</span>` : `<span class="ki-st l">✗ verloren</span>`)
+      : x.status==="offen" ? `<span class="ki-st">läuft</span>` : `<span class="ki-st">${esc(x.status||"")}</span>`;
+    const xg = x.xg && x.xg[0]!=null ? `xG ${dez(x.xg[0])} : ${dez(x.xg[1])}${x.xgQuelle==="xG"?"":" (aus Schüssen geschätzt)"}` : "ohne xG";
+    return `<div class="ki-p">
+      <div class="ki-sp">${esc(x.heim)} – ${esc(x.gast)}</div>${st}
+      <div class="ki-meta">${flagge(x.land)} ${esc(ligaName(x.liga)||x.liga||"")} · Pick in der ${x.minute}. Min beim Stand ${(x.stand||[]).join(":")} · ${uhr(x.ts)}</div>
+      <div class="ki-tipp" style="grid-column:1/-1">${esc(x.tipp||x.auswahl)} <b>@ ${q2(x.quote)}</b></div>
+      <div class="ki-zahl"><span><em>fair</em> ${q2(x.fair)}</span><span><em>spielbar ab</em> ${q2(x.mindest)}</span><span><em>Wert</em> +${dez(100*x.wert)} %</span><span><em>Geld drauf</em> ${eur(x.geldEur)} (${x.geldAnteil} %)</span></div>
+      <div class="ki-warum">${xg} · Startquote erwartete ${dez(x.startTore)} Tore · Modell erwartet noch ${dez((x.lamRest||[0,0])[0])} : ${dez((x.lamRest||[0,0])[1])} Tore</div>
+    </div>`; };
+  const H = K.heute||[], b = K.bilanz||{}, ki = b.ki||{}, mo = b.kiModell||{}, inf = K.info||{};
+  const leer = `<div class="leer">Gerade kein Pick. Das Modell prüft ${inf.imFenster||0} Live-Spiele zwischen der 15. und 80. Minute${inf.bewertet!=null?`, ${inf.bewertet} davon mit Statistik und Startquote`:""}. Ein Pick braucht ≥ 8 % Wert gegen die Betfair-Quote und Geld auf derselben Auswahl.</div>`;
+  return `<div class="panel c12 ki-panel"><div class="ph"><h3>🤖 AI-Picks<span class="ki-test">Test · Regel ${esc(K.regel||"A1")}</span></h3><span class="hint">eigenes Modell aus Startquote + Live-Statistik, nur wenn das Geld mitgeht</span></div>
+    ${H.length ? `<div class="ki-l">${H.slice(0,6).map(zeile).join("")}</div>` : leer}
+    <div class="ki-fuss"><span><b>AI-Picks</b> ${ki.abgerechnet||0} abgerechnet${ki.abgerechnet?` · ${ki.treffer} % Treffer (erwartet ${ki.erwartet} %) · ${f(ki.roi)}`:""}</span>
+      <span><b>Modell allein</b> ${mo.abgerechnet||0}${mo.abgerechnet?` · ${f(mo.roi)}`:""}</span><span>Ziel 100 · nichts davon geht in den Kanal</span></div></div>`;
+}
 function seiteStart(D){
   // Lucas 18.10.: Dauerzufluss ist sein wichtigster KPI → läuft eine Serie, steht sie direkt unter „Gerade passiert"
   const serienDa = lf(D.serien||[]).length + (D.polySerien||[]).filter(top5Ok).length + (D.stakeSerien||[]).filter(top5Ok).length > 0;
   const serienPanel = `<div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">immer wieder Geld auf dieselbe Auswahl</span></div>${serienKarten(D,4)}</div>`;
   const mobil = window.innerWidth < 860;
   return `<div class="grid">
+    ${kiBox(D)}
     <div class="panel c12 merk-panel" id="merk-start"${MERK.length?"":" hidden"}><div class="ph"><h3>★ Deine Spiele</h3><span class="hint">seit du sie gemerkt hast</span><button class="chip rechts" data-merkliste>Liste</button></div><div class="merk-inhalt">${MERK.length?merkListe(false):""}</div></div>
     <div class="panel c12 t3-panel"><div class="ph"><h3>Top 3 jetzt</h3><span class="hint">wo gerade die meisten Signale gleichzeitig ziehen</span></div>${topDrei(D)}</div>
     ${druckPanel(D)}
@@ -4152,6 +4192,8 @@ const STAT_K = {
   pinnWdh:["Pinnacle + Geld, wiederholter Push","Nur gemessen","color-mix(in srgb, var(--pin) 35%, var(--text-3))"],
   pserieWdh:["Poly-Dauerzufluss, wiederholter Push","Nur gemessen","color-mix(in srgb, var(--poly) 35%, var(--text-3))"],
   walWdh:["Wal-Einstieg, wiederholter Push","Nur gemessen","color-mix(in srgb, var(--poly) 25%, var(--text-3))"],
+  ki:["AI-Pick (Test)","AI-Picks","var(--akzent, var(--pin))"],
+  kiModell:["AI-Modell allein (ohne Geld)","Nur gemessen","color-mix(in srgb, var(--pin) 40%, var(--text-3))"],
   public:["Public-Signale","Public-Kanal","var(--up)"],
   publicNein:["Kandidat, nicht gesendet","Public-Kanal","var(--text-3)"],
   publicPoly:["Public auf Polymarket","Polymarket-Schattenbuch","var(--poly)"],
