@@ -1658,7 +1658,7 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .ki-b.halo.ok{background:color-mix(in srgb, var(--up) 10%, transparent);box-shadow:0 0 0 1px color-mix(in srgb, var(--up) 45%, transparent),0 0 14px color-mix(in srgb, var(--up) 30%, transparent)}
 .ki-b.halo.heiss{animation:kiGlimm 2.4s ease-in-out infinite}
 @keyframes kiGlimm{50%{box-shadow:0 0 0 1px color-mix(in srgb, var(--pin) 70%, transparent),0 0 22px color-mix(in srgb, var(--pin) 55%, transparent)}}
-#ligaschalter .seg,#untennav{position:relative;isolation:isolate}
+#ligaschalter .seg{position:relative;isolation:isolate} #untennav{isolation:isolate}
 #ligaschalter .seg button,#untennav button{position:relative;z-index:1}
 #ligaschalter .seg button.an{background:transparent!important;box-shadow:none!important;color:var(--text)!important}
 .glas{position:absolute;z-index:0;pointer-events:none;border-radius:8px;opacity:0;
@@ -1668,6 +1668,44 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
   transition:left .42s cubic-bezier(.3,1.35,.45,1),width .42s cubic-bezier(.3,1.35,.45,1),top .3s,height .3s,opacity .2s}
 #untennav .glas{border-radius:12px;background:color-mix(in srgb, var(--text) 8%, transparent);border-color:color-mix(in srgb, var(--text) 10%, transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
 @media (prefers-reduced-motion:reduce){.glas,.tk-stub{transition:none}.ki-b.halo.heiss{animation:none}}
+/* 10.11. Seit-Streifen, Ticker, Spiel-Verlauf */
+.seit-panel{padding:12px 16px;display:grid;gap:8px;border-color:color-mix(in srgb, var(--pin) 35%, var(--rand))}
+.seit-k{display:flex;align-items:center;gap:10px}
+.seit-uhr{font-size:20px}
+.seit-t{flex:1;min-width:0;display:grid}
+.seit-t b{font-size:14.5px} .seit-t small{font-size:12px;color:var(--text-3)}
+.seit-x{border:0;background:none;color:var(--text-3);font-size:15px;padding:4px 6px;cursor:pointer}
+.seit-chips{display:flex;flex-wrap:wrap;gap:6px}
+.seit-chips span{font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--flaeche-2)}
+.seit-top{display:grid;gap:3px;font-size:12.5px;color:var(--text-2)}
+.seit-top span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seit-top i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:1px}
+.ticker{display:none}
+@media (min-width:1400px){
+  .app{grid-template-columns:220px minmax(0,1fr) 310px}
+  .ticker{display:block;position:sticky;top:0;height:100vh;overflow-y:auto;padding:18px 14px 30px;border-left:1px solid var(--rand);background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+  .ticker-leiste{display:none!important}
+}
+.tk-kopf{display:flex;align-items:center;gap:8px;margin-bottom:10px;position:sticky;top:-18px;padding:6px 0;background:inherit;z-index:2}
+.tk-kopf b{font-size:14px;flex:1}
+.tk-neu,.tl-neu{font-size:11px;font-weight:800;color:#fff;background:var(--down);border-radius:999px;padding:1px 8px}
+.tk-l{display:grid;gap:8px}
+.tk-l .fx{font-size:13px}
+.fx.ist-neu{box-shadow:inset 3px 0 0 var(--down)}
+.ticker-leiste{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:19;display:flex;align-items:center;gap:8px;max-width:min(560px,calc(100vw - 24px));
+  padding:8px 14px;border-radius:999px;border:1px solid var(--rand);background:var(--kopf-bg);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 8px 24px -10px rgba(0,0,0,.35);color:var(--text);font:inherit;font-size:12.5px;cursor:pointer}
+@media (max-width:860px){ .ticker-leiste{bottom:calc(70px + env(safe-area-inset-bottom));left:12px;right:12px;transform:none;max-width:none;border-radius:14px} main{padding-bottom:130px} }
+.tl-t{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.tl-t i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:1px}
+.tl-auf{color:var(--text-3);font-size:10px}
+.sv-zeit{display:grid;gap:0;position:relative;padding-left:4px}
+.svz{display:grid;grid-template-columns:44px 22px minmax(0,1fr);align-items:baseline;gap:6px;padding:4px 0;position:relative}
+.svz::before{content:"";position:absolute;left:59px;top:0;bottom:0;width:2px;background:var(--rand)}
+.svz:first-child::before{top:50%} .svz:last-child::before{bottom:50%}
+.svz-u{font-size:11.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.svz-i{position:relative;z-index:1;text-align:center;background:var(--panel);border-radius:50%;font-size:13px;line-height:20px;width:20px;height:20px;box-shadow:0 0 0 2px var(--f)}
+.svz-t{font-size:13px} .svz-t b.ok{color:var(--up)} .svz-t b.nein{color:var(--down)}
 </style>
 </head>
 <body>
@@ -2338,6 +2376,7 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
   return `<tr class="detail"><td colspan="6"><div class="det">
     ${ohneKopf?"":dKopf(s)}${s.live?liveStat(s.id,true):""}${dChips(s, fl, fm)}
     ${saeulen?`<div class="sv">${saeulen}</div>`:""}
+    ${(()=>{ try{ return spielVerlauf(s); }catch(e){ console.error(e); return ""; } })()}
     <div><h4>Märkte <small>größere Kachel = mehr Geld im Markt</small></h4>${marktWand2(s)||"–"}</div>
     ${ohneVerlauf?"":quotenKurve(s)}
   </div></td></tr>`;
@@ -2440,9 +2479,9 @@ function fxZeile(D, e){
     <div class="fx-b">${e.wert?esc(e.b):""}</div></div>`;
 }
 // Ereignisse → Spiel-Geschichten
-function feedGeschichten(D){
+function feedGeschichten(D, E){
   const G = new Map();
-  for(const e of feedEreignisse(D)){
+  for(const e of (E || feedEreignisse(D))){
     const k = feedKey(e.heim, e.gast) || (e.heim+"|"+e.gast);
     if(!G.has(k)) G.set(k, {k, ev:[], heim:e.heim, gast:e.gast});
     const g = G.get(k); g.ev.push(e);
@@ -3870,6 +3909,7 @@ function seiteStart(D){
   const serienPanel = `<div class="panel c12 serien-panel"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">immer wieder Geld auf dieselbe Auswahl</span></div>${serienKarten(D,4)}</div>`;
   const mobil = window.innerWidth < 860;
   return `<div class="grid">
+    ${(()=>{ try{ return seitStreifen(D); }catch(e){ console.error(e); return ""; } })()}
     ${kiBox(D)}
     <div class="panel c12 merk-panel" id="merk-start"${MERK.length?"":" hidden"}><div class="ph"><h3>★ Deine Spiele</h3><span class="hint">seit du sie gemerkt hast</span><button class="chip rechts" data-merkliste>Liste</button></div><div class="merk-inhalt">${MERK.length?merkListe(false):""}</div></div>
     <div class="panel c12 t3-panel"><div class="ph"><h3>Top 3 jetzt</h3><span class="hint">wo gerade die meisten Signale gleichzeitig ziehen</span></div>${topDrei(D)}</div>
@@ -4673,9 +4713,10 @@ function cardsKlick(e){
   return false;
 }
 // Lucas 31.10.: Cards in die Navi; HZ 0:0 und Statistik ins Burger-Menü oben rechts
-const SEITEN = [["start","Übersicht","var(--text)"],["feed","Feed","var(--down)"],["betfair","Betfair","var(--bf)"],["pinnacle","Pinnacle","var(--pin)"],
-  ["poly","Polymarket","var(--poly)"],["stake","Stake","var(--stake)"],["cards","Cards","var(--up)"]];
-const MENUE = [["statistik","Statistik","var(--up)"],["hz","HZ 0:0","var(--hz)"]];
+// Lucas 10.11. („der Feed geht unter"): Feed läuft jetzt als Ticker auf jeder Seite mit — in der Navigation steht dafür die Statistik
+const SEITEN = [["start","Übersicht","var(--text)"],["betfair","Betfair","var(--bf)"],["pinnacle","Pinnacle","var(--pin)"],
+  ["poly","Polymarket","var(--poly)"],["stake","Stake","var(--stake)"],["statistik","Statistik","var(--up)"],["cards","Cards","var(--text-3)"]];
+const MENUE = [["feed","Ganzer Feed","var(--down)"],["hz","HZ 0:0","var(--hz)"]];
 const ALLE_SEITEN = [...SEITEN, ...MENUE];
 const UNTER = {start:"Wo gerade das Geld liegt, quer über alle Quellen", betfair:"Jedes Spiel im Abruf, gemessen an seiner Liga", pinnacle:"Wohin die schärfste Quote zieht", poly:"Wer setzt, und wer davon nachweislich gut ist", stake:"Serien großer Einsätze", hz:"Spiele, die zur Pause anders laufen als erwartet", cards:"Top-5-Ligen · Picks aus 14 Signalen, Pinnacle als Anker", statistik:"Wie unsere Pushes abschneiden, nach Kategorie und Zeitraum", feed:"Alles, was gerade passiert, neueste zuerst"};
 let aktiv = "start";
@@ -4712,6 +4753,89 @@ function gehe(k){
   try{ localStorage.setItem("radar-seite2", k); }catch(_){}
   glasAlle();
 }
+
+// ══ Lucas 10.11. 11:13: „Seit du zuletzt da warst", Ticker auf jeder Seite, Spiel-Verlauf ═════════════════════
+// Was neu ist, merkt sich DIESES Gerät: beim Verlassen der Seite (oder Wegschalten) werden die gesehenen Ereignisse
+// gespeichert; beim Zurückkommen ist neu, was damals nicht da war.
+const SEIT = {t:null, keys:new Set(), top1:null, ki:new Set()};
+const evKey = e => [e.q, e.k, feedKey(e.heim, e.gast) || (e.heim+"|"+e.gast), e.aus||"", e.k==="push"||e.k==="wal"||e.k==="hz" ? (e.status||"") : ""].join("|");
+const kiKey = x => x.id+"|"+x.status;
+function seitLaden(){ try{ const v = JSON.parse(localStorage.getItem("radar-seit")||"null");
+  if(v && v.t){ SEIT.t = v.t; SEIT.keys = new Set(v.k||[]); SEIT.top1 = v.top1||null; SEIT.ki = new Set(v.ki||[]); } }catch(_){} }
+function seitSpeichern(){ try{ if(!D) return;
+  localStorage.setItem("radar-seit", JSON.stringify({t:Date.now(), k:feedEreignisse(D).map(evKey).slice(0,1500),
+    top1:(topDreiDaten(D)[0]||{}).key||null, ki:(D.kiPicks?.heute||[]).map(kiKey)})); }catch(_){} }
+seitLaden();
+addEventListener("pagehide", seitSpeichern);
+document.addEventListener("visibilitychange", ()=>{ if(document.hidden) seitSpeichern(); else if(D){ seitLaden(); try{ render(); }catch(e){ console.error(e); } } });
+function neuSeit(D){
+  if(!SEIT.t) return null;
+  const E = feedEreignisse(D), neu = E.filter(e=>!SEIT.keys.has(evKey(e)));
+  const ki = (D.kiPicks?.heute||[]).filter(x=>!SEIT.ki.has(kiKey(x)));
+  const t3 = topDreiDaten(D)[0];
+  return {E, neu, neuKeys:new Set(neu.map(evKey)), ki, top1:t3 && SEIT.top1 && t3.key!==SEIT.top1 ? t3 : null};
+}
+function seitStreifen(D){
+  const N = neuSeit(D); if(!N) return "";
+  const z = {serie:0, geld:0, stake:0, wal:0, push:0, pinnacle:0};
+  for(const e of N.neu){ if(e.k==="serie") z.serie++; else if(e.k==="live"||e.k==="zufluss"||e.k==="pfluss") z.geld++; else if(e.k==="stake") z.stake++;
+    else if(e.k==="wal") z.wal++; else if(e.k==="push"||e.k==="hz") z.push++; else if(e.k==="pinnacle") z.pinnacle++; }
+  const kiNeu = N.ki.filter(x=>x.status==="offen").length, kiAb = N.ki.filter(x=>x.status==="abgerechnet").length;
+  const teile = [z.serie&&`🔁 ${z.serie} Dauerzufluss`, z.geld&&`💶 ${z.geld}× neues Geld`, z.stake&&`🎰 ${z.stake} Stake`, z.wal&&`🐋 ${z.wal} Wal`,
+    z.push&&`📣 ${z.push} Push-Ereignisse`, z.pinnacle&&`🎯 ${z.pinnacle} Pinnacle`, kiNeu&&`🤖 ${kiNeu} AI-Pick`, kiAb&&`🤖 ${kiAb} abgerechnet`,
+    N.top1&&`🏆 Top 3 neu vorn: ${esc(N.top1.heim)}`].filter(Boolean);
+  if(!teile.length) return "";
+  const top = [...N.neu].sort((a,b)=>(b.gewicht||0)-(a.gewicht||0)).slice(0,3);
+  const seit = new Date(SEIT.t), min = (Date.now()-SEIT.t)/6e4;
+  const dauer = min < 60 ? `${Math.round(min)} Min` : min < 1440 ? `${Math.floor(min/60)} h ${Math.round(min%60)} Min` : `${Math.round(min/1440)} Tag${min>=2880?"en":""}`;
+  const G = feedGeschichten(D, N.neu).sort((a,b)=>b.score-a.score).slice(0,30);
+  const ansicht = `<div class="kk-klein" style="margin-bottom:10px">Alles, was seit deinem letzten Besuch um ${uhr(seit.toISOString())} dazugekommen ist.</div><div class="fxl">${G.map(g=>fxKarte(D,g,4)).join("")||`<div class="leer">Nichts.</div>`}</div>`;
+  return `<div class="panel c12 seit-panel">
+    <div class="seit-k"><span class="seit-uhr">🕑</span><div class="seit-t"><b>Seit du zuletzt da warst</b><small>${uhr(seit.toISOString())} · vor ${dauer}</small></div>
+      <button class="chip" ${klick("Seit "+uhr(seit.toISOString()), ansicht)}>Ansehen</button><button class="seit-x" data-seit-weg aria-label="Als gesehen markieren">✕</button></div>
+    <div class="seit-chips">${teile.map(t=>`<span>${t}</span>`).join("")}</div>
+    ${top.length?`<div class="seit-top">${top.map(e=>`<span><i style="background:${FARBE[e.q]}"></i>${esc(e.heim)}${e.gast?" – "+esc(e.gast):""} · ${esc(e.aus||"")}${e.b?` <b>${esc(e.b)}</b>`:""}</span>`).join("")}</div>`:""}
+  </div>`;
+}
+// Ticker: Desktop breit = Spalte rechts auf jeder Seite; sonst eine Leiste unten, die den Feed als Blatt öffnet
+function tickerListe(D, max){
+  const N = neuSeit(D), nk = N ? N.neuKeys : new Set();
+  const G = feedGeschichten(D).filter(g=>g.alterMin<=120 && !feedAus(D,g)).sort((a,b)=>new Date(b.zeit||0)-new Date(a.zeit||0) || b.score-a.score).slice(0,max);
+  return {G, nk, html: G.length ? G.map(g=>{ const istNeu = g.ev.some(e=>nk.has(evKey(e)));
+      return fxKarte(D,g,2).replace('<div class="fx', `<div class="fx${istNeu?" ist-neu":""}`); }).join("") : `<div class="leer">Gerade passiert nichts Auffälliges.</div>`};
+}
+function tickerBauen(D){
+  let t = $("#ticker"); if(!t){ t = document.createElement("div"); t.id = "ticker"; t.className = "ticker"; $(".app").appendChild(t); }
+  let l = $("#tickerleiste"); if(!l){ l = document.createElement("button"); l.id = "tickerleiste"; l.className = "ticker-leiste"; document.body.appendChild(l); }
+  const {G, nk, html} = tickerListe(D, 14);
+  const nNeu = G.filter(g=>g.ev.some(e=>nk.has(evKey(e)))).length;
+  t.innerHTML = `<div class="tk-kopf"><span class="puls"></span><b>Live-Ticker</b>${nNeu?`<span class="tk-neu">${nNeu} neu</span>`:""}<button class="chip" data-geh="feed">Alles</button></div><div class="fxl tk-l">${html}</div>`;
+  const g0 = G[0], e0 = g0?.ev?.[0];
+  const blatt = `<div class="fxl">${html}</div><button class="chip" data-geh="feed" data-zu style="margin-top:12px">Ganzer Feed mit Filtern</button>`;
+  l.setAttribute("data-dr", drKey("Live-Ticker", blatt)); l.setAttribute("aria-label", "Live-Ticker öffnen");
+  l.innerHTML = g0 ? `<span class="puls"></span>${nNeu?`<b class="tl-neu">${nNeu} neu</b>`:""}<span class="tl-t"><i style="background:${FARBE[e0.q]}"></i>${esc(g0.heim)}${g0.gast?" – "+esc(g0.gast):""} · ${esc(e0.aus||"")}${e0.b?` <b>${esc(e0.b)}</b>`:""}</span><span class="tl-auf">▲</span>` : `<span class="tl-t">Live-Ticker · gerade ruhig</span>`;
+}
+// Spiel-Verlauf: was zu diesem Spiel wann passiert ist — Signale, Pushes, Top 3, AI-Pick, Tore, Endstand
+function spielVerlauf(s){
+  const fk = feedKey(s.heim, s.gast), Z = [];
+  const ko = s.anpfiff ? new Date(s.anpfiff) : null;
+  const add = (t, ico, f, txt, st) => { if(t) Z.push({t:new Date(t), ico, f, txt, st}); };
+  for(const p of D.bfPushes?.liste||[]) if(feedKey(p.heim,p.gast)===fk)
+    add(p.zeit, "📣", "var(--bf)", `${esc(p.art||"Push")}: <b>${esc(auswahlDe(p.auf||""))}</b>${p.quote?` @ ${q2(p.quote)}`:""}`, p.status==="won"?"✓":p.status==="lost"?"✗":"");
+  for(const g of D.stake?.gruppen||[]) if(feedKey(...String(g.spiel||"").split(/\s+-\s+/))===fk)
+    add(g.zeit, "🎰", "var(--stake)", `Stake ${esc((g.arten||[]).join(" + "))}: ${usd(g.usd)} auf <b>${esc(g.auswahl||"")}</b>`, "");
+  const t3 = (D.top3Erst||{})[String(s.id)]; if(t3) add(t3[3], "🏆", "var(--text)", `in die Top 3: <b>${esc(auswahlDe(t3[1]||""))}</b>${t3[2]?` @ ${q2(t3[2])}`:""}`, "");
+  for(const x of D.kiPicks?.heute||[]) if(String(x.id)===String(s.id))
+    add(x.ts, "🤖", "var(--pin)", `AI-Pick: <b>${esc(x.tipp||x.auswahl)}</b> @ ${q2(x.quote)}`, x.status==="abgerechnet"?(x.win?"✓":"✗"):"");
+  if(ko && ko < new Date()) add(ko, "⏱", "var(--text-3)", "Anpfiff", "");
+  const ls = (D.liveStats||{})[String(s.id)];
+  if(ko && ls?.tore){ let h=0, a=0; for(const [m, seite] of ls.tore){ seite==="heim"?h++:a++;
+      add(new Date(ko.getTime() + (m + (m>45?15:0))*6e4), "⚽", "var(--up)", `${m}' Tor ${esc(seite==="heim"?s.heim:s.gast)} · ${h}:${a}`, ""); } }
+  const ft = (D.endstaende||{})[String(s.id)]?.ft; if(ft && ko) add(new Date(ko.getTime()+115*6e4), "🏁", "var(--text)", `Ende ${ft[0]}:${ft[1]}`, "");
+  if(Z.length < 2) return "";
+  Z.sort((a,b)=>a.t-b.t);
+  return `<div><h4>Verlauf <small>was zu diesem Spiel wann passiert ist</small></h4><div class="sv-zeit">${Z.map(z=>`<div class="svz" style="--f:${z.f}"><span class="svz-u">${uhr(z.t.toISOString())}</span><span class="svz-i">${z.ico}</span><span class="svz-t">${z.txt}${z.st?` <b class="${z.st==="✓"?"ok":"nein"}">${z.st}</b>`:""}</span></div>`).join("")}</div></div>`;
+}
 function render(blitz=false){
   const y = window.scrollY;
   // aufgeklappte Listen bleiben offen, auch wenn alle 5 Min neu gebaut wird (Zahlen im Titel ändern sich, daher ohne Ziffern)
@@ -4737,6 +4861,7 @@ function render(blitz=false){
   catch(e){ console.error(e); navAufbauen({}); }
   gehe(aktiv);
   try{ merkAnzeigen(); }catch(e){ console.error(e); }
+  try{ tickerBauen(D); }catch(e){ console.error(e); }
   // Lucas 10.11. (Handy leer, Rechner voll — der Liga-Schalter stand am Handy auf „Nur Top-5"): leere Bereiche sagen,
   // dass der Filter greift, mit einem Knopf zurück auf alle Ligen. Der Schalter wird je Gerät gemerkt.
   try{ if(ligaModus!=="alle") document.querySelectorAll(".leer, .t3-leer > div:last-child").forEach(el=>{ if(el.querySelector(".leer-filter")) return;
@@ -4842,6 +4967,7 @@ document.addEventListener("click", e=>{
     wand.querySelectorAll(".w2-k.auf").forEach(x=>{ x.classList.remove("auf"); x.setAttribute("aria-expanded","false"); });
     wand.classList.toggle("zoom", auf); if(auf){ w2.classList.add("auf"); w2.setAttribute("aria-expanded","true"); } return; }
   const lg = e.target.closest("[data-liga]"); if(lg){ ligaModus = lg.dataset.liga; try{ localStorage.setItem("radar-liga", ligaModus); }catch(_){} render(); return; }
+  if(e.target.closest("[data-seit-weg]")){ seitSpeichern(); seitLaden(); render(); return; }
   const dk = e.target.closest("[data-dr]"); if(dk && !e.target.closest("a")){ drOeffnen(dk.dataset.dr); return; }
   if(e.target.closest("#thema")){ const t = document.documentElement.dataset.theme==="hell" ? "dunkel" : "hell";
     document.documentElement.dataset.theme = t; try{ localStorage.setItem("radar-thema", t); }catch(_){} return; }
