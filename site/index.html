@@ -835,6 +835,71 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .st-l>span:last-child{font-weight:800;font-variant-numeric:tabular-nums}
 @media (max-width:700px){ .st-kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .st-kpis .st-kpi:first-child{grid-column:1 / -1} .st-kpi b{font-size:21px}
   .st-z{grid-template-columns:minmax(0,1fr) 38px 62px 58px 46px;gap:6px;font-size:12.5px} .st-ql{min-width:0;width:100%} .st-zn small{display:none} }
+/* 10.11. Report (Lucas: „unter Statistik eigenen Report-Bereich … paar geile KPI, mit geiler Grafik") */
+.st-bereich{align-self:flex-start}
+.rp-kopf{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.rp-titel{margin:0;font-size:30px;line-height:1.05;font-weight:800;letter-spacing:-.03em}
+.rp-titel small{display:block;font-size:13px;font-weight:600;letter-spacing:0;color:var(--text-3);margin-top:6px}
+.rp-held{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:18px;border-top:1px solid var(--line)}
+.rp-q{padding:16px 18px 4px 0;min-width:0}
+.rp-q+.rp-q{padding-left:18px;border-left:1px solid var(--line)}
+.rp-q .rp-l{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--text-2)}
+.rp-q .rp-l i{width:9px;height:9px;border-radius:50%;background:var(--f)}
+.rp-q .rp-gross{display:block;font-size:clamp(28px,4.2vw,44px);font-weight:800;letter-spacing:-.035em;line-height:1.05;margin:8px 0 4px;white-space:nowrap}
+.rp-q .rp-sub{font-size:13px;color:var(--text-2)}
+.rp-q .rp-sub b{font-weight:800}
+.rp-q .rp-klein{font-size:11.5px;color:var(--text-3);margin-top:3px}
+.rp-band{display:flex;height:8px;border-radius:999px;overflow:hidden;margin:16px 0 4px;background:var(--panel-2)}
+.rp-band span{height:100%;background:var(--f)}
+.rp-tage{display:flex;align-items:flex-end;gap:3px;height:170px;margin-top:8px;padding-bottom:20px;position:relative}
+.rp-tag{flex:1;min-width:0;height:100%;display:flex;flex-direction:column-reverse;position:relative}
+.rp-tag span{display:block;background:var(--f);border-radius:2px 2px 0 0;min-height:0}
+.rp-tag span+span{margin-bottom:1px;border-radius:2px 2px 0 0}
+.rp-tag em{position:absolute;bottom:-19px;left:50%;transform:translateX(-50%);font-style:normal;font-size:10.5px;color:var(--text-3);white-space:nowrap}
+.rp-tag:hover{background:var(--hover,rgba(127,127,127,.06));border-radius:3px}
+.rp-pm{height:120px} .rp-pm .rp-tag{display:block} .rp-pm .rp-tag::before{content:"";position:absolute;left:-2px;right:-2px;top:50%;height:1px;background:var(--line)}
+.rp-pm .rp-tag span{position:absolute;left:0;right:0;border-radius:2px}
+.rp-leg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--text-2)} .rp-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--f);margin-right:6px}
+.rp-div{display:grid;grid-template-columns:118px minmax(0,1fr) 92px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.rp-div:first-of-type{border-top:0}
+.rp-div .rp-achse{position:relative;height:14px}
+.rp-div .rp-achse::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--line)}
+.rp-div .rp-achse span{position:absolute;top:2px;height:10px;border-radius:3px}
+.rp-div b{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+.rp-div small{display:block;color:var(--text-3);font-size:11px;font-weight:600;white-space:nowrap}
+.rp-zahl{font-size:13px;color:var(--text-2);margin:2px 0 12px} .rp-zahl b{color:var(--text)}
+.rp-scheine{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:6px}
+.rp-schein{border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--panel-2);display:grid;gap:3px;min-width:0;position:relative;overflow:hidden}
+.rp-schein::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--f)}
+.rp-schein .rp-betrag{font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--f)}
+.rp-schein .rp-was{font-size:13px;font-weight:700;line-height:1.3}
+.rp-schein .rp-wo{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rp-h4{margin:16px 0 4px;font-size:12.5px;font-weight:700;color:var(--text-2)}
+.rp-mess{position:relative;height:30px;border-radius:8px;background:var(--panel-2);overflow:hidden;margin:10px 0 6px}
+.rp-mess span{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb, var(--bf) 70%, transparent)}
+.rp-mess i{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--text);opacity:.55}
+.rp-mess b{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;font-weight:800}
+.rp-mess-l{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3)}
+.rp-sp{display:grid;grid-template-columns:minmax(0,1fr) auto 22px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.rp-sp small{display:block;color:var(--text-3);font-size:11.5px}
+.rp-sp b{font-variant-numeric:tabular-nums;font-weight:800}
+.rp-ok{color:var(--up);font-weight:800;text-align:center} .rp-nein{color:var(--down);font-weight:800;text-align:center}
+.rp-teil{display:flex;height:12px;border-radius:999px;overflow:hidden;margin:8px 0 4px}
+.rp-teil span:first-child{background:var(--up)} .rp-teil span:last-child{background:color-mix(in srgb, var(--down) 70%, transparent)}
+.rp-social{display:grid;gap:8px}
+.rp-zeile{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.45}
+.rp-zeile button{background:var(--panel);border:1px solid var(--line);color:var(--text-2);border-radius:999px;font:inherit;font-size:12px;font-weight:700;padding:4px 10px;cursor:pointer}
+.rp-zeile button.ok{color:var(--up);border-color:var(--up)}
+.rp-hinweis{font-size:12px;color:var(--text-3);line-height:1.5;margin-top:10px;max-width:80ch}
+@media (max-width:700px){
+  .rp-titel{font-size:24px}
+  .rp-held{grid-template-columns:1fr}
+  .rp-q,.rp-q+.rp-q{padding:14px 0 6px;border-left:0}
+  .rp-q+.rp-q{border-top:1px solid var(--line)}
+  .rp-scheine{grid-template-columns:1fr}
+  .rp-div{grid-template-columns:104px minmax(0,1fr) 78px;font-size:12.5px}
+  .rp-tage{gap:1px}
+}
 /* Lucas 28.10.: Live-Statistik im Spiel-Fenster als Duell-Zeilen */
 .lsg{background:var(--flaeche);border:1px solid var(--rand);border-radius:14px;padding:8px 12px 4px}
 .lsg-ts{display:flex;gap:6px;justify-content:center;margin:6px 0 8px}
@@ -4541,6 +4606,7 @@ function stKennz(Z){
 const stVz = (v, n=1) => { if(v==null) return "–"; const r = +Number(v).toFixed(n); return (r>0?"+":r<0?"−":"")+dez(Math.abs(r), n); };
 const stFarbe = v => v==null ? "var(--text-3)" : v>0 ? "var(--up)" : v<0 ? "var(--down)" : "var(--text-2)";
 function seiteStatistik(){
+  if(ST.bereich==="report") return seiteReport();
   if(ST.daten) statLaden();      // prüft selbst, ob ein neuer Stand fällig ist
   if(!ST.daten){ statLaden(); return `<div class="panel"><div class="leer">${ST.fehler?`Statistik konnte nicht geladen werden (${esc(ST.fehler)}).`:"Statistik wird geladen …"}</div></div>`; }
   const alle = ST.daten.zeilen||[];
@@ -4610,6 +4676,7 @@ function seiteStatistik(){
   const zuletzt = Z.slice(-12).reverse().map(z=>`<div class="st-l"><span class="st-lp ${stVoid(z)?"v":z[3]===1?"w":z[3]===0?"l":"o"}"></span><span class="st-lt"><b>${esc(z[10]||"")}</b>${z[4]?` @ ${q2(z[4])}`:""}<small>${esc(z[9]||"")} · ${STAT_K[z[1]]?.[0]||z[1]} · ${stLokal(z[0]).toLocaleDateString("de-AT",{day:"numeric",month:"short"})}</small></span><span style="color:${stFarbe(z[2])}">${z[2]==null?"offen":stVoid(z)?"void":stVz(z[2],2)}</span></div>`).join("");
   return `<div class="grid">
     <div class="panel c12 st-filter">
+      ${bereichSchalter()}
       ${katsDa.includes("public")?`<div class="seg st-seg st-modus"><button class="${pubModus||neinModus||polyModus?"":"an"}" data-stmodus="alle">Alle Pushes</button><button class="${pubModus?"an":""}" data-stmodus="public">📣 Public-Kanal</button>${katsDa.includes("publicNein")?`<button class="${neinModus?"an":""}" data-stmodus="publicNein">Nicht gesendet</button>`:""}<button class="${polyModus?"an":""}" data-stmodus="publicPoly">Polymarket</button></div>`:""}
       ${seg("zeit", zr)}
       <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}${seg("lage", [["alle","Jeder Stand"],["vorn","Live: Auswahl führt"],["gleich","Live: gleich"],["hinten","Live: hinten"]])}</div>
@@ -4624,7 +4691,112 @@ function seiteStatistik(){
     <div class="panel c12"><div class="ph"><h3>Zuletzt</h3><span class="hint">die 12 neuesten im Ausschnitt</span></div>${zuletzt||`<div class="leer">–</div>`}</div>
   </div>`;
 }
+// ══ Report (Lucas 10.11.: „unter Statistik eigenen Report-Bereich … immer gleich darstellen … daraus die Sachen für
+// Social Media rausrechnen"). Daten: report.json aus report_sammler.py — feste Tageswerte, getrennt von Picks und Pushes.
+const RP = {daten:null, laden:false, fehler:null, zeit:0, wahl:null, kopiert:null};
+async function rpLaden(){
+  if(RP.laden || (RP.daten && Date.now()-RP.zeit < 300000)) return; RP.laden = true;
+  try{ const r = await fetch("report.json?t="+Date.now(), {cache:"no-store"}); if(!r.ok) throw new Error("noch kein Report ("+r.status+")"); RP.daten = await r.json(); RP.fehler = null; }
+  catch(e){ RP.fehler = String(e.message||e); }
+  RP.zeit = Date.now(); RP.laden = false;
+  try{ if(ST.bereich==="report") $("#s-statistik").innerHTML = seiteStatistik(); }catch(e){ console.error(e); }
+}
+const rpUsd = (v, vz) => { if(v==null) return "–"; const a = Math.abs(v), z = vz ? (v>0?"+":v<0?"−":"") : (v<0?"−":"");
+  return z + "$" + (a>=1e6 ? dez(a/1e6, a>=1e8?0:1)+" Mio." : a>=1e3 ? dez(a/1e3, 0)+"k" : Math.round(a)); };
+const rpEn = (v, vz) => { if(v==null) return "–"; const a = Math.abs(v), z = vz ? (v>0?"+":v<0?"−":"") : (v<0?"−":"");
+  return z + "$" + (a>=1e6 ? (a/1e6).toFixed(1)+"M" : a>=1e3 ? Math.round(a/1e3)+"k" : Math.round(a)); };
+const rpPct = (v, n=1) => v==null ? "–" : stVz(100*v, n) + " %";
+const rpTag = t => new Date(t+"T12:00:00").toLocaleDateString("de-AT",{day:"numeric",month:"short"});
+const rpWahl = x => { const a = String(x.auswahl||""), m = String(x.markt||""); return /^(yes|no|ja|nein|over|under|draw|x)\b/i.test(a) && m ? `${m}: ${a}` : a; };
+const RP_KAT = {"Fußball":"⚽ Fußball","Tennis":"🎾 Tennis","E-Sport":"🎮 E-Sport"};
+function bereichSchalter(){
+  return `<div class="seg st-seg st-bereich"><button class="${ST.bereich!=="report"?"an":""}" data-stbereich="signale">Unsere Signale</button><button class="${ST.bereich==="report"?"an":""}" data-stbereich="report">📊 Report</button></div>`;
+}
+function rpSocial(z){
+  const S = z.stake, B = z.betfair, P = z.poly, zeilen = [];
+  if(S.eEinsatz){
+    zeilen.push(`High rollers on Stake bet ${rpEn(S.einsatz)} on football, tennis & esports (${z.name.replace("(bisher)","so far")}). Their single bets: ${rpEn(S.pnl,true)} (${(100*S.roi).toFixed(1)}% ROI). The house always wins? 🎰`);
+    const v = S.verlierer[0]; if(v) zeilen.push(`Biggest high-roller loss: ${rpEn(v.einsatz)} on ${rpWahl(v)} @ ${v.quote} (${v.event}) – gone. 💸`);
+    const g = S.gewinner[0]; if(g) zeilen.push(`Biggest high-roller win: ${rpEn(g.einsatz)} on ${rpWahl(g)} @ ${g.quote} (${g.event}) → ${rpEn(g.pnl,true)} profit. 🔥`);
+  }
+  if(B.moV){
+    zeilen.push(`${rpEn(B.moV)} matched pre-match on Betfair match odds across ${B.moN.toLocaleString("en")} games we tracked.` + (B.favN ? ` When 60%+ of the money sat on one side, that side won only ${Math.round(100*B.favQuote)}% of the time. 🧐` : ""));
+    const t = B.top[0]; if(t) zeilen.push(`Most expensive game on Betfair: ${t.spiel} – ${rpEn(t.v)} matched before kick-off. The money ${t.geldRecht?"was right ✅":"was wrong ❌"}${t.ft?` (${t.ft.join("-")})`:""}.`);
+  }
+  if(P.einsatz){
+    zeilen.push(`Tracked Polymarket whales put ${rpEn(P.einsatz)} into sports markets: ${rpEn(P.gewinn,true)} (${(100*P.roi).toFixed(1)}% ROI). ${P.imPlus} of ${P.nWallets} wallets finished in profit. 🐋`);
+  }
+  return zeilen;
+}
+function seiteReport(){
+  rpLaden();
+  const kopf = `<div class="panel c12 st-filter">${bereichSchalter()}</div>`;
+  if(!RP.daten) return `<div class="grid">${kopf}<div class="panel c12"><div class="leer">${RP.fehler?`Report noch nicht da (${esc(RP.fehler)}). Er entsteht beim nächsten Seitenbau.`:"Report wird geladen …"}</div></div></div>`;
+  const ZR = RP.daten.zeitraeume||[];
+  if(!RP.wahl || !ZR.some(z=>z.id===RP.wahl)) RP.wahl = (ZR[1]||ZR[0]||{}).id;
+  const z = ZR.find(x=>x.id===RP.wahl) || ZR[0]; if(!z) return `<div class="grid">${kopf}</div>`;
+  const S = z.stake, B = z.betfair, P = z.poly, seit = RP.daten.seit||{};
+  const wahl = `<div class="seg st-seg">${ZR.map(x=>`<button class="${x.id===z.id?"an":""}" data-rpz="${x.id}">${esc(x.name.replace(" (bisher)","").replace(/ 20\d\d$/,"").replace("Letzte ",""))}</button>`).join("")}</div>`;
+  const ges = (S.einsatz||0) + (B.moV||0) + (P.einsatz||0) || 1;
+  const quelle = (f, name, gross, sub, klein) => `<div class="rp-q" style="--f:${f}"><span class="rp-l"><i></i>${name}</span><b class="rp-gross">${gross}</b><div class="rp-sub">${sub}</div><div class="rp-klein">${klein}</div></div>`;
+  const held = `<div class="panel c12">
+    <div class="rp-kopf"><h2 class="rp-titel">Wohin das große Geld floss<small>${esc(z.name)} · ${rpTag(z.von)} – ${rpTag(z.bis)} · Fußball, Tennis, E-Sport</small></h2>${wahl}</div>
+    <div class="rp-held">
+      ${quelle("var(--stake)", "Stake-Highroller", rpUsd(S.einsatz), S.eEinsatz?`Einzelwetten <b style="color:${stFarbe(S.pnl)}">${rpUsd(S.pnl,true)}</b> · ROI <b style="color:${stFarbe(S.roi)}">${rpPct(S.roi)}</b>`:"noch nichts abgerechnet", `${(S.n||0).toLocaleString("de-AT")} Wetten ab $1.000`)}
+      ${quelle("var(--bf)", "Betfair gematcht", rpUsd(B.moV), B.favN?`Geld-Seite gewann <b>${dez(100*B.favQuote,0)} %</b>`:"–", `${(B.moN||0).toLocaleString("de-AT")} Spiele · Sieg-Markt vor Anpfiff`)}
+      ${quelle("var(--poly)", "Polymarket-Wale", rpUsd(P.einsatz), P.einsatz?`Gewinn <b style="color:${stFarbe(P.gewinn)}">${rpUsd(P.gewinn,true)}</b> · ROI <b style="color:${stFarbe(P.roi)}">${rpPct(P.roi)}</b>`:"–", `${(P.nWallets||0).toLocaleString("de-AT")} Wallets · ${(P.nGeld||0).toLocaleString("de-AT")} abgerechnete Wetten`)}
+    </div>
+    <div class="rp-band" title="Anteil am beobachteten Geld">${[["var(--stake)",S.einsatz],["var(--bf)",B.moV],["var(--poly)",P.einsatz]].map(([f,v])=>`<span style="--f:${f};width:${(100*(v||0)/ges).toFixed(2)}%"></span>`).join("")}</div>
+  </div>`;
+  // Geld je Tag
+  const tage = {}; const tg = (t)=> tage[t] ||= {s:0,b:0,p:0};
+  for(const x of S.tage||[]) tg(x.tag).s = x.einsatz; for(const x of B.tage||[]) tg(x.tag).b = x.v; for(const x of P.tage||[]) tg(x.tag).p = x.einsatz;
+  const ts = []; for(let d=new Date(z.von+"T12:00:00"); d.toLocaleDateString("sv-SE")<=z.bis; d.setDate(d.getDate()+1)) ts.push(d.toLocaleDateString("sv-SE"));
+  const mx = Math.max(1, ...ts.map(t=>{ const x = tage[t]||{}; return (x.s||0)+(x.b||0)+(x.p||0); }));
+  const jeder = Math.max(1, Math.ceil(ts.length/8));
+  const saeulen = ts.map((t,i)=>{ const x = tage[t]||{s:0,b:0,p:0}, h = v => (100*(v||0)/mx).toFixed(2)+"%";
+    return `<div class="rp-tag" title="${rpTag(t)} · Stake ${rpUsd(x.s)} · Betfair ${rpUsd(x.b)} · Polymarket ${rpUsd(x.p)}"><span style="--f:var(--stake);height:${h(x.s)}"></span><span style="--f:var(--bf);height:${h(x.b)}"></span><span style="--f:var(--poly);height:${h(x.p)}"></span>${i%jeder===0?`<em>${rpTag(t)}</em>`:""}</div>`; }).join("");
+  const tagPanel = `<div class="panel c12"><div class="ph"><h3>Geld je Tag</h3><div class="rp-leg"><span><i style="--f:var(--stake)"></i>Stake${seit.stake && seit.stake>z.von?` (ab ${rpTag(seit.stake)})`:""}</span><span><i style="--f:var(--bf)"></i>Betfair</span><span><i style="--f:var(--poly)"></i>Polymarket</span></div></div><div class="rp-tage">${saeulen}</div></div>`;
+  // Stake
+  const kats = Object.entries(S.kat||{}).sort((a,b)=>b[1].einsatz-a[1].einsatz), kmx = Math.max(1, ...kats.map(([,k])=>Math.abs(k.pnl)));
+  const div = kats.map(([n,k])=>{ const w = 50*Math.abs(k.pnl)/kmx, f = k.pnl>=0?"var(--up)":"var(--down)";
+    return `<div class="rp-div"><span>${RP_KAT[n]||esc(n)}<small>${rpUsd(k.einsatz)} Einsatz</small></span><span class="rp-achse"><span style="background:${f};${k.pnl>=0?`left:50%`:`right:50%`};width:${w.toFixed(1)}%"></span></span><b style="color:${stFarbe(k.pnl)}">${rpUsd(k.pnl,true)}<small>${k.eEinsatz?rpPct(k.pnl/k.eEinsatz):"–"}</small></b></div>`; }).join("");
+  const schein = (x, f, wert) => `<div class="rp-schein" style="--f:${f}"><span class="rp-betrag">${wert}</span><span class="rp-was">${esc(rpWahl(x))} @ ${q2(x.quote)}</span><span class="rp-wo">${esc(x.event||"")} · ${rpUsd(x.einsatz)} Einsatz${x.phase==="live"?" · live":""}</span><span class="rp-wo">${esc(x.liga||"")} · ${rpTag(x.tag)}</span></div>`;
+  const stakePanel = `<div class="panel c6"><div class="ph"><h3>Stake: Wie die Highroller abschneiden</h3><span class="hint">Einzelwetten ab $1.000</span></div>
+    ${S.eEinsatz?`<div class="rp-zahl">${(S.won||0).toLocaleString("de-AT")} gewonnen · ${(S.lost||0).toLocaleString("de-AT")} verloren · auf <b>${rpUsd(S.eEinsatz)}</b> Einsatz <b style="color:${stFarbe(S.pnl)}">${rpUsd(S.pnl,true)}</b></div>${div}
+    <div class="rp-h4">Größte Treffer</div><div class="rp-scheine">${S.gewinner.slice(0,2).map(x=>schein(x,"var(--up)",rpUsd(x.pnl,true))).join("")||`<div class="leer">–</div>`}</div>
+    <div class="rp-h4">Größte Reinfälle</div><div class="rp-scheine">${S.verlierer.slice(0,2).map(x=>schein(x,"var(--down)",rpUsd(x.pnl,true))).join("")||`<div class="leer">–</div>`}</div>`
+    :`<div class="leer">Im Zeitraum ist noch keine Stake-Wette abgerechnet${seit.stake?` (Daten ab ${rpTag(seit.stake)})`:""}.</div>`}</div>`;
+  // Betfair
+  const bfPanel = `<div class="panel c6"><div class="ph"><h3>Betfair: Hatte das große Geld recht?</h3><span class="hint">Sieg-Markt, ≥ 60 % des Geldes auf einer Seite</span></div>
+    ${B.favN?`<div class="rp-mess"><span style="width:${(100*B.favQuote).toFixed(1)}%"></span><i title="50 %"></i><b>${dez(100*B.favQuote,0)} %</b></div><div class="rp-mess-l"><span>${B.favW} von ${B.favN} Spielen gewonnen</span><span>nach Geld gewichtet ${B.favV?dez(100*B.favVW/B.favV,0)+" %":"–"}</span></div>`:`<div class="leer">–</div>`}
+    <div class="rp-h4">Die teuersten Spiele</div>
+    ${(B.top||[]).map(t=>`<div class="rp-sp"><span><b style="font-weight:700">${esc(t.spiel)}</b><small>${esc(t.liga||"")} · ${rpTag(t.tag)}${t.ft?` · ${t.ft.join(":")}`:""} · ${t.anteil} % auf eine Seite @ ${q2(t.quote)}</small></span><b>${rpUsd(t.v)}</b><span class="${t.geldRecht?"rp-ok":"rp-nein"}" title="${t.geldRecht?"Geld lag richtig":"Geld lag falsch"}">${t.geldRecht?"✓":"✗"}</span></div>`).join("")||`<div class="leer">–</div>`}</div>`;
+  // Polymarket
+  const pt = (P.tage||[]), pmx = Math.max(1, ...pt.map(x=>Math.abs(x.gewinn)));
+  const pTage = pt.length ? `<div class="rp-tage rp-pm">${pt.map((x,i)=>{ const h = (50*Math.abs(x.gewinn)/pmx).toFixed(1);
+      return `<div class="rp-tag" title="${rpTag(x.tag)} · Gewinn ${rpUsd(x.gewinn,true)} auf ${rpUsd(x.einsatz)}"><span style="--f:${x.gewinn>=0?"var(--up)":"var(--down)"};height:${h}%;${x.gewinn>=0?"bottom:50%":"top:50%"}"></span>${i%Math.max(1,Math.ceil(pt.length/6))===0?`<em>${rpTag(x.tag)}</em>`:""}</div>`; }).join("")}</div>` : "";
+  const wl = (x, f) => `<div class="rp-sp"><span><b style="font-weight:700;font-family:ui-monospace,Menlo,monospace;font-size:12.5px">${esc(x.wallet)}</b><small>${x.n} Wetten · ${x.wins} Treffer · ${rpUsd(x.einsatz)} Einsatz</small></span><b style="color:${f}">${rpUsd(x.gewinn,true)}</b><span></span></div>`;
+  const polyPanel_ = `<div class="panel c12"><div class="ph"><h3>Polymarket: Was die Wale gemacht haben</h3><span class="hint">verfolgte Wallets · Gewinn am Tag der Abrechnung</span></div>
+    ${P.einsatz?`<div class="grid" style="gap:18px">
+      <div class="c6"><div class="rp-zahl"><b>${P.imPlus}</b> von <b>${P.nWallets}</b> Wallets im Plus · Trefferquote ${P.quote!=null?dez(100*P.quote,0)+" %":"–"}</div>
+        <div class="rp-teil"><span style="width:${(100*P.imPlus/Math.max(1,P.nWallets)).toFixed(1)}%"></span><span style="flex:1"></span></div>
+        <div class="rp-h4">Gewinn je Tag</div>${pTage}</div>
+      <div class="c6"><div class="rp-h4" style="margin-top:0">Die besten Wale</div>${P.besten.slice(0,3).map(x=>wl(x,"var(--up)")).join("")}
+        <div class="rp-h4">Die größten Verlierer</div>${P.schlechtesten.slice(0,3).filter(x=>x.gewinn<0).map(x=>wl(x,"var(--down)")).join("")||`<div class="leer">keiner im Minus</div>`}</div>
+    </div>`:`<div class="leer">–</div>`}</div>`;
+  // Social
+  const zeilen = rpSocial(z);
+  const social = `<div class="panel c12"><div class="ph"><h3>Für Social Media</h3><span class="hint">fertige Zeilen auf Englisch · antippen = kopieren</span></div>
+    <div class="rp-social">${zeilen.map((t,i)=>`<div class="rp-zeile"><span>${esc(t)}</span><button data-rpcopy="${i}" class="${RP.kopiert===z.id+"|"+i?"ok":""}">${RP.kopiert===z.id+"|"+i?"Kopiert":"Kopieren"}</button></div>`).join("")||`<div class="leer">–</div>`}</div>
+    <p class="rp-hinweis">Datenbasis: Stake-Wetten ab $1.000 seit ${seit.stake?rpTag(seit.stake):"–"} (nur Einzelwetten zählen fürs Geld), Betfair-Sieg-Märkte der Ligen, die wir verfolgen, seit ${seit.betfair?rpTag(seit.betfair):"–"}, Polymarket-Wallets, die wir verfolgen, seit ${seit.poly?rpTag(seit.poly):"–"}. Nicht der ganze Markt — immer „tracked" dazuschreiben.</p></div>`;
+  RP.zeilen = zeilen;
+  return `<div class="grid">${kopf}${held}${tagPanel}${stakePanel}${bfPanel}${polyPanel_}${social}</div>`;
+}
 function statKlick(e){
+  const b = e.target.closest("[data-stbereich]"); if(b){ ST.bereich = b.dataset.stbereich; return true; }
+  const rz = e.target.closest("[data-rpz]"); if(rz){ RP.wahl = rz.dataset.rpz; RP.kopiert = null; return true; }
+  const rc = e.target.closest("[data-rpcopy]"); if(rc){ const t = (RP.zeilen||[])[+rc.dataset.rpcopy]; if(t){ try{ navigator.clipboard.writeText(t); }catch(_){} RP.kopiert = RP.wahl+"|"+rc.dataset.rpcopy; } return true; }
   const s = e.target.closest("[data-st]"); if(s){ ST[s.dataset.st] = s.dataset.v; return true; }
   const da_ = () => Object.keys(STAT_K).filter(k=>!k.startsWith("public") && (ST.daten?.zeilen||[]).some(z=>z[1]===k));
   const m = e.target.closest("[data-stmodus]"); if(m){ ST.kat = m.dataset.stmodus==="alle" ? new Set(da_()) : new Set([m.dataset.stmodus]); return true; }
