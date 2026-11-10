@@ -237,7 +237,7 @@ def kandidaten(d, preise, start):
     pm = {str(m.get("matchId")): m for m in preise.get("matches") or []}
     ls = d.get("liveStats") or {}
     info = {"live": 0, "mitStatistik": 0, "mitStartquote": 0, "imFenster": 0, "bewertet": 0}
-    aus = []
+    aus, blick = [], []
     for sp in (d.get("radar") or {}).get("spiele") or []:
         lv = sp.get("live") or {}
         if not lv:
@@ -255,11 +255,18 @@ def kandidaten(d, preise, start):
             minute = 45
         if not isinstance(minute, (int, float)) or not stand or None in stand:
             continue
-        if not (MIN_VON <= minute <= MIN_BIS) or sp.get("entschieden"):
+        kopf = {"id": sid, "heim": sp.get("heim"), "gast": sp.get("gast"), "liga": sp.get("liga"), "land": sp.get("land"),
+                "minute": int(minute), "stand": list(stand)}
+        if sp.get("entschieden") or minute > MIN_BIS:
+            continue
+        stats_ok = bool(e and _ts(e.get("ts")) and JETZT - _ts(e["ts"]) <= timedelta(minutes=STATS_MAX_MIN))
+        if minute < MIN_VON or not st or not stats_ok:
+            # 10.11. (Lucas: „mitfiebern, bevor er eingetütet wird"): auch zeigen, was noch fehlt
+            blick.append({**kopf, "fehlt": [x for x, ok in (("ab der 15. Minute", minute >= MIN_VON),
+                                                           ("Startquote (Spiel lief schon vor dem Test)", bool(st)),
+                                                           ("frische Live-Statistik", stats_ok)) if not ok]})
             continue
         info["imFenster"] += 1
-        if not st or not e or not _ts(e.get("ts")) or JETZT - _ts(e["ts"]) > timedelta(minutes=STATS_MAX_MIN):
-            continue
         dr = e.get("druck") or {}
         tm = dr.get("teams") or {}
         xg = [(tm.get("heim") or {}).get("xg"), (tm.get("gast") or {}).get("xg")]
@@ -273,6 +280,7 @@ def kandidaten(d, preise, start):
         ps = wahrscheinlichkeiten(lam, stand)
         qs = _quoten(m, sp.get("heim"), sp.get("gast"))
         best = None
+        naechster = None                               # bester Wert, auch unter der Schwelle — für „Im Blick"
         for k, p in ps.items():
             if k not in qs:
                 continue
@@ -280,6 +288,8 @@ def kandidaten(d, preise, start):
             if not (Q_MIN <= q <= Q_MAX) or p <= 0:
                 continue
             wert = p * q - 1
+            if not naechster or wert > naechster[0]:
+                naechster = (wert, k, markt, auswahl, q, p)
             if wert < WERT_MIN or p - 1 / q < PP_MIN:
                 continue
             if not best or wert > best["wert"]:
@@ -294,6 +304,16 @@ def kandidaten(d, preise, start):
                         "geldOk": neu >= GELD_MIN and anteil >= GELD_ANTEIL}
         if best:
             aus.append(best)
+        if naechster:
+            wert, k, markt, auswahl, q, p = naechster
+            neu, anteil = _geld(sp, markt, auswahl)
+            blick.append({**kopf, "tipp": _text(sp, k, auswahl), "quote": q, "fair": round(1 / p, 2), "wert": round(wert, 4),
+                          "pp": round(100 * (p - 1 / q), 1), "geldEur": round(neu), "geldAnteil": round(100 * anteil),
+                          "wertOk": wert >= WERT_MIN and p - 1 / q >= PP_MIN,
+                          "geldOk": neu >= GELD_MIN and anteil >= GELD_ANTEIL,
+                          "xg": xg, "xgQuelle": dr.get("quelle"), "lamRest": [round(lam[0], 2), round(lam[1], 2)]})
+    blick.sort(key=lambda x: (x.get("wert") is None, -(x.get("wert") or 0)))
+    info["blick"] = blick[:10]
     return aus, info
 
 
@@ -342,7 +362,9 @@ def main() -> int:
                                      "minute", "stand", "xg", "xgQuelle", "startTore", "lamRest", "geldEur", "geldAnteil", "ts",
                                      "status", "win", "ft")}
              for b in reversed(buch) if b.get("art") == "ki" and _ts(b.get("ts")) and _ts(b["ts"]) >= grenze][:12]
-    d["kiPicks"] = {"stand": JETZT.isoformat(), "regel": REGEL, "info": info, "heute": heute,
+    blick = info.pop("blick", [])
+    d["kiPicks"] = {"stand": JETZT.isoformat(), "regel": REGEL, "info": info, "heute": heute, "blick": blick,
+                    "schwelle": {"wert": WERT_MIN, "geld": GELD_MIN, "anteil": GELD_ANTEIL},
                     "kandidaten": [{k: v for k, v in x.items()} for x in kands][:8],
                     "bilanz": {"ki": _bilanz(buch, "ki"), "kiModell": _bilanz(buch, "kiModell")}}
     DATEN.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
