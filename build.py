@@ -2242,6 +2242,22 @@ def liga_wert(liga_bilanz_cache=None):
         return {}
 
 
+def top3_erst():
+    """10.11. (Lucas: „merk ich das, ob da was gewechselt hat?"): je Spiel der ERSTE Top-3-Einzug der letzten 48 h —
+    {id: [Markt, Auswahl, Quote, Zeit]}. Steht das Spiel jetzt mit einer anderen Auswahl oben, zeigt die Seite den Wechsel."""
+    try:
+        buch = json.loads((BASIS / ".push_state" / "buch.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+    grenze = JETZT - timedelta(hours=48)
+    out = {}
+    for b in sorted((x for x in buch if x.get("art") in ("top3", "top3p")), key=lambda x: x.get("ts") or ""):
+        t = ts(b.get("ts"))
+        if t and t >= grenze and str(b.get("id")) not in out:
+            out[str(b.get("id"))] = [b.get("markt"), b.get("auswahl"), b.get("quote"), b.get("ts")]
+    return out
+
+
 def push_bilanz():
     """Auswertung der neuen Pushes (bilanz.py schreibt sie nach jedem Push-Lauf in den Cache)."""
     try:
@@ -2740,6 +2756,7 @@ def main() -> int:
         "halbzeit": halbzeit(prices),
         "bfHtPushes": bf_ht_pushes(prices, bf_norm),
         "pushBilanz": push_bilanz(),
+        "top3Erst": top3_erst(),
         "ligaWert": liga_wert(lbz := liga_bilanz()),
         "verlauf": verlauf(push_bilanz(), burst, finder, tr_led),
         "ligaBilanz": lbz,

@@ -3303,6 +3303,15 @@ function t3MehrereMaerkte(s, fA, fM){
   const gegen = ["seite","tore"].some(t=>new Set(richt.filter(x=>x[1]===t).map(x=>x[2])).size>1);
   return gegen || Object.keys(fam).length<2 ? [] : Object.keys(fam).sort();
 }
+// Lucas 10.11. („merk ich das, ob da was gewechselt hat und nun schlechter?"): stand dasselbe Spiel vorher mit einer anderen
+// Auswahl in den Top 3, steht der erste Einzug dabei. Gemessen: spätere Auswahl im selben Spiel −2,4 % (n=892) gegen +7,5 %.
+function t3Wechsel(D, id, markt, auswahl, de, mde){
+  const e = (D.top3Erst||{})[String(id)]; if(!e || (e[0]===markt && e[1]===auswahl)) return null;
+  const g = ((D.pushBilanz?.top3?.gruppen)||[]).find(x=>/^Spätere Auswahl/.test(x.name));
+  const m = mde(e[0]);
+  return {txt:`↪ gewechselt · zuerst ${de(e[1])}${e[2]?" @ "+q2(e[2]):""}${m?" ("+m+")":""} um ${uhr(e[3])}`,
+    tip:`Dieses Spiel stand vorher mit einer anderen Auswahl in den Top 3.` + (g && g.roi!=null ? ` Solche Wechsel lagen bisher bei ${g.roi>0?"+":""}${dez(g.roi)} % (${g.abgerechnet} abgerechnet) — schwächer als der erste Einzug.` : "")};
+}
 function topDreiDaten(D){
   const LB = (D.ligaBilanz||{}).ligen||{};
   const ou = n => (/^(over|under)/i.exec(String(n||""))||[])[1]?.toLowerCase();
@@ -3351,6 +3360,7 @@ function topDreiDaten(D){
       poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
       stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
     return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
+      wechsel: t3Wechsel(D, s.id, fM?.name, fA.name, n=>auswahlDe(n), n=>marktDe(n||"")),
       ligaRoh: s.liga, kopf: `${flagge(s.land)} ${esc(ligaName(s.liga)||"")}`, live: s.live ? `${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}${rotTxt(s.id, s.heim, s.gast) ? " · "+esc(rotTxt(s.id, s.heim, s.gast)) : ""}` : null,
       anpfiff: s.anpfiff, heim: s.heim, gast: s.gast, auf: auswahlDe(fA.name), quote: fA.quote, alt: p.quote ? fA.q60 : null, markt: marktDe(fM?.name||""),
       saeulen: s.saeulen?.w || [], wert: s.eur, einheit: "€", klick: klickSpiel({id:s.id, heim:s.heim, gast:s.gast})};
@@ -3379,6 +3389,7 @@ function topDreiDaten(D){
     const summe = Object.values(p).reduce((a,b)=>a+b,0);
     const titel = esc(pmTitel(m.titel));
     return {key:"pm|"+m.key, p, summe, n:Object.keys(p).length, aus:"",
+      wechsel: t3Wechsel(D, m.key, "Sieger", fokus, n=>pmLabel(n, m.titel, m.sport), ()=>""),
       g: {serie: se && `${se.n}× in Folge`, neu: `+${usd(neu)} netto in 30 Min`, poly: `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,x)=>a+(x.usd||0),0))}`,
           stake: burst && `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten`},
       ligaRoh: m.liga, kopf: `${sportIco(m.sport)} ${esc(ligaName(m.liga)||m.sport||"")} · Polymarket`, live: m.live ? "live" : null, anpfiff: m.anpfiff,
@@ -3628,7 +3639,8 @@ function topDrei(D){
     const gross = i===0, p = x.p;
     const zeit = x.live ? `<span class="t3-live"><i></i>${x.live}</span>` : `<span class="t3-zeit">${wann(x.anpfiff)}</span>`;
     const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>`<span class="t3-g${k==="maerkte"||k==="druck"?" hl":""}" style="--f:${f}"><i></i>${esc(x.g[k]||n)}</span>`).join("")
-      + (x.aus ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>${x.aus}</span>` : "") + ligaChip(D, x.ligaRoh);
+      + (x.aus ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>${x.aus}</span>` : "") + ligaChip(D, x.ligaRoh)
+      + (x.wechsel ? `<span class="t3-g aus" style="--f:var(--down)" title="${esc(x.wechsel.tip)}"><i></i>${esc(x.wechsel.txt)}</span>` : "");
     return `<div class="t3-k${gross?" eins":""}"${bk("t3|"+x.key, x.wert, x.einheit)} ${x.klick} style="--glow:${T3_SIG.find(([k])=>p[k])[2]}">
       ${t3Scheibe(p, x.summe, gross)}
       <div class="t3-i">
