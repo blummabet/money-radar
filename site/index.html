@@ -2351,18 +2351,25 @@ function marktWand2(s){
   const neuM = m => (m.auswahl||[]).reduce((x,a)=>x+Math.max(0,a.neu||0),0);
   const lowM = m => { const top = (m.auswahl||[]).filter(a=>a.name!=="Rest").reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null); return !!(top && top.quote && top.quote<1.20); };   // 28.10.: gleiche Grenze wie Top 3 / „Jetzt fließt"
   const offenM = m => m.eur>=min && !marktEntschieden(s, m.name);
-  const lows = [...(s.maerkteAbs||[]).filter(offenM), ...(s.maerkteDetail||[]).filter(m=>offenM(m) && lowM(m))].sort((a,b)=>b.eur-a.eur);
-  const md = (s.maerkteDetail||[]).filter(m=>offenM(m) && !lowM(m)).sort((a,b)=>b.eur-a.eur);
+  // Lucas 10.11. (Häcken – Chelsea W: „wieso ist der große 1X2-Markt, wo das meiste Geld liegt, nicht in der Wand?"):
+  // der Sieg-Markt ist der Hauptmarkt des Spiels — er bleibt immer eine eigene Kachel, bei Kleinstquote grau und gedeckelt.
+  const siegM = m => m.name === "Match Odds";
+  const lows = [...(s.maerkteAbs||[]).filter(offenM), ...(s.maerkteDetail||[]).filter(m=>offenM(m) && lowM(m) && !siegM(m))].sort((a,b)=>b.eur-a.eur);
+  const md = (s.maerkteDetail||[]).filter(m=>offenM(m) && (!lowM(m) || siegM(m))).sort((a,b)=>b.eur-a.eur);
   if(!md.length && !lows.length) return durchZeile;
   const totM = () => false;
   let K = md.slice(0, 8), weg = md.slice(8);
   if(weg.length === 1){ K = md.slice(0, 9); weg = []; }
-  const kach = K.map(m=>({m, eur:m.eur, neu:neuM(m)}));
+  const kach = K.map(m=>({m, eur:m.eur, neu:neuM(m), grau: siegM(m) && lowM(m)}));
   if(weg.length) kach.push({rest:weg, eur:weg.reduce((x,m)=>x+m.eur,0), neu:weg.reduce((x,m)=>x+neuM(m),0)});
   const gew = k => Math.pow(k.eur, 0.6), sumW = kach.reduce((x,k)=>x+gew(k),0);
   if(lows.length){ const lk = {rest:lows, low:true, eur:lows.reduce((x,m)=>x+m.eur,0), neu:lows.reduce((x,m)=>x+neuM(m),0)};
     lk.w = kach.length ? Math.min(gew(lk), sumW*0.18) : gew(lk); kach.push(lk); }
-  kach.forEach(k=>{ if(k.w==null) k.w = gew(k); }); kach.sort((a,b)=>b.w-a.w);
+  kach.forEach(k=>{ if(k.w==null) k.w = gew(k); });
+  const sumAnd = kach.filter(k=>!k.grau && !k.low).reduce((x,k)=>x+k.w,0);
+  kach.forEach(k=>{ if(k.grau && sumAnd) k.w = Math.min(k.w, sumAnd*0.6); });    // Kleinstquote: sichtbar, aber nicht erdrückend
+  kach.forEach(k=>{ if(k.low && sumAnd) k.w = Math.min(k.w, sumAnd*0.25); });     // Rest-Kleinstquoten kleiner als der Sieg-Markt
+  kach.sort((a,b)=>b.w-a.w);
   const handy = innerWidth <= 700, W = 600, H = (handy ? 340 : 300) + (kach.length > 6 ? (handy ? 120 : 90) : 0);   // mehr Märkte → eine Reihe mehr Platz
   const R = treemap(kach.map(k=>k.w), W, H);
   const gesNeu = kach.reduce((x,k)=>x+k.neu,0);
@@ -2372,7 +2379,7 @@ function marktWand2(s){
   const kopfM = m => /^Over\/Under [\d.]+ Goals$/.test(m) ? "Tore" : /^First Half Goals/.test(m) ? "HZ-Tore" : marktDe(m);
   const html = kach.map((k,i)=>{ const r = R[i], A = r.w*r.h/(W*H);
     const gr = A > 0.22 ? "g" : A > 0.09 ? "m" : "k";
-    const tot = k.m && totM(k.m), f = k.rest || tot ? "var(--text-3)" : MW_FAM.find(x=>x[0]===mwFamilie(k.m.name))[2];
+    const tot = k.m && totM(k.m), f = k.rest || tot || k.grau ? "var(--text-3)" : MW_FAM.find(x=>x[0]===mwFamilie(k.m.name))[2];
     const pegel = k.neu>0 ? Math.max(6, Math.min(100, k.neu/k.eur*100)) : 0;
     let mitte = "", klar = "";
     if(k.m){ const aus = (k.m.auswahl||[]).filter(a=>a.name!=="Rest" && a.eur>0), ges = (k.m.auswahl||[]).reduce((x,a)=>x+(a.eur||0),0)||1;
@@ -2391,6 +2398,10 @@ function marktWand2(s){
         : `<div class="w2-z">neu meist auf <b>${esc(kurz(topN.name))}</b>${topN.quote?` ${q2(topN.quote)}`:""}</div>`;
       const st = Math.max(0, Math.min(1, (anteil - 0.5) / 0.4));
       klar = `--bgm:${(6 + 18*st).toFixed(0)}%;--pm:${(25 + 50*st).toFixed(0)}%`; }
+    // 10.11.: die Kleinstquoten-Kachel sagt, was drinsteckt, statt leer zu bleiben
+    if(k.low && gr!=="k"){ mitte = `<div class="w2-z">${k.rest.slice(0,3).map(m=>{ const t = (m.auswahl||[]).filter(a=>a.name!=="Rest").reduce((x,a)=>a.eur>(x?.eur||0)?a:x, null);
+        return `${esc(kopfM(m.name))}${t?` <b>${esc(kurz(t.name))}</b>`:""} ${eur(m.eur)}`; }).join("<br>")}${k.rest.length>3?`<br>+${k.rest.length-3} weitere`:""}</div>`; }
+    if(k.grau) mitte += `<div class="w2-z">Quote unter 1,20 — Absicherung, kein Signal</div>`;
     return `<div class="w2-k ${gr}" data-w2 tabindex="0" role="button" aria-expanded="false" style="left:${(r.x/W*100).toFixed(2)}%;top:${(r.y/H*100).toFixed(2)}%;width:${(r.w/W*100).toFixed(2)}%;height:${(r.h/H*100).toFixed(2)}%">
       <div class="w2-i" style="--f:${f};${klar}" title="${k.m?esc(marktDe(k.m.name)):k.low?`Märkte mit Quote unter 1,20 (Absicherung, kein Signal)`:`${k.rest.length} weitere Märkte`}: ${eur(k.eur)} drin${k.neu>0?`, davon +${eur(k.neu)} neu in ${fm} Min`:""}">
         <div class="w2-p" style="height:${pegel.toFixed(1)}%"></div>
