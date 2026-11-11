@@ -46,7 +46,7 @@ ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "W
          "stake": "Stake-Push: genau die gesendete Auswahl zur gesendeten Quote (ab 10.11.)",
          "ki": "AI-Pick (Test, Regel A1): eigenes Modell aus Startquote + Live-Statistik, Geld geht mit (ab 10.11.)",
          "kiModell": "AI-Modell allein, ohne Geld-Bedingung (still, ab 10.11.)",
-         "kiTop3": "AI-Pick, der zugleich in den Top 3 in dieselbe Richtung stand (Test-Push, ab 10.11.)",
+         "kiTop3": "AI-Pick, der zugleich in den Top 3 in dieselbe Richtung stand (Test-Push, ab 10.11.; ab 11.11. abends K2: ≤ 20 Min, gleicher Stand, Quote zum Push)",
          "walKlein": "Wal unter ¼ seines üblichen Einsatzes (nicht gepusht, Wal-Regel 2 ab 06.11.)",
          "layGegen": "Gegenseite bei Lay-Verdacht (Live-Dauerzufluss, Quote +15 % ohne Tor) — nicht gepusht, ab 06.11.",
          "ueberQuote": "Geld über der Quote (≥ 25 pp, nicht gepusht, ab 04.11.)",

@@ -1422,10 +1422,15 @@ def _gleiche_richtung(m1, a1, m2, a2):
 def ki_top3(d):
     """Lucas 10.11. 09:42 (TEST): „wenn ein Spiel sich überschneidet (AI-Pick und Top 3) — highlighten und in den
     CocoBet-Money-Push". Offener AI-Pick (≤ 60 Min alt) + dasselbe Spiel jetzt in den Top 3 in dieselbe Richtung →
-    einmal je Spiel melden und still als „kiTop3" zur Quote des AI-Picks buchen."""
+    einmal je Spiel melden und still als „kiTop3" buchen.
+
+    Regel K2 ab 11.11. 20:00 (Malmö (W) – Ajax (W): AI-Pick 23. Min @ 2,42, Top-3-Treffer erst zur Halbzeit, der Push
+    zeigte trotzdem Minute und Quote von damals): Überschneidung nur, wenn der AI-Pick ≤ 20 Min alt ist UND der Stand
+    seitdem gleich blieb. Gebucht wird zur Quote, die die Top 3 JETZT zeigen — die bekommt man beim Push. Vorher (K1):
+    60 Min, Quote des AI-Picks."""
     K = d.get("kiPicks") or {}
     picks = [x for x in K.get("heute") or [] if x.get("status") == "offen" and ts(x.get("ts"))
-             and (JETZT - ts(x["ts"])).total_seconds() <= 3600]
+             and (JETZT - ts(x["ts"])).total_seconds() <= 20 * 60]
     if not picks:
         return
     try:
@@ -1438,17 +1443,24 @@ def ki_top3(d):
         for rang, t in enumerate(oben, 1):
             if str(t.get("id")) != str(x.get("id")) or not _gleiche_richtung(x.get("markt"), x.get("auswahl"), t.get("markt"), t.get("auswahl")):
                 continue
+            st_ki, st_jetzt = list(x.get("stand") or []), list(t.get("stand") or [])
+            if not st_jetzt or st_ki != st_jetzt:
+                break                                  # K2: Tor seit dem AI-Pick (oder Stand unbekannt) → keine Überschneidung
+            q_jetzt = t.get("quote")
+            if not q_jetzt or q_jetzt < 1.2:
+                break
             nm = {"serie": "Dauerzufluss", "neu": "neues Geld", "norm": "Liga-Norm", "quote": "Quote gedrückt", "poly": "Polymarket",
                   "stake": "Stake", "maerkte": "mehrere Märkte", "druck": "Druck", "push": "HZ-Push", "liga": "Liga trägt"}
             sig = ", ".join(nm.get(k, k) for k in t.get("signale") or [])
             text = (f"🤖⭐ <b>AI-Pick + Top 3</b> <i>(Test)</i>\n<b>{e(x.get('heim'))} – {e(x.get('gast'))}</b>\n"
-                    f"{e(x.get('liga'))} · Pick in der {x.get('minute')}. Min beim Stand {':'.join(str(v) for v in x.get('stand') or [])}\n\n"
-                    f"🎯 <b>{e(x.get('tipp') or x.get('auswahl'))}</b> @ {q2(x.get('quote'))} · fair {q2(x.get('fair'))} · spielbar ab {q2(x.get('mindest'))}\n"
+                    f"{e(x.get('liga'))} · Stand {':'.join(str(v) for v in st_jetzt)} · AI-Pick vor {round((JETZT - ts(x['ts'])).total_seconds() / 60)} Min (in der {x.get('minute')}.)\n\n"
+                    f"🎯 <b>{e(x.get('tipp') or x.get('auswahl'))}</b> @ {q2(q_jetzt)} jetzt · beim AI-Pick {q2(x.get('quote'))} · spielbar ab {q2(x.get('mindest'))}\n"
                     f"🤖 Modell: Wert +{100 * (x.get('wert') or 0):.0f} % · Geld drauf {geld(x.get('geldEur'))} ({x.get('geldAnteil')} %)\n"
                     f"🏆 Top 3: Platz {rang} mit {str(t.get('punkte')).replace('.', ',')} Punkten ({e(sig)})\n"
                     f"<i>Zwei unabhängige Wege zeigen auf dieselbe Wette — nur Test, nicht public.</i>")
             beleg = {k: x.get(k) for k in ("id", "heim", "gast", "liga", "markt", "auswahl", "tipp", "quote", "fair", "wert", "minute", "stand", "geldEur")}
-            beleg.update({"art": "kiTop3", "live": True, "anpfiff": t.get("anpfiff"), "top3Rang": rang, "top3Punkte": t.get("punkte")})
+            beleg.update({"quote": round(q_jetzt, 3), "kiQuote": x.get("quote"), "regel": "K2",
+                          "art": "kiTop3", "live": True, "anpfiff": t.get("anpfiff"), "top3Rang": rang, "top3Punkte": t.get("punkte")})
             yield f"kt|{x.get('id')}", text, None, beleg, None
             break
 
