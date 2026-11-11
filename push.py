@@ -1716,15 +1716,23 @@ def main() -> int:
         try:                         # 11.11. (Lucas zum „How the money moved"-Bild: „haben wir dazu ein Signal gepostet?
             # Sonst ist das komisch"): welche Spiele hatten in den letzten 2 Tagen ein öffentliches Signal — X oder Public-Kanal.
             # Das Band-Bild (social/posten.py x_bilder) nimmt nur noch diese Spiele.
+            # Je Spiel das FRÜHESTE Signal mit Zeit (UTC), Auswahl, Markt, Quote und wo — fürs Band als Markierung + Ergebnis.
             _xs = json.loads(_x_post().STAND.read_text(encoding="utf-8")) if _x_post().STAND.exists() else {}
+            _xq = {k_.get("key"): k_ for k_ in (json.loads(_x_post().QUEUE.read_text(encoding="utf-8")) if _x_post().QUEUE.exists() else [])}
             _sig = {}
+
+            def _merk(nk, zeit, wo, auswahl, markt, quote):
+                alt_ = _sig.get(nk)
+                if not alt_ or str(zeit) < str(alt_.get("zeit")):
+                    _sig[nk] = {"zeit": str(zeit)[:16], "wo": wo, "auswahl": auswahl, "markt": markt, "quote": quote}
             for t_ in _xs.get("gepostet") or []:
                 if len(t_) > 2 and t_[2]:
-                    _sig.setdefault(t_[2], {"x": t_[1]})["x"] = t_[1]
+                    k_ = _xq.get(t_[0]) or {}
+                    _merk(t_[2], t_[1], "X", k_.get("auswahl"), k_.get("markt"), k_.get("quote"))
             _gr = (JETZT - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
             for l_ in pub_stand.get("liste") or []:
                 if l_.get("gesendet") and str(l_.get("zeit") or "") >= _gr and l_.get("spiel"):
-                    _sig.setdefault(public._norm(l_["spiel"]), {})["public"] = l_.get("zeit")
+                    _merk(public._norm(l_["spiel"]), l_.get("zeit"), "Telegram", l_.get("auswahl"), None, l_.get("quote"))
             (BASIS / "site" / "x_signale.json").write_text(json.dumps({"stand": JETZT.isoformat(), "spiele": _sig}, ensure_ascii=False), encoding="utf-8")
         except Exception as exc:  # noqa: BLE001
             print(f"  x_signale: {exc}")

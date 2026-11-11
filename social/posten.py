@@ -360,21 +360,48 @@ def x_bilder(gepostet):
             ko = m.get("anpfiff") and datetime.fromisoformat(str(m["anpfiff"]).replace("Z", "+00:00"))
             if not m.get("ft") or not ko or JETZT - ko > timedelta(hours=5) or f"xband|{sid}" in gepostet or len(Z) < 8:
                 continue
-            if norm(f"{m.get('heim')} – {m.get('gast')}") not in signale:
+            sig = signale.get(norm(f"{m.get('heim')} – {m.get('gast')}"))
+            if not sig or not sig.get("zeit"):
                 continue
-            t = x_grafik.band_text(m, Z)
-            if t:
-                kand.append((x_grafik.band_score(m, Z), sid, m, Z, t))
+            t = x_grafik.band_text_signal(m, Z, sig)
+            if x_post._gewicht(t) > 280:
+                t = t.split(" Not every signal")[0]
+            kand.append((x_grafik.band_score(m, Z), sid, m, Z, t, sig))
         if kand:
-            _, sid, m, Z, t = max(kand, key=lambda k: k[0])
+            _, sid, m, Z, t, sig = max(kand, key=lambda k: k[0])
             bild = ARBEIT.parent / f"xband-{sid}.jpg"
             ARBEIT.parent.mkdir(parents=True, exist_ok=True)
-            grafik.rendern(x_grafik.band(m, Z), bild, 675, 1200, 2)
+            grafik.rendern(x_grafik.band(m, Z, sig), bild, 675, 1200, 2)
             print(t)
             if not os.environ.get("TROCKEN") and x_post.bild_posten(bild, t, foto):
                 gepostet[f"xband|{sid}"] = W.isoformat()
         else:
             print("x: kein Spiel mit Signal und Geschichte fürs Band")
+    # 11.11. (Lucas „Vorschau wie Insta-Abend"): einmal am Tag ab 17 Uhr „Where the money is tonight" — der Blick nach
+    # vorn zu den Rückblicken. Daten = ig_top3.json (dieselben drei Spiele wie Instagram), nur Spiele vor Anpfiff.
+    if W.hour >= 17 and f"xvor|{tag}" not in gepostet:
+        try:
+            v = hol(f"{SEITE}ig_top3.json?t={int(time.time())}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"x: ig_top3 nicht lesbar ({exc})")
+            v = {}
+        sp = [x for x in (v.get("spiele") or []) if v.get("tag") == tag and x.get("anpfiff")
+              and datetime.fromisoformat(str(x["anpfiff"]).replace("Z", "+00:00")) > JETZT]
+        if len(sp) >= 2:
+            for x in sp:
+                x["liga"] = re.sub(r"^UEFA |^English Sky Bet ", "", str(x.get("liga") or ""))
+            t = x_grafik.vorschau_text(sp)
+            while x_post._gewicht(t) > 280 and len(sp) > 2:
+                sp = sp[:-1]
+                t = x_grafik.vorschau_text(sp)
+            bild = ARBEIT.parent / "xvor.jpg"
+            ARBEIT.parent.mkdir(parents=True, exist_ok=True)
+            grafik.rendern(x_grafik.vorschau(sp, f"{W:%A, %d %B}"), bild, 675, 1200, 2)
+            print(t)
+            if not os.environ.get("TROCKEN") and x_post.bild_posten(bild, t, foto):
+                gepostet[f"xvor|{tag}"] = W.isoformat()
+        else:
+            print("x: Vorschau — weniger als 2 Spiele vor Anpfiff in ig_top3")
     if not any(k.startswith("xwal|") and str(gepostet[k]).startswith(tag) for k in gepostet):
         G = {}
         for o in (d.get("poly") or {}).get("setzen") or []:

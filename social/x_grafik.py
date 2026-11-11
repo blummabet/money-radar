@@ -2,6 +2,10 @@
 
   band(meta, phasen)   „How the money moved": Phasenband eines beendeten Spiels (Sieg-Spur + Tore-Spur, Tore als Marker)
   wal(spiel)           „Smart money split": belegte Polymarket-Wallets je Seite, eindeutig/umstritten
+  vorschau(spiele)     „Where the money is tonight": die drei Spiele mit dem größten Geld-über-Quote (wie Insta-Abend)
+
+11.11. (Lucas): das Band nur noch zu Spielen, zu denen wir vorher ein Signal hatten — mit Markierung „Our signal"
+und Ergebnis, damit es ein Beleg ist und nicht wie nachträglich ausgesucht wirkt.
 
 Gleiche Marke wie die Instagram-Grafiken (grafik.py): Grau/Weiß/Schwarz + CocoBet-Gelb, Barlow Condensed + Inter.
 """
@@ -52,7 +56,7 @@ def _ts(s):
     return datetime.fromisoformat(str(s).replace("Z", "+00:00")) if s else None
 
 
-def band(meta: dict, Z: list) -> str:
+def band(meta: dict, Z: list, sig: dict | None = None) -> str:
     T = lambda z: datetime.fromisoformat(z[0] + ":00+00:00")  # noqa: E731
     ko = _ts(meta.get("anpfiff"))
     t0, letzt = T(Z[0]), T(Z[-1]) + timedelta(minutes=5)
@@ -78,11 +82,18 @@ def band(meta: dict, Z: list) -> str:
         if z[5]:
             vor = z[5]
     mk.sort()
+    sig_t = _ts(sig["zeit"] + ":00+00:00") if sig and sig.get("zeit") and len(str(sig["zeit"])) == 16 else (_ts(sig.get("zeit")) if sig else None)
+    if sig_t and sig_t < t0:
+        sig_t = t0
     marker, lx, reihe = "", -99.0, 0
     for t, txt in mk:
         p = x(t); reihe = (reihe + 1) % 2 if p - lx < 9 else 0; lx = p
         rand = "transform:translateX(-100%)" if p > 90 else "transform:none" if p < 6 else ""
         marker += f"<span class='mk' style='left:{p:.2f}%'><em style='top:{-52 if reihe else -28}px;{rand}'>{e(txt)}</em></span>"
+    if sig_t and sig_t <= t1:
+        p = x(sig_t)
+        rand = "transform:translateX(-100%)" if p > 85 else "transform:none" if p < 10 else ""
+        marker += f"<span class='sg' style='left:{p:.2f}%'></span>"   # Erklärung steht in der Zeile „📣 Our signal" darunter
     achse = "".join(f"<span style='left:{f * 100:.0f}%'>{(t0 + timedelta(seconds=spanne * f)).astimezone(WIEN):%H:%M}</span>" for f in (0, .25, .5, .75, 1))
     ft = meta.get("ft")
     css = """
@@ -94,6 +105,11 @@ def band(meta: dict, Z: list) -> str:
 .b i{position:absolute;top:0;bottom:0;border-radius:3px}
 .mk{position:absolute;top:-6px;bottom:-6px;width:0;border-left:2px dashed var(--tinte)}
 .mk em{position:absolute;left:0;transform:translateX(-50%);font-style:normal;font-size:17px;font-weight:700;white-space:nowrap}
+.sg{position:absolute;top:-8px;bottom:-8px;width:0;border-left:5px solid var(--gelb);margin-left:-2px;z-index:2}
+.sg em{position:absolute;bottom:-34px;left:0;transform:translateX(-50%);font-style:normal;font-size:16px;font-weight:800;white-space:nowrap;background:var(--gelb);border-radius:6px;padding:2px 8px}
+.sl{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:18px;font-weight:600}
+.sl b{border-left:5px solid var(--gelb);padding-left:8px;background:none}.sl b.x{background:var(--gelb);border-radius:6px;padding:2px 10px;font-weight:800}
+.sl .w{color:var(--o);font-weight:800}.sl .v{color:var(--u);font-weight:800}
 .ax{position:relative;height:20px}
 .ax span{position:absolute;transform:translateX(-50%);font-size:14px;color:var(--grau)} .ax span:first-child{transform:none} .ax span:last-child{transform:translateX(-100%)}
 .lg{display:flex;gap:22px;font-size:16px;color:var(--grau);margin-top:16px} .lg i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-1px} .lg .r{margin-left:auto}
@@ -106,9 +122,61 @@ def band(meta: dict, Z: list) -> str:
             + f"<div class='lg'><span><i style='background:var(--h)'></i>{e(meta['heim'])}</span><span><i style='background:var(--x)'></i>Draw</span>"
               f"<span><i style='background:var(--a)'></i>{e(meta['gast'])}</span><span class='r'><i style='background:var(--o)'></i>Over "
               f"<i style='background:var(--u);margin-left:12px'></i>Under</span></div>"
+            + (_sig_zeile(meta, sig, sig_t) if sig_t else "")
             + "<div style='font-size:14px;color:var(--grau);margin-top:8px'>Each block = 5 minutes of new money on Betfair · stronger colour = more money · times CET</div>"
             + FUSS)
     return _seite(body, css)
+
+
+def ergebnis(meta: dict, sig: dict | None) -> str | None:
+    """„won"/„lost" für Sieg- und Über/Unter-Signale aus dem Endstand, sonst None (lieber kein Urteil als ein falsches). REIN."""
+    ft, a = meta.get("ft"), str((sig or {}).get("auswahl") or "").strip().lower()
+    if not ft or not a:
+        return None
+    h, g = int(ft[0]), int(ft[1])
+    import re as _re
+    m = _re.match(r"^(over|under|über|unter)\s*([0-9]+[.,]5)", a)
+    if m:
+        linie = float(m.group(2).replace(",", "."))
+        return "won" if ((h + g) > linie) == (m.group(1) in ("over", "über")) else "lost"
+    if a in ("the draw", "draw", "remis", "x"):
+        return "won" if h == g else "lost"
+    def kern(n):
+        return {w for w in _re.sub(r"[^a-z0-9 ]", " ", str(n or "").lower()).split() if len(w) > 2 and w not in ("the", "fc", "afc", "cf", "sc", "club")}
+    ka, kh, kg = kern(a), kern(meta.get("heim")), kern(meta.get("gast"))
+    if ka & kh and not ka & kg:
+        return "won" if h > g else "lost"
+    if ka & kg and not ka & kh:
+        return "won" if g > h else "lost"
+    return None
+
+
+def _anzeige(a):
+    a = str(a or "")
+    return a.replace(" Goals", "").replace("The Draw", "Draw")
+
+
+def _sig_zeile(meta, sig, sig_t):
+    q = sig.get("quote")
+    erg = ergebnis(meta, sig)
+    rechts = "<span class='w'>✅ won</span>" if erg == "won" else "<span class='v'>❌ lost</span>" if erg == "lost" else ""
+    return (f"<div class='sl'><b>📣 Our signal</b><span>{sig_t.astimezone(WIEN):%H:%M} on {e(sig.get('wo') or 'X')} · "
+            f"{e(_anzeige(sig.get('auswahl')))}{f' @ {q:.2f}' if isinstance(q, (int, float)) else ''}</span>{rechts}</div>")
+
+
+def band_text_signal(meta: dict, Z: list, sig: dict) -> str:
+    """Text zum Band MIT Signal: wann wir es gemeldet haben, was rauskam — Treffer wie Nieten."""
+    ft = meta.get("ft")
+    t = _ts(sig["zeit"] + ":00+00:00") if len(str(sig.get("zeit") or "")) == 16 else _ts(sig.get("zeit"))
+    q = sig.get("quote")
+    wahl = _anzeige(sig.get("auswahl")) + (f" @ {q:.2f}" if isinstance(q, (int, float)) else "")
+    erg = ergebnis(meta, sig)
+    schluss = " ✅" if erg == "won" else " ❌ Not every signal lands — we show both." if erg == "lost" else ""
+    ges = sum(z[2] or 0 for z in Z)
+    geld = f"€{ges / 1000:.0f}k" if ges >= 9500 else f"€{ges / 1000:.1f}k"
+    return (f"Receipt: {meta['heim']} vs {meta['gast']}.\n\n"
+            f"📣 We flagged {wahl} at {t.astimezone(WIEN):%H:%M} CET on {sig.get('wo') or 'X'}. "
+            f"{geld} of new money moved in this match.{f' Final score {ft[0]}:{ft[1]}.' if ft else ''}{schluss}")
 
 
 def band_text(meta: dict, Z: list) -> str | None:
@@ -173,3 +241,44 @@ def wal(g: dict) -> str:
             + "<div style='font-size:14px;color:var(--grau);margin-top:14px'>Proven = wallets that beat Polymarket's closing price over 15+ settled bets</div>"
             + FUSS)
     return _seite(body, css)
+
+
+def vorschau(spiele: list, datum: str) -> str:
+    """„Where the money is tonight": wie geld_drei (Insta-Abend), englisch, 16:9. Felder aus ig_top3.json."""
+    zeilen = ""
+    for i, sp in enumerate(spiele[:3], 1):
+        an = _ts(sp["anpfiff"]).astimezone(WIEN)
+        name = sp["heim"] if sp["seite"] == "heim" else sp["gast"] if sp["seite"] == "gast" else "Draw"
+        zeilen += (f"<div class='vz'><div class='nr'>{i}</div><div class='m'><div class='sp'>{e(sp['heim'])} – {e(sp['gast'])}</div>"
+                   f"<div class='lz'>{e(sp.get('liga') or '')} · {an:%H:%M} CET</div>"
+                   f"<div class='bal'><i class='g' style='width:{sp['anteil']:.1f}%'></i><i class='mk' style='left:{sp['impl']:.1f}%'></i></div></div>"
+                   f"<div class='zz'><div class='pz'>{sp['anteil']:.0f}<small>%</small></div><div class='wer'>of the money on <b>{e(name)}</b></div>"
+                   f"<div class='qz'>odds {sp['quote']:.2f} imply {sp['impl']:.0f}%</div></div></div>")
+    css = """
+.sub{font-size:18px;color:var(--grau);margin:18px 0 14px}
+.rs{display:flex;flex-direction:column;gap:12px}
+.vz{display:grid;grid-template-columns:44px 1fr 330px;gap:18px;align-items:center;background:var(--karte);border-radius:16px;padding:14px 22px}
+.nr{font-family:'Barlow Condensed';font-weight:800;font-size:30px;background:var(--gelb);border-radius:9px;text-align:center;line-height:42px}
+.sp{font-family:'Barlow Condensed';font-weight:700;font-size:32px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lz{font-size:15px;color:var(--grau);margin-top:2px}
+.bal{position:relative;height:12px;border-radius:6px;background:#EDEFF2;margin-top:10px}
+.bal .g{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--gelb)}
+.bal .mk{position:absolute;top:-5px;bottom:-5px;width:4px;margin-left:-2px;background:var(--tinte);border-radius:2px}
+.zz{display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:end}
+.pz{font-family:'Barlow Condensed';font-weight:800;font-size:72px;line-height:.85;grid-row:span 2}
+.pz small{font-size:.45em}
+.wer{font-size:15px;color:var(--grau);line-height:1.25}.wer b{color:var(--tinte)}
+.qz{font-size:14px;color:var(--grau)}
+"""
+    body = (_kopf("Where the money is tonight", datum)
+            + "<div class='sub'>The three matches where the money runs furthest ahead of the odds · yellow = share of money, black line = what the odds expect</div>"
+            + f"<div class='rs'>{zeilen}</div>" + FUSS)
+    return _seite(body, css)
+
+
+def vorschau_text(spiele: list) -> str:
+    z = []
+    for i, sp in enumerate(spiele[:3], 1):
+        name = sp["heim"] if sp["seite"] == "heim" else sp["gast"] if sp["seite"] == "gast" else "the draw"
+        z.append(f"{i}. {sp['heim']} – {sp['gast']}: {sp['anteil']:.0f}% on {name}, odds say {sp['impl']:.0f}%")
+    return "👀 Where the money is tonight\n\n" + "\n".join(z) + "\n\nBetfair + Polymarket + Stake. Results follow."
