@@ -582,6 +582,8 @@ def main() -> int:
     d["druck"] = druck_radar(d, cache, live_ids, neue_ticks)
     DATEN.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"live_stats: {len(d['liveStats'])} Spiele mit Statistik, Kandidaten {len(kand)}, Kontingent {info}")
+    print(f"live_stats: fällig {diag['faellig']} · Budget {diag['budget']} · abgerufen {diag['abgerufen']} · ohne Zuordnung "
+          f"{len(diag['ohneZuordnung'])} {diag['ohneZuordnung'][:4]} · ohne Statistik {len(diag['ohneStatistik'])} {diag['ohneStatistik'][:4]}")
     return 0
 
 
