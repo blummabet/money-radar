@@ -175,6 +175,7 @@ def fluss_fuer(m):
     # ≥ 92 ¢ zählen nicht als Fluss, deshalb sah der Durchschnittspreis der letzten Stunde aus wie ein offenes Spiel.
     # Jetzt der AKTUELLE Preis je Seite aus dem Event (outcomePrices) + der jüngste Kauf ≥ 92 ¢ als Zeichen „entschieden".
     jetzt, spaet_hoch = {}, None
+    zuletzt = {}                                 # 11.11.: jüngster Kauf je Seite (Preis, Alter in Min)
     conds = {c for c, _l, _f in seiten(event, m.get("sport"))}
     for mk in event.get("markets") or []:
         if mk.get("conditionId") not in conds:
@@ -210,6 +211,8 @@ def fluss_fuer(m):
                     spaet_hoch = min(spaet_hoch, alter) if spaet_hoch is not None else alter
                 continue
             etikett = lab.get(t.get("outcome")) or t.get("outcome") or "?"
+            if etikett not in zuletzt or alter < zuletzt[etikett][1]:
+                zuletzt[etikett] = (round(preis, 3), round(alter, 1))
             aeltester = max(aeltester, alter)
             alle[etikett] = alle.get(etikett, 0) + usd
             if alter <= 60:
@@ -269,7 +272,8 @@ def fluss_fuer(m):
             "taktReichweiteMin": round(aeltester),
             "alle": {k: round(v) for k, v in alle.items()}, "alleReichweiteMin": round(aeltester),
             # 10.11.: aktueller Preis je Seite + „entschieden" (eine Seite ≥ 92 ¢ jetzt oder Käufe ≥ 92 ¢ in den letzten 15 Min)
-            "jetzt": jetzt, "entschieden": bool(spaet_hoch is not None or any(v >= PREIS_ENTSCHIEDEN for v in jetzt.values()))}
+            "jetzt": jetzt, "entschieden": bool(spaet_hoch is not None or any(v >= PREIS_ENTSCHIEDEN for v in jetzt.values())),
+            "zuletzt": {k: list(v) for k, v in zuletzt.items()}}
 
 
 def main() -> int:

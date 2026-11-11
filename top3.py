@@ -237,7 +237,11 @@ def rangliste(d, jetzt):
         fokus = se.get("auswahl") if se else (w.get("auf") if (w.get("anteil") or 0) >= 60 else None)
         if not fokus:
             continue
-        preis = (m.get("jetzt") or {}).get(fokus) or (m.get("preise") or {}).get(fokus) or (se or {}).get("preis")
+        zl = (m.get("zuletzt") or {}).get(fokus)                 # 11.11.: jüngster Kauf der letzten 10 Min zuerst
+        preis = (zl[0] if zl and zl[1] <= 10 else None) or (m.get("jetzt") or {}).get(fokus) or (m.get("preise") or {}).get(fokus) or (se or {}).get("preis")
+        sch = (m.get("preise") or {}).get(fokus)
+        if preis and sch and abs(preis - sch) > 0.08:
+            continue                                               # Markt hat seit dem Geld neu bewertet (GZG – Frank)
         quote = 1 / preis if preis else (se or {}).get("quote")
         if not quote or quote < 1.20:
             continue

@@ -1731,7 +1731,11 @@ def serien(takt, radar):
 def poly_serien(pf):
     """Dieselbe Idee für Polymarket, aus den 10-Min-Säulen von poly_fluss.py (Trades mit Zeitstempel)."""
     out = []
+    pf_stand = ts((pf or {}).get("generatedAt") or (pf or {}).get("stand"))
+    pf_alt = (JETZT - pf_stand).total_seconds() / 60 if pf_stand else 99
     for m in (pf or {}).get("maerkte") or []:
+        if m.get("live") and pf_alt > 12:
+            continue                    # 11.11.: live bewegt sich der Preis nach jeder Map/jedem Tor — nur frische Daten
         if m.get("entschieden"):
             continue                    # 10.11. (Butterfly – Honvéd): Markt praktisch entschieden → kein Dauerzufluss
         takt, summe_b = m.get("takt") or {}, m.get("taktSumme") or []
@@ -1751,7 +1755,18 @@ def poly_serien(pf):
             summe = sum(werte[i] for i in kette)
             if summe < (25000 if m.get("top5") else 6000):
                 continue
-            preis = (m.get("jetzt") or {}).get(lab) or (m.get("preise") or {}).get(lab)   # 10.11.: aktueller Preis zuerst
+            schnitt = (m.get("preise") or {}).get(lab)
+            zl = (m.get("zuletzt") or {}).get(lab)
+            jetzt_p = (m.get("jetzt") or {}).get(lab)
+            # 11.11. (Lucas, GZG – Frank Esports LoL BO5: Push „@ 1,83", beim Buchmacher 1 Min später 1,41 — Frank hatte
+            # gerade Map 1 gewonnen): der aktuelle Preis = jüngster Kauf der letzten 10 Min, sonst outcomePrices (bei
+            # dünnen Büchern oft der alte letzte Trade). Liegt er mehr als 8 ¢ vom Preis, zu dem das Geld kam, hat der
+            # Markt neu bewertet — das Signal ist überholt → kein Dauerzufluss.
+            preis = (zl[0] if zl and zl[1] <= 10 else None) or jetzt_p or schnitt
+            if preis and schnitt and abs(preis - schnitt) > 0.08:
+                continue
+            if preis and jetzt_p and abs(preis - jetzt_p) > 0.08:
+                continue
             ko = ts(m.get("anpfiff"))
             # Lucas 17.10. (Betis–Barça 5:2, Push 10 Min nach Abpfiff): gut 2 h nach Anpfiff ist das Spiel aus
             if ko and (m.get("sport") or "Fußball") == "Fußball" and JETZT - ko > timedelta(minutes=115):

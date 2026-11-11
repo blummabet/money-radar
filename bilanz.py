@@ -513,6 +513,10 @@ VOID_MANUELL = [
     # AI-Pick Chelsea (W) @ 1,25 in der 28. bei 0:1 — Betwatch-Quote stand noch auf dem Stand vor Anpfiff (Regel A2)
     ("BK Hacken (W) – Chelsea (W)", "2026-11-10T18:00:00+00:00", "2026-11-10T20:00:00+00:00", "Quote veraltet (Live-Markt nicht aktualisiert)",
      {"ki", "kiModell", "kiTop3"}),
+    # 11.11. 11:18 GZG – Frank Esports (LoL BO5): Public „@ 1,83", Polymarket stand da schon bei 64 % (= 1,56) — Map 1 war
+    # gerade an Frank gegangen, der Preis war der Schnitt der letzten Stunde
+    ("Ground Zero Gaming", "2026-11-11T09:45:00+00:00", "2026-11-11T10:45:00+00:00", "Preis war veraltet (Markt hatte neu bewertet)",
+     {"pserie", "top3p", "publicErg", "wal"}),
 ]
 
 
@@ -522,7 +526,8 @@ def manuell_void(buch):
         for mid, von, bis, grund, *arten in VOID_MANUELL:
             if arten and b.get("art") not in arten[0]:
                 continue
-            treffer = str(b.get("id")) == mid or f"{b.get('heim')} – {b.get('gast')}" == mid
+            treffer = (str(b.get("id")) == mid or f"{b.get('heim')} – {b.get('gast')}" == mid
+                       or (len(mid) > 12 and mid in f"{b.get('titel') or ''} {b.get('spiel') or ''} {b.get('heim') or ''}"))
             if treffer and t and _ts(von) <= t <= _ts(bis) and not b.get("voidManuell"):
                 b["status"], b["void"], b["voidManuell"], b["voidGrund"] = "nicht abrechenbar", True, True, grund
                 b["win"], b["r"] = None, None
