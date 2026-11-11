@@ -21,11 +21,11 @@ rc, out = gh(f"repos/{REPO}/contents/gepostet.json?ref=bilder")
 gepostet = json.loads(base64.b64decode(json.loads(out)["content"])) if rc == 0 else {}
 
 
-def lauf_unterwegs():
+def lauf_unterwegs(min_abstand=20):
     rc2, o = gh(f"repos/{REPO}/actions/workflows/instagram.yml/runs?per_page=3")
     for r in (json.loads(o).get("workflow_runs") or []) if rc2 == 0 else []:
         t = datetime.fromisoformat(r["created_at"].replace("Z", "+00:00"))
-        if r["status"] != "completed" or jetzt - t < timedelta(minutes=20):
+        if r["status"] != "completed" or jetzt - t < timedelta(minutes=min_abstand):
             return r["id"]
     return None
 
@@ -35,7 +35,7 @@ def lauf_unterwegs():
 if (w.hour >= 12 or w.hour < 1):
     xl = gepostet.get("_xLauf")
     alt_x = jetzt - datetime.fromisoformat(xl) if xl else timedelta(days=1)
-    if alt_x > timedelta(minutes=150) and not lauf_unterwegs():
+    if alt_x > timedelta(minutes=150) and not lauf_unterwegs(3):
         rc, _ = gh("-X", "POST", f"repos/{REPO}/actions/workflows/instagram.yml/dispatches", "-f", "ref=main",
                    "-f", "inputs[modus]=x_bilder", "-f", "inputs[trocken]=false")
         print("X-Grafiken nachgeholt angestoßen" if rc == 0 else "X-Anstoß fehlgeschlagen")

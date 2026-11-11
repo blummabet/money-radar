@@ -244,7 +244,7 @@ def abend():
         return None
     sp = t.get("spiele") or []
     if not sp:
-        return None
+        return False                           # 11.11.: Datei von heute, aber kein Spiel → bewusst nichts (Wächter hört auf)
     for s in sp:
         s["liga"] = re.sub(r"^UEFA |^English Sky Bet ", "", str(s.get("liga") or ""))
     html = grafik.geld_drei(sp, f"{grafik.TAGE[W.weekday()]}, {W.day}. {grafik.MONATE[W.month - 1]} · heute Abend")
@@ -443,6 +443,9 @@ def main(modus):
             _veroeffentlichen(gepostet, schluessel, *r)
         else:
             print("nichts zu posten")
+            if r is False and not os.environ.get("TROCKEN"):
+                gepostet[schluessel] = {"keiner": True, "zeit": datetime.now(timezone.utc).isoformat()}
+                bilder_sichern(gepostet)
     else:
         print("heute schon gepostet:", gepostet[schluessel])
     if modus in ("abend", "reddit"):
