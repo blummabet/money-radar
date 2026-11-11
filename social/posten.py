@@ -344,12 +344,23 @@ def x_bilder(gepostet):
     chat = os.environ.get("TELEGRAM_TEST_CHAT_ID", "").strip()
     foto = lambda bild, text: telegram_foto(bild, text, chat)  # noqa: E731
     n_band = sum(1 for k in gepostet if k.startswith("xband|") and str(gepostet[k]).startswith(tag))
-    if n_band < 2:
+    # 11.11. (Lucas: „das ist ja alles schon passiert — haben wir dazu ein Signal gepostet? Sonst ist das komisch"):
+    # das Band nur für Spiele, zu denen vorher ein Signal auf X oder im Public-Kanal kam (site/x_signale.json aus push.py).
+    # Datei nicht lesbar → kein Band (lieber nichts als ein Nachbericht ohne Vorbericht).
+    try:
+        signale = hol(f"{SEITE}x_signale.json?t={int(time.time())}").get("spiele") or {}
+    except Exception as exc:  # noqa: BLE001
+        print(f"x: x_signale nicht lesbar ({exc}) — kein Band")
+        signale = None
+    norm = lambda s: re.sub(r"[^a-z0-9]", "", str(s or "").lower())[:14]  # noqa: E731  = public._norm
+    if n_band < 2 and signale is not None:
         kand = []
         for sid, Z in (d.get("phasen") or {}).items():
             m = (d.get("phasenMeta") or {}).get(sid) or {}
             ko = m.get("anpfiff") and datetime.fromisoformat(str(m["anpfiff"]).replace("Z", "+00:00"))
             if not m.get("ft") or not ko or JETZT - ko > timedelta(hours=5) or f"xband|{sid}" in gepostet or len(Z) < 8:
+                continue
+            if norm(f"{m.get('heim')} – {m.get('gast')}") not in signale:
                 continue
             t = x_grafik.band_text(m, Z)
             if t:
@@ -363,7 +374,7 @@ def x_bilder(gepostet):
             if not os.environ.get("TROCKEN") and x_post.bild_posten(bild, t, foto):
                 gepostet[f"xband|{sid}"] = W.isoformat()
         else:
-            print("x: kein Spiel mit Geschichte fürs Band")
+            print("x: kein Spiel mit Signal und Geschichte fürs Band")
     if not any(k.startswith("xwal|") and str(gepostet[k]).startswith(tag) for k in gepostet):
         G = {}
         for o in (d.get("poly") or {}).get("setzen") or []:
