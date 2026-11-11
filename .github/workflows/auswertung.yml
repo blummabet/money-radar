@@ -22,8 +22,9 @@ jobs:
             .bf
             .pin
             .push_state
+            .rp
           key: radar-lesen-${{ github.run_id }}
-          restore-keys: radar-
+          restore-keys: radar-   # 11.11.: Pfadliste oben muss in build.yml, poly-fluss.yml, auswertung.yml GLEICH sein (sonst Cache-Fehlgriff)
       - name: Polymarket-Märkte laden (nur lesen)
         uses: actions/cache/restore@v4
         with:

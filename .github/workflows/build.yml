@@ -46,7 +46,7 @@ jobs:
             .push_state
             .rp
           key: radar-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: radar-
+          restore-keys: radar-   # 11.11.: Pfadliste oben muss in build.yml, poly-fluss.yml, auswertung.yml GLEICH sein (sonst Cache-Fehlgriff)
       - name: Polymarket vom Mac-Runner laden (Fluss .pf, Märkte + Wallets .pm)
         uses: actions/cache/restore@v4
         with:

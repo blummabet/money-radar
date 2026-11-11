@@ -42,8 +42,9 @@ jobs:
             .bf
             .pin
             .push_state
+            .rp
           key: radar-none
-          restore-keys: radar-
+          restore-keys: radar-   # 11.11.: Pfadliste oben muss in build.yml, poly-fluss.yml, auswertung.yml GLEICH sein (sonst Cache-Fehlgriff)
       - name: Märkte, Wale, Wallet-Buch
         run: |
           export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
