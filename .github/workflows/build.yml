@@ -23,7 +23,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: bau   # 11.11.: „pages" hing an einem Geisterlauf (Lauf 43094667462 ewig in_progress, nicht abbrechbar)
   cancel-in-progress: false   # ein abgebrochener Lauf würde sein Gedächtnis verlieren → Doppel-Pushes
 
 jobs:
