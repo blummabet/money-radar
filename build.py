@@ -296,7 +296,23 @@ PINN_LIVE_MIN_PP = {True: 3.0, False: 4.0}    # live in ~15 Min, nur für ein Te
 PINN_STAND = BASIS / ".pin" / "pinn_stand.json"
 
 
-def pinn_drops(prices):
+def _bf_zug(m, bf_hist, i, seit):
+    """11.11.: Betfair-Sieg-Quote derselben Seite zum Drop-Beginn und jetzt."""
+    if not m or not bf_hist:
+        return None
+    f = ("hw", "dr", "aw")[i]
+    sn = [x for x in (bf_hist.get(str(m.get("matchId"))) or []) if isinstance(x, dict) and (x.get("mo") or {}).get(f)]
+    if not sn:
+        return None
+    t0 = ts(seit)
+    a = next((x for x in sn if t0 and (ts(x.get("ts")) or JETZT) >= t0), sn[0])
+    q_a, q_j = a["mo"][f], sn[-1]["mo"][f]
+    if not (q_a and q_j and q_a > 1 and q_j > 1):
+        return None
+    return {"von": round(q_a, 2), "jetzt": round(q_j, 2), "pp": round((1 / q_j - 1 / q_a) * 100, 1)}
+
+
+def pinn_drops(prices, bf_hist=None):
     """Pinnacle-Drops aus .pin/pinnacle_alle.json — unabhängig davon, ob Betfair das Spiel groß handelt.
 
     Vor Anpfiff: Wahrscheinlichkeit jetzt gegen den ersten Stand (bis ~12 h zurück).
@@ -350,7 +366,14 @@ def pinn_drops(prices):
             fein = e.get("fein") or []
             vor60 = next((x for x in fein if JETZT - ts(x[0]) <= timedelta(minutes=65)), None)
             pp60 = round((jetzt_p[1 + i] - vor60[1 + i]) * 100, 1) if vor60 else None
-            vor.append({**basis, "auf": namen[i], "ausgang": ("heim", "remis", "gast")[i],
+            # Lucas 11.11. („Quotendrops auf Betfair mit einbauen — wenn Pinnacle und Betfair auf derselben Seite sind, seh
+            # ich das nicht"): Betfair-Sieg-Quote derselben Seite zum Drop-Beginn und jetzt (aus betfair_history)
+            bfz = None
+            try:
+                bfz = _bf_zug(m, bf_hist, i, erst[0])
+            except Exception:  # noqa: BLE001
+                bfz = None
+            vor.append({**basis, "auf": namen[i], "ausgang": ("heim", "remis", "gast")[i], "bf": bfz,
                         "vonPct": round(erst[1 + i] * 100, 1), "nachPct": round(jetzt_p[1 + i] * 100, 1), "pp": round(d[i], 1),
                         "vonQuote": erst[4 + i], "quote": jetzt_p[4 + i], "seit": erst[0], "pp60": pp60,
                         "frisch": bool(pp60 is not None and pp60 >= PINN_FRISCH_PP[top5]),
@@ -2836,7 +2859,7 @@ def main() -> int:
         "ligaBilanz": lbz,
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
-        "pinnDrops": pinn_drops(prices),
+        "pinnDrops": pinn_drops(prices, bf_hist),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
         "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, live_m, offen_m)),
         "marktCharts": markt_charts(radar),

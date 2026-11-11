@@ -859,6 +859,11 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .rp-tag:hover{background:var(--hover,rgba(127,127,127,.06));border-radius:3px}
 .rp-pm{height:120px} .rp-pm .rp-tag{display:block} .rp-pm .rp-tag::before{content:"";position:absolute;left:-2px;right:-2px;top:50%;height:1px;background:var(--line)}
 .rp-pm .rp-tag span{position:absolute;left:0;right:0;border-radius:2px}
+.pdk-bf{margin-top:8px;font-size:12.5px;font-weight:700;padding:6px 10px;border-radius:8px;background:var(--panel-2)}
+.pdk-bf.mit{color:var(--up);background:color-mix(in srgb,var(--up) 12%,transparent)}
+.pdk-bf.hinkt{color:#b7791f;background:color-mix(in srgb,#f0b429 14%,transparent)}
+.pdk-bf.gegen{color:var(--down);background:color-mix(in srgb,var(--down) 10%,transparent)}
+.pdk-bf.aus{color:var(--text-3);font-weight:600}
 .rp-leg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--text-2)} .rp-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--f);margin-right:6px}
 .rp-div{display:grid;grid-template-columns:118px minmax(0,1fr) 92px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
 .rp-div:first-of-type{border-top:0}
@@ -4246,7 +4251,16 @@ function pinDropKarte(s, live){
     <div class="pdk-m"><div style="min-width:0"><div class="mk-name">${esc(s.heim)} – ${esc(s.gast)}</div><div class="pdk-auf">${esc(s.auf)}</div></div>
       <div class="pdk-q"><span>${q2(s.vonQuote)}</span><b>${q2(s.quote)}</b><small>+${dez(live?s.pp:(s.frisch?s.pp60:s.pp))} pp${live?` in ${s.fensterMin} Min`:s.frisch?" in 1 h":""}</small></div></div>
     ${n>=2?linien({reihen:[{werte:s.verlauf, farbe:"var(--pin)", flaeche:true}], x:s.verlauf.map((_,i)=>i===0?(live?"vorher":uhr(s.seit)):i===n-1?"jetzt":""), hoehe:80, fmt:v=>Math.round(v)+" %"}):""}
+    ${!live?bfZug(s):""}
   </div>`;
+}
+// Lucas 11.11.: zieht Betfair mit? ✓ beide fallen · ⏳ Betfair hinkt (noch alter Preis) · ✗ Betfair geht dagegen
+function bfZug(s){
+  const b = s.bf; if(!b) return `<div class="pdk-bf aus">Betfair: keine Sieg-Quote</div>`;
+  const [k, t] = b.pp >= 1 ? ["mit", `✓ Betfair zieht mit · ${q2(b.von)} → ${q2(b.jetzt)}`]
+    : b.pp <= -1 ? ["gegen", `✗ Betfair geht dagegen · ${q2(b.von)} → ${q2(b.jetzt)}`]
+    : ["hinkt", `⏳ Betfair hinkt · noch ${q2(b.jetzt)}${b.jetzt > s.quote*1.03 ? " (über Pinnacle)" : ""}`];
+  return `<div class="pdk-bf ${k}">${t}</div>`;
 }
 function pinZug(D){
   // je Spiel der Ausgang, den Pinnacle am stärksten bewegt: rechts = wird wahrscheinlicher, links = fällt ab
@@ -4264,11 +4278,13 @@ function seitePinnacle(D){
   const top = alle.map(g=>({g, b:g.bewegung||0})).sort((x,y)=>y.b-x.b)[0];
   const leer = [], voll = [];
   (liveD.length?voll:leer).push(["🔴 Live-Drops", "Team, das nicht führt, gewinnt in ~15 Min deutlich ohne Tor, bis 75'", liveD.map(x=>pinDropKarte(x,true))]);
-  (vor.length?voll:leer).push(["Drops vor Anpfiff", "seit dem ersten Stand · frisch = in der letzten Stunde", vor.map(x=>pinDropKarte(x,false))]);
+  const rang = x => x.bf && x.bf.pp >= 1 ? 0 : x.bf && x.bf.pp > -1 ? 1 : 2;      // 11.11.: beide fallen zuerst
+  const vorS = [...vor].sort((a,b)=>rang(a)-rang(b) || (b.frisch?1:0)-(a.frisch?1:0) || b.pp-a.pp);
+  (vor.length?voll:leer).push(["Drops vor Anpfiff", "seit dem ersten Stand · frisch = in der letzten Stunde · zuerst, wo Betfair mitzieht", vorS.map(x=>pinDropKarte(x,false))]);
   return `<div class="grid">
     <div class="panel c12 kz-panel">${kzReihe([
       ["Spiele mit Pinnacle-Quote", pd.n||0, "alle Ligen, vor Anpfiff und live"],
-      ["Drops vor Anpfiff", vor.length, `${vor.filter(x=>x.frisch).length} davon frisch`],
+      ["Drops vor Anpfiff", vor.length, `${vor.filter(x=>x.frisch).length} frisch · ${vor.filter(x=>x.bf&&x.bf.pp>=1).length} mit Betfair`],
       ["Live-Drops", liveD.length, "ohne Tor, Team liegt nicht vorn"],
       ["Größte Bewegung", top?`${dez(top.b)} pp`:"–", top?`${esc(top.g.heim)} – ${esc(top.g.gast)}`:""]])}</div>
     ${voll.map(([t,h,k])=>`<div class="panel c12"><div class="ph"><h3>${t}</h3><span class="hint">${h}</span></div><div class="toepfe p3">${k.join("")}</div></div>`).join("")}
