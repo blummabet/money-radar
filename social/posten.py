@@ -403,6 +403,10 @@ def main(modus):
         return 0 if x_post.pruefen() else 1
     if modus == "x_bilder":
         x_bilder(gepostet)
+        # 11.11.: Zeitstempel für den Wächter (nachhilfe.py) — GitHub verschluckt geplante Läufe
+        if not os.environ.get("TROCKEN"):
+            gepostet["_xLauf"] = datetime.now(timezone.utc).isoformat()
+            bilder_sichern(gepostet)
         return 0
     if modus == "woche_test":                   # Lucas 08.11.: Wochenabrechnung erst in den Testkanal
         global W

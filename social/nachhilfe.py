@@ -17,11 +17,33 @@ def gh(*a):
     return r.returncode, r.stdout
 
 
+rc, out = gh(f"repos/{REPO}/contents/gepostet.json?ref=bilder")
+gepostet = json.loads(base64.b64decode(json.loads(out)["content"])) if rc == 0 else {}
+
+
+def lauf_unterwegs():
+    rc2, o = gh(f"repos/{REPO}/actions/workflows/instagram.yml/runs?per_page=3")
+    for r in (json.loads(o).get("workflow_runs") or []) if rc2 == 0 else []:
+        t = datetime.fromisoformat(r["created_at"].replace("Z", "+00:00"))
+        if r["status"] != "completed" or jetzt - t < timedelta(minutes=20):
+            return r["id"]
+    return None
+
+
+# 11.11. (Lucas: „häng das dran, die Grafiken auf X sind mir wichtig"): X-Grafiken alle 2 h zwischen 12 und 1 Uhr —
+# liegt der letzte Lauf mehr als 2½ h zurück, selbst anstoßen
+if (w.hour >= 12 or w.hour < 1):
+    xl = gepostet.get("_xLauf")
+    alt_x = jetzt - datetime.fromisoformat(xl) if xl else timedelta(days=1)
+    if alt_x > timedelta(minutes=150) and not lauf_unterwegs():
+        rc, _ = gh("-X", "POST", f"repos/{REPO}/actions/workflows/instagram.yml/dispatches", "-f", "ref=main",
+                   "-f", "inputs[modus]=x_bilder", "-f", "inputs[trocken]=false")
+        print("X-Grafiken nachgeholt angestoßen" if rc == 0 else "X-Anstoß fehlgeschlagen")
+        raise SystemExit(0)
+
 modus = next((m for m, (von, bis) in FENSTER.items() if von <= (w.hour, w.minute) < bis), None)
 if not modus:
     raise SystemExit(0)
-rc, out = gh(f"repos/{REPO}/contents/gepostet.json?ref=bilder")
-gepostet = json.loads(base64.b64decode(json.loads(out)["content"])) if rc == 0 else {}
 if modus == "abend2":
     modus = "abend"
 offen = not gepostet.get(f"{modus}|{w:%Y-%m-%d}")
