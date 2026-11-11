@@ -2401,7 +2401,16 @@ STAT_ARTEN = {"ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "
 PUBLIC_ERGEBNIS = {
     ("2026-11-03", "furiaesports"): True,     # FURIA schlägt NaVi, IEM Beijing 2026 (rg.org, esports.ru)
     ("2026-11-04", "natusvincere"): False,    # NaVi schlägt Falcons → Public „Team Falcons" verloren (rg.org)
+    ("2026-11-10", "innercircle"): True,      # 11.11. Lucas: Inner Circle x Insanity schlägt HULIGANI 2:0 (hawk.live)
 }
+
+
+def _pub_hand(tabelle, tag, spiel_nz):
+    """11.11.: Handeinträge (Datum, Teil des Spielnamens) — der Name darf irgendwo im Spieltitel stehen."""
+    for (d, k), v in tabelle.items() if isinstance(tabelle, dict) else ((x, True) for x in tabelle):
+        if d == tag and k and k in spiel_nz:
+            return v
+    return None
 
 
 def _public_ergebnisse():
@@ -2553,7 +2562,7 @@ def statistik(burst, finder):
         if w_eigen is None:
             w_eigen = erg_poly.get((str(p.get("zeit"))[:16], nz(p.get("spiel"))[:12]))
         if w_eigen is None:
-            w_eigen = PUBLIC_ERGEBNIS.get((t0.strftime("%Y-%m-%d"), nz(p.get("spiel"))[:12]))
+            w_eigen = _pub_hand(PUBLIC_ERGEBNIS, t0.strftime("%Y-%m-%d"), nz(p.get("spiel")) + nz(p.get("auswahl")))
         if w_eigen is not None and r4:
             if not best:
                 best = [t0.strftime("%Y-%m-%dT%H:%M"), "x", None, None, p.get("quote"), None, p.get("liga") or "", 0,
@@ -2567,7 +2576,7 @@ def statistik(burst, finder):
             void = best[2] == 0 and w_ != 1
             # 05.11. (Lucas: Sparta – Bournemouth kam mit „45' · 1:0", da stand es schon 1:1 — „muss in der Statistik richtig
             # gewertet werden"): Public-Signale, die mit überholtem Spielstand rausgingen, zählen als void
-            if (t0.strftime("%Y-%m-%d"), nz(p.get("spiel"))[:12]) in PUBLIC_VOID:
+            if _pub_hand(PUBLIC_VOID, t0.strftime("%Y-%m-%d"), nz(p.get("spiel"))):
                 void, w_ = True, None
             r_ = 0.0 if void else (round(q_p - 1, 3) if w_ == 1 else -1.0) if w_ is not None and q_p else None
             zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, r_, w_,
@@ -2602,7 +2611,9 @@ def statistik(burst, finder):
     return len(zeilen)
 
 # Public-Signale, die nachweislich mit überholtem Stand gesendet wurden (Datum UTC, Spiel normalisiert, 12 Zeichen) → void
-PUBLIC_VOID = {("2026-11-05", "spartaprague")}
+PUBLIC_VOID = {("2026-11-05", "spartaprague"),
+               ("2026-11-10", "butterflyhonv"),          # 10.11. Lucas: Push @ 1,62, Polymarket stand schon bei 99 %
+               ("2026-11-11", "groundzerogaming")}       # 11.11. Lucas: Push @ 1,83, Polymarket stand bei 64 % (1,56)
 
 
 def verlauf(bf_buch, burst, finder, tr_led):
