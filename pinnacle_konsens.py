@@ -1725,7 +1725,7 @@ def main():
     # vor Anpfiff und live — gleich hier, damit ein späterer Timeout ihn nicht mitreißt.
     try:
         import pinnacle_scan
-        pinnacle_scan.fortschreiben(events_by_key, _sports)
+        pinnacle_scan.fortschreiben(events_by_key, _sports, bf_matches=matches, namen=_name_score)
     except Exception as _e:  # noqa: BLE001
         print("pinnacle_scan: nicht gelaufen (%s)" % str(_e)[:100])
     # Totals nur fuer die kuratierten Keys: die O/U-Leiter wird ausschliesslich im Poly-Terminal
