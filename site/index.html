@@ -4017,7 +4017,7 @@ function seiteStart(D){
     <div class="panel c12 merk-panel" id="merk-start"${MERK.length?"":" hidden"}><div class="ph"><h3>★ Deine Spiele</h3><span class="hint">seit du sie gemerkt hast</span><button class="chip rechts" data-merkliste>Liste</button></div><div class="merk-inhalt">${MERK.length?merkListe(false):""}</div></div>
     <div class="panel c12 t3-panel"><div class="ph"><h3>Top 3 jetzt</h3><span class="hint">wo gerade die meisten Signale gleichzeitig ziehen</span></div>${topDrei(D)}</div>
     ${druckPanel(D)}
-    <div class="panel c12 ticker"><div class="ph"><h3><span class="puls"></span> Gerade passiert</h3><button class="chip rechts" data-geh="feed">Ganzer Feed</button></div>${feedListe(D,4)}</div>
+    ${""/* 11.11. Lucas: „Gerade passiert" unter Top 3 doppelt zum Live-Ticker (rechts / unten) → raus; Ganzer Feed im Menü */}
     ${serienDa?serienPanel:""}
     <div class="panel c12"><div class="ph"><h3>Geld-Wand</h3><span class="hint">Fläche = Geld im Markt · kräftig = gerade neues Geld</span><button class="chip rechts" data-geh="betfair">Betfair</button></div>${geldWand(D)}</div>
     <div class="panel c12 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt</h3>${quellenLegende()}</div><div class="kk-klein" style="margin:-4px 0 8px">@ Quote · ▲▼ = so viele Prozentpunkte mehr/weniger Geld, als die Quote erwarten lässt · dünne Linie = Verteilung laut Quote</div>${toepfeListe(D,4,4)}</div>
