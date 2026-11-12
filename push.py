@@ -670,6 +670,10 @@ def wale(d):
         preis = o.get("jetzt") if o.get("jetzt") is not None else o.get("preis")
         ein = o.get("einstieg") or o.get("preis")
         usd = float(o.get("usd") or 0)
+        # 12.11. (Lucas: „$4,3k auf Remis" bei 99¢ = Quote 1,01 — „wertlos wegen Quote", das Spiel ist offenbar abgesagt
+        # und der Markt praktisch entschieden): ab 90¢ (Quote ≤ 1,11) kein Wal-Push, weder Einstieg noch aktueller Preis.
+        if max(float(preis or 0), float(ein or 0)) >= 0.90:
+            continue
 
         # Kopf
         titel = e(o.get("spiel"))
