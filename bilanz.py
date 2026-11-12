@@ -518,7 +518,9 @@ VOID_MANUELL = [
     ("Ground Zero Gaming", "2026-11-11T09:45:00+00:00", "2026-11-11T10:45:00+00:00", "Preis war veraltet (Markt hatte neu bewertet)",
      {"pserie", "top3p", "publicErg", "wal"}),
     # 12.11. Wal-Push „$4,3k auf Remis" @ 99¢ (1,01) — Spiel offenbar abgesagt, Markt praktisch entschieden (Lucas)
-    ("Cajamarca", "2026-11-12T09:00:00+00:00", "2026-11-12T14:00:00+00:00", "Markt praktisch entschieden (99 ¢)", {"wal"}),
+    ("Técnica de Cajamarca", "2026-11-12T09:00:00+00:00", "2026-11-12T14:00:00+00:00", "Markt praktisch entschieden (99 ¢)", {"wal"}),
+    # 12.11. Germany U19 – Sweden U19 Über 0,5 @ 1,74 bei „72' 0:0": das Tor fiel ~15:29, der Push kam ~15:31 (Lucas)
+    ("Germany U19 – Sweden U19", "2026-11-12T14:24:00+00:00", "2026-11-12T14:36:00+00:00", "Tor fiel vor dem Push"),
 ]
 
 

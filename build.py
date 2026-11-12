@@ -2639,7 +2639,8 @@ def statistik(burst, finder):
 # Public-Signale, die nachweislich mit überholtem Stand gesendet wurden (Datum UTC, Spiel normalisiert, 12 Zeichen) → void
 PUBLIC_VOID = {("2026-11-05", "spartaprague"),
                ("2026-11-10", "butterflyhonv"),          # 10.11. Lucas: Push @ 1,62, Polymarket stand schon bei 99 %
-               ("2026-11-11", "groundzerogaming")}       # 11.11. Lucas: Push @ 1,83, Polymarket stand bei 64 % (1,56)
+               ("2026-11-11", "groundzerogaming"),       # 11.11. Lucas: Push @ 1,83, Polymarket stand bei 64 % (1,56)
+               ("2026-11-12", "germanyu19")}             # 12.11. Über 0,5 @ 1,74 „72' 0:0" — das 0:1 fiel um 15:29, Push kam ~15:31
 
 
 def verlauf(bf_buch, burst, finder, tr_led):
