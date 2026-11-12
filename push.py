@@ -47,6 +47,8 @@ ZUFLUSS_MIN_EUR = SCHWELLE[False][0]
 ZUFLUSS_PAUSE_H = 6          # dasselbe Spiel + dieselbe Seite höchstens alle 6 h
 FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als verpasst und werden nicht nachgeschickt
 WAL_MIN_USD = 1000
+STAKE_TOP5_MIN_USD = 50000   # Regel S5 (12.11.)
+STAKE_TOP5_EINDEUTIG = {"UEFA Champions League", "UEFA Nations League", "LaLiga", "Ligue 1"}
 WAL_MIN_USD_TOP5 = 3000      # in den Top-5 sind $1000 Alltag
 WAL_MIN_FAKTOR = 0.25        # Wal-Regel 2 (06.11.): mindestens ¼ des üblichen Einsatzes
 MAX_JE_LAUF = 12             # Notbremse gegen Spam
@@ -958,6 +960,15 @@ def stake(d):
                     return int(lv["min"]), st
         return None
 
+    def stake_top5(z):
+        teile = [x.strip().lower() for x in str(z.get("spiel") or "").split(" - ")]
+        if len(teile) == 2:
+            for sp in radar:
+                h, g_ = str(sp.get("heim") or "").lower(), str(sp.get("gast") or "").lower()
+                if h[:5] and g_[:5] and h[:5] in teile[0] and g_[:5] in teile[1]:
+                    return bool(sp.get("top5"))
+        return str(z.get("liga") or "") in STAKE_TOP5_EINDEUTIG
+
     benutzt = set()
     for t0, z0 in sig:
         if id(z0) in benutzt:
@@ -979,6 +990,12 @@ def stake(d):
             quote = _bf_sieg_quote(g.get("spiel"), auswahl, (mit_auswahl or g).get("markt"), radar)
             quelle_q = "betfair" if quote else "stake"
         if (isinstance(quote, (int, float)) and quote < 1.40) or (g.get("phase") == "live" and klar_vorn(g.get("spiel"))):
+            continue
+        # REGEL S5 (Lucas 12.11., Italy – France $47k in 5 Wetten: „die Stake-Bursts in den Top-Ligen sind sonst zu einfach,
+        # da spielen viele hohe Beträge"): in den Top-5 inkl. Champions League und Nations League erst ab $50k — dieselbe
+        # Grenze wie beim Stake-Dauerzufluss dort. Liganamen bei Stake sind mehrdeutig („Premier League", „Bundesliga",
+        # „Serie A" gibt es mehrfach), darum zuerst das Betfair-Spiel fragen, sonst nur die eindeutigen Namen.
+        if (g.get("usd") or 0) < STAKE_TOP5_MIN_USD and stake_top5(g):
             continue
         # Lucas 31.10. (Accrington – Northampton 40' 1:0, $18k auf Accrington @ 1,40: „Macht keinen Sinn, oder?"): REGEL S2 —
         # wie beim Betfair-Zufluss seit 30.10.: Live-Geld auf das Team, das gerade führt (egal wie knapp), wird nicht gepusht,
