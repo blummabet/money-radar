@@ -30,7 +30,7 @@ T = {
         "s1_f": "Landet auffällig viel Geld auf einer Seite, melden wir es — sofort.",
         "s2_u": "2 / 3 · Wie ein Signal entsteht",
         "s2_h": "Die Quote sagt das eine.<br>Das Geld sagt etwas anderes.",
-        "s2_bsp": "Beispiel · Serbien U19 gegen Färöer U19 · 50. Minute, Stand 0:1 · €18k in 25 Minuten",
+        "s2_bsp": "Beispiel · Serbien U19 gegen Färöer U19 · gelber Strich = unser Signal",
         "s2_geld": "des neuen Geldes auf Serbien",
         "s2_quote": "erwartet die Quote 2,14",
         "s2_end": "Unser Signal kam beim Stand 0:1. Endstand 4:1 — Serbien hat das Spiel gedreht.",
@@ -64,7 +64,7 @@ T = {
         "s1_f": "When unusual money lands on one side, we flag it — right away.",
         "s2_u": "2 / 3 · How a signal is born",
         "s2_h": "The odds say one thing.<br>The money says another.",
-        "s2_bsp": "Example · Serbia U19 vs Faroe Islands U19 · 50th minute, 0:1 · €18k in 25 minutes",
+        "s2_bsp": "Example · Serbia U19 vs Faroe Islands U19 · yellow line = our signal",
         "s2_geld": "of the new money on Serbia",
         "s2_quote": "is what odds of 2.14 expect",
         "s2_end": "Our signal came at 0:1. Final score 4:1 — Serbia turned it around.",
@@ -86,6 +86,47 @@ T = {
         "s3_f": "Every signal is counted, wins and losses.<br>The record is public on our site.",
     },
 }
+
+# Beispiel für Folie 2: Serbien U19 – Färöer U19, 11.11. — Public-Signal 18:10 (50. Min, 0:1) auf Serbien @ 2,14, Endstand 4:1.
+# Phasen aus dem Live-Stand von 23:31 (das 5-Min-Protokoll hält nur 6 h, darum erst ab der 34. Minute).
+BSP_META = {"heim": "Serbia U19", "gast": "Faroe Islands U19", "anpfiff": "2026-11-11T16:00:00Z",
+            "liga": "UEFA U19 Euro Qualifiers", "ft": [4, 1]}
+BSP_Z = [["2026-11-11T16:34", "h", 413, 90, -11, [0, 0]], ["2026-11-11T16:39", "h", 5619, 95, -1316, [0, 0]],
+         ["2026-11-11T16:44", "h", 7927, 99, 1340, [0, 0]], ["2026-11-11T16:49", "h", 2687, 83, -2724, [0, 1]],
+         ["2026-11-11T16:54", "h", 3328, 87, 1094, [0, 1]], ["2026-11-11T16:59", "h", 1179, 87, 212, [0, 1]],
+         ["2026-11-11T17:04", "h", 1722, 86, -229, [0, 1]], ["2026-11-11T17:09", "h", 9041, 90, -343, [0, 1]],
+         ["2026-11-11T17:14", "h", 12213, 97, 1197, [1, 1]], ["2026-11-11T17:19", "h", 7322, 96, 847, [2, 1]],
+         ["2026-11-11T17:24", "h", 16639, 99, -6655, [2, 1]], ["2026-11-11T17:29", "h", 3641, 99, -3995, [2, 1]],
+         ["2026-11-11T17:34", "h", 152, 77, -3701, [4, 1]], ["2026-11-11T17:39", None, None, None, 1611, [4, 1]],
+         ["2026-11-11T17:44", None, None, None, -11605, [4, 1]], ["2026-11-11T17:49", None, None, None, -41613, [4, 1]]]
+BSP_SIG = {"zeit": "2026-11-11T17:10", "wo": "Telegram", "auswahl": "Serbia U19", "quote": 2.14}
+BAND_DE = [(">Winner<", ">Sieger<"), (">Goals<", ">Tore<"), ("📣 Our signal", "📣 Unser Signal"), (" on Telegram", " auf Telegram"),
+           ("✅ won", "✅ gewonnen"), ("❌ lost", "❌ verloren"), ("Serbia U19", "Serbien U19"), ("Faroe Islands U19", "Färöer U19"),
+           ("@ 2.14", "@ 2,14"), ("></i>Draw<", "></i>Remis<"), ("></i>Over <", "></i>Über <"), ("></i>Under", "></i>Unter"),
+           ("Each block = 5 minutes of new money on Betfair · stronger colour = more money · times CET",
+            "Jeder Block = 5 Minuten neues Geld auf Betfair · kräftigere Farbe = mehr Geld · Uhrzeit MEZ")]
+
+
+def band_bild(sprache):
+    """Das „How the money moved"-Band des Beispiels, nur der Diagrammteil (ohne eigenen Kopf/Fuß), als data-URL."""
+    import base64
+    import io
+    import tempfile
+
+    import x_grafik
+    from PIL import Image
+    h = x_grafik.band(BSP_META, BSP_Z, BSP_SIG)
+    if sprache == "de":
+        for a, b in BAND_DE:
+            h = h.replace(a, b)
+    with tempfile.TemporaryDirectory() as tmp:
+        roh = Path(tmp) / "band.jpg"
+        rendern(h, roh, 675, 1200, 2)
+        img = Image.open(roh).crop((60, 250, 2340, 1130))
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=92)
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+
 
 CSS = """
 .zahl{font-family:'Barlow Condensed';font-weight:800}
@@ -110,12 +151,15 @@ CSS = """
 .bal .g{position:absolute;left:0;top:0;bottom:0;border-radius:15px;background:var(--gelb)}
 .bal .mk{position:absolute;top:-12px;bottom:-12px;width:6px;margin-left:-3px;background:var(--tinte);border-radius:3px}
 .lg{font-size:19px;color:var(--grau);margin-top:20px}
-.end{font-size:24px;font-weight:600;margin-top:20px;padding-top:18px;border-top:2px solid #EDEFF2}
+.bb{padding:20px 24px 22px;margin-top:26px}.bb img{display:block;width:100%;margin-top:12px;border-radius:10px}
+.kz{font-size:21px;color:var(--grau);margin-top:10px}.kz b{color:var(--tinte);font-family:'Barlow Condensed';font-size:32px}
+.end{font-size:22px;font-weight:600;margin-top:12px;padding-top:12px;border-top:2px solid #EDEFF2}
 .st{display:flex;flex-direction:column;gap:16px;margin:30px 0}
 .s{display:grid;grid-template-columns:62px 1fr;gap:22px;align-items:start}
 .s .nr{font-family:'Barlow Condensed';font-weight:800;font-size:38px;background:var(--gelb);border-radius:12px;text-align:center;line-height:56px}
 .s b{font-size:28px;display:block}
 .s span{font-size:23px;color:var(--grau);line-height:1.35}
+.st2{gap:10px;margin:22px 0 20px}.st2 .s{grid-template-columns:48px 1fr;gap:16px}.st2 .nr{font-size:30px;line-height:44px}.st2 b{font-size:23px}.st2 span{font-size:19px}
 .ar{display:flex;flex-direction:column;gap:12px;margin-top:30px}
 .a{display:grid;grid-template-columns:76px 1fr;gap:22px;align-items:center;background:var(--karte);border-radius:20px;padding:16px 26px}
 .a .i{font-size:46px;text-align:center}
@@ -136,16 +180,13 @@ def folie1(t):
                      f"<div class='txt'>{e(t['s1_t'])}</div><div class='qs'>{qs}</div><div class='f1'>{e(t['s1_f'])}</div>")
 
 
-def folie2(t, geld=87, quote=2.14):
-    impl = round(100 / quote)
+def folie2(t, sprache="de"):
     st = "".join(f"<div class='s'><div class='nr'>{i}</div><div><b>{e(b)}</b><span>{e(s)}</span></div></div>"
                  for i, (b, s) in enumerate(t["schritte"], 1))
-    return _seite(t, f"<div class='u2'>{e(t['s2_u'])}</div><div class='h' style='font-size:88px'>{t['s2_h']}</div>"
-                     f"<div class='bsp'><div class='k'>{e(t['s2_bsp'])}</div>"
-                     f"<div class='zz'><div><div class='z'>{geld}<small>%</small></div><div class='l'>{e(t['s2_geld'])}</div></div>"
-                     f"<div class='r'><div class='z leise'>{impl}<small>%</small></div><div class='l'>{e(t['s2_quote'])}</div></div></div>"
-                     f"<div class='bal'><i class='g' style='width:{geld}%'></i><i class='mk' style='left:{impl}%'></i></div>"
-                     f"<div class='lg'>{e(t['s2_lg'])}</div><div class='end'>✅ {e(t['s2_end'])}</div></div><div class='st'>{st}</div>")
+    return _seite(t, f"<div class='u2'>{e(t['s2_u'])}</div><div class='h' style='font-size:76px'>{t['s2_h']}</div>"
+                     f"<div class='bsp bb'><div class='k'>{e(t['s2_bsp'])}</div><img src='{band_bild(sprache)}' alt=''>"
+                     f"<div class='kz'><b>87 %</b> {e(t['s2_geld'])} · <b>47 %</b> {e(t['s2_quote'])}</div>"
+                     f"<div class='end'>✅ {e(t['s2_end'])}</div></div><div class='st st2'>{st}</div>")
 
 
 def folie3(t):
@@ -160,5 +201,5 @@ if __name__ == "__main__":
     ziel.mkdir(parents=True, exist_ok=True)
     for sp in sprachen:
         for i, f in enumerate((folie1, folie2, folie3), 1):
-            rendern(f(T[sp]), ziel / f"erklaer-{sp}-{i}.jpg", schaerfe=1)
+            rendern(f(T[sp], sp) if f is folie2 else f(T[sp]), ziel / f"erklaer-{sp}-{i}.jpg", schaerfe=1)
             print(ziel / f"erklaer-{sp}-{i}.jpg")

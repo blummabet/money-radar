@@ -143,7 +143,9 @@ def ergebnis(meta: dict, sig: dict | None) -> str | None:
         return "won" if h == g else "lost"
     def kern(n):
         return {w for w in _re.sub(r"[^a-z0-9 ]", " ", str(n or "").lower()).split() if len(w) > 2 and w not in ("the", "fc", "afc", "cf", "sc", "club")}
-    ka, kh, kg = kern(a), kern(meta.get("heim")), kern(meta.get("gast"))
+    kh0, kg0 = kern(meta.get("heim")), kern(meta.get("gast"))
+    gemein = kh0 & kg0                        # „U19", „(W)", „United" in beiden Namen sagt nichts über die Seite
+    ka, kh, kg = kern(a) - gemein, kh0 - gemein, kg0 - gemein
     if ka & kh and not ka & kg:
         return "won" if h > g else "lost"
     if ka & kg and not ka & kh:
