@@ -3,7 +3,7 @@
 „habt ihr irgendwo eine Erklärseite?"). Ganz oberflächlich, je Folie eine Idee:
 
   1  Wir tippen nicht, wir folgen dem Geld — die drei Quellen
-  2  Wie ein Signal entsteht — Geld-Anteil gegen das, was die Quote erwartet
+  2  Wie ein Signal entsteht — Geld-Anteil gegen das, was die Quote erwartet (Beispiel Serbien U19, Public 11.11.)
   3  Was unsere Posts bedeuten — die Post-Arten, und dass jedes Signal gezählt wird
 
 1080×1350 im selben Stil wie die übrigen Insta-Grafiken (grafik.py). Sprache „de" (Instagram) oder „en" (X).
@@ -30,9 +30,10 @@ T = {
         "s1_f": "Landet auffällig viel Geld auf einer Seite, melden wir es — sofort.",
         "s2_u": "2 / 3 · Wie ein Signal entsteht",
         "s2_h": "Die Quote sagt das eine.<br>Das Geld sagt etwas anderes.",
-        "s2_bsp": "Beispiel · Leuven (W) gegen Køge (W) · 20 Minuten",
-        "s2_geld": "des neuen Geldes auf Køge",
-        "s2_quote": "erwartet die Quote 1,52",
+        "s2_bsp": "Beispiel · Serbien U19 gegen Färöer U19 · 50. Minute, Stand 0:1 · €18k in 25 Minuten",
+        "s2_geld": "des neuen Geldes auf Serbien",
+        "s2_quote": "erwartet die Quote 2,14",
+        "s2_end": "Unser Signal kam beim Stand 0:1. Endstand 4:1 — Serbien hat das Spiel gedreht.",
         "s2_lg": "Gelb = Anteil am Geld · schwarzer Strich = was die Quote erwartet",
         "schritte": [
             ("Geld fließt", "Wir messen alle paar Minuten, wie viel neu auf jede Seite geht."),
@@ -63,9 +64,10 @@ T = {
         "s1_f": "When unusual money lands on one side, we flag it — right away.",
         "s2_u": "2 / 3 · How a signal is born",
         "s2_h": "The odds say one thing.<br>The money says another.",
-        "s2_bsp": "Example · Leuven (W) vs Køge (W) · 20 minutes",
-        "s2_geld": "of the new money on Køge",
-        "s2_quote": "is what odds of 1.52 expect",
+        "s2_bsp": "Example · Serbia U19 vs Faroe Islands U19 · 50th minute, 0:1 · €18k in 25 minutes",
+        "s2_geld": "of the new money on Serbia",
+        "s2_quote": "is what odds of 2.14 expect",
+        "s2_end": "Our signal came at 0:1. Final score 4:1 — Serbia turned it around.",
         "s2_lg": "Yellow = share of the money · black line = what the odds expect",
         "schritte": [
             ("Money flows", "Every few minutes we measure how much new money goes to each side."),
@@ -108,7 +110,8 @@ CSS = """
 .bal .g{position:absolute;left:0;top:0;bottom:0;border-radius:15px;background:var(--gelb)}
 .bal .mk{position:absolute;top:-12px;bottom:-12px;width:6px;margin-left:-3px;background:var(--tinte);border-radius:3px}
 .lg{font-size:19px;color:var(--grau);margin-top:20px}
-.st{display:flex;flex-direction:column;gap:20px;margin:40px 0}
+.end{font-size:24px;font-weight:600;margin-top:20px;padding-top:18px;border-top:2px solid #EDEFF2}
+.st{display:flex;flex-direction:column;gap:16px;margin:30px 0}
 .s{display:grid;grid-template-columns:62px 1fr;gap:22px;align-items:start}
 .s .nr{font-family:'Barlow Condensed';font-weight:800;font-size:38px;background:var(--gelb);border-radius:12px;text-align:center;line-height:56px}
 .s b{font-size:28px;display:block}
@@ -133,7 +136,7 @@ def folie1(t):
                      f"<div class='txt'>{e(t['s1_t'])}</div><div class='qs'>{qs}</div><div class='f1'>{e(t['s1_f'])}</div>")
 
 
-def folie2(t, geld=90, quote=1.52):
+def folie2(t, geld=87, quote=2.14):
     impl = round(100 / quote)
     st = "".join(f"<div class='s'><div class='nr'>{i}</div><div><b>{e(b)}</b><span>{e(s)}</span></div></div>"
                  for i, (b, s) in enumerate(t["schritte"], 1))
@@ -142,7 +145,7 @@ def folie2(t, geld=90, quote=1.52):
                      f"<div class='zz'><div><div class='z'>{geld}<small>%</small></div><div class='l'>{e(t['s2_geld'])}</div></div>"
                      f"<div class='r'><div class='z leise'>{impl}<small>%</small></div><div class='l'>{e(t['s2_quote'])}</div></div></div>"
                      f"<div class='bal'><i class='g' style='width:{geld}%'></i><i class='mk' style='left:{impl}%'></i></div>"
-                     f"<div class='lg'>{e(t['s2_lg'])}</div></div><div class='st'>{st}</div>")
+                     f"<div class='lg'>{e(t['s2_lg'])}</div><div class='end'>✅ {e(t['s2_end'])}</div></div><div class='st'>{st}</div>")
 
 
 def folie3(t):
