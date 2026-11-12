@@ -517,6 +517,8 @@ VOID_MANUELL = [
     # gerade an Frank gegangen, der Preis war der Schnitt der letzten Stunde
     ("Ground Zero Gaming", "2026-11-11T09:45:00+00:00", "2026-11-11T10:45:00+00:00", "Preis war veraltet (Markt hatte neu bewertet)",
      {"pserie", "top3p", "publicErg", "wal"}),
+    # 12.11. Wal-Push „$4,3k auf Remis" @ 99¢ (1,01) — Spiel offenbar abgesagt, Markt praktisch entschieden (Lucas)
+    ("Cajamarca", "2026-11-12T09:00:00+00:00", "2026-11-12T14:00:00+00:00", "Markt praktisch entschieden (99 ¢)", {"wal"}),
 ]
 
 
