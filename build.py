@@ -289,7 +289,7 @@ def pinn_alle(consensus, history):
 
 # ── Pinnacle-Scan über alle Spiele (Lucas 18.10.) ───────────────────────────────────
 PINN_TOP5_KEYS = {"soccer_epl", "soccer_germany_bundesliga", "soccer_spain_la_liga", "soccer_italy_serie_a",
-                  "soccer_france_ligue_one", "soccer_uefa_champs_league"}
+                  "soccer_france_ligue_one", "soccer_uefa_champs_league", "soccer_uefa_nations_league"}   # 12.11. NL = Top-5
 PINN_VOR_MIN_PP = {True: 1.5, False: 2.5}     # vor Anpfiff, seit Eröffnung (Top-5 ist effizienter: kleiner Ausschlag zählt)
 PINN_FRISCH_PP = {True: 1.0, False: 1.5}      # davon in der letzten Stunde → „frisch"
 PINN_LIVE_MIN_PP = {True: 3.0, False: 4.0}    # live in ~15 Min, nur für ein Team, das NICHT führt
@@ -437,7 +437,7 @@ MIN_FENSTER = 15    # Aufloesungen im Messfenster, ab denen eine Untergrenze etw
 BEWAEHRT_Z = 2.33
 
 
-POLY_TOP5 = {"epl", "bun", "lal", "sea", "fl1", "lig1", "ucl"}   # 19.10. (Lucas): Champions League zählt zu den Top-5     # Polymarket-Schlüssel-Präfixe der Top-5-Ligen
+POLY_TOP5 = {"epl", "bun", "lal", "sea", "fl1", "lig1", "ucl", "unl"}   # 12.11. (Lucas): Nations League wie Top-5   # 19.10. (Lucas): Champions League zählt zu den Top-5     # Polymarket-Schlüssel-Präfixe der Top-5-Ligen
 
 
 def zeitraum_bilanz(s, tage):
@@ -834,7 +834,9 @@ def _phase(jetzt, kick, minute=None):
     return "p1" if -d <= 3 * 3600 else "p0"
 
 
-TOP5_RX = re.compile(r"^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|uefa champions league)$", re.I)
+# 12.11. (Lucas, Italy – France: „$47k … 5-mal so viel wie üblich" — „die Nations League müssen wir als Top-5 handhaben,
+# da werden sehr hohe Einsätze gespielt"): UEFA Nations League A (Betfair-Name) zählt zu den Top-5. B/C/D bleiben, wie sie sind.
+TOP5_RX = re.compile(r"^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|uefa champions league|uefa nations league( a)?)$", re.I)
 
 
 def auswahl_zufluss(snaps, minuten, min_eur, min_anteil=0.65):
@@ -1839,7 +1841,7 @@ def stake_serien(hr):
     out = []
     for (eid, markt), g in gruppen.items():
         w0 = g["w"]
-        top5 = str(w0.get("ligaSlug") or "") in top5_slugs
+        top5 = str(w0.get("ligaSlug") or "") in top5_slugs or str(w0.get("liga") or "") == "UEFA Nations League"
         for auswahl, sel in g["sel"].items():
             v = sel["werte"]
             hits = [i for i in range(24) if v[i] >= 1000 and g["summe"][i] > 0 and v[i] / g["summe"][i] >= 0.6]
