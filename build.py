@@ -2621,11 +2621,14 @@ def statistik(burst, finder):
         elif best:
             zeilen.append([best[0], art_p, *best[2:]])
         else:
-            zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, None, None, p.get("quote"), None, p.get("liga") or "", 0,
+            # 12.11. (Lucas: Butterfly und GZG standen „offen"): die Void-Liste galt nur für Zeilen mit Ergebnis — ein im Buch
+            # annullierter Poly-Push hat aber nie eins. Void = Rendite 0 ohne Treffer, wie oben.
+            r_v = 0.0 if _pub_hand(PUBLIC_VOID, t0.strftime("%Y-%m-%d"), nz(p.get("spiel"))) else None
+            zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, r_v, None, p.get("quote"), None, p.get("liga") or "", 0,
                            1 if p.get("live") else 0, str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40], None])
             pp = p.get("poly") if art_p == "public" else None
             if isinstance(pp, dict):
-                zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), "publicPoly" if pp.get("quote") else "publicPolyNein", None, None,
+                zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), "publicPoly" if pp.get("quote") else "publicPolyNein", r_v, None,
                                pp.get("quote") or p.get("quote"), None, p.get("liga") or "", 0, 1 if p.get("live") else 0,
                                str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40],
                                pp.get("seite") if pp.get("quote") else pp.get("fehlt"), pp.get("tiefe"), p.get("quote")])
