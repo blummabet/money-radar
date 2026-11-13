@@ -48,6 +48,8 @@ ZUFLUSS_PAUSE_H = 6          # dasselbe Spiel + dieselbe Seite höchstens alle 6
 FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als verpasst und werden nicht nachgeschickt
 WAL_MIN_USD = 1000
 STAKE_TOP5_MIN_USD = 50000   # Regel S5 (12.11.)
+STAKE_ES_TIER1 = re.compile(r"\b(blast|iem|intel extreme|pgl|esl pro league|esl one|major|starladder|perfect world|"
+                            r"the international|riyadh|esports world cup|ewc|worlds|msi|vct|champions tour|masters)\b", re.I)  # Regel S6
 STAKE_TOP5_EINDEUTIG = {"UEFA Champions League", "UEFA Nations League", "LaLiga", "Ligue 1"}
 WAL_MIN_USD_TOP5 = 3000      # in den Top-5 sind $1000 Alltag
 WAL_MIN_FAKTOR = 0.25        # Wal-Regel 2 (06.11.): mindestens ¼ des üblichen Einsatzes
@@ -996,6 +998,12 @@ def stake(d):
         # Grenze wie beim Stake-Dauerzufluss dort. Liganamen bei Stake sind mehrdeutig („Premier League", „Bundesliga",
         # „Serie A" gibt es mehrfach), darum zuerst das Betfair-Spiel fragen, sonst nur die eindeutigen Namen.
         if (g.get("usd") or 0) < STAKE_TOP5_MIN_USD and stake_top5(g):
+            continue
+        # REGEL S6 (Lucas 13.11., G2 – Falcons BLAST: „$463k auf G2 @ 1,58" sofort verloren — „diese Top-Teams sind wertlos,
+        # gibt bessere Picks"): bei den großen E-Sport-Turnieren setzen Fans auf die bekannten Teams riesige Beträge, oft auf
+        # BEIDE Seiten (am selben Tag $62k auf Falcons vor Anpfiff, $463k auf G2 live; Vitality $75k, dann MOUZ $43k).
+        # Dort keine Stake-Pushes mehr — still gemessen wird weiter.
+        if g.get("kat") == "E-Sport" and STAKE_ES_TIER1.search(str(g.get("liga") or "")):
             continue
         # Lucas 31.10. (Accrington – Northampton 40' 1:0, $18k auf Accrington @ 1,40: „Macht keinen Sinn, oder?"): REGEL S2 —
         # wie beim Betfair-Zufluss seit 30.10.: Live-Geld auf das Team, das gerade führt (egal wie knapp), wird nicht gepusht,
