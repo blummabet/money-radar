@@ -218,7 +218,15 @@ main{padding:22px 28px 60px;min-width:0}
 @media (min-width:1300px){ .toepfe{grid-template-columns:1fr 1fr} }
 
 .tk{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:6px 0}
-.tk h4{margin:0 0 10px}
+.tk-s{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;cursor:pointer;list-style:none;font-size:13px;color:var(--text-2)}
+.tk-s::-webkit-details-marker{display:none}
+.tk-st{font-weight:800;color:var(--text);font-size:14px}
+.tk-sb{width:64px;height:6px;border-radius:3px;background:var(--down);overflow:hidden;flex:none}.tk-sb i{display:block;height:100%;background:var(--up)}
+.tk-sz b{font-weight:800;font-variant-numeric:tabular-nums}
+.tk{position:relative}.tk-s{padding-right:22px}.tk-sz small{color:var(--text-3);font-size:11.5px}
+.tk-pf{position:absolute;top:14px;right:14px;color:var(--text-3);transition:transform .15s}
+.tk[open] .tk-pf{transform:rotate(180deg)}.tk[open] .tk-s{margin-bottom:12px}
+@media (prefers-reduced-motion:reduce){.tk-pf{transition:none}}
 .tk-kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .tk-kpi small{display:block;font-size:11.5px;color:var(--text-3)}.tk-kpi b{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
 .tk-kpi em{display:block;font-style:normal;font-size:11.5px;color:var(--text-3)}
@@ -5095,14 +5103,15 @@ function torKasten(s){
   const pfeil = rDiff==null || Math.abs(rDiff) < 0.15 ? "" : rDiff > 0 ? `<span class="tk-auf">↑ von ${dez(T.rate60)}</span>` : `<span class="tk-ab">↓ von ${dez(T.rate60)}</span>`;
   const linien = (T.linien||[]).map(l=>{ const g = l.o + l.u, a = g ? l.o/g*100 : 50;
     return `<div class="tk-l"><b>${dez(l.l)}</b><div class="tk-lb"><i style="width:${a.toFixed(1)}%"></i></div><small>${eur(l.o)} / ${eur(l.u)}</small></div>`; }).join("");
-  return `<div class="tk"><h4>⚽ Tormärkte <small>alle Über/Unter-Linien zusammen</small></h4>
-    <div class="tk-kpi">
-      <div><small>Über</small><b style="color:var(--up)">${eur(T.o)}</b></div>
-      <div><small>Unter</small><b style="color:var(--down)">${eur(T.u)}</b></div>
-      <div><small>neu, 30 Min</small><b>${neu30?"+"+eur(neu30):"–"}</b>${neu30?`<em>${Math.round((T.o30||0)/neu30*100)} % Über</em>`:""}</div>
-      <div><small>Torerwartung</small><b>${T.rate!=null?dez(T.rate):"–"}</b><em>Tore je 90 Min ${pfeil}</em></div>
-    </div>
-    <div class="tk-split"><i style="width:${oA}%"></i></div>
+  // Lucas 14.11. 13:32: „am Anfang nur ein Button, wo ich schon ein paar Infos sehe — Klick klappt aus"
+  const rKurz = T.rate!=null ? `${dez(T.rate)}${rDiff!=null&&Math.abs(rDiff)>=0.15?(rDiff>0?" ↑":" ↓"):""}` : null;
+  const knopf = `<summary class="tk-s"><span class="tk-st">⚽ Tormärkte</span>
+      <span class="tk-sb"><i style="width:${oA}%"></i></span>
+      <span class="tk-sz"><b style="color:var(--up)">${eur(T.o)}</b> Über · <b style="color:var(--down)">${eur(T.u)}</b> Unter</span>
+      ${neu30?`<span class="tk-sz">+${eur(neu30)} in 30 Min, ${Math.round((T.o30||0)/neu30*100)} % Über</span>`:""}
+      ${rKurz?`<span class="tk-sz">Torerwartung <b class="${rDiff>=0.15?"tk-auf":rDiff<=-0.15?"tk-ab":""}">${rKurz}</b>${rDiff!=null&&Math.abs(rDiff)>=0.15?` <small>von ${dez(T.rate60)}</small>`:""} <small>Tore/90</small></span>`:""}
+      <span class="tk-pf">▾</span></summary>`;
+  return `<details class="tk">${knopf}
     <div class="tk-g"><span class="tk-lo">Über</span><span class="tk-lu">Unter</span>
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Neues Geld auf Über und Unter je Abruf">
         <line x1="0" x2="${W}" y1="${mitte}" y2="${mitte}" stroke="var(--line)" stroke-width="2" vector-effect="non-scaling-stroke"/>${saeulen}${linie}</svg>${tore}
@@ -5110,7 +5119,7 @@ function torKasten(s){
     <div class="tk-leg"><span><i style="background:var(--up)"></i>neu auf Über</span><span><i style="background:var(--down)"></i>neu auf Unter</span>${R.length>=2?`<span><i class="ln"></i>Torerwartung</span>`:""}</div>
     ${linien?`<div class="tk-ls">${linien}</div>`:""}
     <div class="kk-klein">Jede gematchte Wette hat zwei Seiten — wer gelayt hat, sieht man an der Linie: steigt sie, rechnet der Markt mit mehr Toren, egal auf welcher Linie gesetzt wurde. Live ist die vergehende Zeit herausgerechnet.</div>
-  </div>`;
+  </details>`;
 }
 function phasenBand(s, mini=false){
   const Z = (D.phasen||{})[String(s.id)]; if(!Z || Z.length < 3) return "";
