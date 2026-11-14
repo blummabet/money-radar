@@ -87,7 +87,12 @@ def _get(url):
                 _STAT["ok"] += 1
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
-            _STAT.setdefault("erster", f"HTTP {e.code} {url[:70]}")
+            if "erster" not in _STAT:
+                try:
+                    body = e.read()[:200].decode("utf-8", "replace")
+                except Exception:  # noqa: BLE001
+                    body = ""
+                _STAT["erster"] = f"HTTP {e.code} {url[:90]} | {body} | {dict(e.headers or {}).get('Content-Type')}"
             if e.code == 404:
                 return None
             if (e.code == 429 or e.code >= 500) and versuch == 0:
@@ -404,7 +409,34 @@ def _seiten(query, max_seiten, decke=None):
             return
 
 
+def _probe():
+    """14.11.: Diagnose, solange Gamma 406 liefert — welche Form geht durch? Schreibt nur ins Log."""
+    for name, url, hdr in (
+            ("slug", f"{GAMMA}?slug=unl-rom-pol-2026-11-14", None),
+            ("plain", f"{GAMMA}?limit=5", None),
+            ("closed", f"{GAMMA}?limit=5&closed=false", None),
+            ("tag", f"{GAMMA}?limit=5&tag_slug=soccer", None),
+            ("keyset", f"{GAMMA}/keyset?limit=5", None),
+            ("ohneAccept", f"{GAMMA}?limit=5&tag_slug=soccer", {"User-Agent": "Mozilla/5.0"}),
+            ("acceptStern", f"{GAMMA}?limit=5&tag_slug=soccer", {"User-Agent": "Mozilla/5.0", "Accept": "*/*"})):
+        try:
+            req = urllib.request.Request(url, headers=hdr or {"User-Agent": "Geldradar/1.0", "Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=12) as r:
+                raw = r.read()
+                d = json.loads(raw)
+                n = len(d.get("events") or []) if isinstance(d, dict) else len(d)
+                tags = []
+                if name == "slug" and isinstance(d, list) and d:
+                    tags = [str((x.get("slug") if isinstance(x, dict) else x)) for x in d[0].get("tags") or []]
+                print(f"  probe {name}: {r.status} n={n} {tags}")
+        except urllib.error.HTTPError as e:
+            print(f"  probe {name}: HTTP {e.code} {e.read()[:160]!r}")
+        except Exception as e:  # noqa: BLE001
+            print(f"  probe {name}: {type(e).__name__} {str(e)[:100]}")
+
+
 def ereignisse():
+    _probe()
     boden = (JETZT - timedelta(hours=FENSTER_NACH_H)).strftime("%Y-%m-%dT%H:%M:%SZ")
     gesehen = {}
     # 07.11. (Lucas: kein Wal-Post am Samstag): nach endDate sortiert fressen an einem Fußball-Samstag die laufenden
