@@ -23,6 +23,7 @@ Ausgabe in .pm/ (Actions-Cache „polymarkt-…", kein Commit):
 """
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import re
@@ -45,8 +46,8 @@ TAGS = ("soccer", "esports", "tennis")
 # 14.11.2026 (Lucas: Romania–Poland ohne Poly): Nations League lief nie ein — kein einziger „unl-"-Slug in den Daten,
 # obwohl Polymarket das Spiel führt. Länderspiele hängen offenbar nicht unter „soccer". Zusätzliche Tags (unbekannte
 # Tags liefern einfach eine leere Seite) und eine Slug-Präfix-Regel als Netz, falls Polymarket den Tag ändert.
-TAGS_INTL = ("uefa-nations-league", "nations-league", "unl", "international-soccer",
-             "world-cup-qualifiers", "wcq", "fifa-world-cup", "euro-qualifiers", "uefa-euro-qualifiers")
+# Nachtrag: Romania–Poland trägt soccer + uefa-nations-league — der eigentliche Grund war der gzip-Ausfall (s. _get).
+TAGS_INTL = ("uefa-nations-league", "fifa-world-cup", "world-cup-qualifiers", "euro-qualifiers")
 _FOOT_SLUG_RE = re.compile(r"^(unl|wcq|ecq|euq|uwcq|cwcq|afcq|conq)-\w", re.I)
 FENSTER_VOR_H, FENSTER_NACH_H = 30.0, 4.0
 MIN_VOL_HALTER = float(os.environ.get("PM_MIN_VOL_HALTER") or 5000)   # ab so viel Markt-Volumen lohnt der Halter-Abruf
@@ -82,10 +83,15 @@ _STAT = {"ok": 0, "fehler": 0}
 def _get(url):
     for versuch in range(2):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Geldradar/1.0", "Accept": "application/json"})
+            # 14.11.2026: Gamma liefert Listen mit limit > 50 nur noch gzip — ohne den Header HTTP 406 „gzip_required"
+            req = urllib.request.Request(url, headers={"User-Agent": "Geldradar/1.0", "Accept": "application/json",
+                                                       "Accept-Encoding": "gzip"})
             with urllib.request.urlopen(req, timeout=12) as r:
+                raw = r.read()
+                if (r.headers.get("Content-Encoding") or "").lower() == "gzip" or raw[:2] == b"\x1f\x8b":
+                    raw = gzip.decompress(raw)
                 _STAT["ok"] += 1
-                return json.loads(r.read())
+                return json.loads(raw)
         except urllib.error.HTTPError as e:
             if "erster" not in _STAT:
                 try:
@@ -409,34 +415,7 @@ def _seiten(query, max_seiten, decke=None):
             return
 
 
-def _probe():
-    """14.11.: Diagnose, solange Gamma 406 liefert — welche Form geht durch? Schreibt nur ins Log."""
-    for name, url, hdr in (
-            ("slug", f"{GAMMA}?slug=unl-rom-pol-2026-11-14", None),
-            ("plain", f"{GAMMA}?limit=5", None),
-            ("closed", f"{GAMMA}?limit=5&closed=false", None),
-            ("tag", f"{GAMMA}?limit=5&tag_slug=soccer", None),
-            ("keyset", f"{GAMMA}/keyset?limit=5", None),
-            ("ohneAccept", f"{GAMMA}?limit=5&tag_slug=soccer", {"User-Agent": "Mozilla/5.0"}),
-            ("acceptStern", f"{GAMMA}?limit=5&tag_slug=soccer", {"User-Agent": "Mozilla/5.0", "Accept": "*/*"})):
-        try:
-            req = urllib.request.Request(url, headers=hdr or {"User-Agent": "Geldradar/1.0", "Accept": "application/json"})
-            with urllib.request.urlopen(req, timeout=12) as r:
-                raw = r.read()
-                d = json.loads(raw)
-                n = len(d.get("events") or []) if isinstance(d, dict) else len(d)
-                tags = []
-                if name == "slug" and isinstance(d, list) and d:
-                    tags = [str((x.get("slug") if isinstance(x, dict) else x)) for x in d[0].get("tags") or []]
-                print(f"  probe {name}: {r.status} n={n} {tags}")
-        except urllib.error.HTTPError as e:
-            print(f"  probe {name}: HTTP {e.code} {e.read()[:160]!r}")
-        except Exception as e:  # noqa: BLE001
-            print(f"  probe {name}: {type(e).__name__} {str(e)[:100]}")
-
-
 def ereignisse():
-    _probe()
     boden = (JETZT - timedelta(hours=FENSTER_NACH_H)).strftime("%Y-%m-%dT%H:%M:%SZ")
     gesehen = {}
     # 07.11. (Lucas: kein Wal-Post am Samstag): nach endDate sortiert fressen an einem Fußball-Samstag die laufenden
