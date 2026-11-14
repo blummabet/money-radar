@@ -9,7 +9,8 @@
 <title>Geldradar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- 14.11.: Schrift blockiert das erste Bild nicht mehr (vorher wartete die Seite am Handy auf Google Fonts) -->
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root{
   --bg:#0d1320; --panel:#151d2d; --panel-2:#1b2538; --panel-3:#233049;
@@ -1834,7 +1835,7 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 </aside>
 <main>
   <div class="kopf"><div><h1 id="titel">Übersicht</h1><div class="sub" id="untertitel"></div></div><div id="ligaschalter"></div><button class="merk-badge" id="merkBadge" data-merkliste hidden aria-label="Deine gemerkten Spiele">★ <b>0</b></button><div class="rechts"><span class="puls" id="puls"></span><span id="stand">lädt</span></div><button class="thema-knopf" id="thema" aria-label="Hell oder dunkel"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button><div class="burger-wrap"><button class="burger-knopf" id="burger" aria-label="Weitere Bereiche" aria-expanded="false" aria-controls="burgermenue"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><div class="burger-menue" id="burgermenue" hidden></div></div></div>
-  <section class="seite an" id="s-start"></section>
+  <section class="seite an" id="s-start"><div class="panel" style="margin-top:12px"><div class="leer">Lade die aktuellen Geldströme …</div></div></section>
   <section class="seite" id="s-feed"></section>
   <section class="seite" id="s-betfair"></section>
   <section class="seite" id="s-pinnacle"></section>
@@ -1854,6 +1855,18 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const TZ = "Europe/Vienna";
+// 14.11. (Lucas „am Handy ewig weiß"): toLocaleTimeString/-DateString mit Optionen baut bei JEDEM Aufruf einen neuen
+// Intl-Formatierer (Zeitzonen-Daten) — das war die Hälfte der Bauzeit der Übersicht. Jetzt je Option einmal gebaut.
+(()=>{ const cache = new Map(), ZEIT = ["hour","minute","second"], DATUM = ["weekday","year","month","day"];
+  for(const [m, std] of [["toLocaleTimeString", {hour:"numeric",minute:"numeric",second:"numeric"}], ["toLocaleDateString", {year:"numeric",month:"numeric",day:"numeric"}]]){
+    const orig = Date.prototype[m];
+    Date.prototype[m] = function(loc, o){
+      if(loc !== "de-AT" || !o || isNaN(this)) return orig.call(this, loc, o);
+      const k = m + JSON.stringify(o); let f = cache.get(k);
+      if(!f){ const hat = [...ZEIT, ...DATUM].some(x=>x in o); f = new Intl.DateTimeFormat("de-AT", hat ? o : {...std, ...o}); cache.set(k, f); }
+      return f.format(this);
+    };
+  } })();
 const uhr = iso => iso ? new Date(iso).toLocaleTimeString("de-AT",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}) : "";
 const wtag = iso => new Date(iso).toLocaleDateString("de-AT",{timeZone:TZ,weekday:"short"});
 const minBis = iso => Math.round((new Date(iso)-Date.now())/60000);
@@ -4994,8 +5007,9 @@ function glasSetzen(sel){
 }
 function glasAlle(){ try{ glasSetzen("#ligaschalter .seg"); glasSetzen("#untennav"); }catch(e){ console.error(e); } }
 addEventListener("resize", ()=>glasAlle());
-function gehe(k){
+function gehe(k, schonGebaut){
   aktiv = k;
+  if(!schonGebaut) seiteBauen(k);
   document.querySelectorAll(".seite").forEach(s=>s.classList.toggle("an", s.id==="s-"+k));
   document.querySelectorAll("#navliste [data-geh], #untennav [data-geh], #burgermenue [data-geh]").forEach(b=>b.classList.toggle("an", b.dataset.geh===k));
   $("#burger")?.classList.toggle("an", MENUE.some(m=>m[0]===k));
@@ -5186,26 +5200,32 @@ function render(blitz=false){
   const sicher = (sel, fn) => { try{ $(sel).innerHTML = fn(); }catch(e){ console.error(sel, e);
     $(sel).innerHTML = `<div class="panel"><div class="leer">Dieser Bereich konnte gerade nicht gebaut werden (${esc(String(e.message||e).slice(0,80))}). Der Rest läuft weiter.</div></div>`; } };
   sicher("#ligaschalter", ligaSchalter);
-  sicher("#s-start", ()=>seiteStart(D));
-  sicher("#s-feed", ()=>seiteFeed(D));
-  sicher("#s-betfair", ()=>seiteBetfair(D));
-  sicher("#s-pinnacle", ()=>seitePinnacle(D));
-  sicher("#s-poly", ()=>seitePoly(D));
-  sicher("#s-stake", ()=>seiteStake(D));
-  sicher("#s-hz", ()=>seiteHz(D));
-  sicher("#s-statistik", seiteStatistik);
-  sicher("#s-cards", seiteCards);
+  // 14.11. (Lucas „am Handy ewig weiß, nach dem Zurückholen reagiert nichts"): nur die Seite bauen, die man sieht —
+  // die übrigen acht erst, wenn man hinwechselt (vorher wurden bei jedem neuen Stand alle neun gebaut, ~20 000 Elemente).
+  GEBAUT.clear();
+  seiteBauen(aktiv);
   try{ navAufbauen({betfair:D.radar.spiele.filter(s=>s.xnorm>=1.5).length, pinnacle:((D.pinnDrops||{}).live||[]).length+((D.pinnDrops||{}).vor||[]).filter(s=>s.frisch).length,
     poly:D.poly.maerkte.filter(belegt).length, stake:(D.stake.gruppen||D.stake.heute).length, hz:D.hz.heute.length, feed:lf(D.liveZufluss||[]).length||null}); }
   catch(e){ console.error(e); navAufbauen({}); }
-  gehe(aktiv);
+  gehe(aktiv, true);
   try{ merkAnzeigen(); }catch(e){ console.error(e); }
   try{ tickerBauen(D); }catch(e){ console.error(e); }
   // Lucas 10.11. (Handy leer, Rechner voll — der Liga-Schalter stand am Handy auf „Nur Top-5"): leere Bereiche sagen,
   // dass der Filter greift, mit einem Knopf zurück auf alle Ligen. Der Schalter wird je Gerät gemerkt.
-  try{ if(ligaModus!=="alle") document.querySelectorAll(".leer, .t3-leer > div:last-child").forEach(el=>{ if(el.querySelector(".leer-filter")) return;
-    el.insertAdjacentHTML("beforeend", `<span class="leer-filter">Filter „${ligaModus==="nur"?"Nur Top-5":"Ohne Top-5"}“ ist an (auf diesem Gerät gemerkt). <button class="chip" data-liga="alle">Alle Ligen zeigen</button></span>`); }); }catch(e){ console.error(e); }
   requestAnimationFrame(()=>{ window.scrollTo(0, y); blitzen(blitz); });
+}
+const GEBAUT = new Set();
+const BAUER = {start:()=>seiteStart(D), feed:()=>seiteFeed(D), betfair:()=>seiteBetfair(D), pinnacle:()=>seitePinnacle(D), poly:()=>seitePoly(D),
+  stake:()=>seiteStake(D), hz:()=>seiteHz(D), statistik:()=>seiteStatistik(), cards:()=>seiteCards()};
+function seiteBauen(k){
+  if(!D || GEBAUT.has(k) || !BAUER[k]) return;
+  const el = $("#s-"+k); if(!el) return;
+  try{ el.innerHTML = BAUER[k](); }catch(e){ console.error(k, e);
+    el.innerHTML = `<div class="panel"><div class="leer">Dieser Bereich konnte gerade nicht gebaut werden (${esc(String(e.message||e).slice(0,80))}). Der Rest läuft weiter.</div></div>`; }
+  GEBAUT.add(k);
+  // Lucas 10.11.: leere Bereiche sagen, dass der Liga-Filter greift
+  try{ if(ligaModus!=="alle") el.querySelectorAll(".leer, .t3-leer > div:last-child").forEach(x=>{ if(x.querySelector(".leer-filter")) return;
+    x.insertAdjacentHTML("beforeend", `<span class="leer-filter">Filter „${ligaModus==="nur"?"Nur Top-5":"Ohne Top-5"}“ ist an (auf diesem Gerät gemerkt). <button class="chip" data-liga="alle">Alle Ligen zeigen</button></span>`); }); }catch(e){ console.error(e); }
 }
 function quellen(q){
   const n = {betfair:"Betfair",pinnacle:"Pinnacle",polymarket:"Polymarket",stake:"Stake",hz:"HZ-Finder"};
@@ -5267,7 +5287,11 @@ async function frischeDatenPages(){
   const r = await fetch("data.json?t="+Date.now(), {cache:"no-store"});
   return r.json();
 }
-async function laden(){
+// 14.11.: beim Zurückholen aus dem Hintergrund feuern visibilitychange, pageshow und focus fast gleichzeitig — vorher
+// liefen dann drei Ladevorgänge parallel (je Zeiger, Daten, Neubau) und blockierten das Antippen. Jetzt nur einer.
+let LAEDT = null;
+function laden(){ if(LAEDT) return LAEDT; LAEDT = ladenEcht().finally(()=>{ LAEDT = null; }); return LAEDT; }
+async function ladenEcht(){
   try{
     const neu = await frischeDaten();
     if(!neu){ standZeigen(); return; }
