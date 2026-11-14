@@ -2649,9 +2649,11 @@ def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
         # als Text — „R17" < „R4" —, seit Regel 10 fiel jedes Signal in den alten Zweig (nur dieselbe Art, ±20 Min)
         r4 = int((re.search(r"\d+", str(p.get("regel") or "")) or [0])[0] or 0) >= 4
         art_p = "publicNein" if p.get("gesendet") is False else "public"
+        if p.get("sperre"):                 # 14.11. Public-Regel 24/25: eigene Zeile, damit sich die Sperre messen lässt
+            art_p = "publicGegenwind" if "R25" in str(p.get("sperre")) else "publicNLA"
         best, bd = None, None
         for z in zeilen:
-            if z[1] in ("public", "publicNein") or (not r4 and z[1] != p.get("art")):
+            if z[1] in ("public", "publicNein", "publicGegenwind", "publicNLA") or (not r4 and z[1] != p.get("art")):
                 continue
             dt = abs((ts(z[0] + "+00:00") - t0).total_seconds())
             if dt > (36 * 3600 if r4 else 20 * 60):

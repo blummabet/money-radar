@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R23"   # R23 14.11. ~11:45 Freundschaftsspiele in keiner Art im Kanal · R22 13.11. ~17:25 Termin erst ab 9 Punkten (vorher 5) · R20 10.11. ~9:00 Liga-Wertung aus dem Liga-Buch (Fußball, 90 Tage, alle Spiele mit klarem hohem Geld) bzw. allen eigenen Messungen, jedes Spiel+Auswahl einmal · R19 09.11. ~18:50 Geld vor Anpfiff aus allen Ligen (Regel-5-Sperre auf große Ligen aufgehoben, Regel 2 entfernt) · R18 09.11. ~15:30 Polymarket-Dauerzufluss nicht public, wenn bewährtes Geld (≥ $5k, CLV-Untergrenze > 0) oder ein Wal-Push der letzten 6 h auf der Gegenseite liegt (FOKUS – Alliance) · R17 07.11. ~18:00 englische Championship in keiner Art im Kanal · R16 07.11. ~17:30 Stake-Pakete auf ein Team → Team-Sieg zur Betfair-Quote · R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R25"   # R25 14.11. ~22:30 Gegenwind: Stake/Polymarket/Betfair klar auf der Gegenseite → nicht in den Kanal · R24 14.11. ~22:30 UEFA Nations League A in keiner Art im Kanal · R23 14.11. ~11:45 Freundschaftsspiele in keiner Art im Kanal · R22 13.11. ~17:25 Termin erst ab 9 Punkten (vorher 5) · R20 10.11. ~9:00 Liga-Wertung aus dem Liga-Buch (Fußball, 90 Tage, alle Spiele mit klarem hohem Geld) bzw. allen eigenen Messungen, jedes Spiel+Auswahl einmal · R19 09.11. ~18:50 Geld vor Anpfiff aus allen Ligen (Regel-5-Sperre auf große Ligen aufgehoben, Regel 2 entfernt) · R18 09.11. ~15:30 Polymarket-Dauerzufluss nicht public, wenn bewährtes Geld (≥ $5k, CLV-Untergrenze > 0) oder ein Wal-Push der letzten 6 h auf der Gegenseite liegt (FOKUS – Alliance) · R17 07.11. ~18:00 englische Championship in keiner Art im Kanal · R16 07.11. ~17:30 Stake-Pakete auf ein Team → Team-Sieg zur Betfair-Quote · R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -90,6 +90,51 @@ def _fenster(jetzt):
     return next(i for i, (v, b, _) in enumerate(FENSTER) if v <= h < b)
 
 
+NL_A_RX = re.compile(r"^\s*UEFA Nations League A\s*$", re.I)
+
+# Regel 25 (Lucas 14.11. 22:03: „wenn es eindeutig dagegen gespielt ist, will ich nie einen Pick haben — muss nicht voll
+# zustimmen, aber viel Gegenwind ist nicht sinnvoll"). Vorab festgelegt: eine ANDERE Quelle als die des Picks hat im
+# Sieg-Markt desselben Spiels ihr meistes Geld auf einer anderen Seite, diese Seite hält ≥ 65 % des Geldes dieser Quelle
+# und mindestens den Betrag unten. Nur Sieg/Remis-Picks (Tore/Handicap haben in den Töpfen keine Seiten).
+# Portugal – Dänemark 14.11.: Stake $360k von $470k (77 %) auf Dänemark → gesperrt. Gemessen wird weiter („publicNein").
+GEGENWIND_ANTEIL = 0.65
+GEGENWIND_MIN = {"stake": 50000, "poly": 20000, "betfair": 50000}
+
+
+def gegenwind(m, toepfe):
+    """Grund (Text) oder None. toepfe: d["toepfe"] aus dem Seitenbau (heim/gast + q.{betfair,poly,stake}.seiten)."""
+    sk = _norm(m.get("spiel"))
+    g = next((x for x in toepfe or [] if _norm(f"{x.get('heim')} – {x.get('gast')}") == sk), None)
+    if not g:
+        return None
+    if NL_A_RX.search(str(g.get("liga") or "")):
+        return "R24 Nations League A"
+    roh = _norm(m.get("auswahlRoh") or m.get("auswahl"))
+    if not roh:
+        return None
+    if roh.startswith(("thedraw", "draw", "remis", "unentsch")):
+        seite = "remis"
+    elif _norm(g.get("heim")) and (_norm(g.get("heim"))[:6] in roh or roh[:6] in _norm(g.get("heim"))):
+        seite = "heim"
+    elif _norm(g.get("gast")) and (_norm(g.get("gast"))[:6] in roh or roh[:6] in _norm(g.get("gast"))):
+        seite = "gast"
+    else:
+        return None
+    eigen = QUELLE.get(m.get("art"))
+    for quelle, mindest in GEGENWIND_MIN.items():
+        if quelle == eigen:
+            continue
+        seiten = ((g.get("q") or {}).get(quelle) or {}).get("seiten") or {}
+        ges = sum(float(v or 0) for v in seiten.values())
+        if not ges:
+            continue
+        top, betrag = max(seiten.items(), key=lambda kv: float(kv[1] or 0))
+        if top != seite and betrag >= mindest and betrag / ges >= GEGENWIND_ANTEIL:
+            name = {"heim": g.get("heim"), "gast": g.get("gast"), "remis": "Remis"}.get(top, top)
+            return f"R25 Gegenwind {quelle}: {round(100 * betrag / ges)} % auf {name} ({round(betrag / 1000)}k)"
+    return None
+
+
 def passt(m) -> bool:
     """m: {art, liga, quote, …} — gilt die Public-Regel 1 für diese Meldung (ohne Kontingent)?"""
     art, q, liga = m.get("art"), m.get("quote"), str(m.get("liga") or "")
@@ -110,6 +155,11 @@ def passt(m) -> bool:
     # Testspiele (Statistik bis 14.11.: Public 2 Tipps, beide verloren; Dauerzufluss 7 Tipps, 1 getroffen bei 57 %
     # erwartet, −79 %). Trades-Channel und Buch bleiben.
     if re.search(r"friendl|freundschaft|testspiel", liga, re.I):
+        return False
+    # Regel 24 (Lucas 14.11. 22:03, Portugal – Dänemark 0:2 nach Betfair-Geld vor Anpfiff auf Portugal: „die Ansage war,
+    # dass wir die Nations League A sperren — B, C und die anderen Gruppen nicht"): UEFA Nations League A in keiner Art
+    # im Kanal. Stake schreibt nur „UEFA Nations League" (ohne Gruppe) — das prüft gegenwind() über das Betfair-Spiel.
+    if NL_A_RX.search(liga):
         return False
     # Regel 3 (Lucas 02.11., Penafiel – Feirense „$2.770 auf Penafiel — wieso kam der?"): ein Wal nur, wenn die Wallet
     # mindestens doppelt so viel setzt wie sonst (Überzeugung statt Größe). Vor GROSS geprüft — sonst ließ „Segunda"
@@ -335,7 +385,7 @@ def _ueberholt(c, jetzt, aktuell):
     return bool(jetzt_stand and alt and list(jetzt_stand) != list(alt))
 
 
-def auswahl(s, jetzt, aktuell=None):
+def auswahl(s, jetzt, aktuell=None, toepfe=None):
     """Was jetzt aus dem Topf in den Kanal geht: [(m, (nr, fenster), punkte, grund)]. Räumt Verfallenes ab
     (mit seinen besten Punkten als „nicht gesendet" in der Liste — so lässt sich später messen, ob die Auswahl besser trifft).
     aktuell(m) → aktueller Spielstand [h, a] oder None (Regel 9)."""
@@ -367,6 +417,19 @@ def auswahl(s, jetzt, aktuell=None):
         if gesendet >= JE_FENSTER:
             break
         m = c["m"]
+        try:
+            sperre = gegenwind(m, toepfe) if toepfe is not None else None
+        except Exception:  # noqa: BLE001
+            sperre = None
+        if sperre:              # Regel 24/25: nicht in den Kanal, als „nicht gesendet" mit Grund in die Liste (gemessen)
+            s["liste"].append({"zeit": jetzt.strftime("%Y-%m-%dT%H:%M"), "art": m.get("art"), "spiel": m.get("spiel"),
+                               "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
+                               "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": p, "sperre": sperre,
+                               "stake": stake(c, p), "stakeRegel": STAKING_REGEL, "signale": len(c.get("ereignisse") or [])})
+            s.setdefault("spiele", []).append(_norm(m.get("spiel")))     # das Spiel heute nicht mehr
+            t.pop(k, None)
+            print(f"  public gesperrt: {m.get('spiel')} · {sperre}")
+            continue
         if m.get("art") == "wal" and ((s.get("arten") or {}).get(str(f)) or []).count("wal") + sum(1 for x in aus if x[0].get("art") == "wal") >= WAL_JE_FENSTER:
             continue
         ko = _ts(m.get("anpfiff"))
