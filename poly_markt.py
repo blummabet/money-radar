@@ -42,6 +42,12 @@ import poly_v2      # 03.11.2026: Data API v1 (/holders, /positions) abgeschalte
 PNL_API = "https://user-pnl-api.polymarket.com/user-pnl?user_address={user}&interval=all&fidelity=1d"
 
 TAGS = ("soccer", "esports", "tennis")
+# 14.11.2026 (Lucas: Romania–Poland ohne Poly): Nations League lief nie ein — kein einziger „unl-"-Slug in den Daten,
+# obwohl Polymarket das Spiel führt. Länderspiele hängen offenbar nicht unter „soccer". Zusätzliche Tags (unbekannte
+# Tags liefern einfach eine leere Seite) und eine Slug-Präfix-Regel als Netz, falls Polymarket den Tag ändert.
+TAGS_INTL = ("uefa-nations-league", "nations-league", "unl", "international-soccer",
+             "world-cup-qualifiers", "wcq", "fifa-world-cup", "euro-qualifiers", "uefa-euro-qualifiers")
+_FOOT_SLUG_RE = re.compile(r"^(unl|wcq|ecq|euq|uwcq|cwcq|afcq|conq)-\w", re.I)
 FENSTER_VOR_H, FENSTER_NACH_H = 30.0, 4.0
 MIN_VOL_HALTER = float(os.environ.get("PM_MIN_VOL_HALTER") or 5000)   # ab so viel Markt-Volumen lohnt der Halter-Abruf
 HALTER_SPIELE = int(os.environ.get("PM_HALTER_SPIELE") or 80)        # je Lauf so viele Spiele mit Haltern (Lucas 20.10.: verdoppelt)
@@ -206,14 +212,16 @@ def sport_von(ev, tag=None):
     t = str(tag or "").lower()
     if t in _SPORT_BY_TAG:
         return _SPORT_BY_TAG[t]
-    if t in _FOOT_TAGS:
+    if t in _FOOT_TAGS or t in TAGS_INTL:
         return "Fußball"
     for x in ev.get("tags") or []:
         slug = str((x.get("slug") if isinstance(x, dict) else x) or "").lower()
         if slug in _SPORT_BY_TAG:
             return _SPORT_BY_TAG[slug]
-        if slug in _FOOT_TAGS:
+        if slug in _FOOT_TAGS or slug in TAGS_INTL:
             return "Fußball"
+    if _FOOT_SLUG_RE.match(str(ev.get("slug") or "")):
+        return "Fußball"
     return None
 
 
@@ -394,6 +402,17 @@ def ereignisse():
             letzt = _ts((page[-1] or {}).get("endDate")) if isinstance(page[-1], dict) else None
             if letzt and letzt > decke:
                 break
+    for tag in TAGS_INTL:                        # 14.11.: Länderspiele (Nations League, Qualis) — max. 2 Seiten je Tag
+        for seite in range(2):
+            page = _get(f"{GAMMA}?tag_slug={tag}&limit=100&offset={seite * 100}&active=true&closed=false"
+                        f"&order=endDate&ascending=true&end_date_min={boden}")
+            if not isinstance(page, list) or not page:
+                break
+            for ev in page:
+                if isinstance(ev, dict) and ev.get("slug"):
+                    gesehen.setdefault(ev["slug"], (ev, tag))
+            if len(page) < 100:
+                break
     for seite in range(3):                       # tag-los: die volumenstärksten (fängt Ligen ohne passenden Tag)
         page = _get(f"{GAMMA}?limit=100&offset={seite * 100}&active=true&closed=false&order=volume&ascending=false")
         if not isinstance(page, list) or not page:
@@ -401,6 +420,9 @@ def ereignisse():
         for ev in page:
             if isinstance(ev, dict) and ev.get("slug"):
                 gesehen.setdefault(ev["slug"], (ev, None))
+    intl = [(k, t, [str((x.get("slug") if isinstance(x, dict) else x) or "") for x in (e.get("tags") or [])][:6])
+            for k, (e, t) in gesehen.items() if _FOOT_SLUG_RE.match(k)]
+    print(f"poly_markt: {len(intl)} Länderspiel-Events (unl/wcq …)" + "".join(f"\n  {k} via {t} tags={tg}" for k, t, tg in intl[:8]))
     return list(gesehen.values())
 
 
