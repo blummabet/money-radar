@@ -946,6 +946,148 @@ def maerkte_detail(m, snaps, minuten, nur_abs=False):
     return out
 
 
+# ── Tormärkte auf einen Blick (Lucas 14.11.: „Over/Under-Märkte zusammen, wie viel Geld da oben liegt … in einer coolen
+# Grafik, Over oben, Under unten" — live wichtig, die natürliche Quotenbewegung rausrechnen) ───────────────────────────
+OU_RX = re.compile(r"^Over/Under (\d+)\.5 Goals$")
+
+
+def _poisson_ueber(lam, k):
+    """P(X > k) für X ~ Poisson(lam), k ganzzahlig ≥ 0. REIN."""
+    p, summe = math.exp(-lam), 0.0
+    for i in range(k + 1):
+        summe += p
+        p *= lam / (i + 1)
+    return max(0.0, 1.0 - summe)
+
+
+def _lam_aus(p_ueber, k):
+    """λ, bei dem P(Rest > k) = p_ueber (Bisektion). REIN."""
+    lo, hi = 0.0, 12.0
+    for _ in range(28):
+        mid = (lo + hi) / 2
+        if _poisson_ueber(mid, k) < p_ueber:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+def tor_rate(sel, tore, minute):
+    """Torerwartung des Marktes als Tore je 90 Minuten (rechnet die natürliche Bewegung live heraus): aus jeder Über/Unter-
+    Linie die erwarteten restlichen Tore (Poisson), nach Geld gewichtet, geteilt durch die Restspielzeit. None = keine
+    brauchbare Linie. REIN."""
+    if minute is not None and float(minute) >= 85:
+        return None                          # Restzeit zu kurz — kleine Quotenschritte würden die Rate wild ausschlagen lassen
+    rest = 95.0 if minute is None else 95.0 - float(minute)
+    lams, gew = [], []
+    for mk, d in (sel or {}).items():
+        mm = OU_RX.match(str(mk))
+        if not mm or not isinstance(d, dict):
+            continue
+        linie = int(mm.group(1))
+        o = next((v for n, v in d.items() if str(n).startswith("Over")), None)
+        u = next((v for n, v in d.items() if str(n).startswith("Under")), None)
+        if not (isinstance(o, list) and isinstance(u, list) and len(o) > 1 and len(u) > 1):
+            continue
+        oq, uq = o[1], u[1]
+        if not (isinstance(oq, (int, float)) and isinstance(uq, (int, float)) and oq > 1 and uq > 1):
+            continue
+        k = linie - (tore or 0)              # wie viele Tore noch fallen müssen, damit Über gewinnt: > k
+        if k < 0:
+            continue                         # Linie schon entschieden
+        pu = (1 / oq) / (1 / oq + 1 / uq)
+        if not 0.06 <= pu <= 0.94:
+            continue                         # zu nah an 0/1 — die Quote sagt dort nichts mehr über die Rate
+        lams.append(_lam_aus(pu, k))
+        gew.append((o[0] or 0) + (u[0] or 0) + 100)
+    if not lams:
+        return None
+    lam = sum(l * g for l, g in zip(lams, gew)) / sum(gew)
+    return round(lam / rest * 90, 2)
+
+
+def tor_fluss(snaps, bis=36):
+    """Je Abruf: neues Geld auf Über und auf Unter (alle Linien 0,5–6,5, ohne Absicherung unter 1,15) + Torrate je 90 Min.
+    {bl: [[minute_epoch, über_neu, unter_neu, rate, tore]], linien, o, u, o30, u30, rate, rate60} oder None. REIN."""
+    pts = [x for x in snaps if isinstance(x, dict) and isinstance(x.get("sel"), dict) and ts(x.get("ts"))]
+    if len(pts) < 2:
+        return None
+
+    def seiten(sel):
+        o = u = 0.0
+        for mk, d in (sel or {}).items():
+            if not OU_RX.match(str(mk)) or not isinstance(d, dict):
+                continue
+            for n, v in d.items():
+                if isinstance(v, list) and v and isinstance(v[0], (int, float)):
+                    if str(n).startswith("Over"):
+                        o += v[0]
+                    elif str(n).startswith("Under"):
+                        u += v[0]
+        return o, u
+
+    def neu(a, b):           # Zuwachs je Auswahl, Absicherung (Quote < 1,15) und Rückgänge ausgenommen
+        o = u = 0.0
+        for mk, d in (b or {}).items():
+            if not OU_RX.match(str(mk)) or not isinstance(d, dict):
+                continue
+            alt = (a or {}).get(mk) or {}
+            for n, v in d.items():
+                if not (isinstance(v, list) and v and isinstance(v[0], (int, float))):
+                    continue
+                if len(v) > 1 and isinstance(v[1], (int, float)) and v[1] < 1.15:
+                    continue
+                w = (alt.get(n) or [0])[0] or 0
+                dz = max(0.0, v[0] - w)
+                if str(n).startswith("Over"):
+                    o += dz
+                elif str(n).startswith("Under"):
+                    u += dz
+        return o, u
+    bl = []
+    for a, b in zip(pts[:-1], pts[1:]):
+        if (ts(b["ts"]) - ts(a["ts"])) > timedelta(minutes=20):
+            continue
+        o, u = neu(a["sel"], b["sel"])
+        sc = b.get("sc") if isinstance(b.get("sc"), list) and None not in b.get("sc") else None
+        sa = a.get("sc") if isinstance(a.get("sc"), list) and None not in a.get("sc") else None
+        tore = sum(sc) if sc else 0
+        # gerade ein Tor: Stand schon neu, Quoten oft noch alt → keine Rate für diesen Abruf
+        rate = None if (sc and sa and sum(sa) != tore) else tor_rate(b["sel"], tore, b.get("min") if sc else None)
+        bl.append([int(ts(b["ts"]).timestamp() // 60), round(o), round(u), rate, tore if sc else None])
+    bl = bl[-bis:]
+    if not bl or not any(x[1] or x[2] for x in bl) and not any(x[3] for x in bl):
+        return None
+    letzt = pts[-1]["sel"]
+    linien = []
+    for mk, d in sorted(letzt.items(), key=lambda kv: int(OU_RX.match(kv[0]).group(1)) if OU_RX.match(str(kv[0])) else 99):
+        mm = OU_RX.match(str(mk))
+        if not mm or not isinstance(d, dict):
+            continue
+        o = next((v for n, v in d.items() if str(n).startswith("Over")), None) or [0, None]
+        u = next((v for n, v in d.items() if str(n).startswith("Under")), None) or [0, None]
+        if (o[0] or 0) + (u[0] or 0) < 300:
+            continue
+        linien.append({"l": int(mm.group(1)) + 0.5, "o": round(o[0] or 0), "u": round(u[0] or 0),
+                       "oq": o[1] if len(o) > 1 else None, "uq": u[1] if len(u) > 1 else None})
+    o_ges, u_ges = seiten(letzt)
+    t_jetzt = ts(pts[-1]["ts"])
+    j30 = [x for x in bl if x[0] >= int((t_jetzt - timedelta(minutes=30)).timestamp() // 60)]
+    raten = [x for x in bl if x[3] is not None]
+    r60 = next((x[3] for x in raten if x[0] >= int((t_jetzt - timedelta(minutes=60)).timestamp() // 60)), None)
+    return {"bl": bl, "linien": linien, "o": round(o_ges), "u": round(u_ges),
+            "o30": sum(x[1] for x in j30), "u30": sum(x[2] for x in j30),
+            "rate": raten[-1][3] if raten else None, "rate60": r60}
+
+
+def _sicher(f, *a):
+    try:
+        return f(*a)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  {getattr(f, '__name__', f)}: {exc}")
+        return None
+
+
 def markt_zufluss(snaps):
     mk = [s.get("mkv") for s in snaps if isinstance(s, dict) and isinstance(s.get("mkv"), dict)]
     if len(mk) < 2:
@@ -1192,6 +1334,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             "d15": round(vol - vor15) if vor15 is not None and t15 and t15 >= JETZT - timedelta(minutes=30) else None,
             # In welchen Markt floss das Geld zuletzt? (die Historie führt das Markt-Volumen der letzten 2 Abrufe)
             "marktZufluss": markt_zufluss(snaps),
+            "torFluss": _sicher(tor_fluss, snaps),
             "maerkteDetail": [x for x in maerkte_detail(m, snaps, 30 if dt_h > 0 else 15)
                               if not (hz_vorbei and _ist_hz_markt(x.get("name")))],
             "maerkteAbs": [x for x in maerkte_detail(m, snaps, 30 if dt_h > 0 else 15, nur_abs=True)

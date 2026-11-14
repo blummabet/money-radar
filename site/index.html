@@ -217,6 +217,24 @@ main{padding:22px 28px 60px;min-width:0}
 .legende i{width:10px;height:10px;border-radius:50%}
 @media (min-width:1300px){ .toepfe{grid-template-columns:1fr 1fr} }
 
+.tk{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:6px 0}
+.tk h4{margin:0 0 10px}
+.tk-kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.tk-kpi small{display:block;font-size:11.5px;color:var(--text-3)}.tk-kpi b{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+.tk-kpi em{display:block;font-style:normal;font-size:11.5px;color:var(--text-3)}
+.tk-auf{color:var(--up);font-weight:700}.tk-ab{color:var(--down);font-weight:700}
+.tk-split{height:6px;border-radius:3px;background:var(--down);overflow:hidden;margin:10px 0 12px}.tk-split i{display:block;height:100%;background:var(--up)}
+.tk-g{position:relative;height:150px;padding-bottom:18px}.tk-g svg{width:100%;height:132px;display:block}
+.tk-lo,.tk-lu{position:absolute;left:4px;font-size:10.5px;font-weight:700;color:var(--text-3);z-index:1}.tk-lo{top:0}.tk-lu{top:116px}
+.tk-tor{position:absolute;top:58px;font-size:13px;transform:translateX(-50%);filter:drop-shadow(0 0 2px var(--panel))}
+.tk-ax{position:absolute;left:0;right:0;bottom:0;height:14px;font-size:10.5px;color:var(--text-3)}.tk-ax span{position:absolute;white-space:nowrap}
+.tk-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:11.5px;color:var(--text-3);margin:2px 0 8px}
+.tk-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}.tk-leg i.ln{height:3px;width:14px;background:var(--text);vertical-align:2px}
+.tk-ls{display:grid;gap:5px;margin-bottom:8px}
+.tk-l{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;font-size:12px}.tk-l b{font-variant-numeric:tabular-nums}
+.tk-l small{color:var(--text-3);font-variant-numeric:tabular-nums}
+.tk-lb{height:7px;border-radius:4px;background:var(--down);overflow:hidden}.tk-lb i{display:block;height:100%;background:var(--up)}
+@media (max-width:560px){.tk-kpi{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .sankey-k{display:flex;align-items:baseline;gap:8px;margin:2px 0 8px;color:var(--text-2);font-size:12px}.sankey-k b{color:var(--text);font-size:18px;font-weight:800}
 .saeulen{display:block;width:100%;height:50px;margin-top:10px}
 .serie-k{}
@@ -2478,6 +2496,7 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
   return `<tr class="detail"><td colspan="6"><div class="det">
     ${ohneKopf?"":dKopf(s)}${s.live?liveStat(s.id,true):""}${dChips(s, fl, fm)}
     ${saeulen?`<div class="sv">${saeulen}</div>`:""}
+    ${(()=>{ try{ return torKasten(s); }catch(e){ console.error(e); return ""; } })()}
     ${(()=>{ try{ return phasenBand(s); }catch(e){ console.error(e); return ""; } })()}
     ${(()=>{ try{ return spielZeitleiste(s); }catch(e){ console.error(e); return ""; } })()}
     <div><h4>Märkte <small>größere Kachel = mehr Geld im Markt</small></h4>${marktWand2(s)||"–"}</div>
@@ -5044,6 +5063,55 @@ function tickerBauen(D){
 // Spiel-Verlauf: was zu diesem Spiel wann passiert ist — Signale, Pushes, Top 3, AI-Pick, Tore, Endstand
 // Lucas 10.11. 12:18: Phasenband — je 5 Minuten, wohin das neue Geld ging (Sieg-Markt) und ob auf Über oder Unter,
 // dazu Anpfiff, Halbzeit, Tore. Kräftig = viel Geld. Groß im Spiel-Detail, klein auf den Top-3-Karten.
+// Lucas 14.11. („auf einen Blick: auf den Over/Under-Märkten passiert was — Over oben, Under unten, cool als Grafik;
+// live die natürliche Quotenbewegung rausrechnen"): alle Tor-Linien 0,5–6,5 zusammen. Säulen je Abruf (~5 Min): Geld neu
+// auf Über nach oben, auf Unter nach unten. Linie = Torerwartung des Marktes in Toren je 90 Min — aus allen Linien
+// gerechnet und durch die Restspielzeit geteilt, damit sie live nicht von selbst fällt, nur weil Zeit vergeht.
+function torKasten(s){
+  const T = s.torFluss; if(!T || !T.bl || T.bl.length < 2) return "";
+  const B = T.bl, n = B.length, W = 1000, H = 220, mitte = H/2, pad = 6;
+  const maxG = Math.max(1, ...B.map(b=>Math.max(b[1]||0, b[2]||0)));
+  const bw = W/n, h = v => (v||0)/maxG*(mitte-pad);
+  let saeulen = "";
+  B.forEach((b,i)=>{ const x = i*bw + bw*0.12, w = bw*0.76;
+    if(b[1]) saeulen += `<rect x="${x.toFixed(1)}" y="${(mitte-h(b[1])).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(1,h(b[1])).toFixed(1)}" rx="2" fill="var(--up)"><title>+${eur(b[1])} auf Über</title></rect>`;
+    if(b[2]) saeulen += `<rect x="${x.toFixed(1)}" y="${mitte}" width="${w.toFixed(1)}" height="${Math.max(1,h(b[2])).toFixed(1)}" rx="2" fill="var(--down)"><title>+${eur(b[2])} auf Unter</title></rect>`; });
+  const R = B.map(b=>b[3]).filter(v=>v!=null);
+  let linie = "", rLab = "";
+  if(R.length >= 2){
+    const lo = Math.min(...R) - 0.3, hi = Math.max(...R) + 0.3, Y = v => pad + (1 - (v-lo)/(hi-lo))*(H-2*pad);
+    let d = "", an = false;
+    B.forEach((b,i)=>{ if(b[3]==null){ an = false; return; } d += `${an?"L":"M"}${(i*bw+bw/2).toFixed(1)},${Y(b[3]).toFixed(1)}`; an = true; });
+    linie = `<path d="${d}" fill="none" stroke="var(--text)" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke" opacity=".85"/>`;
+  }
+  // Tore als Marken
+  let tore = "", vor = null;
+  B.forEach((b,i)=>{ if(b[4]!=null && vor!=null && b[4] > vor) tore += `<span class="tk-tor" style="left:${((i+0.5)/n*100).toFixed(1)}%">⚽</span>`; if(b[4]!=null) vor = b[4]; });
+  const uhr = m => new Date(m*6e4).toLocaleTimeString("de-AT",{timeZone:TZ,hour:"2-digit",minute:"2-digit"});
+  const achse = `<span style="left:0">${uhr(B[0][0])}</span><span style="left:50%">${uhr(B[Math.floor(n/2)][0])}</span><span style="left:100%;transform:translateX(-100%)">${uhr(B[n-1][0])}</span>`;
+  const ges = (T.o||0) + (T.u||0), oA = ges ? Math.round(T.o/ges*100) : 50;
+  const neu30 = (T.o30||0) + (T.u30||0);
+  const rDiff = T.rate!=null && T.rate60!=null ? T.rate - T.rate60 : null;
+  const pfeil = rDiff==null || Math.abs(rDiff) < 0.15 ? "" : rDiff > 0 ? `<span class="tk-auf">↑ von ${dez(T.rate60)}</span>` : `<span class="tk-ab">↓ von ${dez(T.rate60)}</span>`;
+  const linien = (T.linien||[]).map(l=>{ const g = l.o + l.u, a = g ? l.o/g*100 : 50;
+    return `<div class="tk-l"><b>${dez(l.l)}</b><div class="tk-lb"><i style="width:${a.toFixed(1)}%"></i></div><small>${eur(l.o)} / ${eur(l.u)}</small></div>`; }).join("");
+  return `<div class="tk"><h4>⚽ Tormärkte <small>alle Über/Unter-Linien zusammen</small></h4>
+    <div class="tk-kpi">
+      <div><small>Über</small><b style="color:var(--up)">${eur(T.o)}</b></div>
+      <div><small>Unter</small><b style="color:var(--down)">${eur(T.u)}</b></div>
+      <div><small>neu, 30 Min</small><b>${neu30?"+"+eur(neu30):"–"}</b>${neu30?`<em>${Math.round((T.o30||0)/neu30*100)} % Über</em>`:""}</div>
+      <div><small>Torerwartung</small><b>${T.rate!=null?dez(T.rate):"–"}</b><em>Tore je 90 Min ${pfeil}</em></div>
+    </div>
+    <div class="tk-split"><i style="width:${oA}%"></i></div>
+    <div class="tk-g"><span class="tk-lo">Über</span><span class="tk-lu">Unter</span>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Neues Geld auf Über und Unter je Abruf">
+        <line x1="0" x2="${W}" y1="${mitte}" y2="${mitte}" stroke="var(--line)" stroke-width="2" vector-effect="non-scaling-stroke"/>${saeulen}${linie}</svg>${tore}
+      <div class="tk-ax">${achse}</div></div>
+    <div class="tk-leg"><span><i style="background:var(--up)"></i>neu auf Über</span><span><i style="background:var(--down)"></i>neu auf Unter</span>${R.length>=2?`<span><i class="ln"></i>Torerwartung</span>`:""}</div>
+    ${linien?`<div class="tk-ls">${linien}</div>`:""}
+    <div class="kk-klein">Jede gematchte Wette hat zwei Seiten — wer gelayt hat, sieht man an der Linie: steigt sie, rechnet der Markt mit mehr Toren, egal auf welcher Linie gesetzt wurde. Live ist die vergehende Zeit herausgerechnet.</div>
+  </div>`;
+}
 function phasenBand(s, mini=false){
   const Z = (D.phasen||{})[String(s.id)]; if(!Z || Z.length < 3) return "";
   const T = z => new Date(z[0]+":00Z").getTime(), M = 6e4;
