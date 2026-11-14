@@ -5068,7 +5068,7 @@ function tickerBauen(D){
 // auf Über nach oben, auf Unter nach unten. Linie = Torerwartung des Marktes in Toren je 90 Min — aus allen Linien
 // gerechnet und durch die Restspielzeit geteilt, damit sie live nicht von selbst fällt, nur weil Zeit vergeht.
 function torKasten(s){
-  const T = s.torFluss; if(!T || !T.bl || T.bl.length < 2) return "";
+  const T = s.torFluss; if(!T || !T.bl || T.bl.length < 2 || (T.o||0)+(T.u||0) < 1000) return "";   // unter €1k: nichts zu sehen
   const B = T.bl, n = B.length, W = 1000, H = 220, mitte = H/2, pad = 6;
   const maxG = Math.max(1, ...B.map(b=>Math.max(b[1]||0, b[2]||0)));
   const bw = W/n, h = v => (v||0)/maxG*(mitte-pad);
