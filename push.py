@@ -357,7 +357,9 @@ def live(d):
             continue
         lv = z.get("live") or {}
         st = lv.get("stand") or [0, 0]
-        key = f"lz|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
+        # Lucas 14.11.: nach einem Tor ist es ein anderes Spiel — der Stand gehört zum Schlüssel, damit Geld aufs selbe Team
+        # z. B. bei 1:1 nach einem Push bei 0:0 wieder gemeldet werden kann (das Fenster zählt nur Geld seit dem Tor).
+        key = f"lz|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}|{st[0]}:{st[1]}"
         # Lucas 30.10. (RKC – Almere 70' 0:1, „+€17k auf Almere — und wieso kommt dann die Push?"): derselbe Filter wie beim
         # Dauerzufluss — Geld auf das Team, das schon führt, wird nicht gepusht, nur still gemessen (art „liveFuehrt").
         k_l = 0 if fl.get("auswahl") == z.get("heim") else 1 if fl.get("auswahl") == z.get("gast") else None

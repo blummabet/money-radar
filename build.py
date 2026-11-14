@@ -839,7 +839,7 @@ def _phase(jetzt, kick, minute=None):
 TOP5_RX = re.compile(r"^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|uefa champions league|uefa nations league( a)?)$", re.I)
 
 
-def auswahl_zufluss(snaps, minuten, min_eur, min_anteil=0.65):
+def auswahl_zufluss(snaps, minuten, min_eur, min_anteil=0.65, seit_tor=False):
     """Zufluss JE AUSWAHL: wohin ging das neue Geld innerhalb eines Marktes?
 
     Vergleicht die Auswahl-Volumina jetzt mit dem Punkt vor `minuten`. Gemeldet wird eine Auswahl,
@@ -857,6 +857,18 @@ def auswahl_zufluss(snaps, minuten, min_eur, min_anteil=0.65):
             vor = s
     if not vor or ts(vor["ts"]) < t_jetzt - timedelta(minutes=minuten + 15):
         return []
+    # Lucas 14.11. („Team geht in Führung, kriegt den Ausgleich — alte Einsätze bei 0:0, neue bei 1:1"): live wie beim
+    # Dauerzufluss (REGEL S3) nur das Geld SEIT DEM LETZTEN TOR. Fiel im Fenster ein Tor, beginnt es beim ersten Abruf
+    # mit dem neuen Stand.
+    if seit_tor:
+        sc = lambda x: tuple(x["sc"]) if isinstance(x.get("sc"), list) and None not in x["sc"] else None   # noqa: E731
+        i_vor = pts.index(vor)
+        for i in range(len(pts) - 1, i_vor, -1):
+            if sc(pts[i]) and sc(pts[i - 1]) and sc(pts[i]) != sc(pts[i - 1]):
+                vor = pts[i]
+                break
+        if vor is jetzt:
+            return []
     out = []
     for markt, sel in jetzt["sel"].items():
         alt = (vor.get("sel") or {}).get(markt) or {}
@@ -1343,7 +1355,7 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
             "flussVorher": auswahl_zufluss(snaps, 30, 3000) if dt_h > 0 else [],
             # Lucas 18.10. (Valladolid 54' 1:2: „+€21k auf Über 0,5 HZ-Tore @ 2,02"): ein Halbzeit-Markt ist nach der
             # Pause abgerechnet — was dort noch „neu" erscheint, ist Abrechnung, kein Geld. Ab der 46. Minute raus.
-            "flussLive": [f for f in auswahl_zufluss(snaps, 15, 1500) if not (hz_vorbei and _ist_hz_markt(f.get("markt")))] if dt_h <= 0 else [],
+            "flussLive": [f for f in auswahl_zufluss(snaps, 15, 1500, seit_tor=True) if not (hz_vorbei and _ist_hz_markt(f.get("markt")))] if dt_h <= 0 else [],
             "top5": bool(TOP5_RX.search(str(m.get("league") or ""))),
             "quoten30": ({"heim": mo30.get("hw"), "remis": mo30.get("dr"), "gast": mo30.get("aw")} if mo30 else None),
             "kurve": kurve,
