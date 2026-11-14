@@ -87,12 +87,14 @@ def _get(url):
                 _STAT["ok"] += 1
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
+            _STAT.setdefault("erster", f"HTTP {e.code} {url[:70]}")
             if e.code == 404:
                 return None
             if (e.code == 429 or e.code >= 500) and versuch == 0:
                 time.sleep(2)
                 continue
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
+            _STAT.setdefault("erster", f"{type(e).__name__}: {str(e)[:120]} {url[:70]}")
             if versuch == 0:
                 time.sleep(1)
                 continue
@@ -672,7 +674,8 @@ def main() -> int:
             alt = maerkte.get(zeile["key"])
             if not alt or zeile["totalUsd"] > alt["totalUsd"]:
                 maerkte[zeile["key"]], oc_je[zeile["key"]] = zeile, oc
-    print(f"  poly_markt: {len(maerkte)} Märkte im Fenster ({_STAT['ok']} Abrufe)")
+    print(f"  poly_markt: {len(maerkte)} Märkte im Fenster ({_STAT['ok']} Abrufe)"
+          + (f" — erster Fehler: {_STAT['erster']}" if _STAT.get("erster") else ""))
     try:
         buecher(maerkte, oc_je)
     except Exception as exc:  # noqa: BLE001 — das Schattenbuch darf den Scan nie aufhalten
