@@ -383,6 +383,27 @@ def avg_aus_positionen(data, token):
 
 
 # ── 1. Spiele finden ─────────────────────────────────────────────────────────────────────────────────────────
+def _seiten(query, max_seiten, decke=None):
+    """14.11.2026: Gamma lehnt Offset-Listen auf /events mit HTTP 406 ab (still seit spätestens 12.11. — 0 Märkte,
+    die Seite lebte vom Rest-Gedächtnis). Jetzt /events/keyset mit after_cursor; Offset nur noch als Rückfall.
+    decke: Schluss, sobald die Seite hinter dem Fenster endet (Sortierung nach endDate)."""
+    cursor = None
+    for seite in range(max_seiten):
+        r = _get(f"{GAMMA}/keyset?{query}&limit=100" + (f"&after_cursor={urllib.parse.quote(cursor)}" if cursor else ""))
+        if r is None and seite == 0:
+            r = _get(f"{GAMMA}?{query}&limit=100&offset=0")
+        page = (r.get("events") if isinstance(r, dict) else r) or []
+        if not isinstance(page, list) or not page:
+            return
+        yield page
+        cursor = r.get("next_cursor") if isinstance(r, dict) else None
+        if not cursor:
+            return
+        letzt = _ts((page[-1] or {}).get("endDate")) if decke and isinstance(page[-1], dict) else None
+        if letzt and letzt > decke:
+            return
+
+
 def ereignisse():
     boden = (JETZT - timedelta(hours=FENSTER_NACH_H)).strftime("%Y-%m-%dT%H:%M:%SZ")
     gesehen = {}
@@ -390,35 +411,18 @@ def ereignisse():
     # Spiele samt Nebenmärkten (Halbzeit, exaktes Ergebnis, more-markets) die 400 Plätze — Abend und Sonntag fehlten.
     # Deshalb Fußball bis 15 Seiten und Schluss erst, wenn die Seite hinter dem Fenster endet.
     decke = JETZT + timedelta(hours=FENSTER_VOR_H + 6)
+    basis = f"closed=false&order=endDate&ascending=true&end_date_min={boden}"
     for tag in TAGS:
-        for seite in range(15 if tag == "soccer" else 4):
-            page = _get(f"{GAMMA}?tag_slug={tag}&limit=100&offset={seite * 100}&active=true&closed=false"
-                        f"&order=endDate&ascending=true&end_date_min={boden}")
-            if not isinstance(page, list) or not page:
-                break
+        for page in _seiten(f"tag_slug={tag}&{basis}", 15 if tag == "soccer" else 4, decke):
             for ev in page:
                 if isinstance(ev, dict) and ev.get("slug"):
                     gesehen.setdefault(ev["slug"], (ev, tag))
-            if len(page) < 100:
-                break
-            letzt = _ts((page[-1] or {}).get("endDate")) if isinstance(page[-1], dict) else None
-            if letzt and letzt > decke:
-                break
     for tag in TAGS_INTL:                        # 14.11.: Länderspiele (Nations League, Qualis) — max. 2 Seiten je Tag
-        for seite in range(2):
-            page = _get(f"{GAMMA}?tag_slug={tag}&limit=100&offset={seite * 100}&active=true&closed=false"
-                        f"&order=endDate&ascending=true&end_date_min={boden}")
-            if not isinstance(page, list) or not page:
-                break
+        for page in _seiten(f"tag_slug={tag}&{basis}", 2, decke):
             for ev in page:
                 if isinstance(ev, dict) and ev.get("slug"):
                     gesehen.setdefault(ev["slug"], (ev, tag))
-            if len(page) < 100:
-                break
-    for seite in range(3):                       # tag-los: die volumenstärksten (fängt Ligen ohne passenden Tag)
-        page = _get(f"{GAMMA}?limit=100&offset={seite * 100}&active=true&closed=false&order=volume&ascending=false")
-        if not isinstance(page, list) or not page:
-            break
+    for page in _seiten("closed=false&order=volume&ascending=false", 3):   # tag-los: die volumenstärksten
         for ev in page:
             if isinstance(ev, dict) and ev.get("slug"):
                 gesehen.setdefault(ev["slug"], (ev, None))
