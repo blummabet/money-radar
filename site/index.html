@@ -4754,6 +4754,7 @@ function seiteStatistik(){
       ${pubModus||neinModus||polyModus?"":`<div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div><div class="hint st-chiphint">Kategorie antippen = nur diese · nochmal antippen = wieder alle</div>`}
     </div>
     ${pubModus ? topfPanel() : ""}
+    ${pubModus||neinModus ? stakePanel(Z, zeile, tkopf) : ""}
     ${polyModus ? polyPanel(basis) : ""}
     <div class="panel c12">${kopf}${kurve}</div>
     <div class="panel c12"><div class="ph"><h3>Je Kategorie</h3><span class="hint">antippen = nur diese</span></div>${jeKat?tkopf("Kategorie")+jeKat:`<div class="leer">Keine Tipps im Ausschnitt.</div>`}</div>
@@ -4761,6 +4762,22 @@ function seiteStatistik(){
     <div class="panel c6"><div class="ph"><h3>Nach Quote</h3></div>${jeQuote?tkopf("Quote")+jeQuote:`<div class="leer">–</div>`}</div>
     <div class="panel c12"><div class="ph"><h3>Zuletzt</h3><span class="hint">die 12 neuesten im Ausschnitt</span></div>${zuletzt||`<div class="leer">–</div>`}</div>
   </div>`;
+}
+// Lucas 14.11. (Staking-Regel S1, still): je Public-Tipp ein Stake 1–3 aus den Topf-Punkten. Hier: trägt die Abstufung?
+// Flat bleibt die Hauptrechnung oben; gestakt = Rendite × Stake. Erst ab Zeilen mit Stake (seit 14.11.).
+function stakePanel(Z, zeile, tkopf){
+  const mit = Z.filter(z=>z[14]); if(!mit.length) return `<div class="panel c12"><div class="ph"><h3>Staking 1–3 <small>still, Regel S1 seit 14.11.</small></h3></div><div class="leer">Noch keine Tipps mit Stake — ab jetzt bekommt jeder Public-Tipp einen.</div></div>`;
+  const ab = mit.filter(z=>z[2]!=null && !stVoid(z));
+  const flat = ab.reduce((a,z)=>a+z[2],0), gest = ab.reduce((a,z)=>a+z[2]*z[14],0), eins = ab.reduce((a,z)=>a+z[14],0);
+  const stufen = [3,2,1].map(k=>zeile(`Stake ${k}`, stKennz(mit.filter(z=>z[14]===k)))).join("");
+  return `<div class="panel c12"><div class="ph"><h3>Staking 1–3 <small>still, Regel S1 seit 14.11.</small></h3><span class="hint">Flat oben bleibt maßgeblich</span></div>
+    <div class="st-kpis">
+      <div class="st-kpi"><b style="color:${stFarbe(flat)}">${stVz(flat,2)}</b><span>Einheiten flat</span><small>${ab.length} abgerechnet</small></div>
+      <div class="st-kpi"><b style="color:${stFarbe(gest)}">${stVz(gest,2)}</b><span>Einheiten gestakt</span><small>${eins} Einheiten eingesetzt</small></div>
+      <div class="st-kpi"><b style="color:${stFarbe(gest)}">${eins?stVz(100*gest/eins)+" %":"–"}</b><span>Rendite gestakt</span><small>flat ${ab.length?stVz(100*flat/ab.length)+" %":"–"}</small></div>
+    </div>
+    ${tkopf("Stake")}${stufen}
+    <div class="hint" style="margin-top:8px">Trägt das Staking, müssen die 3er besser treffen als die 1er — und gestakt mehr bringen als flat.</div></div>`;
 }
 // ══ Report (Lucas 10.11.: „unter Statistik eigenen Report-Bereich … immer gleich darstellen … daraus die Sachen für
 // Social Media rausrechnen"). Daten: report.json aus report_sammler.py — feste Tageswerte, getrennt von Picks und Pushes.

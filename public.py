@@ -281,6 +281,36 @@ def _punkte_roh(c, jetzt):
     return round(p, 1)
 
 
+# ── Staking-Regel S1 (Lucas 14.11. 14:51, „Staking-Angaben würden die Signale attraktiver machen — erst still
+# mitschreiben, nur für den Public-Kanal, alles andere bleibt flat"): Stake 1–3 aus den Topf-Punkten. Festgelegt VOR der
+# Messung. Gemessen: Topf 9–12 Punkte n=71 ≈ +7 %, ab 12 n=51 ≈ +14 %; Dauerzufluss vor Anpfiff n=68 +17 %;
+# Polymarket live Team-Sieg n=180 +16 %; live Dauerzufluss bei gleichem Stand n=154 +1 %.
+#   3 = ab 12 Punkten UND mind. 2 Quellen (Betfair/Polymarket/Stake), oder ab 14 Punkten
+#   2 = ab 12 Punkten, oder eine starke Art: Betfair-Geld vor Anpfiff, Wal ≥ 3× üblich, Polymarket-Serie live
+#   1 = sonst
+#   Abzüge: live Betfair-Dauerzufluss bei gleichem Stand höchstens 1 · Quote ab 2,50 eine Stufe weniger
+STAKING_REGEL = "S1"
+
+
+def stake(c, p):
+    """Stake 1–3 für einen Topf-Kandidaten c mit Punkten p. REIN."""
+    m, ev = c.get("m") or {}, c.get("ereignisse") or []
+    if p is None:
+        return None
+    art, q, live = m.get("art"), m.get("quote"), bool(m.get("live"))
+    quellen = {QUELLE.get(e.get("art")) for e in ev} - {None}
+    stark = (art in ("serie", "zufluss") and not live) \
+        or (art == "wal" and isinstance(m.get("faktor"), (int, float)) and m["faktor"] >= 3) \
+        or (art == "pserie" and live)
+    st = 3 if p >= 14 or (p >= 12 and len(quellen) >= 2) else 2 if (p >= 12 or stark) else 1
+    stand = m.get("stand")
+    if art == "serie" and live and isinstance(stand, (list, tuple)) and len(stand) == 2 and stand[0] == stand[1]:
+        st = 1
+    if isinstance(q, (int, float)) and q >= 2.5:
+        st = max(1, st - 1)
+    return st
+
+
 def _termine_vorbei(f, jetzt):
     w = jetzt.astimezone(WIEN)
     ab = (w.hour - FENSTER[f][0]) * 60 + w.minute
@@ -321,6 +351,7 @@ def auswahl(s, jetzt, aktuell=None):
                 s["liste"].append({"zeit": (c.get("bestZeit") or c.get("letzt") or "")[:16], "art": m.get("art"), "spiel": m.get("spiel"),
                                    "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                                    "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": c.get("best"),
+                                   "stake": stake(c, c.get("best")), "stakeRegel": STAKING_REGEL,
                                    "signale": len(c.get("ereignisse") or [])})
             t.pop(k, None)
             continue
@@ -354,6 +385,7 @@ def auswahl(s, jetzt, aktuell=None):
         else:
             continue
         gesendet += 1
+        m["_stake"] = stake(c, p)
         aus.append((m, (gesendet, f), p, grund))
         t.pop(k, None)
     return aus
@@ -435,7 +467,8 @@ def buchen(s, m, nr_f, jetzt, punkte=None, grund=None):
     s["liste"].append({"zeit": jetzt.strftime("%Y-%m-%dT%H:%M"), "art": m.get("art"), "spiel": m.get("spiel"),
                        "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                        "live": bool(m.get("live")), "regel": REGEL, "faktor": m.get("faktor"),
-                       "gesendet": True, "punkte": punkte, "grund": grund})
+                       "gesendet": True, "punkte": punkte, "grund": grund,
+                       "stake": m.get("_stake"), "stakeRegel": STAKING_REGEL if m.get("_stake") else None})
 
 
 def _wann(iso, jetzt):

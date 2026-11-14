@@ -2638,78 +2638,8 @@ def _public_gewonnen(p, t0, erg):
     return _b.gewonnen(markt, a, heim, gast, ft, None)
 
 
-def statistik(burst, finder):
-    zeilen = []
-    try:
-        buch = json.loads((BASIS / ".push_state" / "buch.json").read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001
-        buch = []
-    doppelt = set()
-    for b in buch:
-        if b.get("art") not in STAT_ARTEN or b.get("status") not in ("abgerechnet", "offen") or not ts(b.get("ts")):
-            continue
-        art_ = b["art"]
-        k_ = (art_, str(b.get("id")), b.get("markt"), b.get("auswahl"))
-        if art_ in ("ht", "fix"):             # 07.11.: alte Mehrfachbuchungen (Neumeldung bei +50 % Geld) nur einmal zählen
-            if k_ in doppelt:
-                continue
-            doppelt.add(k_)
-        elif art_ in WDH_ARTEN:               # 10.11. (Betfair-Check, Lucas „ja"): nur der erste Push zu Spiel+Auswahl zählt,
-            if k_ in doppelt:                 # jeder weitere wird eigens gemessen („…Wdh")
-                art_ = art_ + "Wdh"
-            doppelt.add(k_)
-        ab = b.get("status") == "abgerechnet"
-        q, sl = b.get("quote"), b.get("schluss")
-        clv = None
-        if (not b.get("live") and isinstance(q, (int, float)) and isinstance(sl, (int, float)) and sl > 1
-                and ts(b.get("schlussTs")) and ts(b.get("anpfiff")) and ts(b["schlussTs"]) >= ts(b["anpfiff"]) - timedelta(minutes=20)):
-            clv = round(100 * (q / sl - 1), 1)
-        titel = b.get("anzeige") or b.get("titel") or (f"{b.get('heim')} – {b.get('gast')}" if b.get("heim") else "")
-        zeilen.append([ts(b["ts"]).strftime("%Y-%m-%dT%H:%M"), art_,
-                       round(float(b["r"]), 3) if ab and isinstance(b.get("r"), (int, float)) else None,
-                       (1 if b.get("win") else 0) if ab else None,
-                       round(float(q), 2) if isinstance(q, (int, float)) else None, clv,
-                       b.get("liga") or b.get("sport") or "", 1 if b.get("top5") else 0, 1 if b.get("live") else 0,
-                       str(titel)[:60], str(b.get("auswahl") or "")[:40], b.get("lage"),
-                       b.get("usd") if isinstance(b.get("usd"), (int, float)) else None, b.get("faktor")])   # 02.11.: Wal-Betrag + × üblicher Einsatz
-    for z in burst or []:
-        if not isinstance(z, dict) or not z.get("push") or not stake_ok(z) or not ts(z.get("sentAt")):
-            continue
-        r = z.get("rendite")
-        ab = z.get("status") == "abgerechnet" and isinstance(r, (int, float))
-        if not ab and z.get("status") != "pending":
-            continue
-        # 10.11. (Stake-Check, Lucas „ja"): das ist das Ergebnis des WALS über alle seine Tickets im Burst (auch Ecken,
-        # Totals …) und jede vom Stake-Skript markierte Zeile — nicht dein Tipp. Darum eigene Zeile „stakeWal";
-        # „stake" sind ab jetzt die tatsächlich gesendeten Pushes mit Auswahl und Quote aus dem Push (bilanz.py).
-        zeilen.append([ts(z["sentAt"]).strftime("%Y-%m-%dT%H:%M"), "stakeWal", round(float(r), 3) if ab else None, int(r > 0) if ab else None,
-                       z.get("quote") if isinstance(z.get("quote"), (int, float)) else None, None, z.get("liga") or z.get("kat") or "",
-                       0, 1 if z.get("phase") == "live" else 0, str(z.get("event") or "")[:60], str(z.get("seite") or "")[:40]])
-    for e in (finder or {}).get("eintraege") or []:
-        if not ts(e.get("gebuchtAt")):
-            continue
-        w = e.get("wetten") or {}
-        for gruppe, wette, name in (("tore", "over05", "Tor in der 2. HZ"), ("heim", "heim", "Heimsieg")):
-            if gruppe not in (e.get("gruppen") or []):
-                continue
-            x = w.get(wette) or {}
-            ab = isinstance(x.get("r"), (int, float))
-            if not ab and e.get("ft"):
-                continue
-            zeilen.append([ts(e["gebuchtAt"]).strftime("%Y-%m-%dT%H:%M"), "hz", round(float(x["r"]), 3) if ab else None,
-                           int(bool(x.get("win"))) if ab else None, x.get("quote") if isinstance(x.get("quote"), (int, float)) else None,
-                           None, e.get("league") or e.get("liga") or "", 0, 1, f"{e.get('home') or ''} – {e.get('away') or ''}"[:60], name])
-    # Lucas 31.10.: Public-Regel 1 — jedes Public-Signal als eigene Art „public", Ergebnis vom gleichen Tipp oben
-    try:
-        pl = json.loads((BASIS / ".push_state" / "public.json").read_text(encoding="utf-8")).get("liste") or []
-    except Exception:  # noqa: BLE001
-        pl = []
-    nz = lambda s: re.sub(r"[^a-z0-9]", "", str(s or "").lower())
-    erg_pub = _public_ergebnisse()
-    # 09.11.: Public-Signale, die über Polymarket abgerechnet werden (E-Sport, Tennis, alles mit Polymarket-Markt)
-    erg_poly = {(str(b.get("pubZeit")), nz(b.get("spiel"))[:12]): bool(b.get("win")) for b in buch
-                if b.get("art") == "publicErg" and b.get("status") == "abgerechnet"}
-    for p in pl:
+def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
+    for _ in (0,):
         t0 = ts(p.get("zeit") + "+00:00") if len(str(p.get("zeit") or "")) == 16 else ts(p.get("zeit"))
         if not t0:
             continue
@@ -2789,8 +2719,93 @@ def statistik(burst, finder):
                                pp.get("quote") or p.get("quote"), None, p.get("liga") or "", 0, 1 if p.get("live") else 0,
                                str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40],
                                pp.get("seite") if pp.get("quote") else pp.get("fehlt"), pp.get("tiefe"), p.get("quote")])
+
+
+def statistik(burst, finder):
+    zeilen = []
+    try:
+        buch = json.loads((BASIS / ".push_state" / "buch.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        buch = []
+    doppelt = set()
+    for b in buch:
+        if b.get("art") not in STAT_ARTEN or b.get("status") not in ("abgerechnet", "offen") or not ts(b.get("ts")):
+            continue
+        art_ = b["art"]
+        k_ = (art_, str(b.get("id")), b.get("markt"), b.get("auswahl"))
+        if art_ in ("ht", "fix"):             # 07.11.: alte Mehrfachbuchungen (Neumeldung bei +50 % Geld) nur einmal zählen
+            if k_ in doppelt:
+                continue
+            doppelt.add(k_)
+        elif art_ in WDH_ARTEN:               # 10.11. (Betfair-Check, Lucas „ja"): nur der erste Push zu Spiel+Auswahl zählt,
+            if k_ in doppelt:                 # jeder weitere wird eigens gemessen („…Wdh")
+                art_ = art_ + "Wdh"
+            doppelt.add(k_)
+        ab = b.get("status") == "abgerechnet"
+        q, sl = b.get("quote"), b.get("schluss")
+        clv = None
+        if (not b.get("live") and isinstance(q, (int, float)) and isinstance(sl, (int, float)) and sl > 1
+                and ts(b.get("schlussTs")) and ts(b.get("anpfiff")) and ts(b["schlussTs"]) >= ts(b["anpfiff"]) - timedelta(minutes=20)):
+            clv = round(100 * (q / sl - 1), 1)
+        titel = b.get("anzeige") or b.get("titel") or (f"{b.get('heim')} – {b.get('gast')}" if b.get("heim") else "")
+        zeilen.append([ts(b["ts"]).strftime("%Y-%m-%dT%H:%M"), art_,
+                       round(float(b["r"]), 3) if ab and isinstance(b.get("r"), (int, float)) else None,
+                       (1 if b.get("win") else 0) if ab else None,
+                       round(float(q), 2) if isinstance(q, (int, float)) else None, clv,
+                       b.get("liga") or b.get("sport") or "", 1 if b.get("top5") else 0, 1 if b.get("live") else 0,
+                       str(titel)[:60], str(b.get("auswahl") or "")[:40], b.get("lage"),
+                       b.get("usd") if isinstance(b.get("usd"), (int, float)) else None, b.get("faktor")])   # 02.11.: Wal-Betrag + × üblicher Einsatz
+    for z in burst or []:
+        if not isinstance(z, dict) or not z.get("push") or not stake_ok(z) or not ts(z.get("sentAt")):
+            continue
+        r = z.get("rendite")
+        ab = z.get("status") == "abgerechnet" and isinstance(r, (int, float))
+        if not ab and z.get("status") != "pending":
+            continue
+        # 10.11. (Stake-Check, Lucas „ja"): das ist das Ergebnis des WALS über alle seine Tickets im Burst (auch Ecken,
+        # Totals …) und jede vom Stake-Skript markierte Zeile — nicht dein Tipp. Darum eigene Zeile „stakeWal";
+        # „stake" sind ab jetzt die tatsächlich gesendeten Pushes mit Auswahl und Quote aus dem Push (bilanz.py).
+        zeilen.append([ts(z["sentAt"]).strftime("%Y-%m-%dT%H:%M"), "stakeWal", round(float(r), 3) if ab else None, int(r > 0) if ab else None,
+                       z.get("quote") if isinstance(z.get("quote"), (int, float)) else None, None, z.get("liga") or z.get("kat") or "",
+                       0, 1 if z.get("phase") == "live" else 0, str(z.get("event") or "")[:60], str(z.get("seite") or "")[:40]])
+    for e in (finder or {}).get("eintraege") or []:
+        if not ts(e.get("gebuchtAt")):
+            continue
+        w = e.get("wetten") or {}
+        for gruppe, wette, name in (("tore", "over05", "Tor in der 2. HZ"), ("heim", "heim", "Heimsieg")):
+            if gruppe not in (e.get("gruppen") or []):
+                continue
+            x = w.get(wette) or {}
+            ab = isinstance(x.get("r"), (int, float))
+            if not ab and e.get("ft"):
+                continue
+            zeilen.append([ts(e["gebuchtAt"]).strftime("%Y-%m-%dT%H:%M"), "hz", round(float(x["r"]), 3) if ab else None,
+                           int(bool(x.get("win"))) if ab else None, x.get("quote") if isinstance(x.get("quote"), (int, float)) else None,
+                           None, e.get("league") or e.get("liga") or "", 0, 1, f"{e.get('home') or ''} – {e.get('away') or ''}"[:60], name])
+    # Lucas 31.10.: Public-Regel 1 — jedes Public-Signal als eigene Art „public", Ergebnis vom gleichen Tipp oben
+    try:
+        pl = json.loads((BASIS / ".push_state" / "public.json").read_text(encoding="utf-8")).get("liste") or []
+    except Exception:  # noqa: BLE001
+        pl = []
+    nz = lambda s: re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+    erg_pub = _public_ergebnisse()
+    # 09.11.: Public-Signale, die über Polymarket abgerechnet werden (E-Sport, Tennis, alles mit Polymarket-Markt)
+    erg_poly = {(str(b.get("pubZeit")), nz(b.get("spiel"))[:12]): bool(b.get("win")) for b in buch
+                if b.get("art") == "publicErg" and b.get("status") == "abgerechnet"}
+    stake_von = {}            # 14.11. Staking-Regel S1: Stake 1–3 je Public-Zeile (still, Flat bleibt die Hauptrechnung)
+    for p in pl:
+        n_vor = len(zeilen)
+        _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz)
+        if p.get("stake"):
+            for z in zeilen[n_vor:]:
+                if z[1] in ("public", "publicNein"):
+                    stake_von[id(z)] = p["stake"]
+    for z in zeilen:
+        if id(z) in stake_von:
+            z.extend([None] * (14 - len(z)))
+            z.append(stake_von[id(z)])
     zeilen.sort(key=lambda z: z[0])
-    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return len(zeilen)
 
 # Public-Signale, die nachweislich mit überholtem Stand gesendet wurden (Datum UTC, Spiel normalisiert, 12 Zeichen) → void
