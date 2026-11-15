@@ -2638,6 +2638,21 @@ def _public_gewonnen(p, t0, erg):
     return _b.gewonnen(markt, a, heim, gast, ft, None)
 
 
+# 15.11. (Lucas: „die Spiele sollen nicht auf Polymarket gewesen sein, das ist unmöglich" — Segunda-Spiele, Brasilien …):
+# vom 12.11. ~11:30 bis 14.11. 20:20 UTC lieferte der Polymarket-Abruf 0 Märkte (Gamma verlangte gzip, HTTP 406).
+# Ein Public-Signal aus dieser Zeit war nicht „nicht auf Polymarket", wir hatten schlicht keine Daten.
+POLY_AUSFAELLE = (("2026-11-12T11:30", "2026-11-14T20:20"),)
+
+
+def _poly_ausfall(pp, t0):
+    if not isinstance(pp, dict) or pp.get("quote") or pp.get("fehlt") not in ("Spiel nicht auf Polymarket", "kein Orderbuch"):
+        return pp
+    t = t0.strftime("%Y-%m-%dT%H:%M")
+    if any(v <= t <= b for v, b in POLY_AUSFAELLE):
+        return {**pp, "fehlt": "Polymarket-Ausfall (keine Daten)"}
+    return pp
+
+
 def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
     for _ in (0,):
         t0 = ts(p.get("zeit") + "+00:00") if len(str(p.get("zeit") or "")) == 16 else ts(p.get("zeit"))
@@ -2697,7 +2712,7 @@ def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
             # Lucas 08.11.: Polymarket-Schattenbuch — derselbe Tipp zum Polymarket-Preis im Moment des Posts.
             # „publicPoly": zur Poly-Quote abgerechnet, usd = Liquidität bis +2 Cent, faktor = gepostete Quote.
             # „publicPolyNein": gab es auf Polymarket nicht — Grund in Spalte „lage", Ergebnis zur geposteten Quote.
-            pp = p.get("poly") if art_p == "public" else None
+            pp = _poly_ausfall(p.get("poly"), t0) if art_p == "public" else None
             if isinstance(pp, dict):
                 kopf_ = [t0.strftime("%Y-%m-%dT%H:%M")]
                 rest_ = [best[6], best[7], 1 if p.get("live") else 0, best[9], best[10]]
@@ -2715,7 +2730,7 @@ def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
             r_v = 0.0 if _pub_hand(PUBLIC_VOID, t0.strftime("%Y-%m-%d"), nz(p.get("spiel"))) else None
             zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, r_v, None, p.get("quote"), None, p.get("liga") or "", 0,
                            1 if p.get("live") else 0, str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40], None])
-            pp = p.get("poly") if art_p == "public" else None
+            pp = _poly_ausfall(p.get("poly"), t0) if art_p == "public" else None
             if isinstance(pp, dict):
                 zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), "publicPoly" if pp.get("quote") else "publicPolyNein", r_v, None,
                                pp.get("quote") or p.get("quote"), None, p.get("liga") or "", 0, 1 if p.get("live") else 0,

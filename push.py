@@ -222,6 +222,11 @@ def poly_schatten(m) -> dict:
         buch = json.loads((BASIS / "poly_buch.json").read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         return {"fehlt": "Polymarket-Daten fehlten"}
+    # 15.11.: ohne frisches Orderbuch im ganzen Buch ist der Abruf tot (12.–14.11. gzip-Ausfall) — dann nicht
+    # „Spiel nicht auf Polymarket" behaupten
+    frisch = [t for t in (ts(e.get("buchTs")) for e in buch) if t]
+    if not buch or not frisch or (JETZT - max(frisch)).total_seconds() > 60 * 60:
+        return {"fehlt": "Polymarket-Daten fehlten"}
     h, g = teile
     for e in buch:
         if (_team_gleich(h, e["heim"]) and _team_gleich(g, e["gast"])) or (_team_gleich(h, e["gast"]) and _team_gleich(g, e["heim"])):
