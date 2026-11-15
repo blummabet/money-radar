@@ -3890,7 +3890,8 @@ function druckZeile(x){
 const DR_ART = {welle:["🚩 Ecken-Welle","var(--poly)"], druck:["Druck","var(--hz)"], index:["Index","var(--down)"], tor:["Tor","var(--up)"], geld:["Geld","var(--bf)"], ecke:["Ecken","var(--pin)"]};
 function druckTicker(D, n){
   const ids = new Set(lf(D.radar.spiele||[]).map(s=>s.id));
-  const Z = ((D.druck||{}).ticker||[]).filter(t=>ids.has(t.id)).slice(0, n);
+  const spaet = new Set(((D.druck||{}).spiele||[]).filter(x=>typeof x.min==="number" && x.min>=85).map(x=>x.id));
+  const Z = ((D.druck||{}).ticker||[]).filter(t=>ids.has(t.id) && !spaet.has(t.id)).slice(0, n);
   if(!Z.length) return "";
   return `<div class="pr-t">${Z.map(t=>{ const [a,f] = DR_ART[t.art]||["",""];
     const text = t.art==="geld" && t.auswahl ? `+${eur(t.eur)} auf ${esc(auswahlDe(t.auswahl))}${t.quote?` @ ${q2(t.quote)}`:""} · Druck ${t.index}` : esc(t.text);
@@ -3945,7 +3946,8 @@ function normMessungDetail(D){
 }
 function druckPanel(D){
   // erst ab Index 40 auf der Startseite — darunter ist es Rauschen (Lucas 25.10.: „too much?")
-  const S = lf((D.druck||{}).spiele||[]).filter(x=>x.index>=40);
+  // Lucas 15.11.: ab der 85. raus — mit ~5 Min Verzögerung ist man sonst schon in der 90. und wettet nichts mehr
+  const S = lf((D.druck||{}).spiele||[]).filter(x=>x.index>=40 && !(typeof x.min==="number" && x.min>=85));
   const tick = druckTicker(D, 8);
   if(!S.length && !tick) return "";
   const n = window.innerWidth < 700 ? 2 : window.innerWidth < 1100 ? 2 : 3;
