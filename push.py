@@ -1725,7 +1725,8 @@ def main() -> int:
             for m_, pl_, pkt_, grund_ in public.auswahl(pub_stand, JETZT, aktuell=lambda m: _jetzt_live.get(public._norm(m.get("spiel"))),
                                                          toepfe=d.get("toepfe") or [],
                                                          quoten=lambda m: public.quote_lage(m, (d.get("radar") or {}).get("spiele"),
-                                                                                            d.get("pinnAlle"))):
+                                                                                            d.get("pinnAlle")),
+                                                         info=lambda m: public.quote_info(m, (d.get("radar") or {}).get("spiele"))):
                 pt = public.text(m_, pl_, erkannt(), JETZT)
                 if senden(token, pub_chat, pt, link=False):
                     public.buchen(pub_stand, m_, pl_, JETZT, punkte=pkt_, grund=grund_)

@@ -179,6 +179,22 @@ def quote_lage(m, radar, pinn):
     return None, bonus
 
 
+def quote_info(m, radar):
+    """15.11. (Lucas: „live sollten wir schon erfassen — dass eine Quote mit der Zeit langsam steigt, ist normal"): nur
+    MITSCHREIBEN, keine Regel. Betfair-Quote jetzt und vor 60 Min für jede Auswahl im Topf, live und vor Anpfiff, plus
+    Minute und Stand. Später rechnen wir dagegen, was die Spielzeit allein erwarten lässt. REIN."""
+    sk, roh = _norm(m.get("spiel")), str(m.get("auswahlRoh") or m.get("auswahl") or "").lower()
+    g = next((x for x in radar or [] if _norm(f"{x.get('heim')} – {x.get('gast')}") == sk), None)
+    if not g or not roh:
+        return None
+    for mk in (g.get("maerkteDetail") or []) + (g.get("maerkteAbs") or []):
+        a = next((x for x in mk.get("auswahl") or [] if str(x.get("name") or "").lower() == roh), None)
+        if a and isinstance(a.get("quote"), (int, float)):
+            return {"q": a.get("quote"), "q60": a.get("q60"), "live": bool(m.get("live")),
+                    "min": m.get("minute"), "stand": m.get("stand")}
+    return None
+
+
 def passt(m) -> bool:
     """m: {art, liga, quote, …} — gilt die Public-Regel 1 für diese Meldung (ohne Kontingent)?"""
     art, q, liga = m.get("art"), m.get("quote"), str(m.get("liga") or "")
@@ -431,7 +447,7 @@ def _ueberholt(c, jetzt, aktuell):
     return bool(jetzt_stand and alt and list(jetzt_stand) != list(alt))
 
 
-def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None):
+def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None, info=None):
     """Was jetzt aus dem Topf in den Kanal geht: [(m, (nr, fenster), punkte, grund)]. Räumt Verfallenes ab
     (mit seinen besten Punkten als „nicht gesendet" in der Liste — so lässt sich später messen, ob die Auswahl besser trifft).
     aktuell(m) → aktueller Spielstand [h, a] oder None (Regel 9)."""
@@ -442,6 +458,11 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None):
     for k, c in list(t.items()):
         p = None if _ueberholt(c, jetzt, aktuell) else punkte(c, jetzt)
         c.pop("r27", None)
+        if info is not None and p is not None:
+            try:
+                (c.get("m") or {})["qInfo"] = info(c.get("m") or {})
+            except Exception:  # noqa: BLE001
+                pass
         if p is not None and quoten is not None:
             try:
                 sp27, bonus = quoten(c.get("m") or {})
@@ -456,7 +477,7 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None):
                 s["liste"].append({"zeit": (c.get("bestZeit") or c.get("letzt") or "")[:16], "art": m.get("art"), "spiel": m.get("spiel"),
                                    "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                                    "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": c.get("best"),
-                                   "stake": stake(c, c.get("best")), "stakeRegel": STAKING_REGEL,
+                                   "stake": stake(c, c.get("best")), "stakeRegel": STAKING_REGEL, "qInfo": m.get("qInfo"),
                                    "signale": len(c.get("ereignisse") or [])})
             t.pop(k, None)
             continue
@@ -480,7 +501,7 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None):
             s["liste"].append({"zeit": jetzt.strftime("%Y-%m-%dT%H:%M"), "art": m.get("art"), "spiel": m.get("spiel"),
                                "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                                "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": p, "sperre": sperre,
-                               "stake": stake(c, p), "stakeRegel": STAKING_REGEL, "signale": len(c.get("ereignisse") or [])})
+                               "stake": stake(c, p), "stakeRegel": STAKING_REGEL, "qInfo": m.get("qInfo"), "signale": len(c.get("ereignisse") or [])})
             s.setdefault("spiele", []).append(_norm(m.get("spiel")))     # das Spiel heute nicht mehr
             t.pop(k, None)
             print(f"  public gesperrt: {m.get('spiel')} · {sperre}")
@@ -585,7 +606,7 @@ def buchen(s, m, nr_f, jetzt, punkte=None, grund=None):
     s["liste"].append({"zeit": jetzt.strftime("%Y-%m-%dT%H:%M"), "art": m.get("art"), "spiel": m.get("spiel"),
                        "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                        "live": bool(m.get("live")), "regel": REGEL, "faktor": m.get("faktor"),
-                       "gesendet": True, "punkte": punkte, "grund": grund,
+                       "gesendet": True, "punkte": punkte, "grund": grund, "qInfo": m.get("qInfo"),
                        "stake": m.get("_stake"), "stakeRegel": STAKING_REGEL if m.get("_stake") else None})
 
 
