@@ -4943,8 +4943,8 @@ function rpSocial(z){
     const g = S.gewinner[0]; if(g) zeilen.push(`Biggest high-roller win: ${rpEn(g.einsatz)} on ${rpWahl(g)} @ ${g.quote} (${g.event}) → ${rpEn(g.pnl,true)} profit. 🔥`);
   }
   if(B.moV){
-    zeilen.push(`${rpEn(B.moV)} matched pre-match on Betfair match odds across ${B.moN.toLocaleString("en")} games we tracked.` + (B.favN ? ` When 60%+ of the money sat on one side, that side won only ${Math.round(100*B.favQuote)}% of the time. 🧐` : ""));
-    const t = B.top[0]; if(t) zeilen.push(`Most expensive game on Betfair: ${t.spiel} – ${rpEn(t.v)} matched before kick-off. The money ${t.geldRecht?"was right ✅":"was wrong ❌"}${t.ft?` (${t.ft.join("-")})`:""}.`);
+    zeilen.push(`${rpEn(B.moV).replace("$","€")} matched pre-match on Betfair match odds across ${B.moN.toLocaleString("en")} games we tracked.` + (B.favN ? ` When 60%+ of the money sat on one side, that side won only ${Math.round(100*B.favQuote)}% of the time. 🧐` : ""));
+    const t = B.top[0]; if(t) zeilen.push(`Most expensive game on Betfair: ${t.spiel} – ${rpEn(t.v).replace("$","€")} matched before kick-off. The money ${t.geldRecht?"was right ✅":"was wrong ❌"}${t.ft?` (${t.ft.join("-")})`:""}.`);
   }
   // 16.11.: Beträge 10.–16.11. verworfen (Anteile-Fehler) — Zeiträume, die das berühren, nicht für Posts nutzen
   if(P.einsatz && !(z.von<="2026-11-16" && z.bis>="2026-11-10")){

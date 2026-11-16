@@ -335,6 +335,36 @@ def wal_aufloesung(gepostet):
 # ── Cocobet auf X: Bilder (Lucas 10.11. 12:48) ───────────────────────────────────────────────────────────────
 # „How the money moved" (Phasenband eines beendeten Spiels, höchstens 2 am Tag) und „Smart money split" (eindeutiger
 # Wal ab $20k, höchstens 1 am Tag). Entwurf: Foto in den Testkanal; mit X_LIVE=1 echt auf X.
+def report_woche(gepostet):
+    """Lucas 16.11.: montags der Wochen-Report „Where the money went" — X-Bild (englisch) + Instagram-Story (deutsch).
+    Daten: site/report.json, Zeitraum 7t (Mo–So der Vorwoche). Je Kanal ein eigener Schlüssel, nichts doppelt."""
+    import report_grafik as R
+    import x_post
+    tag = f"{W:%Y-%m-%d}"
+    if W.weekday() != 0 or (f"xreport|{tag}" in gepostet and f"report|{tag}" in gepostet):
+        return
+    try:
+        z = (hol(f"{SEITE}report.json?t={int(time.time())}").get("zeitraeume") or [{}])[0]
+    except Exception as exc:  # noqa: BLE001
+        print(f"report: report.json nicht lesbar ({exc})")
+        return
+    if z.get("id") != "7t" or z.get("bis") != f"{W - timedelta(days=1):%Y-%m-%d}" or not R.brauchbar(z):
+        print("report: Zeitraum nicht aktuell oder leer —", z.get("id"), z.get("bis"))
+        return
+    if f"xreport|{tag}" not in gepostet:
+        bild = ARBEIT.parent / "xreport.jpg"
+        ARBEIT.parent.mkdir(parents=True, exist_ok=True)
+        grafik.rendern(R.x_bild(z), bild, 675, 1200, 2)
+        t = R.x_text(z)
+        print(t)
+        chat = os.environ.get("TELEGRAM_TEST_CHAT_ID", "").strip()
+        if not os.environ.get("TROCKEN") and x_post.bild_posten(bild, t, lambda b, tx: telegram_foto(b, tx, chat)):
+            gepostet[f"xreport|{tag}"] = W.isoformat()
+            bilder_sichern(gepostet)
+    if f"report|{tag}" not in gepostet:
+        _veroeffentlichen(gepostet, f"report|{tag}", R.story(z), "Wohin das Geld letzte Woche floss", story=True)
+
+
 def x_bilder(gepostet):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import x_grafik
@@ -440,6 +470,10 @@ def main(modus):
         import x_post
         return 0 if x_post.pruefen() else 1
     if modus == "x_bilder":
+        try:
+            report_woche(gepostet)
+        except Exception as ex:  # noqa: BLE001 — der Report darf die X-Bilder nicht reißen
+            print("Wochen-Report fehlgeschlagen:", ex)
         x_bilder(gepostet)
         # 11.11.: Zeitstempel für den Wächter (nachhilfe.py) — GitHub verschluckt geplante Läufe
         if not os.environ.get("TROCKEN"):
