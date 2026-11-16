@@ -920,6 +920,28 @@ def _stake_team(gruppe, radar, t0):
     return None
 
 
+# REGEL S7 (Lucas 16.11. 14:59, „das nimm noch rein, wenn noch nicht im Money-Channel"): das Stake-Paket als Team-Sieg
+# vor Anpfiff (bisher still „stakeTeam": 38 Tipps, 71 % bei 51 % erwartet, +58 % ±26) geht in den Money-Kanal — nur wenn
+# derselbe Burst NICHT schon als normaler Stake-Push kam (12 von 38 kamen schon so). Quote ab 1,40 (wie Stake-Pushes),
+# nicht Public. Gemessen wird weiter über „stakeTeam" (die stille Zeile ist dieselbe Wette).
+def _stake_team_push(b, gruppe):
+    q = b.get("quote")
+    if not isinstance(q, (int, float)) or q < 1.40:
+        return None
+    ko = ts(b.get("anpfiff"))
+    if ko and ko <= JETZT:
+        return None
+    usd = sum(z.get("usd") or 0 for z in gruppe if "Spiel-Burst" in str(z.get("art") or "")) or b.get("usd") or 0
+    wann = f"Anpfiff {ko.astimezone(ZoneInfo('Europe/Vienna')):%H:%M}" if ko else "vor Anpfiff"
+    text = (f"🟢 <b>Stake-Paket · Team-Sieg</b>\n"
+            f"<b>{e(b.get('heim'))} – {e(b.get('gast'))}</b>\n{e(b.get('liga'))} · {wann}\n\n"
+            f"💵 <b>{geld(usd, '$')}</b> Stake-Highroller auf <b>{e(b.get('auswahl'))}</b> in mehreren Märkten"
+            + (f" ({e(b.get('maerkte'))})" if b.get("maerkte") else "") + "\n"
+            f"🎯 Als Sieg-Tipp: <b>{e(b.get('auswahl'))}</b> @ <b>{q2(q)}</b> (Betfair)\n"
+            f"<i>Bisher still gemessen: 38 Tipps, 71 % getroffen bei 51 % erwartet (Regel S7)</i>")
+    return f"tp|{b.get('id')}|{b.get('auswahl')}", text, 24, None
+
+
 def _bf_sieg_quote(spiel, auswahl, markt, radar):
     """Betfair-Quote (Sieg-Markt) für eine Stake-Auswahl ohne eigene Quote — nur Team-Sieg oder Remis. REIN."""
     # 07.11. 17:30 (Lucas: „Stake trifft so gut, kommt aber nie in den Kanal"): auch Pakete aus mehreren Märkten
@@ -1042,92 +1064,99 @@ def stake(d):
         tm = _stake_team(gruppe, radar, t0)
         if tm:
             yield tm
-        mit_auswahl = next((z for z in sorted(gruppe, key=lambda z: -(z.get("usd") or 0)) if z.get("auswahl")), None)
-        auswahl = (mit_auswahl or {}).get("auswahl")
-        quote = (mit_auswahl or {}).get("quote") or g.get("quote")
-        quelle_q = "stake"
-        if not quote and auswahl:
-            # Public-Regel 10 (Lucas 07.11.): 83 von 123 Stake-Signalen kamen ohne Quote → nie im Kanal, nie abgerechnet.
-            # Sieg-Markt: die Betfair-Quote derselben Auswahl nehmen (wie bei stakeTeam).
-            quote = _bf_sieg_quote(g.get("spiel"), auswahl, (mit_auswahl or g).get("markt"), radar)
-            quelle_q = "betfair" if quote else "stake"
-        if (isinstance(quote, (int, float)) and quote < 1.40) or (g.get("phase") == "live" and klar_vorn(g.get("spiel"))):
-            continue
-        # REGEL S5 (Lucas 12.11., Italy – France $47k in 5 Wetten: „die Stake-Bursts in den Top-Ligen sind sonst zu einfach,
-        # da spielen viele hohe Beträge"): in den Top-5 inkl. Champions League und Nations League erst ab $50k — dieselbe
-        # Grenze wie beim Stake-Dauerzufluss dort. Liganamen bei Stake sind mehrdeutig („Premier League", „Bundesliga",
-        # „Serie A" gibt es mehrfach), darum zuerst das Betfair-Spiel fragen, sonst nur die eindeutigen Namen.
-        if (g.get("usd") or 0) < STAKE_TOP5_MIN_USD and stake_top5(g):
-            continue
-        # REGEL S6 (Lucas 13.11., G2 – Falcons BLAST: „$463k auf G2 @ 1,58" sofort verloren — „diese Top-Teams sind wertlos,
-        # gibt bessere Picks"): bei den großen E-Sport-Turnieren setzen Fans auf die bekannten Teams riesige Beträge, oft auf
-        # BEIDE Seiten (am selben Tag $62k auf Falcons vor Anpfiff, $463k auf G2 live; Vitality $75k, dann MOUZ $43k).
-        # Dort keine Stake-Pushes mehr — still gemessen wird weiter.
-        if g.get("kat") == "E-Sport" and STAKE_ES_TIER1.search(str(g.get("liga") or "")):
-            continue
-        # Lucas 31.10. (Accrington – Northampton 40' 1:0, $18k auf Accrington @ 1,40: „Macht keinen Sinn, oder?"): REGEL S2 —
-        # wie beim Betfair-Zufluss seit 30.10.: Live-Geld auf das Team, das gerade führt (egal wie knapp), wird nicht gepusht,
-        # nur still gemessen (art „stakeFuehrt", Sieg-Markt beim Betfair-Spiel). Auswertung mit den anderen am 13.11.
-        fs = _stake_fuehrt(g, auswahl, (mit_auswahl or g).get("markt"), radar) if g.get("phase") == "live" else None
-        if fs:
-            yield f"sf|{g.get('spiel')}|{t0:%Y-%m-%dT%H:%M}", None, None, {**fs, "quote": quote, "usd": g.get("usd"), "minute": g.get("minute")}
-            continue
-        # Lucas 18.10. (Málaga – Sociedad: Torlinien-Burst von 20:01 kam um 20:30, Spiel schon aus): live ist ein
-        # Burst nach 10 Min Geschichte — die Stake-Datei des alten Projekts kommt manchmal 20–30 Min verspätet an.
-        # 19.10.: 15 statt 10 Min — der Seitenbau sieht einen Burst erst mit dem nächsten Stake-Lauf (bis ~10 Min nach
-        # Erkennung); mit 10 Min fiel z. B. Al Fayha – Al Ahli (Über, $42k, 16:49) knapp durch und kam nie.
-        if g.get("phase") == "live" and (JETZT - t0).total_seconds() > 15 * 60:
-            continue
-        # Lucas 20.10. (Fenerbahçe – Slavia: Spiel-Burst kam ~10 Min nach Abpfiff, „live"): Fußball ist ~110 Min nach
-        # Anpfiff aus. Kam der Burst so spät oder ab der 88. Minute, ist es Schluss-/Abrechnungsgeld, kein Signal.
-        ko = ts(g.get("anpfiff"))
-        minute = g.get("minute")
-        # 10.11. (Stake-Check): 2 von 3 Live-Zeilen kamen ohne Anpfiff/Minute → Schlussgeld rutschte durch (bei denen mit
-        # Anpfiff lagen 19 von 67 über 100 Min nach Anpfiff). Fehlt beides, die Minute beim Geld aus dem Betfair-Stand schätzen.
-        if not ko and not isinstance(minute, (int, float)) and g.get("phase") == "live":
-            jl0 = jetzt_live(g.get("spiel"))
-            if jl0:
-                minute = jl0[0] - (JETZT - t0).total_seconds() / 60
-        if (g.get("kat") or "Fußball") == "Fußball" and g.get("phase") == "live" and (
-                (ko and ((JETZT - ko).total_seconds() > 110 * 60 or (t0 - ko).total_seconds() > 100 * 60))
-                or (isinstance(minute, (int, float)) and minute >= 88)):
-            continue
-        arten = []
-        for z in gruppe:
-            if z.get("art") and z["art"] not in arten:
-                arten.append(z["art"])
-        key = f"st|{g.get('spiel')}|{t0:%Y-%m-%dT%H:%M}"
-        phase = ("live" + (f" {g['minute']}'" if g.get("minute") else "")) if g.get("phase") == "live" else "vor Anpfiff"
-        if g.get("phase") == "live":
-            alt_min = (JETZT - t0).total_seconds() / 60
-            jl = jetzt_live(g.get("spiel"))
-            if alt_min >= 4:
-                phase += f" (Geld um {t0.astimezone(ZoneInfo('Europe/Vienna')):%H:%M}, vor {alt_min:.0f} Min)"
-            if jl:
-                phase += f"\n⏱ jetzt {jl[0]}' · Stand {jl[1][0]}:{jl[1][1]}"
-        text = (f"🟢 <b>Stake · {e(' + '.join(arten))}</b>\n"
-                f"<b>{e(g.get('spiel'))}</b>\n{e(g.get('liga'))} · {phase}\n\n"
-                f"💵 <b>{geld(g.get('usd'), '$')}</b> in {g.get('wetten')} Wetten" + (f" auf <b>{e(auswahl)}</b>" if auswahl else "")
-                + (f" @ {q2(quote)}" + (" (Betfair-Quote)" if quelle_q == "betfair" else "") if quote else "") + "\n"
-                + (f"📏 {q2(g.get('faktor'))}-mal so viel wie in dieser Liga üblich\n" if g.get("faktor") else "")
-                + (f"🗂 {e((mit_auswahl or g).get('markt'))}\n" if (mit_auswahl or g).get("markt") else ""))
-        mk = (mit_auswahl or g).get("markt")
-        pub = _pub("stake", str(g.get("spiel") or "").replace(" - ", " – "), g.get("liga"), quote, auswahl,
-                   markt=None if quelle_q == "betfair" or str(mk or "").lower() in ("match result", "1x2", "winner", "match winner")
-                   else re.sub(r"\s*-\s*Twoway$", "", str(mk or "")) or None,
-                   anpfiff=g.get("anpfiff"), live=g.get("phase") == "live", minute=g.get("minute"), sport=g.get("kat"),
-                   betrag=pubmod.geld(g.get("usd"), "$"),
-                   gruende=[f"🎯 {g.get('wetten')} Großwetten innerhalb weniger Minuten",
-                            f"📏 {q2(g.get('faktor'))}× so viel wie in dieser Liga üblich" if g.get("faktor") else ""]) if auswahl else None
-        _mit(pub, g.get("usd"))
-        if pub:
-            pub["x"] = {"wetten": g.get("wetten"), "faktor": g.get("faktor")}
-        try:
-            beleg = _stake_beleg(g, mit_auswahl or g, auswahl, quote, radar)
-        except Exception as exc:  # noqa: BLE001
-            print(f"  stake-beleg: {exc}")
-            beleg = None
-        yield key, text, None, beleg, pub
+        regulaer = False
+        for _einmal in (0,):           # 16.11.: continue verlässt nur diesen Block — danach ggf. der Team-Sieg-Push (S7)
+            mit_auswahl = next((z for z in sorted(gruppe, key=lambda z: -(z.get("usd") or 0)) if z.get("auswahl")), None)
+            auswahl = (mit_auswahl or {}).get("auswahl")
+            quote = (mit_auswahl or {}).get("quote") or g.get("quote")
+            quelle_q = "stake"
+            if not quote and auswahl:
+                # Public-Regel 10 (Lucas 07.11.): 83 von 123 Stake-Signalen kamen ohne Quote → nie im Kanal, nie abgerechnet.
+                # Sieg-Markt: die Betfair-Quote derselben Auswahl nehmen (wie bei stakeTeam).
+                quote = _bf_sieg_quote(g.get("spiel"), auswahl, (mit_auswahl or g).get("markt"), radar)
+                quelle_q = "betfair" if quote else "stake"
+            if (isinstance(quote, (int, float)) and quote < 1.40) or (g.get("phase") == "live" and klar_vorn(g.get("spiel"))):
+                continue
+            # REGEL S5 (Lucas 12.11., Italy – France $47k in 5 Wetten: „die Stake-Bursts in den Top-Ligen sind sonst zu einfach,
+            # da spielen viele hohe Beträge"): in den Top-5 inkl. Champions League und Nations League erst ab $50k — dieselbe
+            # Grenze wie beim Stake-Dauerzufluss dort. Liganamen bei Stake sind mehrdeutig („Premier League", „Bundesliga",
+            # „Serie A" gibt es mehrfach), darum zuerst das Betfair-Spiel fragen, sonst nur die eindeutigen Namen.
+            if (g.get("usd") or 0) < STAKE_TOP5_MIN_USD and stake_top5(g):
+                continue
+            # REGEL S6 (Lucas 13.11., G2 – Falcons BLAST: „$463k auf G2 @ 1,58" sofort verloren — „diese Top-Teams sind wertlos,
+            # gibt bessere Picks"): bei den großen E-Sport-Turnieren setzen Fans auf die bekannten Teams riesige Beträge, oft auf
+            # BEIDE Seiten (am selben Tag $62k auf Falcons vor Anpfiff, $463k auf G2 live; Vitality $75k, dann MOUZ $43k).
+            # Dort keine Stake-Pushes mehr — still gemessen wird weiter.
+            if g.get("kat") == "E-Sport" and STAKE_ES_TIER1.search(str(g.get("liga") or "")):
+                continue
+            # Lucas 31.10. (Accrington – Northampton 40' 1:0, $18k auf Accrington @ 1,40: „Macht keinen Sinn, oder?"): REGEL S2 —
+            # wie beim Betfair-Zufluss seit 30.10.: Live-Geld auf das Team, das gerade führt (egal wie knapp), wird nicht gepusht,
+            # nur still gemessen (art „stakeFuehrt", Sieg-Markt beim Betfair-Spiel). Auswertung mit den anderen am 13.11.
+            fs = _stake_fuehrt(g, auswahl, (mit_auswahl or g).get("markt"), radar) if g.get("phase") == "live" else None
+            if fs:
+                yield f"sf|{g.get('spiel')}|{t0:%Y-%m-%dT%H:%M}", None, None, {**fs, "quote": quote, "usd": g.get("usd"), "minute": g.get("minute")}
+                continue
+            # Lucas 18.10. (Málaga – Sociedad: Torlinien-Burst von 20:01 kam um 20:30, Spiel schon aus): live ist ein
+            # Burst nach 10 Min Geschichte — die Stake-Datei des alten Projekts kommt manchmal 20–30 Min verspätet an.
+            # 19.10.: 15 statt 10 Min — der Seitenbau sieht einen Burst erst mit dem nächsten Stake-Lauf (bis ~10 Min nach
+            # Erkennung); mit 10 Min fiel z. B. Al Fayha – Al Ahli (Über, $42k, 16:49) knapp durch und kam nie.
+            if g.get("phase") == "live" and (JETZT - t0).total_seconds() > 15 * 60:
+                continue
+            # Lucas 20.10. (Fenerbahçe – Slavia: Spiel-Burst kam ~10 Min nach Abpfiff, „live"): Fußball ist ~110 Min nach
+            # Anpfiff aus. Kam der Burst so spät oder ab der 88. Minute, ist es Schluss-/Abrechnungsgeld, kein Signal.
+            ko = ts(g.get("anpfiff"))
+            minute = g.get("minute")
+            # 10.11. (Stake-Check): 2 von 3 Live-Zeilen kamen ohne Anpfiff/Minute → Schlussgeld rutschte durch (bei denen mit
+            # Anpfiff lagen 19 von 67 über 100 Min nach Anpfiff). Fehlt beides, die Minute beim Geld aus dem Betfair-Stand schätzen.
+            if not ko and not isinstance(minute, (int, float)) and g.get("phase") == "live":
+                jl0 = jetzt_live(g.get("spiel"))
+                if jl0:
+                    minute = jl0[0] - (JETZT - t0).total_seconds() / 60
+            if (g.get("kat") or "Fußball") == "Fußball" and g.get("phase") == "live" and (
+                    (ko and ((JETZT - ko).total_seconds() > 110 * 60 or (t0 - ko).total_seconds() > 100 * 60))
+                    or (isinstance(minute, (int, float)) and minute >= 88)):
+                continue
+            arten = []
+            for z in gruppe:
+                if z.get("art") and z["art"] not in arten:
+                    arten.append(z["art"])
+            key = f"st|{g.get('spiel')}|{t0:%Y-%m-%dT%H:%M}"
+            phase = ("live" + (f" {g['minute']}'" if g.get("minute") else "")) if g.get("phase") == "live" else "vor Anpfiff"
+            if g.get("phase") == "live":
+                alt_min = (JETZT - t0).total_seconds() / 60
+                jl = jetzt_live(g.get("spiel"))
+                if alt_min >= 4:
+                    phase += f" (Geld um {t0.astimezone(ZoneInfo('Europe/Vienna')):%H:%M}, vor {alt_min:.0f} Min)"
+                if jl:
+                    phase += f"\n⏱ jetzt {jl[0]}' · Stand {jl[1][0]}:{jl[1][1]}"
+            text = (f"🟢 <b>Stake · {e(' + '.join(arten))}</b>\n"
+                    f"<b>{e(g.get('spiel'))}</b>\n{e(g.get('liga'))} · {phase}\n\n"
+                    f"💵 <b>{geld(g.get('usd'), '$')}</b> in {g.get('wetten')} Wetten" + (f" auf <b>{e(auswahl)}</b>" if auswahl else "")
+                    + (f" @ {q2(quote)}" + (" (Betfair-Quote)" if quelle_q == "betfair" else "") if quote else "") + "\n"
+                    + (f"📏 {q2(g.get('faktor'))}-mal so viel wie in dieser Liga üblich\n" if g.get("faktor") else "")
+                    + (f"🗂 {e((mit_auswahl or g).get('markt'))}\n" if (mit_auswahl or g).get("markt") else ""))
+            mk = (mit_auswahl or g).get("markt")
+            pub = _pub("stake", str(g.get("spiel") or "").replace(" - ", " – "), g.get("liga"), quote, auswahl,
+                       markt=None if quelle_q == "betfair" or str(mk or "").lower() in ("match result", "1x2", "winner", "match winner")
+                       else re.sub(r"\s*-\s*Twoway$", "", str(mk or "")) or None,
+                       anpfiff=g.get("anpfiff"), live=g.get("phase") == "live", minute=g.get("minute"), sport=g.get("kat"),
+                       betrag=pubmod.geld(g.get("usd"), "$"),
+                       gruende=[f"🎯 {g.get('wetten')} Großwetten innerhalb weniger Minuten",
+                                f"📏 {q2(g.get('faktor'))}× so viel wie in dieser Liga üblich" if g.get("faktor") else ""]) if auswahl else None
+            _mit(pub, g.get("usd"))
+            if pub:
+                pub["x"] = {"wetten": g.get("wetten"), "faktor": g.get("faktor")}
+            try:
+                beleg = _stake_beleg(g, mit_auswahl or g, auswahl, quote, radar)
+            except Exception as exc:  # noqa: BLE001
+                print(f"  stake-beleg: {exc}")
+                beleg = None
+            regulaer = True
+            yield key, text, None, beleg, pub
+        if tm and not regulaer and not tm[3].get("live"):
+            tp = _stake_team_push(tm[3], gruppe)
+            if tp:
+                yield tp
 
 
 def _geld_block(fl, minuten):

@@ -5010,6 +5010,8 @@ const REGELN = [
  {g:"Pushes · Polymarket-Wale und Stake", r:[
   {id:"W1", t:"Wal-Grenze", seit:"18.10.", w:"Neue Position eines belegten Wallets ab $1k (Top-5-Ligen ab $3k); ab 90 ¢ kein Push (12.11.).", pr:"Prüfung ≥ $10k gegen kleiner am 21.11.", mess:[{n:"Wal-Pushes", a:["wal"]}]},
   {id:"W2", t:"Wal unter ¼ seines Einsatzes still", seit:"06.11.", w:"Setzt ein Wallet weniger als ein Viertel seines Schnitts, kein Push.", mess:[{n:"still (zu klein)", a:["walKlein"], ab:"2026-11-06T12:50"},{n:"zum Vergleich: gepusht", a:["wal"], ab:"2026-11-06T12:50"}]},
+  {id:"ST7", t:"Stake-Paket als Team-Sieg in den Money-Kanal", seit:"16.11.", w:"Setzen Stake-Highroller vor Anpfiff ein Paket auf ein Team (mehrere Märkte), kommt der Team-Sieg zur Betfair-Quote als Push — ab 1,40 und nur, wenn derselbe Burst nicht schon als normaler Stake-Push kam. Nicht im Public.", b:"Vorher still: 38 Tipps, 71 % bei 51 % erwartet, +58 % ±26.",
+   mess:[{n:"Stake-Paket Team-Sieg vor Anpfiff", a:["stakeTeam"], live:false}]},
   {id:"ST5", t:"Stake in Top-5/CL/Nations League erst ab $50k", seit:"12.11.", w:"Dort ist kleines Geld Alltag."},
   {id:"ST6", t:"Keine Stake-Pushes bei Top-E-Sport-Turnieren", seit:"12.11. · 16.11. ergänzt", w:"BLAST, IEM, PGL, Majors, LoL-WM, MSI, VCT … — da wettet die Masse auf große Namen.", b:"16.11.: die LoL-WM rutschte durch (Stake nennt sie „World Championship“) — behoben."},
  ]},
