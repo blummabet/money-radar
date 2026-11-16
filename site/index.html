@@ -864,6 +864,12 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
   .st-z{grid-template-columns:minmax(0,1fr) 38px 62px 58px 46px;gap:6px;font-size:12.5px} .st-ql{min-width:0;width:100%} .st-zn small{display:none} }
 /* 10.11. Report (Lucas: „unter Statistik eigenen Report-Bereich … paar geile KPI, mit geiler Grafik") */
 .st-bereich{align-self:flex-start}
+.pub-i{margin-left:4px;font-size:.85em}
+.rg-pub-l{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin:10px 0 8px}
+.rg-pk{padding:10px 12px;border-radius:10px;background:rgba(127,127,127,.06);font-size:13px;line-height:1.4}
+.rg-pk b{display:block;margin-bottom:2px}.rg-pk span{color:var(--text-2)}
+.rg-pk.rg-ja{box-shadow:inset 3px 0 0 var(--up)}.rg-pk.rg-plus{box-shadow:inset 3px 0 0 #7aa2ff}.rg-pk.rg-nein{box-shadow:inset 3px 0 0 var(--down);grid-column:1/-1}
+
 .st-pg{grid-template-columns:1.2fr 1fr 1fr .8fr!important}
 .ka{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .ka-t{font-weight:800;margin-bottom:6px}.ka-t small{display:block;font-weight:500;color:var(--text-3);font-size:12px}
@@ -4728,7 +4734,7 @@ function seiteStatistik(){
   // Kategorien als Chips, gruppiert nach Quelle
   const quellen = [...new Set(katsDa.filter(k=>!k.startsWith("public")).map(k=>STAT_K[k][1]))];
   const chips = quellen.map(q=>`<div class="st-qg"><span class="st-ql">${q}</span>${katsDa.filter(k=>!k.startsWith("public") && STAT_K[k][1]===q).map(k=>{ const kz = stKennz(basis.filter(z=>z[1]===k));
-      return `<button class="st-chip${ST.kat.has(k)?" an":""}" data-stk="${k}" style="--f:${STAT_K[k][2]}"><i></i>${STAT_K[k][0]}<small style="color:${ST.kat.has(k)?stFarbe(kz.einheiten):"inherit"}">${kz.n?stVz(kz.einheiten):"·"}</small></button>`; }).join("")}</div>`).join("");
+      return `<button class="st-chip${ST.kat.has(k)?" an":""}" data-stk="${k}" style="--f:${STAT_K[k][2]}"><i></i>${STAT_K[k][0]}${pubIcon(k)}<small style="color:${ST.kat.has(k)?stFarbe(kz.einheiten):"inherit"}">${kz.n?stVz(kz.einheiten):"·"}</small></button>`; }).join("")}</div>`).join("");
   const ohnePub = katsDa.filter(k=>!k.startsWith("public"));
   const alleAn = ohnePub.every(k=>ST.kat.has(k));
   // Lucas 01.11. („wenn ich's klick, passiert darunter nichts"): Public-Signale sind eine Auswahl AUS den Pushes, nicht
@@ -4774,7 +4780,7 @@ function seiteStatistik(){
       <span class="st-eh" style="color:${stFarbe(kz.einheiten)}">${kz.n?stVz(kz.einheiten,1):"–"}</span></div>`;
   const tkopf = erst => `<div class="st-z st-k"><span>${erst}</span><span>Tipps</span><span>Treffer<small>Quote sagte</small></span><span>Rendite</span><span class="st-eh">Einh.</span></div>`;
   const jeKat = katsDa.filter(k=>ST.kat.has(k)).map(k=>({k, kz:stKennz(Z.filter(z=>z[1]===k))})).filter(x=>x.kz.n+x.kz.offen>0).sort((a,b)=>b.kz.einheiten-a.kz.einheiten)
-    .map(({k,kz})=>zeile(`${STAT_K[k][0]}<small>${STAT_K[k][1]}</small>`, kz, STAT_K[k][2], `data-stnur="${k}" role="button" tabindex="0" title="nur diese Kategorie"`)).join("");
+    .map(({k,kz})=>zeile(`${STAT_K[k][0]}${pubIcon(k)}<small>${STAT_K[k][1]}</small>`, kz, STAT_K[k][2], `data-stnur="${k}" role="button" tabindex="0" title="nur diese Kategorie"`)).join("");
   const schl = z => { const d = stLokal(z[0]); if(ST.gruppe==="monat") return [d.getFullYear()*100+d.getMonth(), `${MONAT[d.getMonth()]} ${d.getFullYear()}`];
     const m = stMontag(d), so = new Date(+m + 6*864e5); return [+m, `${m.toLocaleDateString("de-AT",{day:"numeric",month:"numeric"})}–${so.toLocaleDateString("de-AT",{day:"numeric",month:"numeric"})}`]; };
   const grp = {}; for(const z of Z){ const [k,n] = schl(z); (grp[k] ||= {n, z:[]}).z.push(z); }
@@ -4807,6 +4813,10 @@ function seiteStatistik(){
 
 // ── 16.11. (Lucas: „aus den Stats kann man echt viel rausholen") ─────────────────────────────────────────────────────
 // Wettbewerb und Markt aus Liga/Auswahl, „Quote gegen das Geld" (Feld 15 = Quote ÷ Ø Quote des Geldes der letzten Stunde)
+// 16.11. (Lucas: „irgendwo reinschreiben, welche Signale aktuell im Public erlaubt sind — als Icon"):
+// 📣 = darf in den Public (mit den Regeln auf der Regel-Seite), ➕ = verstärkt einen Public-Kandidaten, sonst nur gemessen.
+const PUB_ICON = {serie:"📣", zufluss:"📣", stake:"📣", wal:"📣", pserie:"📣", pinn:"➕"};
+const pubIcon = k => PUB_ICON[k] ? `<span class="pub-i" title="${PUB_ICON[k]==="📣"?"darf in den Public-Kanal":"verstärkt einen Public-Kandidaten (+3 Punkte)"}">${PUB_ICON[k]}</span>` : "";
 const ST_WB = ["Vereinsfußball","Länderspiele","Frauen","Jugend","E-Sport","Tennis"];
 const ST_MK = ["Sieg","Remis","Über","Unter","Ja/Nein","Andere"];
 function stWettbewerb(z){
@@ -5016,6 +5026,18 @@ function seiteRegeln(){
         <div class="rg-w">${esc(r.w)}</div>
         ${r.b?`<div class="rg-b">📏 ${esc(r.b)}</div>`:""}${mess?`<div class="rg-ms">${mess}</div>`:""}${r.pr?`<div class="rg-p">🗓 ${esc(r.pr)}</div>`:""}</div></div>`; }).join("")}</div>`).join("");
   return `<div class="grid">${kopf}
+    <div class="panel c12 rg-pub"><h3>📣 Was gerade in den Public darf</h3>
+      <div class="rg-pub-l">
+        <div class="rg-pk rg-ja"><b>📣 Betfair-Dauerzufluss</b><span>vor Anpfiff und live · live nicht auf Unter, nicht Remis bei Gleichstand, kein Lay-Verdacht</span></div>
+        <div class="rg-pk rg-ja"><b>📣 Betfair vor Anpfiff</b><span>frischer Zufluss in den 30 Min vor dem Signal, alle Ligen</span></div>
+        <div class="rg-pk rg-ja"><b>📣 Polymarket-Dauerzufluss</b><span>nur live, nur Sieg eines Teams, kein bewährtes Geld dagegen</span></div>
+        <div class="rg-pk rg-ja"><b>📣 Polymarket-Wal</b><span>nur wenn das Wallet ≥ 2× seinen üblichen Einsatz setzt, höchstens 1 je Fenster</span></div>
+        <div class="rg-pk rg-ja"><b>📣 Stake</b><span>nicht bei Top-E-Sport-Turnieren, in Top-5/CL erst ab $50k</span></div>
+        <div class="rg-pk rg-plus"><b>➕ Pinnacle-Drop mit Geld</b><span>kein eigener Pick — +3 Punkte für den Kandidaten auf dieselbe Seite</span></div>
+        <div class="rg-pk rg-plus"><b>➕ Quote zieht mit dem Geld</b><span>vor Anpfiff +2 Punkte (Betfair bzw. Pinnacle) — läuft sie dagegen, gesperrt</span></div>
+        <div class="rg-pk rg-nein"><b>⛔ Nie</b><span>Premier League · Championship · Nations League · Freundschaftsspiele · Fix-Verdacht · Live-Zufluss · HZ-Finder · AI-Picks</span></div>
+      </div>
+      <div class="hint">Für alle gilt: Quote 1,50–3,00, je Spiel einmal am Tag, Termin erst ab 9 Punkten, kein starkes Geld der anderen Quellen auf der Gegenseite. Das 📣 steht auch in der Statistik neben den Kategorien.</div></div>
     <div class="panel c12 rg-kopf"><h3>Regeln</h3><p>${anzahl} aktive Regeln. Die Zahlen darunter kommen live aus der Statistik — „still“ heißt: nicht gepusht bzw. nicht im Kanal, aber mitgemessen, damit man sieht, ob die Regel etwas bringt. Kürzel: P = Public-Kanal, SE = Dauerzufluss, W = Wal, ST = Stake, D = Druck, T = Top 3, K = AI-Pick.</p></div>
     ${gruppen}</div>`;
 }
