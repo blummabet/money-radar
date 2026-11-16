@@ -313,6 +313,28 @@ def rot_zeile(d, sid):
     return f"🟥 <b>Rote Karte</b>: {' · '.join(teile)}\n"
 
 
+def _geld_quote(d, sid, markt, auswahl):
+    """16.11. (Lucas): Ø Quote, zu der das neue Betfair-Geld der letzten 60 Min gematcht wurde ([Quote, €]) oder None."""
+    sp = next((x for x in (d.get("radar") or {}).get("spiele") or [] if str(x.get("id")) == str(sid)), None) or {}
+    for mk in (sp.get("maerkteDetail") or []) + (sp.get("maerkteAbs") or []):
+        if mk.get("name") != markt:
+            continue
+        a = next((x for x in mk.get("auswahl") or [] if x.get("name") == auswahl), None)
+        qg = (a or {}).get("qGeld")
+        return qg if isinstance(qg, list) and len(qg) == 2 else None
+    return None
+
+
+def _geld_quote_zeile(qg, q, live=False):
+    """„💶 Geld kam im Schnitt zu 1,62 · jetzt 1,68 ⚠️ läuft dagegen" — ab ±3 % ein Urteil, sonst nur die Zahl."""
+    if not qg or not isinstance(q, (int, float)):
+        return ""
+    s, eur = qg
+    # live steigt die Quote schon durch die Spielzeit — dort nur die Zahlen, kein Urteil (Tor-Abstände sind rausgerechnet)
+    urteil = "" if live else (" ⚠️ <b>läuft dagegen</b>" if q >= s * 1.03 else " ✅ zieht mit" if q <= s / 1.03 else "")
+    return f"💶 Geld der letzten Stunde ({geld(eur)}) kam im Schnitt zu <b>{q2(s)}</b> · jetzt {q2(q)}{urteil}\n"
+
+
 def zufluss(d):
     """Lucas 17.10.: nicht das Geld aufs ganze Spiel, sondern auf WELCHE Auswahl es einseitig floss."""
     for z in d.get("zufluss30") or []:
@@ -326,13 +348,15 @@ def zufluss(d):
         key = f"zf|{z.get('id')}|{fl.get('markt')}|{fl.get('auswahl')}"
         q, qv = fl.get("quote"), fl.get("quoteVorher")
         drop = _drop_zeile(q, qv)
+        qg_ = _geld_quote(d, z.get("id"), fl.get("markt"), fl.get("auswahl"))
         richtung = "" if drop else (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
         text = (f"🟡 <b>Frischer Zufluss</b> · Betfair\n"
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 30 Min auf <b>{e(remis(_auswahl_de(fl.get('auswahl'))))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n"
-                + drop + "\n"
+                + drop
+                + _geld_quote_zeile(qg_, q) + "\n"
                 + _geld_block(fl, 30)
                 + pinnacle_zeile(d, z, fl)
                 + liga_zeile(d, z.get("liga")))
@@ -343,7 +367,7 @@ def zufluss(d):
                             f"⚡ +{geld(fl.get('eur'))} in den letzten 30 Min" + (f" · Quote {q2(qv)} → {q2(q)}" if gedr else "")])
         _mit(pub, fl.get("eur"))
         pub["x"] = {"anteil": fl.get("anteil"), "min": 30, "qv": qv}
-        yield key, text, ZUFLUSS_PAUSE_H, _beleg("zufluss", z, fl), pub
+        yield key, text, ZUFLUSS_PAUSE_H, {**_beleg("zufluss", z, fl), "qGeld": qg_}, pub
 
 
 def live(d):
@@ -376,16 +400,18 @@ def live(d):
         drop = _drop_zeile(q, qv)
         richtung = "" if drop else (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
         minute = f"{lv.get('min')}'" if lv.get("min") is not None else "live"
+        qg_ = _geld_quote(d, z.get("id"), fl.get("markt"), fl.get("auswahl"))
         text = (f"🔴 <b>Live-Zufluss</b> · Betfair\n"
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
                 f"{e(z.get('liga'))} · {minute} · <b>{st[0]}:{st[1]}</b>\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(remis(_auswahl_de(fl.get('auswahl'))))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n"
                 + drop
+                + _geld_quote_zeile(qg_, q, live=True)
                 + stat_zeile(d, z.get("id")) + "\n"
                 + _geld_block(fl, 15)
                 + liga_zeile(d, z.get("liga")))
-        yield key, text, 12, _beleg("live", z, fl, live=True)
+        yield key, text, 12, {**_beleg("live", z, fl, live=True), "qGeld": qg_}
 
 
 def _hz_q(q):
@@ -1303,6 +1329,7 @@ def serie(d):
         if lay_verdacht:
             lay_hinweis = (f"⚠️ <i>Quote stieg um {round(100 * (q / q0 - 1))} % ohne Tor — mehr als die Spielzeit erklärt. "
                            f"Gematchtes Geld kann auch Lay sein: der Markt glaubt eher weniger an diese Seite.</i>\n")
+        qg_ = _geld_quote(d, x["id"], x["markt"], x["auswahl"])
         lv = next((sp.get("live") for sp in (d.get("radar") or {}).get("spiele") or [] if sp.get("id") == x["id"]), None)
         st = (f"🔴 {lv.get('min')}' · {(lv.get('stand') or [0, 0])[0]}:{(lv.get('stand') or [0, 0])[1]}" if lv else f"⏰ {anpfiff(x.get('anpfiff'))}")
         text = (f"🔁 <b>Dauerzufluss</b> · Betfair · <b>{x['n']}× in Folge</b>\n"
@@ -1311,6 +1338,7 @@ def serie(d):
                 f"<i>= im Schnitt {x.get('anteil')} % von allem, was je Abruf in diesem Markt neu kam</i>\n"
                 + _zeitlich(x)
                 + drop
+                + _geld_quote_zeile(qg_, q, live=bool(x.get("live")))
                 + lay_hinweis
                 + (stat_zeile(d, x["id"]) if x.get("live") else "")
                 + _tor_zeile(x)
@@ -1330,7 +1358,7 @@ def serie(d):
         yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"],
-                                "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht}, pub
+                                "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht, "qGeld": qg_}, pub
         if lay_verdacht:
             # 06.11. (Lucas „Ja bitte" — Anregung „Reverse Line Movement nicht nur filtern, sondern invertieren"): still die
             # Gegenseite buchen = Lay der Auswahl zur Rück-Quote, auf 1 Einheit Risiko umgerechnet (gewinnt 1/(q−1), wenn die

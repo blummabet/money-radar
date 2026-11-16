@@ -921,12 +921,45 @@ def quote_vor(snaps, minuten=60):
     return {mk: {n: v[1] for n, v in sel.items() if isinstance(v, list) and len(v) > 1} for mk, sel in vor["sel"].items()}
 
 
+def quote_geld(snaps, minuten=60):
+    """16.11. (Lucas: „wenn wir bei Betfair die Kohle sehen, die gematcht wird — die Quote, zu der gematcht wurde, auch
+    protokollieren, damit man sieht, wenn's dagegen läuft"): Betwatch liefert keine Preisleiter, nur Volumen + Quote je
+    Abruf (~5 Min). Je Abstand zweier Abrufe zählt das neue Geld zur mittleren Quote der beiden → gewichteter Schnitt
+    der letzten `minuten`. Abstände mit Tor (Stand ändert sich) zählen nicht — da springt die Quote.
+    → {Markt: {Auswahl: [Ø Quote des Geldes, € gezählt]}}. REIN."""
+    pts = [s for s in snaps if isinstance(s, dict) and isinstance(s.get("sel"), dict) and ts(s.get("ts"))]
+    if len(pts) < 2:
+        return {}
+    grenze = ts(pts[-1]["ts"]) - timedelta(minutes=minuten + 2)
+    summe = {}
+    for a, b in zip(pts, pts[1:]):
+        if ts(b["ts"]) < grenze or ts(a["ts"]) < grenze - timedelta(minutes=10):
+            continue
+        if a.get("sc") is not None and b.get("sc") is not None and a.get("sc") != b.get("sc"):
+            continue
+        for mk, sel in b["sel"].items():
+            for n, v in (sel or {}).items():
+                w = ((a["sel"].get(mk) or {}).get(n))
+                if not (isinstance(v, list) and isinstance(w, list) and len(v) > 1 and len(w) > 1):
+                    continue
+                dv = (v[0] or 0) - (w[0] or 0)
+                qa, qb = w[1], v[1]
+                if dv <= 0 or not all(isinstance(q, (int, float)) and q > 1 for q in (qa, qb)):
+                    continue
+                z = summe.setdefault(mk, {}).setdefault(n, [0.0, 0.0])
+                z[0] += dv * (qa + qb) / 2
+                z[1] += dv
+    return {mk: {n: [round(z[0] / z[1], 3), round(z[1])] for n, z in sel.items() if z[1] >= 500}
+            for mk, sel in summe.items()}
+
+
 def maerkte_detail(m, snaps, minuten, nur_abs=False):
     """Die geldstärksten Märkte eines Spiels mit Geld + Quote je Auswahl und dem Zufluss je Auswahl.
     nur_abs=True: stattdessen die Märkte, die hier wegen Kleinstquote (< 1,10) rausfallen — Lucas 28.10. („da kamen
     20k rein, man sieht aber nur eine Kachel"): die Wand zeigt sie grau als Absicherung, damit kein Geld verschwindet."""
     dl = sel_delta(snaps, minuten)
     qv = quote_vor(snaps)
+    qg = quote_geld(snaps)
     out = []
     # Lucas 24.10. („Halbzeit seh ich gar nicht, das muss auch angezeigt werden"): die 8 geldstärksten Märkte UND
     # immer die Halbzeit-Märkte — die sind meist kleiner und fielen bisher aus den Top 6.
@@ -954,7 +987,8 @@ def maerkte_detail(m, snaps, minuten, nur_abs=False):
             allg += 1
         out.append({"name": name, "eur": round(vol), "neu": round(sum(max(0, x) for x in d.values())),
                     "auswahl": [{"name": r.get("name"), "eur": round(r.get("vol") or 0), "quote": r.get("odd"),
-                                 "neu": d.get(r.get("name")), "q60": (qv.get(name) or {}).get(r.get("name"))} for r in rs]})
+                                 "neu": d.get(r.get("name")), "q60": (qv.get(name) or {}).get(r.get("name")),
+                                 "qGeld": (qg.get(name) or {}).get(r.get("name"))} for r in rs]})
     return out
 
 

@@ -2460,6 +2460,12 @@ function marktWand2(s){
 }
 // Lucas 24.10. („Wall-Element anklicken → es wächst animiert und zeigt Details, die anderen verschwinden"):
 // je Auswahl ein eigener kleiner Topf — Höhe = Geld darauf, oben kräftig = neu, darunter Quote mit Pfeil (vs. ~1 h).
+// 16.11. (Lucas): zu welcher Quote kam das Geld der letzten Stunde im Schnitt — und läuft die Quote seitdem dagegen?
+function qgZeile(qg, q){
+  if(!Array.isArray(qg) || !qg[0] || !q) return "";
+  const r = q/qg[0], f = r>=1.03 ? "var(--down)" : r<=1/1.03 ? "var(--up)" : "var(--text-3)";
+  return `<small style="display:block;color:${f}">Geld Ø ${q2(qg[0])}${r>=1.03?" ↑":r<=1/1.03?" ↓":""}</small>`;
+}
 function w2Detail(k, fm){
   const kurz = n => /^(over|under) [\d.]+/i.test(n||"") ? (/^over/i.test(n)?"Über":"Unter") + " " + (/[\d.]+/.exec(n)||[""])[0].replace(".",",") : nm(auswahlDe(n));
   const zeilen = k.m ? (k.m.auswahl||[]).filter(a=>(a.eur||0)>0).map(a=>({...a, markt:k.m.name}))
@@ -2470,8 +2476,8 @@ function w2Detail(k, fm){
     const h = Math.max(6, d/max*100), oben = d ? nn/d*100 : 0, q = a.quote, q0 = a.q60;
     const pf = q && q0 && Math.abs(q-q0)/q0 >= 0.02 ? (q<q0?`<i class="hq ab">↓</i>`:`<i class="hq auf">↑</i>`) : "";
     return `<div class="w2t"><div class="w2t-r"><div class="w2t-t" style="height:${h.toFixed(1)}%"><i style="height:${oben.toFixed(1)}%"></i></div></div>
-      <b>${esc(k.rest ? marktDe(a.markt) : kurz(a.name))}</b><span>${q?`${pf}${q2(q)}`:"–"}</span><span>${eur(d)} · ${Math.round(d/ges*100)} %</span>${nn?`<em>+${eur(nn)}</em>`:""}</div>`; }).join("");
-  return `<div class="w2-d"><div class="w2-zu">← alle Märkte</div><div class="w2ts">${toepfe}</div><div class="w2-dl">Höhe = Geld auf der Auswahl · oben kräftig = neu in ${fm} Min · Pfeil = Quote gegenüber vor ~1 h</div></div>`;
+      <b>${esc(k.rest ? marktDe(a.markt) : kurz(a.name))}</b><span>${q?`${pf}${q2(q)}`:"–"}</span><span>${eur(d)} · ${Math.round(d/ges*100)} %</span>${nn?`<em>+${eur(nn)}</em>`:""}${qgZeile(a.qGeld, q)}</div>`; }).join("");
+  return `<div class="w2-d"><div class="w2-zu">← alle Märkte</div><div class="w2ts">${toepfe}</div><div class="w2-dl">Höhe = Geld auf der Auswahl · oben kräftig = neu in ${fm} Min · Pfeil = Quote gegenüber vor ~1 h · „Geld Ø" = Quote, zu der das Geld der letzten Stunde im Schnitt gematcht wurde</div></div>`;
 }
 function marktWand(s){
   const md = (s.maerkteDetail||[]).filter(m=>m.eur>0); if(!md.length) return "";

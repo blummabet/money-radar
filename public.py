@@ -190,7 +190,7 @@ def quote_info(m, radar):
     for mk in (g.get("maerkteDetail") or []) + (g.get("maerkteAbs") or []):
         a = next((x for x in mk.get("auswahl") or [] if str(x.get("name") or "").lower() == roh), None)
         if a and isinstance(a.get("quote"), (int, float)):
-            return {"q": a.get("quote"), "q60": a.get("q60"), "live": bool(m.get("live")),
+            return {"q": a.get("quote"), "q60": a.get("q60"), "qGeld": a.get("qGeld"), "live": bool(m.get("live")),
                     "min": m.get("minute"), "stand": m.get("stand")}
     return None
 
