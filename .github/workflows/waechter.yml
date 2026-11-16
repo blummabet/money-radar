@@ -20,7 +20,7 @@ concurrency:
 jobs:
   pruefen:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 4
     steps:
       - name: Kette prüfen und notfalls neu anstoßen
         env:
@@ -34,6 +34,29 @@ jobs:
           alter=99999
           [ -n "$letzt" ] && alter=$(( ( $(date +%s) - $(date -d "$letzt" +%s) ) / 60 ))
           echo "laufend/wartend: $laeuft · letzter Start vor $alter Min"
+          # 16.11.: Der Bau läuft auf dem Mac. Hängt der neueste Lauf seit über 15 Min, ohne dass ein Runner ihn genommen hat
+          # (Mac aus, kein Netz, Runner-Dienst steht), wird er abgebrochen (er hat nichts angefangen, nichts geht verloren)
+          # und eine Stunde lang auf GitHub gebaut. Danach versucht die Kette von selbst wieder den Mac.
+          haengt=$(gh api "$R" --jq '[.workflow_runs[] | select(.status=="queued" or .status=="in_progress" or .status=="pending" or .status=="waiting")] | sort_by(.created_at) | .[0] // empty | "\(.id) \(.created_at)"')
+          if [ -n "$haengt" ]; then
+            hid=${haengt%% *}; hseit=${haengt#* }
+            halt=$(( ( $(date +%s) - $(date -d "$hseit" +%s) ) / 60 ))
+            jstat=$(gh api "repos/${{ github.repository }}/actions/runs/$hid/jobs" --jq '.jobs[0].status // "queued"')
+            echo "ältester offener Lauf $hid seit $halt Min, Job: $jstat"
+            if [ "$jstat" = "queued" ] && [ "$halt" -gt 15 ]; then
+              gh api -X POST "repos/${{ github.repository }}/actions/runs/$hid/cancel" || true
+              sleep 15
+              bis=$(( $(date +%s) + 3600 ))
+              gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main -f "inputs[ort]=github" -f "inputs[github_bis]=$bis"
+              echo "Rückfall auf GitHub angestoßen"
+              if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_TEST_CHAT_ID" ]; then
+                curl -s -o /dev/null "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+                  --data-urlencode chat_id="$TELEGRAM_TEST_CHAT_ID" \
+                  --data-urlencode text="⚠️ Geldradar: Der Bau wartete ${halt} Min auf den Mac. Für eine Stunde baut GitHub, danach wieder der Mac. Läuft der Mac?"
+              fi
+              exit 0
+            fi
+          fi
           if [ "$laeuft" != "0" ] || [ "$alter" -le 15 ]; then echo "Kette lebt"; exit 0; fi
           gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main
           echo "Kette neu angestoßen"

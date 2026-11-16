@@ -13,6 +13,16 @@ on:
         description: 'Nur eine Testnachricht in den Test-Channel schicken'
         type: boolean
         default: false
+      # 16.11. (Lucas: „Der Mac ist immer an, hat sicher mehr Uptime"): der Bau läuft auf dem Mac (Runner „mac-bau",
+      # Label „bau"). ort=github nur als Rückfall — der Wächter stößt ihn an, wenn vom Mac 15 Min nichts kam.
+      ort:
+        description: 'Wo bauen: mac (Standard) oder github (Rückfall)'
+        type: string
+        default: 'mac'
+      github_bis:
+        description: 'Rückfall: bis zu dieser Unix-Zeit auf GitHub weiterbauen, danach wieder Mac versuchen'
+        type: string
+        default: '0'
   # 18.10.: KEIN push-Auslöser mehr. Commit-Läufe haben wartende Kettenläufe verdrängt (13:03–14:03 keine Pushes).
   # Neuer Code kommt mit dem nächsten Kettenlauf (≤ 5 Min) von selbst auf die Seite.
 
@@ -28,13 +38,26 @@ concurrency:
 
 jobs:
   bauen:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.ort == 'github' && 'ubuntu-latest' || fromJSON('["self-hosted","bau"]') }}
     timeout-minutes: 25   # 04.11.: Platz für die Anstoß-Versuche bei GitHub-Störungen
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # 16.11.: auf dem Mac die GNU-Werkzeuge (timeout, date -d, head -n -14, tar --skip-old-files, xargs -r) und ein
+      # aktuelles Homebrew-Python vorn in den PATH — die Schritte unten sind für Linux geschrieben.
+      - name: Werkzeuge (nur Mac)
+        if: runner.os == 'macOS'
+        run: |
+          B="$RUNNER_TEMP/bin"; mkdir -p "$B"
+          for p in /opt/homebrew/bin/python3.13 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.11; do [ -x "$p" ] && { ln -sf "$p" "$B/python3"; break; }; done
+          echo "$B" >> "$GITHUB_PATH"
+          for g in coreutils gnu-tar findutils gnu-sed; do
+            [ -d "/opt/homebrew/opt/$g/libexec/gnubin" ] && echo "/opt/homebrew/opt/$g/libexec/gnubin" >> "$GITHUB_PATH" || echo "::warning::$g fehlt (brew install $g)"
+          done
+          echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          "$B/python3" --version || echo "::warning::kein Homebrew-Python gefunden"
       - name: Startzeit merken
         run: echo "START=$(date +%s)" >> $GITHUB_ENV
       - name: Gedächtnis laden (Betfair-Historie, Push-Stand)
@@ -314,10 +337,14 @@ jobs:
           # PRÜFEN, ob GitHub wirklich einen neuen Lauf angelegt hat — sonst bis zu dreimal neu.
           # 04.11. (Kette stand 12:19–12:43 Wien, GitHub hatte Störungen mit HTTP 500): drei Versuche in 4 Min reichten nicht —
           # jetzt bis zu 8 Versuche, ab dem dritten mit 60 s Pause (zusammen gut 15 Min).
+          # 16.11.: Rückfall-Läufe (ort=github) bauen bis github_bis weiter auf GitHub, danach versucht die Kette wieder den Mac
+          ORT=mac; BIS=0
+          if [ "${{ inputs.ort }}" = "github" ] && [ "${{ inputs.github_bis }}" -gt "$(date +%s)" ] 2>/dev/null; then ORT=github; BIS="${{ inputs.github_bis }}"; fi
+          echo "nächster Lauf: $ORT"
           for v in 1 2 3 4 5 6 7 8; do
             [ $v -ge 3 ] && sleep 60
             seit=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-            gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main || { echo "Anstoß fehlgeschlagen (Versuch $v)"; sleep 10; continue; }
+            gh api -X POST "repos/${{ github.repository }}/actions/workflows/build.yml/dispatches" -f ref=main -f "inputs[ort]=$ORT" -f "inputs[github_bis]=$BIS" || { echo "Anstoß fehlgeschlagen (Versuch $v)"; sleep 10; continue; }
             for w in 1 2 3 4 5 6; do
               sleep 10
               neu=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?per_page=10" \
