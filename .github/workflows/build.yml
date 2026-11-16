@@ -259,6 +259,11 @@ jobs:
           z = Path("site/404.html"); z.write_text(z.read_text(encoding="utf-8").replace("<body ", f'<body data-seite="{sv}" ', 1), encoding="utf-8")
           print("Zeiger:", stempel, "Seite:", sv)
           PY
+      # 16.11. (Lucas): der Wochencheck von Claude (montags) liegt im Zweig „daten" — die Regel-Seite zeigt ihn
+      - name: Wochencheck aus dem Zweig daten
+        continue-on-error: true
+        run: |
+          git fetch -q --depth=1 origin daten 2>/dev/null && git show origin/daten:wochencheck.json > site/wochencheck.json 2>/dev/null || rm -f site/wochencheck.json
       - name: Ausweich-Stand in den Zweig live (falls GitHub Pages hängt, 06.11.)
         continue-on-error: true
         env:

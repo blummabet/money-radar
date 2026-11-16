@@ -864,6 +864,11 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
   .st-z{grid-template-columns:minmax(0,1fr) 38px 62px 58px 46px;gap:6px;font-size:12.5px} .st-ql{min-width:0;width:100%} .st-zn small{display:none} }
 /* 10.11. Report (Lucas: „unter Statistik eigenen Report-Bereich … paar geile KPI, mit geiler Grafik") */
 .st-bereich{align-self:flex-start}
+.rg-wc-f{margin:6px 0 10px;line-height:1.5;max-width:80ch}
+.rg-wc-z{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:10px}
+.rg-wc-z>div{padding:10px;border-radius:10px;background:rgba(127,127,127,.06)}.rg-wc-z b{display:block;font-size:20px}.rg-wc-z span{display:block;font-size:12.5px;color:var(--text-2)}.rg-wc-z small{color:var(--text-3);font-size:11.5px}
+.rg-wc-p{display:grid;grid-template-columns:24px 1fr;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:13px;line-height:1.45}.rg-wc-p div div{color:var(--text-2)}
+
 .pub-i{margin-left:4px;font-size:.85em}
 .rg-pub-l{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin:10px 0 8px}
 .rg-pk{padding:10px 12px;border-radius:10px;background:rgba(127,127,127,.06);font-size:13px;line-height:1.4}
@@ -5009,6 +5014,20 @@ function regelMess(alle, m){
   return stKennz(alle.filter(z=>m.a.includes(z[1]) && (!m.ab || z[0] >= m.ab) && (m.live==null || !!z[8]===m.live)
     && (!rx || rx.test(z[6]||"")) && (!ax || ax.test(String(z[10]||"").trim()))));
 }
+// 16.11. (Lucas: „wöchentlicher Check am Montag — Recap für uns zwei, nur Vorschläge"): wochencheck.json schreibt der
+// Montags-Check in den Zweig „daten", der Seitenbau legt sie neben die Seite.
+const WC = {daten:null, laden:false};
+async function wcLaden(){ if(WC.laden || WC.daten) return; WC.laden = true;
+  try{ const r = await fetch("wochencheck.json?t="+Date.now(), {cache:"no-store"}); if(r.ok){ WC.daten = await r.json();
+    if(aktiv==="statistik" && ST.bereich==="regeln") $("#s-statistik").innerHTML = seiteStatistik(); } }catch(e){} WC.laden = false; }
+function wochencheckBox(){
+  wcLaden(); const w = WC.daten; if(!w) return "";
+  const ICON = {gut:"✅", schlecht:"⚠️", rein:"🚪", raus:"✂️", idee:"💡", info:"📏"};
+  return `<div class="panel c12 rg-wc"><div class="ph"><h3>🗓 Wochencheck · ${esc(w.woche||"")}</h3><span class="hint">Claude, ${esc(w.datum||"")} · nur Vorschläge, geändert wird erst nach deinem OK</span></div>
+    ${w.fazit?`<p class="rg-wc-f">${esc(w.fazit)}</p>`:""}
+    ${(w.zahlen||[]).length?`<div class="rg-wc-z">${w.zahlen.map(z=>`<div><b style="color:${/^[−-]/.test(z.wert)?"var(--down)":/^\+/.test(z.wert)?"var(--up)":"var(--text)"}">${esc(z.wert)}</b><span>${esc(z.name)}</span>${z.sub?`<small>${esc(z.sub)}</small>`:""}</div>`).join("")}</div>`:""}
+    ${(w.punkte||[]).map(p=>`<div class="rg-wc-p"><span>${ICON[p.art]||"•"}</span><div><b>${esc(p.titel)}</b><div>${esc(p.text)}</div></div></div>`).join("")}</div>`;
+}
 function seiteRegeln(){
   if(!ST.daten){ statLaden(); }
   const alle = (ST.daten||{}).zeilen||[], dg = ((D.pushBilanz||{}).druck||{}).gruppen||[];
@@ -5026,6 +5045,7 @@ function seiteRegeln(){
         <div class="rg-w">${esc(r.w)}</div>
         ${r.b?`<div class="rg-b">📏 ${esc(r.b)}</div>`:""}${mess?`<div class="rg-ms">${mess}</div>`:""}${r.pr?`<div class="rg-p">🗓 ${esc(r.pr)}</div>`:""}</div></div>`; }).join("")}</div>`).join("");
   return `<div class="grid">${kopf}
+    ${wochencheckBox()}
     <div class="panel c12 rg-pub"><h3>📣 Was gerade in den Public darf</h3>
       <div class="rg-pub-l">
         <div class="rg-pk rg-ja"><b>📣 Betfair-Dauerzufluss</b><span>vor Anpfiff und live · live nicht auf Unter, nicht Remis bei Gleichstand, kein Lay-Verdacht</span></div>
