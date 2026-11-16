@@ -5002,6 +5002,8 @@ const REGELN = [
   {id:"SE4", t:"Abgeebbter Dauerzufluss still", seit:"07.11.", w:"Kam in den letzten 15 Min weniger als die Hälfte des eigenen Schnitts, wird nicht gepusht.", b:"15.11.: live still −17 % (156) gegen gepusht −3 % (208). Behalten.",
    mess:[{n:"still (abgeebbt)", a:["serieRuhig"], ab:"2026-11-07T22:00"},{n:"zum Vergleich: gepusht", a:["serie"], ab:"2026-11-07T22:00"}]},
   {id:"SE-F", t:"Team führt schon → still", seit:"30.10.", w:"Live-Dauerzufluss auf ein Team, das schon führt, wird nicht gepusht.", mess:[{n:"still (Team führt)", a:["serieFuehrt"]}]},
+  {id:"T1", t:"Entschiedenes Spiel: Tor-Linien trotzdem in Money", seit:"16.11.", w:"Führt ein Team klar (Siegquote unter 1,40) oder ist das Spiel entschieden, bleibt der Sieg-Markt stumm. Geld auf Über/Unter x,5 kommt aber in den Money-Kanal, bis zur 84. Minute und ab Quote 1,50. Nie in den Public.", b:"Anlass: Marko – Zakynthos 3:0, €67k auf Über 5,5 ohne Push.",
+   mess:[{n:"Dauerzufluss Tor-Linie, entschieden", a:["serieKlar"]},{n:"Live-Zufluss Tor-Linie, entschieden", a:["liveKlar"]}]},
   {id:"SE3", t:"Live: nur Geld seit dem letzten Tor", seit:"03.11.", w:"Dauerzufluss und Live-Zufluss zählen nach einem Tor neu; der Spielstand gehört zum Push."},
   {id:"Q", t:"Ø Quote des Geldes im Push", seit:"16.11.", w:"„Geld kam im Schnitt zu 1,62 · jetzt 1,68 ⚠️ läuft dagegen“ — vor Anpfiff mit Urteil, live nur die Zahlen. Wird bei jedem Push mitgeschrieben."},
  ]},
