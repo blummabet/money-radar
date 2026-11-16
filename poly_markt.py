@@ -467,17 +467,28 @@ def markt_zeile(ev, tag):
 TAGE_HALTEN = 60
 
 
-def geld_aus_position(usd, last_price, entry, win):
+def geld_aus_position(usd, last_price, entry, win, anteile=None):
     """(Gewinn, Einsatz) in $ einer aufgelösten Position — oder (None, None). Wie im alten Projekt:
     Anteile = usd / letzter Preis, Einsatz = Anteile × Einstieg, der Gewinner zahlt 1 $ je Anteil.
     Unterstellt Halten bis zur Auflösung (wir sehen Positionen, keine Verkäufe)."""
+    # 16.11. (Report: $2 Mrd. Einsatz in einer Woche, einzelne Wallets $90 Mio. auf 5 Wetten): seit 10.11. wird der
+    # letzte Preis JEDER offenen Position fortgeschrieben, der Betrag aber nur, wenn die Halter abgerufen werden. Kurz
+    # vor der Auflösung steht der Verlierer bei 0,001 → Anteile = Betrag ÷ 0,001 explodierten. Jetzt zählen die
+    # Anteile, die zum selben Zeitpunkt wie der Betrag gemessen wurden; ohne sie nur bei einem Preis ab 5 ¢.
     try:
-        u, lp, en = float(usd or 0), float(last_price), float(entry)
+        en = float(entry)
+        if isinstance(anteile, (int, float)) and anteile > 0:
+            a = float(anteile)
+        else:
+            u, lp = float(usd or 0), float(last_price)
+            if not (u > 0 and 0.05 <= lp < 1):
+                return None, None
+            a = u / lp
     except (TypeError, ValueError):
         return None, None
-    if not (u > 0 and 0 < lp < 1 and 0 < en < 1):
+    if not (0 < en < 1):
         return None, None
-    anteile = u / lp
+    anteile = a
     einsatz = anteile * en
     return (round(anteile - einsatz, 2) if win else round(-einsatz, 2)), round(einsatz, 2)
 
@@ -499,6 +510,18 @@ def tage_fortschreiben(s, clv, win, gewinn=None, einsatz=None):
     s["tage"] = {k: tage[k] for k in sorted(tage)[-TAGE_HALTEN:]}
 
 
+def geld_fix_1611(track):
+    """Einmalig (16.11.): die Geld-Felder (Gewinn, Einsatz, nGeld) der Tage ab 10.11. sind durch den Anteile-Fehler
+    unbrauchbar — n, CLV und Treffer bleiben, nur das Geld dieser Tage wird verworfen. Ab dem Fix zählt es wieder."""
+    if track.get("geldFix1611"):
+        return
+    for s in (track.get("scores") or {}).values():
+        for tag, v in list((s.get("tage") or {}).items()):
+            if "2026-11-10" <= tag <= "2026-11-16" and isinstance(v, list) and len(v) > 4:
+                s["tage"][tag] = v[:4]
+    track["geldFix1611"] = True
+
+
 def track_fortschreiben(track, maerkte, aufgeloest):
     openp = {k: dict(v) for k, v in (track.get("open") or {}).items()}
     scores = {w: dict(s) for w, s in (track.get("scores") or {}).items()}
@@ -517,6 +540,8 @@ def track_fortschreiben(track, maerkte, aufgeloest):
                                  "htkFirst": m.get("hoursToKickoff")}
             e["lastPrice"] = round(p, 4)
             e["usd"] = round(float(wh.get("usd") or 0))
+            if p > 0:
+                e["anteile"] = round(e["usd"] / p, 2)          # 16.11.: Anteile zum Zeitpunkt des Betrags
             e["marktUsd"], e["koTs"] = m.get("totalUsd"), m.get("koTs")
             if not m.get("live"):
                 e["closePrice"] = round(p, 4)          # letzter Preis vor Anpfiff = Schlusspreis
@@ -560,7 +585,7 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         s["usd"] = (s.get("usd") or 0) + (e.get("usd") or 0)
         s.setdefault("firstTs", JETZT.date().isoformat())
         s["lastTs"] = JETZT.date().isoformat()
-        tage_fortschreiben(s, clv, win, *geld_aus_position(e.get("usd"), e.get("lastPrice"), einstieg, win))
+        tage_fortschreiben(s, clv, win, *geld_aus_position(e.get("usd"), e.get("lastPrice"), einstieg, win, e.get("anteile")))
         if e.get("sport"):
             b = s.setdefault("bySport", {}).setdefault(e["sport"], {"n": 0, "clvSumPP": 0.0, "wins": 0})
             b["n"] += 1
@@ -678,6 +703,7 @@ def main() -> int:
     BASIS.mkdir(exist_ok=True)
     try:
         track = json.loads(TRACK.read_text(encoding="utf-8"))
+        geld_fix_1611(track)
     except Exception:  # noqa: BLE001
         track = {}
     bekannt = {w for w, s in (track.get("scores") or {}).items() if isinstance(s, dict) and (s.get("n") or 0) >= BEKANNT_AB_N}
