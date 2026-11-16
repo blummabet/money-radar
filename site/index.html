@@ -4946,7 +4946,8 @@ function rpSocial(z){
     zeilen.push(`${rpEn(B.moV)} matched pre-match on Betfair match odds across ${B.moN.toLocaleString("en")} games we tracked.` + (B.favN ? ` When 60%+ of the money sat on one side, that side won only ${Math.round(100*B.favQuote)}% of the time. 🧐` : ""));
     const t = B.top[0]; if(t) zeilen.push(`Most expensive game on Betfair: ${t.spiel} – ${rpEn(t.v)} matched before kick-off. The money ${t.geldRecht?"was right ✅":"was wrong ❌"}${t.ft?` (${t.ft.join("-")})`:""}.`);
   }
-  if(P.einsatz){
+  // 16.11.: Beträge 10.–16.11. verworfen (Anteile-Fehler) — Zeiträume, die das berühren, nicht für Posts nutzen
+  if(P.einsatz && !(z.von<="2026-11-16" && z.bis>="2026-11-10")){
     zeilen.push(`Tracked Polymarket whales put ${rpEn(P.einsatz)} into sports markets: ${rpEn(P.gewinn,true)} (${(100*P.roi).toFixed(1)}% ROI). ${P.imPlus} of ${P.nWallets} wallets finished in profit. 🐋`);
   }
   return zeilen;
@@ -5078,7 +5079,7 @@ function seiteReport(){
     <div class="rp-held">
       ${quelle("var(--stake)", "Stake-Highroller", rpUsd(S.einsatz), S.eEinsatz?`Einzelwetten <b style="color:${stFarbe(S.pnl)}">${rpUsd(S.pnl,true)}</b> · ROI <b style="color:${stFarbe(S.roi)}">${rpPct(S.roi)}</b>`:"noch nichts abgerechnet", `${(S.n||0).toLocaleString("de-AT")} Wetten ab $1.000`)}
       ${quelle("var(--bf)", "Betfair gematcht", rpUsd(B.moV), B.favN?`Geld-Seite gewann <b>${dez(100*B.favQuote,0)} %</b>`:"–", `${(B.moN||0).toLocaleString("de-AT")} Spiele · Sieg-Markt vor Anpfiff`)}
-      ${quelle("var(--poly)", "Polymarket-Wale", rpUsd(P.einsatz), P.einsatz?`Gewinn <b style="color:${stFarbe(P.gewinn)}">${rpUsd(P.gewinn,true)}</b> · ROI <b style="color:${stFarbe(P.roi)}">${rpPct(P.roi)}</b>`:"–", `${(P.nWallets||0).toLocaleString("de-AT")} Wallets · ${(P.nGeld||0).toLocaleString("de-AT")} abgerechnete Wetten`)}
+      ${quelle("var(--poly)", "Polymarket-Wale", rpUsd(P.einsatz), P.einsatz?`Gewinn <b style="color:${stFarbe(P.gewinn)}">${rpUsd(P.gewinn,true)}</b> · ROI <b style="color:${stFarbe(P.roi)}">${rpPct(P.roi)}</b>`:"–", `${(P.nWallets||0).toLocaleString("de-AT")} Wallets · ${(P.nGeld||0).toLocaleString("de-AT")} abgerechnete Wetten`+(z.von<="2026-11-16" && z.bis>="2026-11-10" ? `<br><span style="color:var(--down)">Beträge 10.–16.11. fehlen (Rechenfehler, behoben)</span>` : ""))}
     </div>
     <div class="rp-band" title="Anteil am beobachteten Geld">${[["var(--stake)",S.einsatz],["var(--bf)",B.moV],["var(--poly)",P.einsatz]].map(([f,v])=>`<span style="--f:${f};width:${(100*(v||0)/ges).toFixed(2)}%"></span>`).join("")}</div>
   </div>`;
