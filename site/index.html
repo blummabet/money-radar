@@ -864,6 +864,16 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
   .st-z{grid-template-columns:minmax(0,1fr) 38px 62px 58px 46px;gap:6px;font-size:12.5px} .st-ql{min-width:0;width:100%} .st-zn small{display:none} }
 /* 10.11. Report (Lucas: „unter Statistik eigenen Report-Bereich … paar geile KPI, mit geiler Grafik") */
 .st-bereich{align-self:flex-start}
+.st-pg{grid-template-columns:1.2fr 1fr 1fr .8fr!important}
+.ka{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.ka-t{font-weight:800;margin-bottom:6px}.ka-t small{display:block;font-weight:500;color:var(--text-3);font-size:12px}
+.ka-z{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:end;padding:8px 10px;border-radius:10px;background:rgba(127,127,127,.06);margin-top:6px;font-size:13px}
+.ka-z small{display:block;color:var(--text-3);font-size:11.5px}
+.ka-z>.ka-n{grid-column:1/-1;font-weight:600}.ka-z>span:nth-child(3){text-align:right}
+.ka-n i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.ka-z.an{box-shadow:inset 3px 0 0 var(--up)}.ka-z.wa{box-shadow:inset 3px 0 0 var(--down)}
+@media (max-width:900px){.ka{grid-template-columns:1fr}}
+
 .rg-kopf p{margin:6px 0 0;color:var(--text-2);font-size:13px;line-height:1.5;max-width:78ch}
 .rg-g h3{margin-bottom:6px;white-space:normal}
 .rg-r{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
@@ -4594,7 +4604,7 @@ const STAT_K = {
   publicNL:["Gesperrt: Nations League (Regel 26)","Public-Kanal","color-mix(in srgb, var(--down) 30%, var(--text-3))"],
   publicPoly:["Public auf Polymarket","Polymarket-Schattenbuch","var(--poly)"],
   publicPolyNein:["Public, nicht auf Polymarket","Polymarket-Schattenbuch","var(--text-3)"]};   // Lucas 31.10.: Auswahl aus den Arten oben, deshalb nicht vorgewählt
-const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche", lage:"alle"};
+const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche", lage:"alle", qg:"alle"};
 const MONAT = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 // Lucas 02.11.: der Public-Topf (Regel 4) auf der Statistik-Seite — was liegt drin, mit wie vielen Punkten, welcher Termin kommt
 async function topfLaden(){
@@ -4711,7 +4721,7 @@ function seiteStatistik(){
   const katsDa = Object.keys(STAT_K).filter(k=>alle.some(z=>z[1]===k));
   if(!ST.kat) ST.kat = new Set(katsDa.filter(k=>!k.startsWith("public")));
   const {liste:zr, mo} = stZeitraeume(alle);
-  const basis = alle.filter(z=>stImZeitraum(z, ST.zeit, mo) && (ST.wann==="alle" || (ST.wann==="live") === !!z[8]) && (ST.liga==="alle" || (ST.liga==="top5") === !!z[7]) && (ST.lage==="alle" || z[11]===ST.lage));
+  const basis = alle.filter(z=>stImZeitraum(z, ST.zeit, mo) && (ST.wann==="alle" || (ST.wann==="live") === !!z[8]) && (ST.liga==="alle" || (ST.liga==="top5") === !!z[7]) && (ST.lage==="alle" || z[11]===ST.lage) && (ST.qg==="alle" || stQg(z)===ST.qg));
   const Z = basis.filter(z=>ST.kat.has(z[1]));
   const K = stKennz(Z);
   const seg = (feld, opts) => `<div class="seg st-seg">${opts.map(([v,n])=>`<button class="${ST[feld]===v?"an":""}" data-st="${feld}" data-v="${v}">${n}</button>`).join("")}</div>`;
@@ -4777,7 +4787,7 @@ function seiteStatistik(){
       ${bereichSchalter()}
       ${katsDa.includes("public")?`<div class="seg st-seg st-modus"><button class="${pubModus||neinModus||polyModus?"":"an"}" data-stmodus="alle">Alle Pushes</button><button class="${pubModus?"an":""}" data-stmodus="public">📣 Public-Kanal</button>${katsDa.includes("publicNein")?`<button class="${neinModus?"an":""}" data-stmodus="publicNein">Nicht gesendet</button>`:""}<button class="${polyModus?"an":""}" data-stmodus="publicPoly">Polymarket</button></div>`:""}
       ${seg("zeit", zr)}
-      <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}${seg("lage", [["alle","Jeder Stand"],["vorn","Live: Auswahl führt"],["gleich","Live: gleich"],["hinten","Live: hinten"]])}</div>
+      <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}${seg("lage", [["alle","Jeder Stand"],["vorn","Live: Auswahl führt"],["gleich","Live: gleich"],["hinten","Live: hinten"]])}${seg("qg", [["alle","Jede Quote"],["dagegen","Quote läuft gegen das Geld"],["neutral","Quote hält"],["mit","Quote zieht mit"]])}</div>
       ${pubModus||neinModus||polyModus?"":`<div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div><div class="hint st-chiphint">Kategorie antippen = nur diese · nochmal antippen = wieder alle</div>`}
     </div>
     ${pubModus ? topfPanel() : ""}
@@ -4787,8 +4797,91 @@ function seiteStatistik(){
     <div class="panel c12"><div class="ph"><h3>Je Kategorie</h3><span class="hint">antippen = nur diese</span></div>${jeKat?tkopf("Kategorie")+jeKat:`<div class="leer">Keine Tipps im Ausschnitt.</div>`}</div>
     <div class="panel c6"><div class="ph"><h3>Je ${ST.gruppe==="monat"?"Monat":"Woche"}</h3>${seg("gruppe", [["woche","Woche"],["monat","Monat"]])}</div>${jeZeit?tkopf(ST.gruppe==="monat"?"Monat":"Woche")+jeZeit:`<div class="leer">–</div>`}</div>
     <div class="panel c6"><div class="ph"><h3>Nach Quote</h3></div>${jeQuote?tkopf("Quote")+jeQuote:`<div class="leer">–</div>`}</div>
+    <div class="panel c6"><div class="ph"><h3>Nach Wettbewerb</h3></div>${stGruppe(Z, stWettbewerb, ST_WB, zeile, tkopf, "Wettbewerb")}</div>
+    <div class="panel c6"><div class="ph"><h3>Nach Markt</h3></div>${stGruppe(Z, stMarkt, ST_MK, zeile, tkopf, "Markt")}</div>
+    ${pubModus||neinModus||polyModus ? "" : pubGegenPushes(alle, mo)}
+    ${pubModus||neinModus||polyModus ? "" : klopftAn(alle)}
     <div class="panel c12"><div class="ph"><h3>Zuletzt</h3><span class="hint">die 12 neuesten im Ausschnitt</span></div>${zuletzt||`<div class="leer">–</div>`}</div>
   </div>`;
+}
+
+// ── 16.11. (Lucas: „aus den Stats kann man echt viel rausholen") ─────────────────────────────────────────────────────
+// Wettbewerb und Markt aus Liga/Auswahl, „Quote gegen das Geld" (Feld 15 = Quote ÷ Ø Quote des Geldes der letzten Stunde)
+const ST_WB = ["Vereinsfußball","Länderspiele","Frauen","Jugend","E-Sport","Tennis"];
+const ST_MK = ["Sieg","Remis","Über","Unter","Ja/Nein","Andere"];
+function stWettbewerb(z){
+  const l = String(z[6]||""), t = String(z[9]||"");
+  if(/^(CS2|DOTA2?|LOL|VALORANT|ESPORTS?)$|counter-strike|dota|league of legends|valorant|blast|iem\b|pgl|esl\b|world championship/i.test(l+" "+t) && !/fifa|soccer|football/i.test(l)) return "E-Sport";
+  if(/\b(ATP|WTA|ITF|Challenger|Tennis)\b/i.test(l)) return "Tennis";
+  if(/women|\(w\)|frauen|wsl\b|liga f\b|femin|damallsvenskan|nwsl/i.test(l+" "+t)) return "Frauen";
+  if(/\bu ?(17|18|19|20|21|23)\b|youth|primavera|junior|reserve/i.test(l+" "+t)) return "Jugend";
+  if(/nations league|friendl|international|qualif|world cup|euro\b|african cup|cup of nations|copa am[eé]rica|asian cup|gold cup/i.test(l)) return "Länderspiele";
+  return "Vereinsfußball";
+}
+function stMarkt(z){
+  const a = String(z[10]||"").trim();
+  if(/^(over|über)\b/i.test(a)) return "Über";
+  if(/^(under|unter)\b/i.test(a)) return "Unter";
+  if(/^(the draw|draw|remis|unentschieden)\b/i.test(a)) return "Remis";
+  if(/^(yes|no|ja|nein)\b|both teams|beide/i.test(a)) return "Ja/Nein";
+  if(/^gegen |handicap|asian|[+-]\d/i.test(a) || !a) return "Andere";
+  return "Sieg";
+}
+const stQg = z => typeof z[15]!=="number" ? null : z[15]>=1.03 ? "dagegen" : z[15]<=1/1.03 ? "mit" : "neutral";
+function stGruppe(Z, f, reihe, zeile, tkopf, titel){
+  const g = {}; for(const z of Z){ (g[f(z)] ||= []).push(z); }
+  const r = reihe.filter(k=>g[k]).map(k=>zeile(k, stKennz(g[k]))).join("");
+  return r ? tkopf(titel)+r : `<div class="leer">–</div>`;
+}
+// Public gegen alle Pushes je Woche: wählt der Topf besser aus als die Pushes selbst?
+const ST_PUSHARTEN = ["serie","zufluss","live","stake","wal","pserie","pinn"];
+function pubGegenPushes(alle, mo){
+  const wo = {}; for(const z of alle){ const t = z[1]==="public" ? "p" : ST_PUSHARTEN.includes(z[1]) ? "a" : null; if(!t) continue;
+    const m = +stMontag(stLokal(z[0])); ((wo[m] ||= {p:[], a:[]})[t]).push(z); }
+  const W = Object.keys(wo).map(Number).sort((a,b)=>b-a).slice(0,6);
+  if(!W.length) return "";
+  const zelle = k => k.n ? `<span style="color:${stFarbe(k.roi)}">${stVz(k.roi)} %<small>${k.n} Tipps</small></span>` : `<span>–</span>`;
+  const rows = W.map(m=>{ const p = stKennz(wo[m].p), a = stKennz(wo[m].a), d = p.n && a.n ? p.roi - a.roi : null, so = new Date(m + 6*864e5);
+    return `<div class="st-z st-pg"><span class="st-zn">${new Date(m).toLocaleDateString("de-AT",{day:"numeric",month:"numeric"})}–${so.toLocaleDateString("de-AT",{day:"numeric",month:"numeric"})}</span>${zelle(p)}${zelle(a)}<span style="color:${stFarbe(d)}">${d==null?"–":stVz(d)+" Pkt"}</span></div>`; }).join("");
+  return `<div class="panel c12"><div class="ph"><h3>Public gegen alle Pushes</h3><span class="hint">wählt der Topf besser aus als die Pushes selbst?</span></div>
+    <div class="st-z st-k st-pg"><span>Woche</span><span>Public<small>Rendite</small></span><span>Alle Pushes<small>Rendite</small></span><span>Vorsprung</span></div>${rows}
+    <div class="hint" style="margin-top:8px">Alle Pushes = Betfair-Dauerzufluss, Zufluss, Live-Zufluss, Stake, Wal, Polymarket-Dauerzufluss, Pinnacle + Geld — jeweils der erste Push je Spiel und Auswahl.</div></div>`;
+}
+// „Klopft an": Einstellungen, die NICHT in den Public dürfen, aber gut laufen — und Public-Einstellungen, die wackeln.
+// Bewusst grob nachgebaut aus public.passt(): Art, Quote 1,50–3,00, gesperrte Ligen, Polymarket nur live + Sieg, Unter nur vor Anpfiff.
+function pubErlaubt(z){
+  const art = z[1], q = z[4], l = String(z[6]||""), m = stMarkt(z);
+  if(!["serie","zufluss","stake","wal","pserie"].includes(art) || !(q>=1.5 && q<3)) return false;
+  if(/^(English )?Premier League$|^EPL$|Championship$|friendl|nations\s*league/i.test(l.trim())) return false;
+  if(art==="pserie" && (!z[8] || m!=="Sieg")) return false;
+  if(["serie","zufluss"].includes(art) && z[8] && m==="Unter") return false;
+  return true;
+}
+function klopftAn(alle){
+  const ab = new Date(Date.now() - 30*864e5).toISOString().slice(0,16);
+  const g = {};
+  for(const z of alle){
+    if(z[0] < ab || !STAT_K[z[1]] || z[1].startsWith("public") || /Wdh$/.test(z[1]) || ["stakeWal","layGegen"].includes(z[1])) continue;
+    const k = `${z[1]}|${z[8]?"live":"vor"}|${stMarkt(z)}`; const x = (g[k] ||= {art:z[1], live:!!z[8], markt:stMarkt(z), z:[], ja:0});
+    x.z.push(z); if(pubErlaubt(z)) x.ja++;
+  }
+  const S = Object.values(g).map(x=>{ const k = stKennz(x.z), r = x.z.filter(z=>z[2]!=null && !stVoid(z)).map(z=>z[2]);
+      const mw = r.length ? r.reduce((a,b)=>a+b,0)/r.length : 0, sd = r.length>1 ? Math.sqrt(r.reduce((a,b)=>a+(b-mw)**2,0)/(r.length-1)) : 0;
+      return {...x, k, se: r.length ? 100*sd/Math.sqrt(r.length) : null, drin: x.ja >= x.z.length/2}; })
+    .filter(x=>x.k.n >= 20);
+  const name = x => `${STAT_K[x.art][0]} · ${x.live?"live":"vor Anpfiff"} · ${x.markt}`;
+  const zeile = (x, ton) => `<div class="ka-z ${ton}"><span class="ka-n"><i style="background:${STAT_K[x.art][2]}"></i>${esc(name(x))}<small>${STAT_K[x.art][1]}${x.drin?" · im Public":" · nicht im Public"}</small></span>
+    <span>${x.k.n} Tipps<small>${dez(x.k.treffer,0)} % · Quote sagte ${dez(x.k.erwartet,0)} %</small></span>
+    <span style="color:${stFarbe(x.k.roi)}"><b>${stVz(x.k.roi)} %</b><small>± ${dez(x.se,0)}</small></span></div>`;
+  const klopft = S.filter(x=>!x.drin && x.k.roi>5 && x.k.treffer>x.k.erwartet).sort((a,b)=>(b.k.roi-b.se)-(a.k.roi-a.se)).slice(0,6);
+  const wackelt = S.filter(x=>x.drin && x.k.roi<-5).sort((a,b)=>a.k.roi-b.k.roi).slice(0,5);
+  const traegt = S.filter(x=>x.drin && x.k.roi>=0).sort((a,b)=>b.k.roi-a.k.roi).slice(0,5);
+  const block = (titel, sub, L, ton) => `<div class="ka-b"><div class="ka-t">${titel}<small>${sub}</small></div>${L.length?L.map(x=>zeile(x,ton)).join(""):`<div class="leer">gerade keine</div>`}</div>`;
+  return `<div class="panel c12"><div class="ph"><h3>Klopft an · wackelt</h3><span class="hint">letzte 30 Tage · ab 20 Tipps · ± = Spielraum der Rendite</span></div>
+    <div class="ka">${block("🚪 Klopft an", "nicht im Public, läuft aber gut", klopft, "an")}
+    ${block("⚠️ Wackelt", "im Public, läuft schlecht", wackelt, "wa")}
+    ${block("✅ Trägt", "im Public und im Plus", traegt, "tr")}</div>
+    <div class="hint" style="margin-top:8px">Erst wenn die Rendite deutlich über ihrem Spielraum liegt (z. B. +20 % ± 8), ist es mehr als Glück. Freigeben oder sperren entscheidet Lucas — jede Änderung bekommt eine Regelnummer.</div></div>`;
 }
 // Lucas 14.11. (Staking-Regel S1, still): je Public-Tipp ein Stake 1–3 aus den Topf-Punkten. Hier: trägt die Abstufung?
 // Flat bleibt die Hauptrechnung oben; gestakt = Rendite × Stake. Erst ab Zeilen mit Stake (seit 14.11.).

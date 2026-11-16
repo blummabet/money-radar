@@ -2807,6 +2807,10 @@ def statistik(burst, finder):
                        b.get("liga") or b.get("sport") or "", 1 if b.get("top5") else 0, 1 if b.get("live") else 0,
                        str(titel)[:60], str(b.get("auswahl") or "")[:40], b.get("lage"),
                        b.get("usd") if isinstance(b.get("usd"), (int, float)) else None, b.get("faktor")])   # 02.11.: Wal-Betrag + × üblicher Einsatz
+        # 16.11.: Quote beim Push ÷ Ø Quote, zu der das Geld der letzten Stunde gematcht wurde (> 1 = läuft gegen das Geld)
+        qg_ = b.get("qGeld")
+        if isinstance(qg_, list) and len(qg_) == 2 and isinstance(qg_[0], (int, float)) and qg_[0] > 1 and isinstance(q, (int, float)):
+            zeilen[-1].extend([None, round(q / qg_[0], 3)])
     for z in burst or []:
         if not isinstance(z, dict) or not z.get("push") or not stake_ok(z) or not ts(z.get("sentAt")):
             continue
@@ -2857,7 +2861,7 @@ def statistik(burst, finder):
             z.extend([None] * (14 - len(z)))
             z.append(stake_von[id(z)])
     zeilen.sort(key=lambda z: z[0])
-    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake", "qg"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return len(zeilen)
 
 # Public-Signale, die nachweislich mit überholtem Stand gesendet wurden (Datum UTC, Spiel normalisiert, 12 Zeichen) → void
