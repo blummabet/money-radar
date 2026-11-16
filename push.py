@@ -1662,6 +1662,8 @@ def main() -> int:
                 try:                 # Public-Regel 4 (02.11.): nicht sofort senden — in den Topf, bewertet wird unten
                     if pub:
                         public.sammeln(pub_stand, pub, JETZT)
+                    if beleg and beleg.get("art") == "pinn":          # Public-Regel 30: Pinnacle-Drop verstärkt den Kandidaten
+                        public.pinn_merken(pub_stand, beleg, JETZT)
                 except Exception as exc:  # noqa: BLE001
                     print(f"  public: {exc}")
                 try:                 # 10.11. (Lucas): jeder gesendete Push wird X-Kandidat (Cocobet auf X, Entwurf/echt)

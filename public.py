@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R29"   # R29 16.11. ~12:45 Betfair-Geld auf Unter vor Anpfiff wieder im Kanal (R7 gilt nur noch live) · R28 16.11. ~12:45 wie R27, Betfair-Teil misst gegen die Ø Quote, zu der das Geld der letzten Stunde gematcht wurde (qGeld, ab €2k gezählt), sonst wie bisher gegen die Quote vor 60 Min · R27 15.11. ~12:10 vor Anpfiff: Quote steigt (Betfair +3 % in 60 Min oder Pinnacle −1,5 pp vom 3-h-Hoch) → gesperrt, fällt sie → +2 Punkte · R26 14.11. ~23:40 ALLE Nations Leagues (UEFA A–D, CONCACAF …) in keiner Art im Kanal (ersetzt R24) · R25 14.11. ~22:30 Gegenwind: Stake/Polymarket/Betfair klar auf der Gegenseite → nicht in den Kanal · R24 14.11. ~22:30 UEFA Nations League A in keiner Art im Kanal · R23 14.11. ~11:45 Freundschaftsspiele in keiner Art im Kanal · R22 13.11. ~17:25 Termin erst ab 9 Punkten (vorher 5) · R20 10.11. ~9:00 Liga-Wertung aus dem Liga-Buch (Fußball, 90 Tage, alle Spiele mit klarem hohem Geld) bzw. allen eigenen Messungen, jedes Spiel+Auswahl einmal · R19 09.11. ~18:50 Geld vor Anpfiff aus allen Ligen (Regel-5-Sperre auf große Ligen aufgehoben, Regel 2 entfernt) · R18 09.11. ~15:30 Polymarket-Dauerzufluss nicht public, wenn bewährtes Geld (≥ $5k, CLV-Untergrenze > 0) oder ein Wal-Push der letzten 6 h auf der Gegenseite liegt (FOKUS – Alliance) · R17 07.11. ~18:00 englische Championship in keiner Art im Kanal · R16 07.11. ~17:30 Stake-Pakete auf ein Team → Team-Sieg zur Betfair-Quote · R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R30"   # R30 16.11. ~13:00 Pinnacle-Drop mit Geld (Push „Pinnacle · Drop vor Anpfiff") auf dieselbe Seite: +3 Punkte für den Kandidaten im Topf, keine eigenen Pinnacle-Picks · R29 16.11. ~12:45 Betfair-Geld auf Unter vor Anpfiff wieder im Kanal (R7 gilt nur noch live) · R28 16.11. ~12:45 wie R27, Betfair-Teil misst gegen die Ø Quote, zu der das Geld der letzten Stunde gematcht wurde (qGeld, ab €2k gezählt), sonst wie bisher gegen die Quote vor 60 Min · R27 15.11. ~12:10 vor Anpfiff: Quote steigt (Betfair +3 % in 60 Min oder Pinnacle −1,5 pp vom 3-h-Hoch) → gesperrt, fällt sie → +2 Punkte · R26 14.11. ~23:40 ALLE Nations Leagues (UEFA A–D, CONCACAF …) in keiner Art im Kanal (ersetzt R24) · R25 14.11. ~22:30 Gegenwind: Stake/Polymarket/Betfair klar auf der Gegenseite → nicht in den Kanal · R24 14.11. ~22:30 UEFA Nations League A in keiner Art im Kanal · R23 14.11. ~11:45 Freundschaftsspiele in keiner Art im Kanal · R22 13.11. ~17:25 Termin erst ab 9 Punkten (vorher 5) · R20 10.11. ~9:00 Liga-Wertung aus dem Liga-Buch (Fußball, 90 Tage, alle Spiele mit klarem hohem Geld) bzw. allen eigenen Messungen, jedes Spiel+Auswahl einmal · R19 09.11. ~18:50 Geld vor Anpfiff aus allen Ligen (Regel-5-Sperre auf große Ligen aufgehoben, Regel 2 entfernt) · R18 09.11. ~15:30 Polymarket-Dauerzufluss nicht public, wenn bewährtes Geld (≥ $5k, CLV-Untergrenze > 0) oder ein Wal-Push der letzten 6 h auf der Gegenseite liegt (FOKUS – Alliance) · R17 07.11. ~18:00 englische Championship in keiner Art im Kanal · R16 07.11. ~17:30 Stake-Pakete auf ein Team → Team-Sieg zur Betfair-Quote · R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -315,6 +315,35 @@ def sammeln(s, m, jetzt):
     c["ereignisse"] = (c["ereignisse"] + [{"zeit": jetzt.isoformat(), "art": m.get("art"), "eur": m.get("eur"), "n": m.get("n"),
                                             "faktor": m.get("faktor")}])[-30:]
     t[k] = c
+    if _pinn_frisch(s, k, jetzt):
+        c["pinn"] = True
+
+
+# Regel 30 (Lucas 16.11. 12:51, „das im Topf ein Pinni-Drop mitgenommen wird"): der Push „Pinnacle · Drop vor Anpfiff"
+# (Pinnacle senkt die Quote UND Geld zieht mit) macht keinen eigenen Public-Pick, verstärkt aber einen Kandidaten auf
+# dieselbe Seite um +3 Punkte. Gemessen 30 Tage, vor Anpfiff, Quote 1,50–3,00: Pinnacle-Push UND Betfair-Push auf
+# dieselbe Seite, aber nicht im Public 52 Tipps, 65 % bei 53 % erwartet, +25 %; Pinnacle allein 83 · +4 %.
+# Gilt in beide Richtungen: Pinnacle vor dem Betfair-Signal (Spur, 6 h gültig) oder danach.
+PINN_PUNKTE_BONUS, PINN_SPUR_H = 3.0, 6
+
+
+def _pinn_frisch(s, k, jetzt):
+    t0 = _ts((s.get("pinnSpur") or {}).get(k))
+    return bool(t0 and (jetzt - t0).total_seconds() <= PINN_SPUR_H * 3600)
+
+
+def pinn_merken(s, beleg, jetzt):
+    """beleg: Buch-Eintrag des Pinnacle-Pushs (art „pinn", heim, gast, auswahl = Betfair-Auswahl, live)."""
+    if not beleg or beleg.get("live") or not beleg.get("heim"):
+        return
+    k = _key({"spiel": f"{beleg.get('heim')} – {beleg.get('gast')}", "auswahlRoh": beleg.get("auswahl")})
+    sp = s.setdefault("pinnSpur", {})
+    sp[k] = jetzt.isoformat()
+    for x in [x for x, v in sp.items() if not _ts(v) or (jetzt - _ts(v)).total_seconds() > PINN_SPUR_H * 3600]:
+        sp.pop(x, None)
+    c = (s.get("topf") or {}).get(k)
+    if c:
+        c["pinn"] = True
 
 
 # Regel 13 (Lucas 07.11. 16:44, „ein Ranking nach Liga — welche Liga trifft am besten, die kriegt Bonuspunkte"):
@@ -403,7 +432,7 @@ def _punkte_roh(c, jetzt):
     kette = max([e.get("n") or 0 for e in ev if e.get("art") in ("serie", "pserie")] or [0])
     p = 2 + min(5, len(ev) - 1) + 4 * (len(quellen) - 1) + (min(8, max(0, 2 * math.log2(geld / 5000))) if geld > 0 else 0) \
         + min(4, kette / 2) + min(4, max([e.get("faktor") or 0 for e in ev if e.get("art") == "wal"] or [0])) \
-        - (3 if alter > 90 else 0)
+        - (3 if alter > 90 else 0) + (PINN_PUNKTE_BONUS if c.get("pinn") else 0)      # Regel 30
     return round(p, 1)
 
 
