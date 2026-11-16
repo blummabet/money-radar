@@ -2607,7 +2607,10 @@ VERLAUF_TAGE = 60
 # Wette seit Start als kompakte Zeile in einer EIGENEN Datei (site/statistik.json, wird erst beim Öffnen der Seite geladen).
 STAKE_EIGEN_AB = "2026-11-10T09:30"   # ab hier bucht push.py jeden gesendeten Stake-Push selbst (Stake-Check 10.11.)
 WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
-STAT_ARTEN = {"ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
+# 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
+# Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
+UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -2793,6 +2796,12 @@ def statistik(burst, finder):
             if k_ in doppelt:                 # jeder weitere wird eigens gemessen („…Wdh")
                 art_ = art_ + "Wdh"
             doppelt.add(k_)
+        if art_ in ("top3", "top3p"):
+            if ("t3", str(b.get("id"))) in doppelt:
+                art_ = "top3Spaeter"
+            doppelt.add(("t3", str(b.get("id"))))
+        if b.get("klar") and not art_.endswith("Wdh"):   # Regel T1 (16.11.): Tor-Linie im entschiedenen Spiel, nur Money
+            art_ = art_ + "Klar"
         ab = b.get("status") == "abgerechnet"
         q, sl = b.get("quote"), b.get("schluss")
         clv = None

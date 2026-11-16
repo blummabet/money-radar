@@ -33,6 +33,17 @@ REGEL A3 (10.11.2026 20:00 Wien, Lucas „ja" — Häcken – Chelsea W: Pick in
   alles wie A2, dazu: verschwindet in den Live-Daten ein Tor (Spielstand geht zurück — aberkannt oder Datenfehler),
   gilt der Spielstand dieses Spiels als unsicher → für den Rest der Partie keine AI-Picks mehr, offene AI-Picks des
   Spiels werden „nicht abrechenbar" (void).
+
+REGEL A4 (16.11.2026 14:40 Wien, Lucas: abdrehen, wenn da kein Potenzial drin ist):
+  Stand 16.11.: AI-Pick mit Geld 141 abgerechnet, 57 % bei 54 % erwartet, +1,9 % ±8 → durchgefallen (Ziel war 100).
+  Bei gleicher Auswahl wie das Modell +22 % (63), bei ANDERER Auswahl −13 % (77): das Geld-Kriterium lenkt auf schlechtere
+  Wetten. Modell allein 191, +19 % ±11 — aber der Vorsprung wächst mit dem Wert (ab 25 %: +35 %), genau das Muster
+  veralteter Live-Quoten. Darum:
+    • ki (mit Geld) wird nicht mehr gebucht, kein Test-Push AI + Top 3 mehr, nichts mehr auf der Übersicht.
+    • kiModell läuft still weiter und bekommt die Quote derselben Auswahl 5 und 10 Min nach dem Pick (Feld nach:
+      {"5": [Quote, Stand, Minuten], "10": [...]}). Prüfung nach 60 Modell-Picks mit Nachquote: Rendite zur 5-Min-Quote,
+      nur Picks ohne Tor dazwischen. Liegt sie nicht deutlich über null (mehr als 1 Standardfehler), wird ki_picks.py
+      abgeschaltet.
 """
 from __future__ import annotations
 
@@ -50,7 +61,7 @@ START = BASIS / ".push_state" / "ki_start.json"
 STANDMAX = BASIS / ".push_state" / "ki_standmax.json"     # A3: höchster gesehener Stand je Spiel
 JETZT = datetime.now(timezone.utc)
 
-REGEL = "A3"
+REGEL = "A4"
 MIN_VON, MIN_BIS = 15, 80
 WERT_MIN, PP_MIN = 0.08, 0.03
 Q_MIN, Q_MAX = 1.25, 8.0
@@ -377,7 +388,7 @@ def buchen(buch, kands):
     neu = []
     for k in kands:
         felder = {x: v for x, v in k.items() if x != "geldOk"}
-        for art in (["kiModell", "ki"] if k["geldOk"] else ["kiModell"]):
+        for art in ["kiModell"]:                    # A4: ki (mit Geld) beendet
             if (art, k["id"]) in da:
                 continue
             b = {**felder, "art": art, "regel": REGEL}
@@ -386,6 +397,30 @@ def buchen(buch, kands):
             if art == "ki":
                 neu.append(b)
     return neu
+
+
+def nachquoten(buch, d, preise):
+    """A4: Quote derselben Auswahl 5 und 10 Min nach dem Modell-Pick (und der Stand dann) — echter Preis oder veraltet?"""
+    pm = {str(m.get("matchId")): m for m in preise.get("matches") or []}
+    sp_ = {str(s.get("id")): s for s in (d.get("radar") or {}).get("spiele") or []}
+    for b in buch:
+        if b.get("art") != "kiModell" or not _ts(b.get("ts")):
+            continue
+        alter = (JETZT - _ts(b["ts"])).total_seconds() / 60
+        if alter < 4 or alter > 30:
+            continue
+        nach = b.setdefault("nach", {})
+        stufe = "10" if alter >= 9 else "5"
+        if stufe in nach:
+            continue
+        sid = str(b.get("id"))
+        m, sp = pm.get(sid), sp_.get(sid) or {}
+        if not m:
+            continue
+        q = next((v[2] for v in _quoten(m, b.get("heim"), b.get("gast")).values()
+                  if v[0] == b.get("markt") and v[1] == b.get("auswahl")), None)
+        if isinstance(q, (int, float)):
+            nach[stufe] = [q, (sp.get("live") or {}).get("stand"), round(alter, 1)]
 
 
 def _bilanz(buch, art):
@@ -416,6 +451,10 @@ def main() -> int:
         if b.get("art") in ("ki", "kiModell", "kiTop3") and b.get("status") == "offen" and str(b.get("id")) in unsicher:
             b["status"], b["void"], b["voidGrund"] = "nicht abrechenbar", True, "Spielstand unsicher (Tor verschwand)"
     neu = buchen(buch, kands)
+    try:
+        nachquoten(buch, d, preise)
+    except Exception as exc:  # noqa: BLE001
+        print(f"ki_picks: Nachquote {exc}")
     bilanz.schreiben(buch, JETZT)
     grenze = JETZT - timedelta(hours=24)
     heute = [{k: b.get(k) for k in ("id", "heim", "gast", "liga", "land", "markt", "auswahl", "tipp", "quote", "fair", "mindest", "wert",

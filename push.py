@@ -372,14 +372,38 @@ def zufluss(d):
         yield key, text, ZUFLUSS_PAUSE_H, {**_beleg("zufluss", z, fl), "qGeld": qg_}, pub
 
 
+# Regel T1 (Lucas 16.11. 14:39, Marko – Zakynthos 3:0 nach 20 Min, €67k neu auf Über 5,5, Quote 1,64 → 1,23, kein Push:
+# „Ich will das gar nicht in Public haben, aber in meinem Money-Ordner … wenn die Quote passt. Wenn die Quote nur 1,2 ist,
+# ist es mir egal"): in klar entschiedenen Spielen (klarVorn / entschieden) dürfen Live-Zufluss und Dauerzufluss auf
+# TOR-LINIEN (Über/Unter x,5) wieder in den Money-Kanal — bis zur 84. Minute und ab Quote 1,50. Nie in den Public,
+# eigene Zeilen in der Statistik („…Klar"). Sieg-Märkte in solchen Spielen bleiben stumm (Regel vom 18.10.).
+TOR_KLAR_MIN_QUOTE = 1.50
+
+
+def _tor_klar(d, sid, markt, quote):
+    """None = Spiel nicht klar entschieden (normal weiter), True = Ausnahme T1 greift, False = stumm wie bisher."""
+    sp = next((x for x in (d.get("radar") or {}).get("spiele") or [] if str(x.get("id")) == str(sid)), None)
+    if not sp or not (sp.get("klarVorn") or sp.get("entschieden")):
+        return None
+    mi = (sp.get("live") or {}).get("min")
+    return bool(re.match(r"^Over/Under \d+\.5 Goals$", str(markt or "")) and isinstance(mi, (int, float)) and mi < 85
+                and isinstance(quote, (int, float)) and quote >= TOR_KLAR_MIN_QUOTE)
+
+
+T1_ZEILE = "\n<i>⚠️ Spiel ist praktisch entschieden — Tor-Linie, nur hier im Money-Kanal (Regel T1)</i>"
+
+
 def live(d):
     """Lucas 17.10.: „Ja, inplay will ich auch" — einseitiges neues Geld in laufenden Spielen (15 Min).
     Je Spiel + Markt + Auswahl nur einmal (12 h Pause), entschiedene Spiele kommen gar nicht in die Liste."""
     tot = {str(s.get("id")) for s in (d.get("radar") or {}).get("spiele") or [] if s.get("entschieden") or s.get("klarVorn")}
     for z in d.get("liveZufluss") or []:
-        if str(z.get("id")) in tot:
-            continue                  # 24.10.: die Seite zeigt solche Spiele jetzt (Tor-Märkte), gepusht wird wie bisher nicht
         fl = (z.get("fluss") or [None])[0]
+        klar = False
+        if str(z.get("id")) in tot:   # 24.10.: die Seite zeigt solche Spiele (Tor-Märkte), gepusht wird nicht — außer Regel T1
+            if not fl or not _tor_klar(d, z.get("id"), fl.get("markt"), fl.get("quote")):
+                continue
+            klar = True
         if not fl or fl.get("eur", 0) < SCHWELLE[bool(z.get("top5"))][1]:
             continue
         if isinstance(fl.get("quote"), (int, float)) and fl["quote"] < SERIE_PUSH_MIN_QUOTE:
@@ -412,8 +436,9 @@ def live(d):
                 + _geld_quote_zeile(qg_, q, live=True)
                 + stat_zeile(d, z.get("id")) + "\n"
                 + _geld_block(fl, 15)
-                + liga_zeile(d, z.get("liga")))
-        yield key, text, 12, {**_beleg("live", z, fl, live=True), "qGeld": qg_}
+                + liga_zeile(d, z.get("liga"))
+                + (T1_ZEILE if klar else ""))
+        yield key, text, 12, {**_beleg("live", z, fl, live=True), "qGeld": qg_, **({"klar": True, "regelT": "T1"} if klar else {})}
 
 
 def _hz_q(q):
@@ -1279,8 +1304,11 @@ def serie(d):
                 "auswahl": x["auswahl"], "quote": x["quote"], "eur": x["eur"], "n": x["n"],
                 "letzte15": x.get("letzte15"), "schnitt15": x.get("schnitt15")})
     for x in d.get("serien") or []:
-        if str(x.get("id")) in tot_s:
-            continue                  # 24.10.: auf der Seite sichtbar, gepusht wird wie bisher nicht
+        klar = False
+        if str(x.get("id")) in tot_s:  # 24.10.: auf der Seite sichtbar, gepusht wird nicht — außer Regel T1 (Tor-Linien, Money)
+            if not x.get("live") or not _tor_klar(d, x.get("id"), x.get("markt"), x.get("quote")):
+                continue
+            klar = True
         if not _quote_ok(x.get("quote"), max([v for v in [x.get("quoteStart")] + [f.get("quoteVorher") for z_ in d.get("zufluss30") or []
                          if str(z_.get("id")) == str(x["id"]) for f in z_.get("fluss") or [] if f.get("auswahl") == x["auswahl"]]
                          if isinstance(v, (int, float))], default=None), bool(x.get("live"))):
@@ -1357,10 +1385,13 @@ def serie(d):
         pub["layVerdacht"] = lay_verdacht           # Public-Regel 8
         _mit(pub, x.get("eur"), x.get("n"))
         pub["x"] = {"n": x["n"], "min": x.get("dauerMin"), "anteil": x.get("anteil"), "q0": q0, "saeulen": (x.get("saeulen") or [])[-24:]}
-        yield key, text, None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
+        if klar and not (isinstance(q, (int, float)) and q >= TOR_KLAR_MIN_QUOTE):
+            continue                  # Regel T1: die JETZIGE Quote zählt
+        yield key, text + (T1_ZEILE if klar else ""), None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"],
-                                "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht, "qGeld": qg_}, pub
+                                "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht, "qGeld": qg_,
+                                **({"klar": True, "regelT": "T1"} if klar else {})}, (None if klar else pub)
         if lay_verdacht:
             # 06.11. (Lucas „Ja bitte" — Anregung „Reverse Line Movement nicht nur filtern, sondern invertieren"): still die
             # Gegenseite buchen = Lay der Auswahl zur Rück-Quote, auf 1 Einheit Risiko umgerechnet (gewinnt 1/(q−1), wenn die
@@ -1531,7 +1562,8 @@ def ki_top3(d):
             break
 
 
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, ki_top3)
+# 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────

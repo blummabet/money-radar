@@ -4606,8 +4606,18 @@ const STAT_K = {
   pinnWdh:["Pinnacle + Geld, wiederholter Push","Nur gemessen","color-mix(in srgb, var(--pin) 35%, var(--text-3))"],
   pserieWdh:["Poly-Dauerzufluss, wiederholter Push","Nur gemessen","color-mix(in srgb, var(--poly) 35%, var(--text-3))"],
   walWdh:["Wal-Einstieg, wiederholter Push","Nur gemessen","color-mix(in srgb, var(--poly) 25%, var(--text-3))"],
-  ki:["AI-Pick (Test)","AI-Picks","var(--akzent, var(--pin))"],
+  ki:["AI-Pick mit Geld (beendet 16.11.)","AI-Picks","var(--akzent, var(--pin))"],
   kiModell:["AI-Modell allein (ohne Geld)","Nur gemessen","color-mix(in srgb, var(--pin) 40%, var(--text-3))"],
+  // 16.11.: Übersicht-Elemente als eigene Arten (Lucas: „in der Statistik ist es nicht drin") — standardmäßig aus, sonst
+  // verwässern 900 Top-3-Zeilen die Push-Summe. Top 3 = erster Einzug je Spiel (wie die Messung in top3.py).
+  top3:["Top 3 (erster Einzug)","Übersicht","color-mix(in srgb, var(--bf) 45%, var(--up))"],
+  top3p:["Top 3 · Polymarket","Übersicht","color-mix(in srgb, var(--poly) 45%, var(--up))"],
+  top3Spaeter:["Top 3: spätere Auswahl im Spiel","Übersicht","color-mix(in srgb, var(--up) 35%, var(--text-3))"],
+  druck:["Druckradar (nächstes Tor)","Übersicht","color-mix(in srgb, var(--down) 60%, var(--text))"],
+  druckVorn:["Druck: Team führt (still)","Übersicht","color-mix(in srgb, var(--down) 35%, var(--text-3))"],
+  // Regel T1 (16.11.): Tor-Linie im praktisch entschiedenen Spiel — nur Money-Kanal, nie Public
+  serieKlar:["Dauerzufluss Tor-Linie, Spiel entschieden","Betfair","color-mix(in srgb, var(--bf) 45%, var(--text-3))"],
+  liveKlar:["Live-Zufluss Tor-Linie, Spiel entschieden","Betfair","color-mix(in srgb, var(--down) 45%, var(--text-3))"],
   public:["Public-Signale","Public-Kanal","var(--up)"],
   publicNein:["Kandidat, nicht gesendet","Public-Kanal","var(--text-3)"],
   publicGegenwind:["Gesperrt: Gegenwind (Regel 25)","Public-Kanal","color-mix(in srgb, var(--down) 45%, var(--text-3))"],
@@ -4730,7 +4740,7 @@ function seiteStatistik(){
   if(!ST.daten){ statLaden(); return `<div class="panel"><div class="leer">${ST.fehler?`Statistik konnte nicht geladen werden (${esc(ST.fehler)}).`:"Statistik wird geladen …"}</div></div>`; }
   const alle = ST.daten.zeilen||[];
   const katsDa = Object.keys(STAT_K).filter(k=>alle.some(z=>z[1]===k));
-  if(!ST.kat) ST.kat = new Set(katsDa.filter(k=>!k.startsWith("public")));
+  if(!ST.kat) ST.kat = new Set(katsDa.filter(k=>!k.startsWith("public") && STAT_K[k][1]!=="Übersicht"));
   const {liste:zr, mo} = stZeitraeume(alle);
   const basis = alle.filter(z=>stImZeitraum(z, ST.zeit, mo) && (ST.wann==="alle" || (ST.wann==="live") === !!z[8]) && (ST.liga==="alle" || (ST.liga==="top5") === !!z[7]) && (ST.lage==="alle" || z[11]===ST.lage) && (ST.qg==="alle" || stQg(z)===ST.qg));
   const Z = basis.filter(z=>ST.kat.has(z[1]));
@@ -4740,7 +4750,7 @@ function seiteStatistik(){
   const quellen = [...new Set(katsDa.filter(k=>!k.startsWith("public")).map(k=>STAT_K[k][1]))];
   const chips = quellen.map(q=>`<div class="st-qg"><span class="st-ql">${q}</span>${katsDa.filter(k=>!k.startsWith("public") && STAT_K[k][1]===q).map(k=>{ const kz = stKennz(basis.filter(z=>z[1]===k));
       return `<button class="st-chip${ST.kat.has(k)?" an":""}" data-stk="${k}" style="--f:${STAT_K[k][2]}"><i></i>${STAT_K[k][0]}${pubIcon(k)}<small style="color:${ST.kat.has(k)?stFarbe(kz.einheiten):"inherit"}">${kz.n?stVz(kz.einheiten):"·"}</small></button>`; }).join("")}</div>`).join("");
-  const ohnePub = katsDa.filter(k=>!k.startsWith("public"));
+  const ohnePub = katsDa.filter(k=>!k.startsWith("public") && STAT_K[k][1]!=="Übersicht");
   const alleAn = ohnePub.every(k=>ST.kat.has(k));
   // Lucas 01.11. („wenn ich's klick, passiert darunter nichts"): Public-Signale sind eine Auswahl AUS den Pushes, nicht
   // eine weitere Art → eigener Umschalter oben. Ein Chip antippen zeigt nur diese Kategorie, nochmal antippen = wieder alle.
@@ -5133,7 +5143,7 @@ function statKlick(e){
   const rz = e.target.closest("[data-rpz]"); if(rz){ RP.wahl = rz.dataset.rpz; RP.kopiert = null; return true; }
   const rc = e.target.closest("[data-rpcopy]"); if(rc){ const t = (RP.zeilen||[])[+rc.dataset.rpcopy]; if(t){ try{ navigator.clipboard.writeText(t); }catch(_){} RP.kopiert = RP.wahl+"|"+rc.dataset.rpcopy; } return true; }
   const s = e.target.closest("[data-st]"); if(s){ ST[s.dataset.st] = s.dataset.v; return true; }
-  const da_ = () => Object.keys(STAT_K).filter(k=>!k.startsWith("public") && (ST.daten?.zeilen||[]).some(z=>z[1]===k));
+  const da_ = () => Object.keys(STAT_K).filter(k=>!k.startsWith("public") && STAT_K[k][1]!=="Übersicht" && (ST.daten?.zeilen||[]).some(z=>z[1]===k));
   const m = e.target.closest("[data-stmodus]"); if(m){ ST.kat = m.dataset.stmodus==="alle" ? new Set(da_()) : new Set([m.dataset.stmodus]); return true; }
   const k = e.target.closest("[data-stk]"); if(k){ const v = k.dataset.stk; ST.kat = (ST.kat.size===1 && ST.kat.has(v)) ? new Set(da_()) : new Set([v]); return true; }
   const n = e.target.closest("[data-stnur]"); if(n){ ST.kat = new Set([n.dataset.stnur]); return true; }
