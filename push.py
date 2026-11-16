@@ -49,7 +49,9 @@ FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als v
 WAL_MIN_USD = 1000
 STAKE_TOP5_MIN_USD = 50000   # Regel S5 (12.11.)
 STAKE_ES_TIER1 = re.compile(r"\b(blast|iem|intel extreme|pgl|esl pro league|esl one|major|starladder|perfect world|"
-                            r"the international|riyadh|esports world cup|ewc|worlds|msi|vct|champions tour|masters)\b", re.I)  # Regel S6
+                            r"the international|riyadh|esports world cup|ewc|worlds|world championship|msi|vct|champions tour|masters)\b", re.I)  # Regel S6
+# 16.11. (Regel-Durchsicht): „worlds" griff nicht, Stake nennt die LoL-WM „World Championship" — Gen.G – Bilibili (14.11.)
+# und T1 (09.11.) kamen deshalb durch. Gemeint war sie von Anfang an.
 STAKE_TOP5_EINDEUTIG = {"UEFA Champions League", "UEFA Nations League", "LaLiga", "Ligue 1"}
 WAL_MIN_USD_TOP5 = 3000      # in den Top-5 sind $1000 Alltag
 WAL_MIN_FAKTOR = 0.25        # Wal-Regel 2 (06.11.): mindestens ¼ des üblichen Einsatzes

@@ -864,6 +864,21 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
   .st-z{grid-template-columns:minmax(0,1fr) 38px 62px 58px 46px;gap:6px;font-size:12.5px} .st-ql{min-width:0;width:100%} .st-zn small{display:none} }
 /* 10.11. Report (Lucas: „unter Statistik eigenen Report-Bereich … paar geile KPI, mit geiler Grafik") */
 .st-bereich{align-self:flex-start}
+.rg-kopf p{margin:6px 0 0;color:var(--text-2);font-size:13px;line-height:1.5;max-width:78ch}
+.rg-g h3{margin-bottom:6px;white-space:normal}
+.rg-r{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.rg-r:first-of-type{border-top:0}
+.rg-id{font-weight:800;font-size:12px;color:var(--text-2);background:var(--glas-a,rgba(127,127,127,.08));border:1px solid var(--line);border-radius:8px;padding:4px 6px;text-align:center;align-self:start;font-variant-numeric:tabular-nums}
+.rg-t{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.rg-t small{color:var(--text-3)}
+.rg-w{color:var(--text-2);font-size:13px;line-height:1.45;margin-top:2px;max-width:80ch}
+.rg-b{font-size:12.5px;margin-top:6px;color:var(--text-2)}
+.rg-p{font-size:12px;margin-top:6px;color:var(--text-3)}
+.rg-ms{margin-top:8px;display:grid;gap:4px}
+.rg-m{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:6px 8px;border-radius:8px;background:rgba(127,127,127,.06)}
+.rg-m>span:first-child{color:var(--text-2)}.rg-m>span:last-child{text-align:right}
+.rg-leer{color:var(--text-3)}
+@media (max-width:640px){.rg-r{grid-template-columns:1fr;gap:6px}.rg-id{justify-self:start}.rg-m{flex-direction:column;gap:2px}.rg-m>span:last-child{text-align:left}}
+
 .rp-kopf{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
 .rp-titel{margin:0;font-size:30px;line-height:1.05;font-weight:800;letter-spacing:-.03em}
 .rp-titel small{display:block;font-size:13px;font-weight:600;letter-spacing:0;color:var(--text-3);margin-top:6px}
@@ -4689,6 +4704,7 @@ const stVz = (v, n=1) => { if(v==null) return "–"; const r = +Number(v).toFixe
 const stFarbe = v => v==null ? "var(--text-3)" : v>0 ? "var(--up)" : v<0 ? "var(--down)" : "var(--text-2)";
 function seiteStatistik(){
   if(ST.bereich==="report") return seiteReport();
+  if(ST.bereich==="regeln") return seiteRegeln();
   if(ST.daten) statLaden();      // prüft selbst, ob ein neuer Stand fällig ist
   if(!ST.daten){ statLaden(); return `<div class="panel"><div class="leer">${ST.fehler?`Statistik konnte nicht geladen werden (${esc(ST.fehler)}).`:"Statistik wird geladen …"}</div></div>`; }
   const alle = ST.daten.zeilen||[];
@@ -4798,7 +4814,7 @@ async function rpLaden(){
   try{ const r = await fetch("report.json?t="+Date.now(), {cache:"no-store"}); if(!r.ok) throw new Error("noch kein Report ("+r.status+")"); RP.daten = await r.json(); RP.fehler = null; }
   catch(e){ RP.fehler = String(e.message||e); }
   RP.zeit = Date.now(); RP.laden = false;
-  try{ if(ST.bereich==="report") $("#s-statistik").innerHTML = seiteStatistik(); }catch(e){ console.error(e); }
+  try{ if(ST.bereich==="report" || ST.bereich==="regeln") $("#s-statistik").innerHTML = seiteStatistik(); }catch(e){ console.error(e); }
 }
 const rpUsd = (v, vz) => { if(v==null) return "–"; const a = Math.abs(v), z = vz ? (v>0?"+":v<0?"−":"") : (v<0?"−":"");
   return z + "$" + (a>=1e6 ? dez(a/1e6, a>=1e8?0:1)+" Mio." : a>=1e3 ? dez(a/1e3, 0)+"k" : Math.round(a)); };
@@ -4809,7 +4825,7 @@ const rpTag = t => new Date(t+"T12:00:00").toLocaleDateString("de-AT",{day:"nume
 const rpWahl = x => { const a = String(x.auswahl||""), m = String(x.markt||""); return /^(yes|no|ja|nein|over|under|draw|x)\b/i.test(a) && m ? `${m}: ${a}` : a; };
 const RP_KAT = {"Fußball":"⚽ Fußball","Tennis":"🎾 Tennis","E-Sport":"🎮 E-Sport"};
 function bereichSchalter(){
-  return `<div class="seg st-seg st-bereich"><button class="${ST.bereich!=="report"?"an":""}" data-stbereich="signale">Unsere Signale</button><button class="${ST.bereich==="report"?"an":""}" data-stbereich="report">📊 Report</button></div>`;
+  return `<div class="seg st-seg st-bereich"><button class="${!["report","regeln"].includes(ST.bereich)?"an":""}" data-stbereich="signale">Unsere Signale</button><button class="${ST.bereich==="report"?"an":""}" data-stbereich="report">📊 Report</button><button class="${ST.bereich==="regeln"?"an":""}" data-stbereich="regeln">📜 Regeln</button></div>`;
 }
 function rpSocial(z){
   const S = z.stake, B = z.betfair, P = z.poly, zeilen = [];
@@ -4827,6 +4843,88 @@ function rpSocial(z){
   }
   return zeilen;
 }
+// ── Regeln (Lucas 16.11.: „unter Statistik einen eigenen Punkt Regeln — optisch sinnvoll, und wenn was gemessen wurde")
+// Handgepflegt: ändert sich eine Regel im Code, hier mitziehen. mess = Gruppen aus der Statistik (Zeilen), die die Regel
+// messen: {n: Name, a: [Arten], rx: Liga-Regex, ax: Auswahl-Regex, live: true|false, ab: ISO-Zeit}.
+const REGELN = [
+ {g:"Public-Kanal · wie ausgewählt wird", r:[
+  {id:"P4", t:"Topf statt sofort", seit:"02.11.", w:"Jedes passende Signal kommt in einen Topf und sammelt Punkte (Geld, Kettenlänge, Quellen, Liga). Zu drei Terminen je Zeitfenster geht der beste Kandidat raus, ein sehr starker sofort."},
+  {id:"P22", t:"Termin erst ab 9 Punkten", seit:"13.11.", w:"Vorher reichten 5 Punkte. Lieber ein leerer Termin als ein Lückenfüller.", b:"Topf seit 31.10.: unter 9 Punkten ≈ ±0 %, 9–12 ≈ +7 %, ab 12 ≈ +14 %."},
+  {id:"P13/P20", t:"Liga-Wertung", seit:"07.11. / 10.11.", w:"Je Liga Bonus oder Abzug (höchstens ±4 Punkte) aus unserer eigenen Bilanz; Fußball aus dem Liga-Buch der letzten 90 Tage."},
+  {id:"P5", t:"Quote 1,50 – 3,00", seit:"02.11.", w:"Darunter und darüber geht nichts in den Kanal."},
+  {id:"P9", t:"Live nur frisch", seit:"05.11.", w:"Ein Live-Kandidat geht nur raus, solange seit dem Signal kein Tor fiel und das letzte Signal höchstens 10 Min alt ist."},
+  {id:"P19", t:"Geld vor Anpfiff aus allen Ligen", seit:"09.11.", w:"Vorher nur große Ligen.", pr:"Prüfung nach 30 Public-Picks dieser Art: liegen die kleinen Ligen im Minus, zurück zu nur großen.",
+   mess:[{n:"Betfair-Zufluss vor Anpfiff, alle Pushes seit 09.11.", a:["zufluss"], live:false, ab:"2026-11-09T17:50"}]},
+  {id:"P3", t:"Wal nur mit Überzeugung", seit:"02.11.", w:"Ein Polymarket-Wal kommt nur in den Kanal, wenn das Wallet mindestens doppelt so viel setzt wie sonst — und höchstens einer je Zeitfenster."},
+  {id:"P10/P15", t:"Polymarket-Dauerzufluss nur live, nur Team-Sieg", seit:"07.11.", w:"Vor Anpfiff und auf Remis/Tore nicht.",
+   mess:[{n:"Polymarket-Dauerzufluss (alle Pushes)", a:["pserie"], live:true, ab:"2026-11-07T16:20"}]},
+  {id:"P16", t:"Stake-Pakete als Team-Sieg", seit:"07.11.", w:"Mehrere Stake-Wetten auf ein Team zählen als Sieg-Tipp zur Betfair-Quote."},
+  {id:"S1", t:"Staking 1–3 (still)", seit:"14.11.", w:"Einsatzstufe aus den Topf-Punkten, nur mitgeschrieben — die Hauptrechnung bleibt 1 Einheit flat.", pr:"Prüfung nach ~60 Public-Picks (Statistik → Public → Staking)."},
+ ]},
+ {g:"Public-Kanal · was nicht hineinkommt", r:[
+  {id:"P11", t:"Premier League", seit:"07.11.", w:"In keiner Art im Kanal.", mess:[{n:"Betfair-Pushes Premier League", a:["serie","zufluss"], rx:"^(English )?Premier League$|^EPL$", ab:"2026-11-07T12:30"}]},
+  {id:"P17", t:"Englische Championship", seit:"07.11.", w:"In keiner Art im Kanal.", mess:[{n:"Betfair-Pushes Championship", a:["serie","zufluss"], rx:"Championship$", ab:"2026-11-07T17:00"}]},
+  {id:"P23", t:"Freundschaftsspiele", seit:"14.11.", w:"International, U-Teams, Frauen und Klub-Testspiele.", mess:[{n:"Betfair-Pushes Freundschaftsspiele", a:["serie","zufluss"], rx:"friendl", ab:"2026-11-14T10:40"}]},
+  {id:"P26", t:"Nations League (alle)", seit:"14.11.", w:"Jede Gruppe, auch CONCACAF. Ersetzt P24 (nur Liga A).", mess:[{n:"Betfair-Pushes Nations League", a:["serie","zufluss"], rx:"nations\\s*league", ab:"2026-11-14T22:40"}]},
+  {id:"P14", t:"Fix-Verdacht", seit:"07.11.", w:"Kommt nicht mehr in den Kanal (seit 02.11. −22 %).", mess:[{n:"Fix-Verdacht (alle Pushes)", a:["fix"], ab:"2026-11-07T16:05"}]},
+  {id:"P7", t:"Betfair-Geld auf Unter", seit:"04.11.", w:"Bei hohen Einsätzen auf Unter ist viel gelayt.", b:"Gemessen seit 16.10.: Unter +12,7 % (42), Über −14,4 % (94). Bleibt auf deinen Wunsch so.",
+   mess:[{n:"Betfair Unter (alle Pushes)", a:["serie","zufluss"], ax:"^(under|unter)", ab:"2026-11-04T11:40"},{n:"zum Vergleich: Betfair Über", a:["serie","zufluss"], ax:"^(over|über)", ab:"2026-11-04T11:40"}]},
+  {id:"P8", t:"Lay-Verdacht live", seit:"05.11.", w:"Live-Dauerzufluss im Sieg-Markt, dessen Quote seit Serienbeginn ohne Tor um mehr als 15 % stieg.", pr:"Prüfung am 21.11.", mess:[{n:"Gegenseite davon (Lay, still gebucht)", a:["layGegen"]}]},
+  {id:"P21", t:"Live-Remis-Geld bei Gleichstand", seit:"10.11.", w:"Geld auf Remis, während es unentschieden steht — da wird meist ausgestiegen. Remis-Geld bei Führung bleibt."},
+ ]},
+ {g:"Public-Kanal · Gegenprüfungen vor dem Senden", r:[
+  {id:"P25", t:"Gegenwind", seit:"14.11.", w:"Hat eine andere Quelle (Stake, Polymarket, Betfair) ≥ 65 % ihres Sieg-Markt-Geldes auf der Gegenseite (Stake/Betfair ≥ 50k, Polymarket ≥ $20k), geht der Pick nicht raus.", pr:"Prüfung nach ~30 gesperrten Picks.", mess:[{n:"gesperrt", a:["publicGegenwind"]}]},
+  {id:"P28", t:"Quote läuft gegen das Geld", seit:"16.11. (P27 ab 15.11.)", w:"Nur vor Anpfiff: Betfair-Quote ≥ 3 % über der Ø Quote, zu der das Geld der letzten Stunde gematcht wurde (sonst gegen die Quote vor 60 Min), oder Pinnacle ≥ 1,5 Prozentpunkte unter dem 3-h-Hoch → gesperrt. Läuft sie mit dem Geld → +2 Punkte.", pr:"Prüfung nach ~30 gesperrten Picks.", mess:[{n:"gesperrt", a:["publicQuote"]}]},
+  {id:"P18", t:"Bewährtes Polymarket-Geld dagegen", seit:"09.11.", w:"Polymarket-Dauerzufluss nicht in den Kanal, wenn ein bewährtes Wallet ≥ $5k oder ein Wal-Push der letzten 6 h auf der Gegenseite liegt.", pr:"Prüfung am 21.11. — bisher laufen die gesperrten sogar im Plus.", mess:[{n:"gesperrt", a:["pserieGegen"]}]},
+ ]},
+ {g:"Pushes · Betfair", r:[
+  {id:"SE4", t:"Abgeebbter Dauerzufluss still", seit:"07.11.", w:"Kam in den letzten 15 Min weniger als die Hälfte des eigenen Schnitts, wird nicht gepusht.", b:"15.11.: live still −17 % (156) gegen gepusht −3 % (208). Behalten.",
+   mess:[{n:"still (abgeebbt)", a:["serieRuhig"], ab:"2026-11-07T22:00"},{n:"zum Vergleich: gepusht", a:["serie"], ab:"2026-11-07T22:00"}]},
+  {id:"SE-F", t:"Team führt schon → still", seit:"30.10.", w:"Live-Dauerzufluss auf ein Team, das schon führt, wird nicht gepusht.", mess:[{n:"still (Team führt)", a:["serieFuehrt"]}]},
+  {id:"SE3", t:"Live: nur Geld seit dem letzten Tor", seit:"03.11.", w:"Dauerzufluss und Live-Zufluss zählen nach einem Tor neu; der Spielstand gehört zum Push."},
+  {id:"Q", t:"Ø Quote des Geldes im Push", seit:"16.11.", w:"„Geld kam im Schnitt zu 1,62 · jetzt 1,68 ⚠️ läuft dagegen“ — vor Anpfiff mit Urteil, live nur die Zahlen. Wird bei jedem Push mitgeschrieben."},
+ ]},
+ {g:"Pushes · Polymarket-Wale und Stake", r:[
+  {id:"W1", t:"Wal-Grenze", seit:"18.10.", w:"Neue Position eines belegten Wallets ab $1k (Top-5-Ligen ab $3k); ab 90 ¢ kein Push (12.11.).", pr:"Prüfung ≥ $10k gegen kleiner am 21.11.", mess:[{n:"Wal-Pushes", a:["wal"]}]},
+  {id:"W2", t:"Wal unter ¼ seines Einsatzes still", seit:"06.11.", w:"Setzt ein Wallet weniger als ein Viertel seines Schnitts, kein Push.", mess:[{n:"still (zu klein)", a:["walKlein"], ab:"2026-11-06T12:50"},{n:"zum Vergleich: gepusht", a:["wal"], ab:"2026-11-06T12:50"}]},
+  {id:"ST5", t:"Stake in Top-5/CL/Nations League erst ab $50k", seit:"12.11.", w:"Dort ist kleines Geld Alltag."},
+  {id:"ST6", t:"Keine Stake-Pushes bei Top-E-Sport-Turnieren", seit:"12.11. · 16.11. ergänzt", w:"BLAST, IEM, PGL, Majors, LoL-WM, MSI, VCT … — da wettet die Masse auf große Namen.", b:"16.11.: die LoL-WM rutschte durch (Stake nennt sie „World Championship“) — behoben."},
+ ]},
+ {g:"Druck-Radar und Top 3", r:[
+  {id:"D6", t:"Abkühlen nach eigenem Tor", seit:"07.11.", w:"Nach einem Tor des Druck-Teams zählt nur xG seit dem Tor.", b:"15.11.: vorher −1,5 % (128), seit D6 +4,9 % (245). Behalten.", dr:"ab Regel 5 (Anlauf ohne xG kippt nicht mehr)"},
+  {id:"D7", t:"Druck-Team führt → kein Signal", seit:"16.11.", w:"Führt das Druck-Team, zählt der Druck nicht mehr (keine Top-3-Punkte), wird aber still mitgemessen.", b:"15.11.: Druck-Team vorn −8,6 % (76), hinten +17 % (70).", dr:"ab Regel 7: Druck-Team führt (still, zählt nicht mehr)"},
+  {id:"D4", t:"Rote Karten mitschreiben", seit:"01.11.", w:"Index bleibt gleich, nur notiert.", pr:"Druck-Team in Überzahl: neu prüfen bei 40 Pushes (15.11.: 20 · −26 %).", dr:"Rote Karte: Druck-Team in Überzahl"},
+  {id:"D-80", t:"Nur bis zur 80. Minute", seit:"–", w:"Druck-Signale bis 80', auf der Startseite ab 85' ausgeblendet (16.11.)."},
+  {id:"T5", t:"Top 3: Polymarket/Stake nur auf derselben Seite", seit:"10.11.", w:"Ein Punkt nur, wenn das Geld dort auf dieselbe Seite geht."},
+  {id:"K2", t:"AI-Pick nur frisch", seit:"11.11.", w:"AI-Pick höchstens 20 Min alt, gleicher Spielstand, gebucht zur aktuellen Top-3-Quote."},
+ ]},
+];
+function regelMess(alle, m){
+  const rx = m.rx ? new RegExp(m.rx, "i") : null, ax = m.ax ? new RegExp(m.ax, "i") : null;
+  return stKennz(alle.filter(z=>m.a.includes(z[1]) && (!m.ab || z[0] >= m.ab) && (m.live==null || !!z[8]===m.live)
+    && (!rx || rx.test(z[6]||"")) && (!ax || ax.test(String(z[10]||"").trim()))));
+}
+function seiteRegeln(){
+  if(!ST.daten){ statLaden(); }
+  const alle = (ST.daten||{}).zeilen||[], dg = ((D.pushBilanz||{}).druck||{}).gruppen||[];
+  const kopf = `<div class="panel c12 st-filter">${bereichSchalter()}</div>`;
+  const zahl = k => !k || !k.n ? `<span class="rg-leer">noch nichts abgerechnet${k&&k.offen?` · ${k.offen} offen`:""}</span>`
+    : `<b>${k.n}</b> Tipps · ${dez(k.treffer,0)} % getroffen <small>(Quote sagte ${dez(k.erwartet,0)} %)</small> · <b style="color:${stFarbe(k.roi)}">${stVz(k.roi)} %</b>${k.offen?` <small>+${k.offen} offen</small>`:""}`;
+  const druckZahl = name => { const g = dg.find(x=>x.name===name); if(!g || !g.gesendet) return null;
+    return {n:g.gesendet, treffer:g.treffer, erwartet:g.erwartet, roi:g.roi, offen:0}; };
+  const anzahl = REGELN.reduce((a,g)=>a+g.r.length,0);
+  const gruppen = REGELN.map(g=>`<div class="panel c12 rg-g"><h3>${esc(g.g)}</h3>${g.r.map(r=>{
+      const mess = (r.mess||[]).map(m=>`<div class="rg-m"><span>${esc(m.n)}</span><span>${zahl(ST.daten?regelMess(alle,m):null)}</span></div>`).join("")
+        + (r.dr ? `<div class="rg-m"><span>${esc(r.dr)}</span><span>${zahl(druckZahl(r.dr))}</span></div>` : "");
+      return `<div class="rg-r"><div class="rg-id">${esc(r.id)}</div><div class="rg-x">
+        <div class="rg-t"><b>${esc(r.t)}</b><small>seit ${esc(r.seit)}</small></div>
+        <div class="rg-w">${esc(r.w)}</div>
+        ${r.b?`<div class="rg-b">📏 ${esc(r.b)}</div>`:""}${mess?`<div class="rg-ms">${mess}</div>`:""}${r.pr?`<div class="rg-p">🗓 ${esc(r.pr)}</div>`:""}</div></div>`; }).join("")}</div>`).join("");
+  return `<div class="grid">${kopf}
+    <div class="panel c12 rg-kopf"><h3>Regeln</h3><p>${anzahl} aktive Regeln. Die Zahlen darunter kommen live aus der Statistik — „still“ heißt: nicht gepusht bzw. nicht im Kanal, aber mitgemessen, damit man sieht, ob die Regel etwas bringt. Kürzel: P = Public-Kanal, SE = Dauerzufluss, W = Wal, ST = Stake, D = Druck, T = Top 3, K = AI-Pick.</p></div>
+    ${gruppen}</div>`;
+}
+
 function seiteReport(){
   rpLaden();
   const kopf = `<div class="panel c12 st-filter">${bereichSchalter()}</div>`;

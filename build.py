@@ -2700,7 +2700,7 @@ def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
         art_p = "publicNein" if p.get("gesendet") is False else "public"
         if p.get("sperre"):                 # 14.11. Public-Regel 24/25: eigene Zeile, damit sich die Sperre messen lässt
             sp_ = str(p.get("sperre"))
-            art_p = "publicGegenwind" if "R25" in sp_ else "publicQuote" if "R27" in sp_ else "publicNL"
+            art_p = "publicGegenwind" if "R25" in sp_ else "publicQuote" if ("R27" in sp_ or "R28" in sp_) else "publicNL"
         best, bd = None, None
         for z in zeilen:
             if z[1] in ("public", "publicNein", "publicGegenwind", "publicNL", "publicQuote") or (not r4 and z[1] != p.get("art")):
