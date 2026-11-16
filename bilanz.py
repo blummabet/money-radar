@@ -583,6 +583,8 @@ def druck_messung(buch):
                ("Druck-Team liegt hinten", [b for b in z if b.get("lage") == "hinten"]),
                ("Unentschieden", [b for b in z if b.get("lage") == "gleich"]),
                ("Druck-Team führt", [b for b in z if b.get("lage") == "vorn"]),
+               ("ab Regel 7: Druck-Team führt (still, zählt nicht mehr)", [b for b in buch if b.get("art") == "druckVorn"]),
+               ("ab Regel 7 (ohne Führung)", [b for b in z if (b.get("regel") or 1) >= 7]),
                ("mit frischem Geld", [b for b in z if b.get("geld")]), ("ohne frisches Geld", [b for b in z if not b.get("geld")]),
                # Druck-Regel 4 (01.11.): Rote Karten — nur Einträge, bei denen sie mitgeschrieben wurden
                ("Rote Karte: Druck-Team in Überzahl", [b for b in z if b.get("zahl") == "ueber"]),
@@ -666,7 +668,7 @@ def zusammenfassen(buch):
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "norm", "normMeist", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell", "kiTop3"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "druckVorn", "norm", "normMeist", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell", "kiTop3"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,

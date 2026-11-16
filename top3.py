@@ -200,7 +200,10 @@ def rangliste(d, jetzt):
         # Lucas 25.10. (Sturm – Ried, 23': xG 0,77 : 0, Schüsse 9 : 0, Geld auf Sturm): das Druck-Radar stützt die
         # Richtung des Geldes → Punkte. Druck-Team = Seite der Auswahl, oder Auswahl ist ein Über. Ab Index 40: 1, ab 70: 2.
         dr = druck.get(str(s.get("id")))
-        if dr and (dr.get("index") or 0) >= 40 and (fk == dr.get("seite") or _ou(fA.get("name")) == "over"):
+        # Druck-Regel 7 (16.11.): führt das Druck-Team, gibt der Druck keine Punkte mehr
+        _st, _se = dr.get("stand") or [0, 0] if dr else [0, 0], (dr or {}).get("seite")
+        _vorn = bool(dr) and None not in (_st[0], _st[1]) and ((_st[0] > _st[1]) if _se == "heim" else (_st[1] > _st[0]))
+        if dr and not _vorn and (dr.get("index") or 0) >= 40 and (fk == dr.get("seite") or _ou(fA.get("name")) == "over"):
             p["druck"] = 2 if dr["index"] >= 70 else 1
         lb = LB.get(s.get("liga")) or {}
         if lb.get("urteil") == "trägt":

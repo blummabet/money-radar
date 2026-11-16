@@ -38,7 +38,7 @@ def eintragen(d, buch, jetzt):
     except Exception:  # noqa: BLE001
         return 0
     radar = {str(s.get("id")): s for s in (d.get("radar") or {}).get("spiele") or []}
-    schon = {str(b.get("id")) for b in buch if b.get("art") == "druck"}
+    schon = {str(b.get("id")) for b in buch if b.get("art") in ("druck", "druckVorn")}
     neu = 0
     for x in (d.get("druck") or {}).get("spiele") or []:
         i = str(x.get("id"))
@@ -61,7 +61,10 @@ def eintragen(d, buch, jetzt):
         rot = [r_h, r_g] if isinstance(r_h, (int, float)) and isinstance(r_g, (int, float)) else None
         r_e, r_x = (rot[0 if s == "heim" else 1], rot[1 if s == "heim" else 0]) if rot else (None, None)
         zahl = None if rot is None else "keine" if r_e == r_x == 0 else "ueber" if r_e < r_x else "unter" if r_e > r_x else "gleich"
-        buch.append({"art": "druck", "id": i, "heim": x.get("heim"), "gast": x.get("gast"), "liga": x.get("liga"),
+        # Druck-Regel 7 (Lucas 16.11. 09:18 „wenn das Team führt, brauche ich keinen Push"; 15.11.: Druck-Team vorn unter
+        # Regel 6 n=76, −8,6 %, hinten +17 %): führt das Druck-Team, zählt der Eintrag nicht mehr als Druck-Signal, sondern
+        # still als „druckVorn" (eigene Messung, keine Punkte in Top 3).
+        buch.append({"art": "druckVorn" if eig > geg else "druck", "id": i, "heim": x.get("heim"), "gast": x.get("gast"), "liga": x.get("liga"),
                      "land": x.get("land"), "anpfiff": sp.get("anpfiff"), "live": True, "top5": bool(x.get("top5")),
                      "normEur": sp.get("normEur"), "ligaEur": sp.get("ligaEur"),
                      "markt": f"Over/Under {linie} Goals", "auswahl": f"Over {linie} Goals", "quote": q,
@@ -69,7 +72,7 @@ def eintragen(d, buch, jetzt):
                      "lage": "hinten" if eig < geg else "gleich" if eig == geg else "vorn",
                      "geld": bool(x.get("zufluss")), "xgTeam": x["teams"][s]["xg"],
                      "rot": rot, "zahl": zahl,
-                     "ts": jetzt.isoformat(), "status": "offen", "regel": 6})   # Regel 6 ab 07.11. ~19:30: nach eigenem Tor zählt nur xG seit dem Tor (Abkühlen) · Regel 2 ab 25.10. 17:20: Tore im Fenster abgezogen · Regel 3 ab 30.10.: xG-Reihe einheitlich (nie echt und geschätzt gemischt) · Regel 4 ab 01.11.: Rote Karten mitgeschrieben (Index unverändert) · Regel 5 ab 01.11. ~15 Uhr: geschätzte Anlauf-Punkte (≤ 10. Min) kippen die Reihe nicht mehr auf den Schätzer
+                     "ts": jetzt.isoformat(), "status": "offen", "regel": 7})   # Regel 7 ab 16.11. ~09:30: Druck-Team führt → still „druckVorn" · Regel 6 ab 07.11. ~19:30: nach eigenem Tor zählt nur xG seit dem Tor (Abkühlen) · Regel 2 ab 25.10. 17:20: Tore im Fenster abgezogen · Regel 3 ab 30.10.: xG-Reihe einheitlich (nie echt und geschätzt gemischt) · Regel 4 ab 01.11.: Rote Karten mitgeschrieben (Index unverändert) · Regel 5 ab 01.11. ~15 Uhr: geschätzte Anlauf-Punkte (≤ 10. Min) kippen die Reihe nicht mehr auf den Schätzer
         schon.add(i)
         neu += 1
     return neu
@@ -80,7 +83,7 @@ def naechstes_tor(d, buch):
     radar = {str(s.get("id")): s for s in (d.get("radar") or {}).get("spiele") or []}
     n = 0
     for b in buch:
-        if b.get("art") != "druck" or b.get("naechstes"):
+        if b.get("art") not in ("druck", "druckVorn") or b.get("naechstes"):
             continue
         st0 = b.get("stand") or [0, 0]
         sp = radar.get(str(b.get("id")))
