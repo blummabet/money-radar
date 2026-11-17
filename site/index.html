@@ -1963,6 +1963,11 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .t3r-z .wb-t{position:relative;height:8px}
 .t3r-fuss{font-size:11.5px;color:var(--text-3);margin-top:8px;line-height:1.5}
 @media (max-width:700px){ .t3r-kopf{display:none} .t3r-z{grid-template-columns:minmax(0,1fr) 56px 46px;row-gap:3px} .t3r-p,.t3r-u{display:none} .t3r-z .wb-t{grid-column:1/-1;grid-row:2} }
+
+/* 17.11. BD1: Betfair-Drops ohne Pinnacle */
+.pdk-quelle{display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;font-size:10.5px;font-weight:700;color:var(--bf);background:color-mix(in srgb, var(--bf) 14%, transparent)}
+.pdk-geld{font-size:12px;color:var(--text-2);margin-top:6px}
+.pdk-geld b{color:var(--up)}
 </style>
 </head>
 <body>
@@ -4374,7 +4379,7 @@ function bfAlleInhalt(alle){
   return `<div class="chips" style="margin:12px 0">${Object.entries(BF_SETS).map(([k,[n,fn]])=>`<button class="chip${k===filterBf?" an":""}" data-filter="${k}">${n} <span style="opacity:.6">${fn(alle).length}</span></button>`).join("")}</div>${spielTabelle(BF_SETS[filterBf][1](alle),"t-bf",25)}`;
 }
 // ── gemeinsame Bausteine der Unterseiten (19.10.) ──
-const kzReihe = kacheln => `<div class="kz-reihe" style="grid-template-columns:repeat(${Math.min(kacheln.length,5)},1fr)">${kacheln.map(([n,w,u,extra=""])=>`<div class="kz"><span class="kz-n">${n}</span><span class="kz-w">${w}</span><span class="kz-u">${u}</span>${extra}</div>`).join("")}</div>`;
+const kzReihe = kacheln => `<div class="kz-reihe" style="grid-template-columns:repeat(${Math.min(kacheln.length,6)},1fr)">${kacheln.map(([n,w,u,extra=""])=>`<div class="kz"><span class="kz-n">${n}</span><span class="kz-w">${w}</span><span class="kz-u">${u}</span>${extra}</div>`).join("")}</div>`;
 function kzSpark(werte){ if(werte.length<3) return ""; let c=0; const k = werte.map(v=>c+=v); const lo=Math.min(0,...k), hi=Math.max(0,...k), sp=(hi-lo)||1;
   return `<svg class="kz-sp" viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${k.map((y,i)=>`${i?"L":"M"}${(i/(k.length-1)*100).toFixed(1)},${(30-(y-lo)/sp*30).toFixed(1)}`).join("")}" style="stroke:${c>=0?"var(--up)":"var(--down)"}"/></svg>`; }
 function bilanzKachel(D, q, titel){
@@ -4542,13 +4547,14 @@ function pinDropKarte(s, live){
   const bf = s.bfId ? klickSpiel({id:s.bfId, heim:s.heim, gast:s.gast}) : "";
   const rechts = live ? `<span class="mk-live">● ${s.min!=null?s.min+"'":"live"} · ${s.stand[0]}:${s.stand[1]}</span>` : `<span class="mk-zeit">${wann(s.anpfiff)}</span>`;
   const n = (s.verlauf||[]).length;
+  const bfQ = s.quelle==="betfair";
   return `<div class="topf mk pdk" ${bf}>
-    <div class="mk-kopf"><span class="mk-liga">${flagge(s.land)} ${esc(ligaName(s.liga)||"")}</span>${rechts}</div>
+    <div class="mk-kopf"><span class="mk-liga">${flagge(s.land)} ${esc(ligaName(s.liga)||"")}${bfQ?` <span class="pdk-quelle">Betfair</span>`:""}</span>${rechts}</div>
     <div class="pdk-m"><div style="min-width:0"><div class="mk-name">${esc(s.heim)} – ${esc(s.gast)}</div><div class="pdk-auf">${esc(s.auf)}</div></div>
       <div class="pdk-q"><span>${q2(s.vonQuote)}</span><b>${q2(s.quote)}</b><small>+${dez(live?s.pp:(s.frisch?s.pp60:s.pp))} pp${live?` in ${s.fensterMin} Min`:s.frisch?" in 1 h":""}</small></div></div>
-    ${n>=2?linien({reihen:[{werte:s.verlauf, farbe:"var(--pin)", flaeche:true}], x:s.verlauf.map((_,i)=>i===0?(live?"vorher":uhr(s.seit)):i===n-1?"jetzt":""), hoehe:80, fmt:v=>Math.round(v)+" %"}):""}
+    ${n>=2?linien({reihen:[{werte:s.verlauf, farbe:bfQ?"var(--bf)":"var(--pin)", flaeche:true}], x:s.verlauf.map((_,i)=>i===0?(live?"vorher":uhr(s.seit)):i===n-1?"jetzt":""), hoehe:80, fmt:v=>Math.round(v)+" %"}):""}
     ${!live?tagLeiste(s.tag, s.quote):""}
-    ${!live?bfZug(s):""}
+    ${bfQ?`<div class="pdk-geld">${eur(s.eur)} auf der Auswahl · ${eur(s.marktEur)} im Markt${s.neu60>0?` · <b>+${eur(s.neu60)}</b> in 1 h`:""}</div>`:!live?bfZug(s):""}
   </div>`;
 }
 // 17.11. (Lucas: „optisch wenig aussagend … sofort erkennen, welche Linie, Spiel und was passiert ist"): eine Karte je
@@ -4659,6 +4665,9 @@ function seitePinnacle(D){
   const rang = x => x.bf && x.bf.pp >= 1 ? 0 : x.bf && x.bf.pp > -1 ? 1 : 2;      // 11.11.: beide fallen zuerst
   const vorS = [...vor].sort((a,b)=>rang(a)-rang(b) || (b.frisch?1:0)-(a.frisch?1:0) || b.pp-a.pp);
   (vor.length?voll:leer).push(["Drops vor Anpfiff", "seit dem ersten Stand · frisch = in der letzten Stunde · zuerst, wo Betfair mitzieht", vorS.map(x=>pinDropKarte(x,false))]);
+  // 17.11. Regel BD1 (Lucas, St Kitts – Bonaire): Spiele, die Pinnacle nicht hat, mit ihrem Betfair-Drop
+  const bd = lf(D.bfDrops||[]).map(x=>({...x, auf:`${marktDe(x.markt)} · ${auswahlDe(x.auf)}`}));
+  (bd.length?voll:leer).push(["Betfair-Drops (Pinnacle hat das Spiel nicht)", "Quote bei Betfair gegen den ersten Stand der letzten ~6 h · nur mit ≥ €2k auf der Auswahl · frisch = in der letzten Stunde · nur gemessen", bd.map(x=>pinDropKarte(x,false))]);
   const pl = lf((D.pinnLinien||{}).vor||[]);
   (pl.length?voll:leer).push(["Handicap, Über/Unter & 1. Halbzeit vor Anpfiff", `▼ = Drop-Seite · gegen den ersten Stand der letzten 12 h · ${(D.pinnLinien||{}).n||0} Spiele beobachtet · nur gemessen, kein Push`, [plKarten(pl)]]);
   return `<div class="grid">
@@ -4666,6 +4675,7 @@ function seitePinnacle(D){
       ["Spiele mit Pinnacle-Quote", pd.n||0, "alle Ligen, vor Anpfiff und live"],
       ["Drops vor Anpfiff", vor.length, `${vor.filter(x=>x.frisch).length} frisch · ${vor.filter(x=>x.bf&&x.bf.pp>=1).length} mit Betfair${(pd.vor||[]).length>vor.length?` · ${(pd.vor||[]).length-vor.length} durch Liga-Filter aus`:""}`],
       ["Live-Drops", liveD.length, "ohne Tor, Team liegt nicht vorn"],
+      ["Betfair-Drops ohne Pinnacle", bd.length, `${bd.filter(x=>x.frisch).length} frisch`],
       ["Handicap / Über-Unter", lf((D.pinnLinien||{}).vor||[]).length, `${lf((D.pinnLinien||{}).vor||[]).filter(x=>x.art==="linie").length} Linien verschoben`],
       ["Größte Bewegung", top?`${dez(top.b)} pp`:"–", top?`${esc(top.g.heim)} – ${esc(top.g.gast)}`:""]])}</div>
     ${voll.map(([t,h,k])=>`<div class="panel c12"><div class="ph"><h3>${t}</h3><span class="hint">${h}</span></div><div class="toepfe p3">${k.join("")}</div></div>`).join("")}
@@ -5280,6 +5290,7 @@ const REGELN = [
   {id:"R31", t:"Topf-Punkte lernen dynamisch, erst nach Prüfung scharf", seit:"17.11.", w:"Jeder Topf-Kandidat wird mit seinen Punkte-Teilen (Signale, Quellen, Geld, Kette, Wal, Alter, Pinnacle, Liga) mitgeschrieben. Montag und Donnerstag: Effekt je Teil aus 28 Tagen, Faktor 0–2, je Schritt höchstens ±0,25. Scharf erst, wenn die Prüfung an ≥ 4 Prüfpunkten mehrheitlich und zusammen besser sortiert. Still mitgemessen: Dauerzufluss live, Quote ab 2,20, Nachwuchs/Reserve/Frauen.", b:"Anlass Hull City U21 (17.11.): 10–12 Topf-Punkte +14 %, ab 12 Punkten −1,8 % — die festen Punkte sortieren kaum."},
   {id:"PB1", t:"Beobachtet: Dauerzufluss live ab Quote 2,20", seit:"17.11.", w:"Keine Regel, nur gemessen. 31.10.–17.11. im Topf: 27 Tipps, −35 % ±40. Erst bei klarem Bild eine Regel.",
    mess:[{n:"Dauerzufluss live ab 2,20 (Pushes)", a:["serie"], live:true, qmin:2.2},{n:"Dauerzufluss live unter 2,20 (Pushes)", a:["serie"], live:true, qmax:2.2}]},
+  {id:"BD1", t:"Betfair-Drops für Spiele ohne Pinnacle (nur angezeigt)", seit:"17.11.", w:"Im Pinnacle-Tab: Spiele, die die Odds API nicht liefert (z. B. CONCACAF), mit ihrem stärksten Betfair-Drop vor Anpfiff — Sieg, Halbzeit, Über/Unter, HZ-Tore, beide treffen. Chance seit dem ersten Stand der letzten ~6 h um ≥ 6 pp gestiegen und Quote ≥ 12 % gefallen, auch schon im vorletzten Abruf (kein Ausreißer), ≥ €2k auf der Auswahl und ≥ €5k im Markt.", b:"Anlass St Kitts – Bonaire (17.11.): Halbzeit Bonaire 4,40 → 2,70 mit €17k — bei Pinnacle unsichtbar, weil die Odds API CONCACAF nicht führt."},
   {id:"PV1", t:"Beobachtet: Markt nach dem Signal (vor Anpfiff)", seit:"17.11.", w:"Für jeden Push vor Anpfiff werden Quote und Geld nach 15 und 30 Min mitgeschrieben (gleiche Seite, Gegenseite). Ausgewertet in 2–3 Wochen: trägt „kurz warten, nur bei Nachschub senden“ mehr als sofort senden? Warten bis Anpfiff kostet den Preis (gemessen: +21,6 % → +15,4 %)."},
   {id:"P4", t:"Topf statt sofort", seit:"02.11.", w:"Jedes passende Signal kommt in einen Topf und sammelt Punkte (Geld, Kettenlänge, Quellen, Liga). Zu drei Terminen je Zeitfenster geht der beste Kandidat raus, ein sehr starker sofort."},
   {id:"P22", t:"Termin erst ab 9 Punkten", seit:"13.11.", w:"Vorher reichten 5 Punkte. Lieber ein leerer Termin als ein Lückenfüller.", b:"Topf seit 31.10.: unter 9 Punkten ≈ ±0 %, 9–12 ≈ +7 %, ab 12 ≈ +14 %."},

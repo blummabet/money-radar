@@ -602,6 +602,96 @@ def pinn_linien(prices=None):
 # ── 17.11. Betfair-Börse Back/Lay aus der Odds API (Lucas: „wir würden back und lays dann sehen") ──────────────────
 # Je Betfair-Spiel (matchId) die beste Back- und Lay-Quote aller drei Ausgänge und der letzte Stand vor Anpfiff.
 # Die Spanne Lay/Back zeigt, wie dünn ein Markt ist; die Mitte vor Anpfiff ist eine zweite, saubere Schlussquote.
+# 17.11. (Lucas, St Kitts – Bonaire: „Pinnacle hat sie nicht … könnten wir es trotzdem in die Liste reinnehmen?
+# Betfair ist ein super Indikator"). Regel BD1, vorab festgelegt: Betfair-Drops vor Anpfiff für Spiele, die Pinnacle
+# (über die Odds API) NICHT hat. Nur mit echtem Geld und kein Ein-Abruf-Ausreißer:
+BD_MAERKTE = re.compile(r"^(Match Odds|Half Time|Over/Under \d\.5 Goals|First Half Goals \d\.5|Both teams to Score\?)$")
+BD_MIN_PP = 6.0          # Chance der Auswahl seit dem ersten Stand (bis ~6 h zurück) um ≥ 6 Prozentpunkte gestiegen
+BD_MIN_REL = 0.12        # und die Quote um ≥ 12 % gefallen
+BD_MIN_EUR_AUSWAHL = 2000
+BD_MIN_EUR_MARKT = 5000
+BD_FRISCH_PP = 3.0       # ≥ 3 pp davon in der letzten Stunde
+
+
+def _pinn_bf_ids(prices):
+    """Betfair-Spiel-IDs, zu denen Pinnacle (pinnacle_alle.json) ein Spiel hat — gleiche Zuordnung wie pinn_drops."""
+    try:
+        roh = json.loads((BASIS / ".pin" / "pinnacle_alle.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    bf = [m for m in (prices or {}).get("matches") or [] if isinstance(m, dict) and ts(m.get("kickoff"))]
+    ids = set()
+    for e in (roh.get("spiele") or {}).values():
+        ko = ts(e.get("anpfiff"))
+        if not ko:
+            continue
+        for m in bf:
+            if abs((ko - ts(m["kickoff"])).total_seconds()) > 20 * 60:
+                continue
+            if (_gleich(e.get("heim"), m.get("home")) and _gleich(e.get("gast"), m.get("away"), locker=True)) or \
+               (_gleich(e.get("heim"), m.get("home"), locker=True) and _gleich(e.get("gast"), m.get("away"))):
+                ids.add(str(m.get("matchId")))
+                break
+    return ids
+
+
+def bf_drops(prices, bf_hist):
+    """→ [{… wie ein Pinnacle-Drop, quelle „betfair"}], ein Eintrag je Spiel (stärkster Drop), stärkste zuerst."""
+    pinn = _pinn_bf_ids(prices)
+    if pinn is None:
+        return []
+    aus = []
+    for m in (prices or {}).get("matches") or []:
+        mid, ko = str(m.get("matchId")), ts(m.get("kickoff"))
+        li = m.get("liveInfo") or {}
+        if not ko or ko <= JETZT or ko > JETZT + timedelta(hours=24) or mid in pinn or li.get("goal_v1") is not None:
+            continue
+        pts = [x for x in (bf_hist or {}).get(mid) or [] if isinstance(x, dict) and isinstance(x.get("sel"), dict)
+               and ts(x.get("ts")) and x.get("sc") is None]
+        if len(pts) < 6 or ts(pts[-1]["ts"]) - ts(pts[0]["ts"]) < timedelta(minutes=60):
+            continue
+        letzt, vorl = pts[-1]["sel"], pts[-2]["sel"]
+        vor60 = next((x for x in pts if JETZT - ts(x["ts"]) <= timedelta(minutes=65)), None)
+        best = None
+        for mk, sel in letzt.items():
+            if not BD_MAERKTE.match(mk):
+                continue
+            mk_eur = sum((v[0] or 0) for v in sel.values() if isinstance(v, list))
+            if mk_eur < BD_MIN_EUR_MARKT:
+                continue
+            for n, v in sel.items():
+                if not (isinstance(v, list) and len(v) > 1 and isinstance(v[1], (int, float)) and 1.15 <= v[1] <= 10):
+                    continue
+                if (v[0] or 0) < BD_MIN_EUR_AUSWAHL:
+                    continue
+                reihe = [(x["ts"], x["sel"].get(mk, {}).get(n)) for x in pts]
+                reihe = [(t, w[1]) for t, w in reihe if isinstance(w, list) and len(w) > 1 and isinstance(w[1], (int, float)) and w[1] > 1]
+                if len(reihe) < 6:
+                    continue
+                q0, q1 = reihe[0][1], v[1]
+                qv = ((vorl.get(mk) or {}).get(n) or [None, None])[1]
+                pp = (1 / q1 - 1 / q0) * 100
+                # kein Ein-Abruf-Ausreißer: auch der vorletzte Stand liegt schon deutlich unter dem ersten
+                if pp < BD_MIN_PP or q1 > q0 * (1 - BD_MIN_REL) or not isinstance(qv, (int, float)) or qv > q0 * (1 - BD_MIN_REL / 2):
+                    continue
+                q60 = (((vor60 or {}).get("sel") or {}).get(mk, {}).get(n) or [None, None])[1] if vor60 else None
+                pp60 = round((1 / q1 - 1 / q60) * 100, 1) if isinstance(q60, (int, float)) and q60 > 1 else None
+                e60 = (((vor60 or {}).get("sel") or {}).get(mk, {}).get(n) or [None])[0] if vor60 else None
+                if best is None or pp > best["pp"]:
+                    best = {"id": mid, "bfId": mid, "heim": m.get("home"), "gast": m.get("away"), "liga": m.get("league"),
+                            "land": m.get("country"), "anpfiff": m.get("kickoff"), "top5": bool(TOP5_RX.search(str(m.get("league") or ""))),
+                            "quelle": "betfair", "markt": mk, "auf": n, "pp": round(pp, 1), "pp60": pp60,
+                            "frisch": bool(pp60 is not None and pp60 >= BD_FRISCH_PP), "vonQuote": q0, "quote": q1,
+                            "seit": reihe[0][0], "tag": [min(q for _, q in reihe), max(q for _, q in reihe)],
+                            "eur": round(v[0] or 0), "marktEur": round(mk_eur),
+                            "neu60": round((v[0] or 0) - e60) if isinstance(e60, (int, float)) else None,
+                            "verlauf": [round(100 / q, 1) for _, q in reihe][-36:]}
+        if best:
+            aus.append(best)
+    aus.sort(key=lambda x: (not x["frisch"], -x["pp"]))
+    return aus[:40]
+
+
 def bf_spanne(prices):
     try:
         roh = json.loads((BASIS / ".pin" / "pinnacle_alle.json").read_text(encoding="utf-8"))
@@ -3400,6 +3490,7 @@ def main() -> int:
         "pinnAlle": pinn_alle(consensus, history),
         "pinnDrops": pinn_drops(prices, bf_hist),
         "pinnLinien": pinn_linien(prices),
+        "bfDrops": bf_drops(prices, bf_hist),   # 17.11. Regel BD1
         "t3Dyn": eigen("t3_gewichte.json", ".push_state", default=None),   # 17.11. Top-3-Regel 7
         "topfDyn": eigen("topf_gewichte.json", ".push_state", default=None),   # 17.11. Topf-Regel R31
         "bfSpanne": bf_spanne(prices),
