@@ -373,7 +373,9 @@ def pinn_drops(prices, bf_hist=None):
                 bfz = _bf_zug(m, bf_hist, i, erst[0])
             except Exception:  # noqa: BLE001
                 bfz = None
+            _qq = [x[4 + i] for x in grob + fein + [jetzt_p] if isinstance(x[4 + i], (int, float)) and x[4 + i] > 1]
             vor.append({**basis, "auf": namen[i], "ausgang": ("heim", "remis", "gast")[i], "bf": bfz,
+                        "tag": [min(_qq), max(_qq)] if _qq else None,
                         "vonPct": round(erst[1 + i] * 100, 1), "nachPct": round(jetzt_p[1 + i] * 100, 1), "pp": round(d[i], 1),
                         "vonQuote": erst[4 + i], "quote": jetzt_p[4 + i], "seit": erst[0], "pp60": pp60,
                         "frisch": bool(pp60 is not None and pp60 >= PINN_FRISCH_PP[top5]),
@@ -1145,6 +1147,26 @@ def quote_geld(snaps, minuten=60):
             for mk, sel in summe.items()}
 
 
+def quote_spanne(snaps, stunden=24):
+    """17.11. (Lucas, „Wo steht die Quote heute"): {Markt: {Auswahl: [Tief, Hoch]}} über die letzten `stunden`.
+    Läuft das Spiel, nur die Live-Stände (vor Anpfiff war ein anderer Markt), sonst nur die vor Anpfiff."""
+    pts = [x for x in snaps if isinstance(x, dict) and isinstance(x.get("sel"), dict) and ts(x.get("ts"))]
+    if len(pts) < 3:
+        return {}
+    live = pts[-1].get("sc") is not None
+    grenze = ts(pts[-1]["ts"]) - timedelta(hours=stunden)
+    out = {}
+    for x in pts:
+        if ts(x["ts"]) < grenze or (x.get("sc") is not None) != live:
+            continue
+        for mk, sel in x["sel"].items():
+            for n, v in (sel or {}).items():
+                if isinstance(v, list) and len(v) > 1 and isinstance(v[1], (int, float)) and v[1] > 1:
+                    z = out.setdefault(mk, {}).setdefault(n, [v[1], v[1]])
+                    z[0], z[1] = min(z[0], v[1]), max(z[1], v[1])
+    return out
+
+
 def maerkte_detail(m, snaps, minuten, nur_abs=False):
     """Die geldstärksten Märkte eines Spiels mit Geld + Quote je Auswahl und dem Zufluss je Auswahl.
     nur_abs=True: stattdessen die Märkte, die hier wegen Kleinstquote (< 1,10) rausfallen — Lucas 28.10. („da kamen
@@ -1152,6 +1174,7 @@ def maerkte_detail(m, snaps, minuten, nur_abs=False):
     dl = sel_delta(snaps, minuten)
     qv = quote_vor(snaps)
     qg = quote_geld(snaps)
+    qs = quote_spanne(snaps)
     out = []
     # Lucas 24.10. („Halbzeit seh ich gar nicht, das muss auch angezeigt werden"): die 8 geldstärksten Märkte UND
     # immer die Halbzeit-Märkte — die sind meist kleiner und fielen bisher aus den Top 6.
@@ -1180,7 +1203,8 @@ def maerkte_detail(m, snaps, minuten, nur_abs=False):
         out.append({"name": name, "eur": round(vol), "neu": round(sum(max(0, x) for x in d.values())),
                     "auswahl": [{"name": r.get("name"), "eur": round(r.get("vol") or 0), "quote": r.get("odd"),
                                  "neu": d.get(r.get("name")), "q60": (qv.get(name) or {}).get(r.get("name")),
-                                 "qGeld": (qg.get(name) or {}).get(r.get("name"))} for r in rs]})
+                                 "qGeld": (qg.get(name) or {}).get(r.get("name")),
+                                 "tag": (qs.get(name) or {}).get(r.get("name"))} for r in rs]})
     return out
 
 

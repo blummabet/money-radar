@@ -106,6 +106,11 @@ main{padding:22px 28px 60px;min-width:0}
 /* Wo am meisten liegt */
 .toepfe{display:grid;gap:10px}
 .mw-sch{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+/* 17.11. Quote im Tagesbereich */
+.tl{display:grid;grid-template-columns:auto minmax(40px,1fr) auto;align-items:center;gap:6px;font-size:10.5px;color:var(--text-3);margin-top:6px;font-variant-numeric:tabular-nums}
+.tl i{position:relative;height:4px;border-radius:2px;background:linear-gradient(90deg, color-mix(in srgb, var(--down) 35%, var(--panel-3)), var(--panel-3), color-mix(in srgb, var(--up) 35%, var(--panel-3)))}
+.tl b{position:absolute;top:50%;width:9px;height:9px;border-radius:50%;background:var(--text);transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--panel)}
+.tl em{grid-column:1 / -1;font-style:normal;text-align:center;margin-top:-1px}
 /* 17.11. Zufluss-Balken: Länge = Geld, Farbe = Quote mit/gegen (live: Anteil) */
 .zr-s{position:relative;height:26px;border-radius:7px;background:var(--panel-3);overflow:hidden;margin-top:6px;display:flex;align-items:center;justify-content:space-between;padding:0 9px;gap:8px}
 .zr-s i{position:absolute;left:0;top:0;bottom:0;border-radius:7px}
@@ -2585,7 +2590,7 @@ function w2Detail(k, fm){
     const h = Math.max(6, d/max*100), oben = d ? nn/d*100 : 0, q = a.quote, q0 = a.q60;
     const pf = q && q0 && Math.abs(q-q0)/q0 >= 0.02 ? (q<q0?`<i class="hq ab">↓</i>`:`<i class="hq auf">↑</i>`) : "";
     return `<div class="w2t"><div class="w2t-r"><div class="w2t-t" style="height:${h.toFixed(1)}%"><i style="height:${oben.toFixed(1)}%"></i></div></div>
-      <b>${esc(k.rest ? marktDe(a.markt) : kurz(a.name))}</b><span>${q?`${pf}${q2(q)}`:"–"}</span><span>${eur(d)} · ${Math.round(d/ges*100)} %</span>${nn?`<em>+${eur(nn)}</em>`:""}${qgZeile(a.qGeld, q)}</div>`; }).join("");
+      <b>${esc(k.rest ? marktDe(a.markt) : kurz(a.name))}</b><span>${q?`${pf}${q2(q)}`:"–"}</span><span>${eur(d)} · ${Math.round(d/ges*100)} %</span>${nn?`<em>+${eur(nn)}</em>`:""}${qgZeile(a.qGeld, q)}${tagLeiste(a.tag, q)}</div>`; }).join("");
   return `<div class="w2-d"><div class="w2-zu">← alle Märkte</div><div class="w2ts">${toepfe}</div><div class="w2-dl">Höhe = Geld auf der Auswahl · oben kräftig = neu in ${fm} Min · Pfeil = Quote gegenüber vor ~1 h · „Geld Ø" = Quote, zu der das Geld der letzten Stunde im Schnitt gematcht wurde</div></div>`;
 }
 function marktWand(s){
@@ -4436,6 +4441,14 @@ function seiteBetfair(D){
     ${((D.pushBilanz||{}).teile||{}).serie?.length?`<div class="panel c12">${liste(`🔁 Dauerzufluss: wie die Pushes liefen (seit ${tagKurz(D.pushBilanz.seit)})`, "", `<div class="kk-klein" style="margin:10px 0 12px">Zur Push-Quote abgerechnet, 2 % Kommission · Balken = so oft getroffen, Strich = was die Quote sagte</div>${istSoll(D.pushBilanz.teile.serie.map(g=>({name:esc(g.name), unter:`${g.n} Tipps`, ist:g.treffer, soll:g.erwartet, roi:g.roi})))}`)}</div>`:""}`, "Liga-Bilanz und Dauerzufluss-Pushes")}
   </div>`;
 }
+// Lucas 17.11. (ScrewStreet „52-Wochen-Position"): wo steht die Quote im Bereich von heute? links Tagestief, rechts
+// Tageshoch — rechts ist für dich besser (mehr Quote), links bist du spät dran.
+function tagLeiste(t, q){
+  if(!t || !q || !(t[1] > t[0]*1.01)) return "";
+  const x = Math.max(0, Math.min(100, (q-t[0])/(t[1]-t[0])*100));
+  const wo = x>=67 ? "nah am Tageshoch" : x<=33 ? "nah am Tagestief" : "Tagesmitte";
+  return `<div class="tl" title="Quote heute zwischen ${q2(t[0])} und ${q2(t[1])} · jetzt ${q2(q)}"><span>${q2(t[0])}</span><i><b style="left:${x.toFixed(0)}%"></b></i><span>${q2(t[1])}</span><em>${wo}</em></div>`;
+}
 function pinDropKarte(s, live){
   const bf = s.bfId ? klickSpiel({id:s.bfId, heim:s.heim, gast:s.gast}) : "";
   const rechts = live ? `<span class="mk-live">● ${s.min!=null?s.min+"'":"live"} · ${s.stand[0]}:${s.stand[1]}</span>` : `<span class="mk-zeit">${wann(s.anpfiff)}</span>`;
@@ -4445,6 +4458,7 @@ function pinDropKarte(s, live){
     <div class="pdk-m"><div style="min-width:0"><div class="mk-name">${esc(s.heim)} – ${esc(s.gast)}</div><div class="pdk-auf">${esc(s.auf)}</div></div>
       <div class="pdk-q"><span>${q2(s.vonQuote)}</span><b>${q2(s.quote)}</b><small>+${dez(live?s.pp:(s.frisch?s.pp60:s.pp))} pp${live?` in ${s.fensterMin} Min`:s.frisch?" in 1 h":""}</small></div></div>
     ${n>=2?linien({reihen:[{werte:s.verlauf, farbe:"var(--pin)", flaeche:true}], x:s.verlauf.map((_,i)=>i===0?(live?"vorher":uhr(s.seit)):i===n-1?"jetzt":""), hoehe:80, fmt:v=>Math.round(v)+" %"}):""}
+    ${!live?tagLeiste(s.tag, s.quote):""}
     ${!live?bfZug(s):""}
   </div>`;
 }
