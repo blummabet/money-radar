@@ -463,56 +463,77 @@ def pinn_linien(prices=None):
         roh = json.loads((BASIS / ".pin" / "pinnacle_alle.json").read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         return {"n": 0, "vor": []}
-    out, n = [], 0
+    out, n, n_ht = [], 0, 0
+    # (Prefix, Frische-Grenze, [(Markt, Offset)], 1X2-Offset): Hauptlinien alle 5 Min, Halbzeit je Spiel alle ~15 Min
+    SPECS = (("l", 20, (("AH", 1), ("OU", 4)), None), ("h", 35, (("HZ-AH", 4), ("HZ-OU", 7)), 1))
     for sid, e in (roh.get("spiele") or {}).items():
-        lj, lg = e.get("ljetzt"), e.get("lgrob") or []
         ko = ts(e.get("anpfiff"))
-        if not lj or not ko or ko <= JETZT or JETZT - (ts(lj[0]) or JETZT) > timedelta(minutes=20):
-            continue
-        n += 1
-        if len(lg) < 2:
+        if not ko or ko <= JETZT:
             continue
         top5 = e.get("key") in PINN_TOP5_KEYS
-        ref = lg[0]
-        fein = e.get("lfein") or []
-        v60 = next((x for x in fein if JETZT - ts(x[0]) <= timedelta(minutes=65)), None)
-        basis = {"id": sid, "heim": e["heim"], "gast": e["gast"], "liga": e.get("liga"), "anpfiff": e["anpfiff"],
-                 "top5": top5, "seit": ref[0]}
-        for markt, o in (("AH", 1), ("OU", 4)):
-            l0, a0, b0 = ref[o:o + 3]
-            l1, a1, b1 = lj[o:o + 3]
-            if None in (l0, a0, b0, l1, a1, b1):
+        for pre, frisch_min, maerkte, x_off in SPECS:
+            lj, lg = e.get(pre + "jetzt"), e.get(pre + "grob") or []
+            if not lj or JETZT - (ts(lj[0]) or JETZT) > timedelta(minutes=frisch_min):
                 continue
-            seiten = (e["heim"], e["gast"]) if markt == "AH" else ("Über", "Unter")
-            verlauf = [x[o] for x in lg if x[o] is not None] + [l1]
-            if l1 != l0:
-                # AH: Linie aus Heimsicht; sinkt sie (−0,5 → −0,75), traut Pinnacle dem Heimteam mehr zu.
-                # O/U: steigt sie, mehr Tore erwartet.
-                i = (0 if l1 < l0 else 1) if markt == "AH" else (0 if l1 > l0 else 1)
-                frisch = bool(v60 and v60[o] is not None and v60[o] != l1)
-                lin_seite = (l1 if i == 0 else -l1) if markt == "AH" else l1
-                out.append({**basis, "markt": markt, "art": "linie", "auf": seiten[i], "seite": i,
-                            "von": l0, "nach": l1, "schritte": round(abs(l1 - l0) / 0.25),
-                            "linie": lin_seite, "quote": (a1, b1)[i], "frisch": frisch, "verlauf": verlauf,
-                            "text": (f"Handicap {e['heim']} {_lz(l0)} → {_lz(l1)}" if markt == "AH"
-                                     else f"Linie {l0:g} → {l1:g}".replace(".", ","))})
+            if pre == "l":
+                n += 1
+            else:
+                n_ht += 1
+            if len(lg) < 2:
                 continue
-            p0, p1 = _p2(a0, b0), _p2(a1, b1)
-            if p0 is None or p1 is None:
-                continue
-            d = (p1 - p0) * 100
-            i = 0 if d > 0 else 1
-            if abs(d) < PINN_VOR_MIN_PP[top5]:
-                continue
-            pp60 = None
-            if v60 and v60[o] == l1 and _p2(v60[o + 1], v60[o + 2]) is not None:
-                pp60 = round((p1 - _p2(v60[o + 1], v60[o + 2])) * 100 * (1 if i == 0 else -1), 1)
-            lin_seite = (l1 if i == 0 else -l1) if markt == "AH" else l1
-            out.append({**basis, "markt": markt, "art": "quote", "auf": seiten[i], "seite": i, "linie": lin_seite,
-                        "vonQuote": (a0, b0)[i], "quote": (a1, b1)[i], "pp": round(abs(d), 1), "pp60": pp60,
-                        "frisch": bool(pp60 is not None and pp60 >= PINN_FRISCH_PP[top5]),
-                        "verlauf": [round((_p2(x[o + 1], x[o + 2]) if i == 0 else 1 - _p2(x[o + 1], x[o + 2])) * 100, 1)
-                                    for x in lg if x[o] == l1 and _p2(x[o + 1], x[o + 2]) is not None]})
+            ref = lg[0]
+            fein = e.get(pre + "fein") or []
+            v60 = next((x for x in fein if JETZT - ts(x[0]) <= timedelta(minutes=65)), None)
+            basis = {"id": sid, "heim": e["heim"], "gast": e["gast"], "liga": e.get("liga"), "anpfiff": e["anpfiff"],
+                     "top5": top5, "seit": ref[0]}
+            if x_off:                                  # Halbzeit-1X2: Chance jetzt gegen den ersten Stand
+                try:
+                    p_ = lambda pt: (lambda a: [x / sum(a) for x in a])([1 / pt[x_off + k] for k in range(3)])  # noqa: E731
+                    p0, p1 = p_(ref), p_(lj)
+                    d = [(p1[k] - p0[k]) * 100 for k in range(3)]
+                    k = max(range(3), key=lambda q: d[q])
+                    if d[k] >= PINN_VOR_MIN_PP[top5]:
+                        pp60 = round((p1[k] - p_(v60)[k]) * 100, 1) if v60 and v60[x_off] else None
+                        out.append({**basis, "markt": "HZ", "art": "quote", "auf": [e["heim"], "Remis", e["gast"]][k], "seite": k,
+                                    "linie": None, "vonQuote": ref[x_off + k], "quote": lj[x_off + k], "pp": round(d[k], 1),
+                                    "pp60": pp60, "frisch": bool(pp60 is not None and pp60 >= PINN_FRISCH_PP[top5]),
+                                    "verlauf": [round(p_(x)[k] * 100, 1) for x in lg if None not in x[x_off:x_off + 3]]})
+                except (TypeError, ZeroDivisionError, IndexError):
+                    pass
+            for markt, o in maerkte:
+                l0, a0, b0 = ref[o:o + 3]
+                l1, a1, b1 = lj[o:o + 3]
+                if None in (l0, a0, b0, l1, a1, b1):
+                    continue
+                ah = markt.endswith("AH")
+                seiten = (e["heim"], e["gast"]) if ah else ("Über", "Unter")
+                verlauf = [x[o] for x in lg if x[o] is not None] + [l1]
+                if l1 != l0:
+                    # AH: Linie aus Heimsicht; sinkt sie (−0,5 → −0,75), traut Pinnacle dem Heimteam mehr zu.
+                    # O/U: steigt sie, mehr Tore erwartet.
+                    i = (0 if l1 < l0 else 1) if ah else (0 if l1 > l0 else 1)
+                    frisch = bool(v60 and v60[o] is not None and v60[o] != l1)
+                    out.append({**basis, "markt": markt, "art": "linie", "auf": seiten[i], "seite": i,
+                                "von": l0, "nach": l1, "schritte": round(abs(l1 - l0) / 0.25),
+                                "linie": (l1 if i == 0 else -l1) if ah else l1, "quote": (a1, b1)[i],
+                                "frisch": frisch, "verlauf": verlauf})
+                    continue
+                p0, p1 = _p2(a0, b0), _p2(a1, b1)
+                if p0 is None or p1 is None:
+                    continue
+                d = (p1 - p0) * 100
+                i = 0 if d > 0 else 1
+                if abs(d) < PINN_VOR_MIN_PP[top5]:
+                    continue
+                pp60 = None
+                if v60 and v60[o] == l1 and _p2(v60[o + 1], v60[o + 2]) is not None:
+                    pp60 = round((p1 - _p2(v60[o + 1], v60[o + 2])) * 100 * (1 if i == 0 else -1), 1)
+                out.append({**basis, "markt": markt, "art": "quote", "auf": seiten[i], "seite": i,
+                            "linie": (l1 if i == 0 else -l1) if ah else l1,
+                            "vonQuote": (a0, b0)[i], "quote": (a1, b1)[i], "pp": round(abs(d), 1), "pp60": pp60,
+                            "frisch": bool(pp60 is not None and pp60 >= PINN_FRISCH_PP[top5]),
+                            "verlauf": [round((_p2(x[o + 1], x[o + 2]) if i == 0 else 1 - _p2(x[o + 1], x[o + 2])) * 100, 1)
+                                        for x in lg if x[o] == l1 and _p2(x[o + 1], x[o + 2]) is not None]})
     out.sort(key=lambda x: (-int(x["frisch"]), x["art"] != "linie", -(x.get("schritte") or 0), -(x.get("pp") or 0)))
     out = out[:60]
     for x in out:                                  # Betfair-Spiel nur für die gezeigten (Abrechnung der stillen Messung)
@@ -520,7 +541,7 @@ def pinn_linien(prices=None):
             x["bfId"] = bf_id(x)
         except Exception:  # noqa: BLE001
             x["bfId"] = None
-    return {"n": n, "vor": out}
+    return {"n": n, "nHz": n_ht, "vor": out}
 
 
 # ── Polymarket ───────────────────────────────────────────────────────────────────

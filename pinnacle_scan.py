@@ -150,6 +150,16 @@ def fortschreiben(events_by_key, sports, jetzt=None, bf_matches=None, namen=None
                     if ko > jetzt:
                         e.setdefault("lerst", lp)
                     e["ljetzt"] = lp
+                # 17.11.: Pinnacle 1. Halbzeit (nur vor Anpfiff, je Spiel alle ~15 Min abgerufen) —
+                # [ts, 1X2 Heim, Remis, Gast, AH-Linie Heim, Q Heim, Q Gast, O/U-Linie, Q Über, Q Unter]
+                ht = ev.get("ht") or {}
+                if ht and ko > jetzt:
+                    hp = [jetzt.isoformat(), *(ht.get("x") or [None] * 3), *(ht.get("ah") or [None] * 3), *(ht.get("ou") or [None] * 3)]
+                    e["hgrob"] = _anhaengen(e.get("hgrob") or [], hp, GROB_MIN_ABSTAND - 60, jetzt)[-GROB_N:]
+                    e["hfein"] = [x for x in _anhaengen(e.get("hfein") or [], hp, FEIN_MIN_ABSTAND, jetzt)
+                                  if jetzt - (_ts(x[0]) or jetzt) <= FEIN_FENSTER]
+                    e.setdefault("herst", hp)
+                    e["hjetzt"] = hp
                 neu[sid] = e
         roh = json.dumps({"stand": jetzt.isoformat(), "n": len(neu), "spiele": neu},
                          ensure_ascii=False, separators=(",", ":"))

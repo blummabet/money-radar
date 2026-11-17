@@ -106,8 +106,12 @@ def gewonnen(markt, auswahl, heim, gast, ft, ht):
     17.11.: „Asian Handicap" (Auswahl „<Team> <Linie>") und „Pinnacle Total" (Auswahl „Over 2.75") können außerdem
     "void", "halbsieg" oder "halbverlust" liefern."""
     m, a = str(markt or ""), str(auswahl or "")
-    if m in ("Asian Handicap", "Pinnacle Total") and ft and len(ft) == 2 and None not in ft:
-        h, g = ft
+    if m.replace("First Half ", "") in ("Asian Handicap", "Pinnacle Total"):
+        st_ = ht if m.startswith("First Half") else ft
+        if not st_ or len(st_) != 2 or None in st_:
+            return None
+        h, g = st_
+        m = m.replace("First Half ", "")
         mm = re.match(r"^(.*\S)\s+([+-]?\d+(?:\.\d+)?)$", a)
         if not mm:
             return None

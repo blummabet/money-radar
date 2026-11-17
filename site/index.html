@@ -4343,16 +4343,17 @@ function pinDropKarte(s, live){
 const lzD = x => (x>0?"+":x<0?"−":"")+String(Math.abs(x)).replace(".",",");
 function pinLinieKarte(s){
   const bf = s.bfId ? klickSpiel({id:s.bfId, heim:s.heim, gast:s.gast}) : "";
-  const mk = s.markt==="AH" ? "Handicap" : "Über/Unter";
-  const wette = s.markt==="AH" ? `${esc(s.auf)} ${lzD(s.linie)}` : `${esc(s.auf)} ${String(s.linie).replace(".",",")}`;
+  const ah = s.markt.endsWith("AH"), hz = s.markt.startsWith("HZ");
+  const mk = (hz?"1. HZ ":"") + (s.markt==="HZ" ? "Sieg-Markt" : ah ? "Handicap" : "Über/Unter");
+  const wette = s.markt==="HZ" ? esc(s.auf) : ah ? `${esc(s.auf)} ${lzD(s.linie)}` : `${esc(s.auf)} ${String(s.linie).replace(".",",")}`;
   const zeile = s.art==="linie"
-    ? `<div class="pdk-q"><span>${s.markt==="AH"?lzD(s.von):String(s.von).replace(".",",")}</span><b>${s.markt==="AH"?lzD(s.nach):String(s.nach).replace(".",",")}</b><small>${s.schritte}× ¼ ${s.frisch?"· in 1 h":""}</small></div>`
+    ? `<div class="pdk-q"><span>${ah?lzD(s.von):String(s.von).replace(".",",")}</span><b>${ah?lzD(s.nach):String(s.nach).replace(".",",")}</b><small>${s.schritte}× ¼ ${s.frisch?"· in 1 h":""}</small></div>`
     : `<div class="pdk-q"><span>${q2(s.vonQuote)}</span><b>${q2(s.quote)}</b><small>+${dez(s.frisch?s.pp60:s.pp)} pp${s.frisch?" in 1 h":""}</small></div>`;
   const n = (s.verlauf||[]).length;
   return `<div class="topf mk pdk" ${bf}>
     <div class="mk-kopf"><span class="mk-liga">${esc(ligaName(s.liga)||"")} · ${mk}</span><span class="mk-zeit">${wann(s.anpfiff)}</span></div>
     <div class="pdk-m"><div style="min-width:0"><div class="mk-name">${esc(s.heim)} – ${esc(s.gast)}</div>
-      <div class="pdk-auf">${s.art==="linie"?(s.markt==="AH"?"Linie verschoben (Heimsicht) → ":"Linie verschoben → "):"Quote fällt → "}${wette} @ ${q2(s.quote)}</div></div>${zeile}</div>
+      <div class="pdk-auf">${s.art==="linie"?(ah?"Linie verschoben (Heimsicht) → ":"Linie verschoben → "):"Quote fällt → "}${wette} @ ${q2(s.quote)}</div></div>${zeile}</div>
     ${n>=2&&s.art==="quote"?linien({reihen:[{werte:s.verlauf, farbe:"var(--pin)", flaeche:true}], x:s.verlauf.map((_,i)=>i===0?uhr(s.seit):i===n-1?"jetzt":""), hoehe:70, fmt:v=>Math.round(v)+" %"}):""}
   </div>`;
 }
@@ -4384,7 +4385,7 @@ function seitePinnacle(D){
   const vorS = [...vor].sort((a,b)=>rang(a)-rang(b) || (b.frisch?1:0)-(a.frisch?1:0) || b.pp-a.pp);
   (vor.length?voll:leer).push(["Drops vor Anpfiff", "seit dem ersten Stand · frisch = in der letzten Stunde · zuerst, wo Betfair mitzieht", vorS.map(x=>pinDropKarte(x,false))]);
   const pl = lf((D.pinnLinien||{}).vor||[]);
-  (pl.length?voll:leer).push(["Handicap & Über/Unter vor Anpfiff", `Pinnacle-Hauptlinie seit dem ersten Stand (bis 12 h) · Linie verschoben oder Quote fällt · ${(D.pinnLinien||{}).n||0} Spiele mit Linien · still gemessen (Regel PL1)`, pl.map(pinLinieKarte)]);
+  (pl.length?voll:leer).push(["Handicap, Über/Unter & 1. Halbzeit vor Anpfiff", `Pinnacle-Hauptlinie seit dem ersten Stand (bis 12 h) · Linie verschoben oder Quote fällt · ${(D.pinnLinien||{}).n||0} Spiele mit Linien, ${(D.pinnLinien||{}).nHz||0} mit Halbzeit (nur Anpfiff in ≤ 6 h) · still gemessen (Regel PL1)`, pl.map(pinLinieKarte)]);
   return `<div class="grid">
     <div class="panel c12 kz-panel">${kzReihe([
       ["Spiele mit Pinnacle-Quote", pd.n||0, "alle Ligen, vor Anpfiff und live"],
@@ -4641,6 +4642,11 @@ const STAT_K = {
   pinnAHQuote:["Pinnacle-Handicap: Quote fällt","Nur gemessen","color-mix(in srgb, var(--pin) 45%, var(--text-3))"],
   pinnOULinie:["Pinnacle Über/Unter: Linie verschoben","Nur gemessen","color-mix(in srgb, var(--pin) 70%, var(--up))"],
   pinnOUQuote:["Pinnacle Über/Unter: Quote fällt","Nur gemessen","color-mix(in srgb, var(--pin) 45%, var(--up))"],
+  pinnHZQuote:["Pinnacle 1. Halbzeit: Sieg-Quote fällt","Nur gemessen","color-mix(in srgb, var(--pin) 55%, var(--down))"],
+  pinnHZAHLinie:["Pinnacle 1. HZ Handicap: Linie verschoben","Nur gemessen","color-mix(in srgb, var(--pin) 60%, var(--down))"],
+  pinnHZAHQuote:["Pinnacle 1. HZ Handicap: Quote fällt","Nur gemessen","color-mix(in srgb, var(--pin) 40%, var(--down))"],
+  pinnHZOULinie:["Pinnacle 1. HZ Über/Unter: Linie verschoben","Nur gemessen","color-mix(in srgb, var(--pin) 60%, var(--text-3))"],
+  pinnHZOUQuote:["Pinnacle 1. HZ Über/Unter: Quote fällt","Nur gemessen","color-mix(in srgb, var(--pin) 40%, var(--text-3))"],
   // Regel T1 (16.11.): Tor-Linie im praktisch entschiedenen Spiel — nur Money-Kanal, nie Public
   serieKlar:["Dauerzufluss Tor-Linie, Spiel entschieden","Betfair","color-mix(in srgb, var(--bf) 45%, var(--text-3))"],
   liveKlar:["Live-Zufluss Tor-Linie, Spiel entschieden","Betfair","color-mix(in srgb, var(--down) 45%, var(--text-3))"],
@@ -5042,8 +5048,8 @@ const REGELN = [
   {id:"ST6", t:"Keine Stake-Pushes bei Top-E-Sport-Turnieren", seit:"12.11. · 16.11. ergänzt", w:"BLAST, IEM, PGL, Majors, LoL-WM, MSI, VCT … — da wettet die Masse auf große Namen.", b:"16.11.: die LoL-WM rutschte durch (Stake nennt sie „World Championship“) — behoben."},
  ]},
  {g:"Pinnacle · nur gemessen", r:[
-  {id:"PL1", t:"Handicap und Über/Unter vor Anpfiff", seit:"17.11.", w:"Für alle Wettbewerbe der Odds API holt der Bau die Pinnacle-Hauptlinie im Asiatischen Handicap und bei Über/Unter. Wandert die Linie oder fällt die Quote auf gleicher Linie (2,5 pp, Top-5 1,5 pp), steht das Spiel im Pinnacle-Tab und geht still ins Buch, zur Pinnacle-Quote. Viertel-Linien werden halb abgerechnet. Kein Push.", b:"Nur Spiele, die auch Betfair führt (für den Endstand).",
-   mess:[{n:"Handicap: Linie verschoben", a:["pinnAHLinie"]},{n:"Handicap: Quote fällt", a:["pinnAHQuote"]},{n:"Über/Unter: Linie verschoben", a:["pinnOULinie"]},{n:"Über/Unter: Quote fällt", a:["pinnOUQuote"]}]},
+  {id:"PL1", t:"Handicap und Über/Unter vor Anpfiff", seit:"17.11.", w:"Für alle Wettbewerbe der Odds API holt der Bau die Pinnacle-Hauptlinie im Asiatischen Handicap und bei Über/Unter, für Spiele mit Anpfiff in den nächsten 6 h alle 15 Min auch die 1. Halbzeit (Sieg, Handicap, Über/Unter). Wandert die Linie oder fällt die Quote auf gleicher Linie (2,5 pp, Top-5 1,5 pp), steht das Spiel im Pinnacle-Tab und geht still ins Buch, zur Pinnacle-Quote. Viertel-Linien werden halb abgerechnet. Kein Push.", b:"Nur Spiele, die auch Betfair führt (für den Endstand).",
+   mess:[{n:"Handicap: Linie verschoben", a:["pinnAHLinie"]},{n:"Handicap: Quote fällt", a:["pinnAHQuote"]},{n:"Über/Unter: Linie verschoben", a:["pinnOULinie"]},{n:"Über/Unter: Quote fällt", a:["pinnOUQuote"]},{n:"1. HZ Sieg-Markt", a:["pinnHZQuote"]},{n:"1. HZ Handicap", a:["pinnHZAHLinie","pinnHZAHQuote"]},{n:"1. HZ Über/Unter", a:["pinnHZOULinie","pinnHZOUQuote"]}]},
  ]},
  {g:"Druck-Radar und Top 3", r:[
   {id:"D6", t:"Abkühlen nach eigenem Tor", seit:"07.11.", w:"Nach einem Tor des Druck-Teams zählt nur xG seit dem Tor.", b:"15.11.: vorher −1,5 % (128), seit D6 +4,9 % (245). Behalten.", dr:"ab Regel 5 (Anlauf ohne xG kippt nicht mehr)"},

@@ -392,7 +392,7 @@ def parse_event(ev) -> dict:
     # einzelnes Buch mit irrer (oft live-traeger) Quote den arithmetischen Schnitt hoch und laesst die
     # Anzeige von Scan zu Scan springen (11 -> 34). Der Median ist ausreisser-fest.
     soft_odds = [_median([x[i] for x in soft_o]) for i in range(3)] if soft_o else None
-    out = {"home": home, "away": away, "commence": ev.get("commence_time"),
+    out = {"home": home, "away": away, "commence": ev.get("commence_time"), "eid": ev.get("id"),
            "pinn": pinn, "soft": soft, "pinnOdds": pinn_odds, "softOdds": soft_odds, "nSoft": len(soft_p),
            "buecher": buecher}
     if pinn_roh:
@@ -1725,6 +1725,84 @@ def linien_anhaengen(events_by_key, t0, budget=LINIEN_BUDGET_S):
     print("linien: %d Wettbewerbe, %d Spiele mit Handicap/Über-Unter" % (n_k, n_e))
 
 
+# 17.11. (Lucas: „hat Pinnacle für die Ligen auch Halftime? … damit wir das auch dazu nehmen"): die Probe ergab, dass
+# die Odds API Pinnacle-Halbzeitmärkte (1X2, Handicap, Über/Unter 1. HZ) NUR je Spiel liefert (Event-Endpunkt, 3 Credits
+# je Spiel und Abruf). Darum: nur Spiele mit Anpfiff in den nächsten HT_FENSTER_H Stunden, je Spiel alle HT_ABSTAND_MIN
+# Minuten, höchstens HT_MAX je Lauf. Live nicht (dort zieht die Zeit die Halbzeit-Linien ohnehin).
+HT_FENSTER_H = float(os.environ.get("BF_HT_FENSTER_H") or 6)
+HT_ABSTAND_MIN = float(os.environ.get("BF_HT_ABSTAND_MIN") or 15)
+HT_MAX = int(os.environ.get("BF_HT_MAX") or 30)
+HT_ABRUF = "ht_abruf.json"
+
+
+def parse_ht(ev, home, away):
+    """Event-Antwort (bookmakers=pinnacle) → {"x": [Heim, Remis, Gast], "ah": [Linie Heim, Q Heim, Q Gast], "ou": [Linie, Q Über, Q Unter]}."""
+    out = {}
+    for bk in ev.get("bookmakers") or []:
+        if bk.get("key") != "pinnacle":
+            continue
+        for mkt in bk.get("markets") or []:
+            oc = {str(o.get("name")): o for o in mkt.get("outcomes") or [] if isinstance(o, dict)}
+            k = mkt.get("key")
+            try:
+                if k == "h2h_3_way_h1" and home in oc and away in oc and "Draw" in oc:
+                    out["x"] = [float(oc[home]["price"]), float(oc["Draw"]["price"]), float(oc[away]["price"])]
+                elif k == "spreads_h1" and home in oc and away in oc and isinstance(oc[home].get("point"), (int, float)):
+                    out["ah"] = [float(oc[home]["point"]), float(oc[home]["price"]), float(oc[away]["price"])]
+                elif k == "totals_h1" and "Over" in oc and "Under" in oc and isinstance(oc["Over"].get("point"), (int, float)):
+                    out["ou"] = [float(oc["Over"]["point"]), float(oc["Over"]["price"]), float(oc["Under"]["price"])]
+            except (TypeError, ValueError, KeyError):
+                continue
+    return out
+
+
+def ht_anhaengen(events_by_key, t0, budget=None):
+    import time as _t
+    budget = budget or ODDS_GESAMT_S
+    jetzt = datetime.now(timezone.utc)
+    abruf = _load(HT_ABRUF, {}) or {}
+    abruf = {k: v for k, v in abruf.items() if isinstance(v, str) and v >= (jetzt - timedelta(days=1)).isoformat()}
+    kand = []
+    for k, evs in events_by_key.items():
+        for e in evs or []:
+            ko = _ts_iso(e.get("commence"))
+            if not e.get("pinn") or not e.get("eid") or not ko or not (jetzt < ko <= jetzt + timedelta(hours=HT_FENSTER_H)):
+                continue
+            letzt = _ts_iso(abruf.get(e["eid"]))
+            if letzt and (jetzt - letzt).total_seconds() < HT_ABSTAND_MIN * 60:
+                continue
+            kand.append((ko, k, e))
+    kand.sort(key=lambda x: x[0])
+    n = 0
+    for ko, k, e in kand[:HT_MAX]:
+        if _t.monotonic() - t0 > budget:
+            break
+        url = ("%s/sports/%s/events/%s/odds?apiKey=%s&bookmakers=pinnacle&markets=%s&oddsFormat=decimal&dateFormat=iso"
+               % (ODDS_BASE, k, e["eid"], ODDS_KEY, HT_MAERKTE))
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "cocobet-consensus"}),
+                                        timeout=ODDS_TIMEOUT_S) as r:
+                _kontingent_merken(r, "ht")
+                d = json.load(r)
+            ht = parse_ht(d, e.get("home"), e.get("away"))
+            abruf[e["eid"]] = jetzt.isoformat()
+            if ht:
+                e["ht"] = ht
+                n += 1
+        except Exception as exc:  # noqa: BLE001
+            print("ht-fetch %s: %s" % (k, str(exc)[:80]))
+    _dump(HT_ABRUF, abruf)
+    print("halbzeit: %d Kandidaten (Anpfiff ≤ %.0f h, je %d Min), %d abgerufen mit Pinnacle-HZ" % (len(kand), HT_FENSTER_H, HT_ABSTAND_MIN, n))
+
+
+def _ts_iso(s):
+    try:
+        d = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def ht_probe(events_by_key):
     """17.11. (Lucas: „hat Pinnacle für die Ligen auch Halftime?"): einmal je Stunde nachsehen, ob die Odds API
     Pinnacle-Halbzeitmärkte liefert — erst über den Wettbewerbs-Endpunkt, sonst über ein einzelnes Spiel. Nur Protokoll."""
@@ -1876,7 +1954,10 @@ def main():
         linien_anhaengen(events_by_key, _time.monotonic())
     except Exception as _e:  # noqa: BLE001
         print("linien: nicht gelaufen (%s)" % str(_e)[:100])
-    ht_probe(events_by_key)
+    try:
+        ht_anhaengen(events_by_key, _time.monotonic())
+    except Exception as _e:  # noqa: BLE001
+        print("halbzeit: nicht gelaufen (%s)" % str(_e)[:100])
     # money-radar 18.10.2026: eigener Pinnacle-Scan über ALLE abgerufenen Spiele (nicht nur die Radar-Liste),
     # vor Anpfiff und live — gleich hier, damit ein späterer Timeout ihn nicht mitreißt.
     try:

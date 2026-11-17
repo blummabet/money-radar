@@ -1599,16 +1599,18 @@ def pinn_linien_still(d):
         if not x.get("bfId") or not isinstance(x.get("quote"), (int, float)) or x["quote"] <= 1:
             continue
         l = x.get("linie")
-        if not isinstance(l, (int, float)):
+        if x["markt"] == "HZ":                      # Halbzeit-1X2 (Betfair-Name für Remis)
+            markt, auswahl = "Half Time", ("The Draw" if x["seite"] == 1 else x["auf"])
+        elif not isinstance(l, (int, float)):
             continue
-        if x["markt"] == "AH":
-            markt, auswahl = "Asian Handicap", f"{x['auf']} {l:+g}"
+        elif x["markt"].endswith("AH"):
+            markt, auswahl = ("First Half " if x["markt"].startswith("HZ") else "") + "Asian Handicap", f"{x['auf']} {l:+g}"
         else:
-            markt, auswahl = "Pinnacle Total", f"{'Over' if x['seite'] == 0 else 'Under'} {l:g}"
+            markt, auswahl = ("First Half " if x["markt"].startswith("HZ") else "") + "Pinnacle Total", f"{'Over' if x['seite'] == 0 else 'Under'} {l:g}"
         yield (f"pl|{x['id']}|{x['markt']}|{x['seite']}", None, None,
                {"art": "pinnLinie", "id": x["bfId"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": False, "markt": markt, "auswahl": auswahl,
-                "quote": x["quote"], "lmarkt": x["markt"], "lart": x["art"], "pp": x.get("pp"),
+                "quote": x["quote"], "lmarkt": x["markt"].replace("-", ""), "lart": x["art"], "pp": x.get("pp"),
                 "schritte": x.get("schritte"), "regel": "PL1"})
 
 
