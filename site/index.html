@@ -117,7 +117,7 @@ main{padding:22px 28px 60px;min-width:0}
 .pla-gross b{font-size:30px;font-weight:800;color:var(--text);letter-spacing:-.5px}
 .pla-gross span{font-size:17px;color:var(--text-2);font-weight:600}
 .pla-gg{display:inline-block;font-size:12.5px;color:var(--text-3);border:1px dashed var(--line);border-radius:8px;padding:3px 9px;font-variant-numeric:tabular-nums}
-.pla-sk{width:100%}
+.pla-sk{width:100%;max-width:360px;margin:0 auto}
 .pla-ske{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;color:var(--text-3);margin-bottom:-2px}
 .pla-sk svg{width:100%;height:auto;display:block;overflow:visible}
 .pla-t line{stroke:var(--text-3);stroke-width:1;opacity:.5}
@@ -129,10 +129,10 @@ main{padding:22px 28px 60px;min-width:0}
 .pla-tx.alt{fill:var(--text-3);font-weight:600;text-decoration:line-through}
 .pla-tr{font-size:10px;fill:var(--text-3)}
 .pla-satz{font-size:13px;color:var(--text-2);text-align:center;margin-top:2px} .pla-satz b{color:var(--c)}
-.pla-kv{width:100%;height:56px;display:block}
+.pla-kv{width:100%;max-width:360px;height:56px;display:block}
 .pla-kv path{fill:none;stroke:var(--c);stroke-width:2}
 .pla-kv circle{fill:var(--c)}
-.pla-kl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-3);margin-top:3px} .pla-kl b{color:var(--text)}
+.pla-kl{display:flex;justify-content:space-between;max-width:360px;font-size:11.5px;color:var(--text-3);margin-top:3px} .pla-kl b{color:var(--text)}
 .pla-stl{font-size:11.5px;font-weight:700;color:var(--c)}
 .pla-stw{font-size:26px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums} .pla-stw small{font-size:13px;color:var(--text-3);font-weight:600}
 .pla-stb{height:6px;border-radius:3px;background:var(--panel-3);overflow:hidden;margin-top:4px} .pla-stb i{display:block;height:100%;background:var(--c);border-radius:3px}
@@ -4431,12 +4431,10 @@ function plSkala(s){
   const lo = Math.floor((Math.min(x0,x1)-2*schritt)/schritt)*schritt, hi = Math.ceil((Math.max(x0,x1)+2*schritt)/schritt)*schritt;
   const W=300, P=14, X = v => P + (v-lo)/(hi-lo)*(W-2*P);
   let ticks=""; for(let v=lo; v<=hi+1e-9; v+=schritt) ticks += `<line x1="${X(v)}" x2="${X(v)}" y1="30" y2="36" />`;
-  const pf = x1>x0 ? -1 : 1;
   return `<div class="pla-sk"><div class="pla-ske"><span>◀ ${esc(links)}</span><span>${esc(rechts)} ▶</span></div>
     <svg viewBox="0 0 ${W} 58" role="img" aria-label="${esc(fmt(x0))} nach ${esc(fmt(x1))}">
       <g class="pla-t"><line x1="${P}" x2="${W-P}" y1="33" y2="33" />${ticks}</g>
       <line class="pla-b" x1="${X(x0)}" x2="${X(x1)}" y1="33" y2="33" />
-      <path class="pla-pf" d="M${X(x1)+pf*11},27 L${X(x1)+pf*3},33 L${X(x1)+pf*11},39" />
       <circle class="pla-alt" cx="${X(x0)}" cy="33" r="6" /><circle class="pla-neu" cx="${X(x1)}" cy="33" r="7" />
       <text class="pla-tx alt" x="${X(x0)}" y="16">${fmt(x0)}</text><text class="pla-tx" x="${X(x1)}" y="16">${fmt(x1)}</text>
       <text class="pla-tr" x="${P}" y="54">${fmt(lo)}</text><text class="pla-tr" x="${W-P}" y="54" text-anchor="end">${fmt(hi)}</text>
@@ -4445,7 +4443,7 @@ function plSkala(s){
 function plKurve(s){
   const k = (s.kurve||[]).filter(v=>typeof v==="number"); if(k.length<2) return `<div class="pla-kl">Noch zu wenige Stände</div>`;
   const W=260, H=56, lo=Math.min(...k), hi=Math.max(...k), sp=(hi-lo)||1;
-  const ah = s.markt.endsWith("AH"), umk = s.art==="linie" && ah && s.seite===0;   // Heim-Drop: Linie fällt → Kurve nach oben zeigen
+  const ah = s.markt.endsWith("AH"), umk = s.art==="linie" && (ah ? s.seite===0 : s.seite===1);   // Kurve steigt immer Richtung Drop-Seite
   const Y = v => { let t=(v-lo)/sp; if(umk) t=1-t; return H-4-t*(H-8); };
   const pts = k.map((v,n)=>[n/(k.length-1)*W, Y(v)]);
   const d = s.art==="linie" ? pts.map((p,n)=>n?`H${p[0].toFixed(1)}V${p[1].toFixed(1)}`:`M${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("") : "M"+pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join("L");
