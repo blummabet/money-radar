@@ -1746,6 +1746,14 @@ def linien_anhaengen(events_by_key, t0, budget=LINIEN_BUDGET_S):
                 e["ln"] = ln
                 n_e += 1
     n_lay = sum(1 for evs in events_by_key.values() for e in evs or [] if (e.get("ln") or {}).get("lay") and e.get("bfxBack"))
+    _alle = [e for evs in events_by_key.values() for e in evs or []]
+    _bu = {}
+    for e in _alle:
+        for b_ in e.get("buecher") or []:
+            if "betfair" in b_ or "matchbook" in b_ or "smarkets" in b_:
+                _bu[b_] = _bu.get(b_, 0) + 1
+    print("linien-diag: Back %d, Lay %d, Börsen in h2h: %s" % (sum(1 for e in _alle if e.get("bfxBack")),
+          sum(1 for e in _alle if (e.get("ln") or {}).get("lay")), _bu))
     print("linien: %d Wettbewerbe, %d Spiele mit Handicap/Über-Unter, %d mit Betfair Back+Lay" % (n_k, n_e, n_lay))
 
 
