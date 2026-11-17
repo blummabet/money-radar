@@ -118,12 +118,12 @@ main{padding:22px 28px 60px;min-width:0}
 .pll-zt{font-size:12px;font-weight:700;color:var(--text-2);white-space:nowrap}
 .pll-sp{min-width:0;display:flex;flex-direction:column}
 .pll-sp b{font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pll-sp small{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pll-sp small{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}
 .pll-ms{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
-.pll-m{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;font-weight:700;color:var(--pin);background:color-mix(in srgb, var(--pin) 11%, var(--panel));border:1px solid color-mix(in srgb, var(--pin) 35%, transparent);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.pll-m{--c:var(--pin);display:inline-flex;align-items:baseline;gap:5px;font-size:13px;font-weight:700;color:var(--c);background:color-mix(in srgb, var(--c) 11%, var(--panel));border:1px solid color-mix(in srgb, var(--c) 35%, transparent);border-radius:999px;padding:3px 10px;white-space:nowrap}
 .pll-m small{font-size:11px;color:var(--text-3);font-weight:700}
 .pll-m em{font-style:normal;font-size:11.5px;color:var(--text-2);font-weight:600}
-.pll-m.f{box-shadow:inset 3px 0 0 var(--pin)}
+.pll-m.f{box-shadow:inset 3px 0 0 var(--c)}
 .pll-auf{padding:2px 4px 12px}
 .pll-auf .chip{margin-top:8px}
 @media (max-width:700px){ .pll-z summary{grid-template-columns:58px minmax(0,1fr)} .pll-ms{grid-column:1 / -1;justify-content:flex-start} }
@@ -134,13 +134,14 @@ main{padding:22px 28px 60px;min-width:0}
 .plk-m{display:flex;align-items:baseline;gap:8px;font-size:12px;margin-bottom:6px}
 .plk-m span{font-weight:800;color:var(--text)}
 .plk-m em{font-style:normal;color:var(--text-3);font-weight:600}
-.plk-m i{font-style:normal;color:var(--pin);font-weight:700;margin-left:auto}
+.plk-m i{font-style:normal;color:var(--c);font-weight:700;margin-left:auto}
 .plk-ks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .plk-ks.n3{grid-template-columns:1fr 1fr 1fr}
 .plk-k{border:1px solid var(--line);border-radius:10px;padding:7px 10px;background:var(--panel);min-width:0;opacity:.7}
-.plk-k.an{opacity:1;background:color-mix(in srgb, var(--pin) 12%, var(--panel));border-color:color-mix(in srgb, var(--pin) 55%, transparent)}
+.plk-z{--c:var(--pin)}
+.plk-k.an{opacity:1;background:color-mix(in srgb, var(--c) 12%, var(--panel));border-color:color-mix(in srgb, var(--c) 55%, transparent)}
 .plk-kn{font-size:13px;font-weight:700;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.plk-k.an .plk-kn{color:var(--pin)}
+.plk-k.an .plk-kn{color:var(--c)}
 .plk-kl{font-variant-numeric:tabular-nums;margin-top:1px}
 .plk-kl b{font-size:20px;font-weight:800;color:var(--text)}
 .plk-kl s{font-size:13px;color:var(--text-3);margin-right:6px}
@@ -4404,7 +4405,7 @@ function plZeile(s){
       ${l1!==undefined?`<div class="plk-kl">${alt?`<s>${l0}</s>`:""}<b>${l1}</b></div>`:""}
       ${an?`<div class="plk-kq">${s.art==="quote"?`<s>${q2(s.vonQuote)}</s> `:""}@ ${q2(s.quote)}</div>`:""}
     </div>`; };
-  return `<div class="plk-z">
+  return `<div class="plk-z" style="--c:${plFarbe(s)}">
     <div class="plk-m"><span>${mk}</span><em>${was}</em>${s.frisch?`<i>● frisch</i>`:""}</div>
     <div class="plk-ks n${seiten.length}">${seiten.map(kachel).join("")}</div>
   </div>`;
@@ -4413,13 +4414,15 @@ function plZeile(s){
 // nach Liga bzw. Drop"): je Spiel eine Zeile mit den Drop-Seiten als kurze Marken, aufklappbar zu den Kacheln.
 let PLS = (()=>{ try{ return localStorage.getItem("plSort") || "drop"; }catch(e){ return "drop"; } })();
 let PLD = [];
+// Lucas 17.11.: Halbzeit und Über/Unter in den Farben der Betfair-Wall (HZ rosa, Tore türkis), Handicap Pinnacle-Blau
+const plFarbe = s => s.markt.startsWith("HZ") ? "var(--mw-hz, var(--hz))" : s.markt.endsWith("OU") ? "var(--mw-tore, #1fc2a4)" : "var(--pin)";
 const plStaerke = s => s.art==="linie" ? s.schritte*5 : s.pp;        // ¼-Schritt ≈ 5 pp — grob, nur zum Sortieren
 function plMarke(s){
   const ah = s.markt.endsWith("AH"), hz = s.markt.startsWith("HZ");
   const mk = (hz?"HZ ":"") + (s.markt==="HZ" ? "Sieg" : ah ? "HC" : "Tore");
   const wer = s.markt==="HZ" ? (s.seite===1?"Remis":s.auf) : ah ? `${s.auf} ${lzD(s.linie)}` : `${s.auf} ${lzT(s.linie)}`;
   const was = s.art==="linie" ? (s.schritte===1?"¼":s.schritte+"×¼") : `+${dez(s.pp)}pp`;
-  return `<span class="pll-m${s.frisch?" f":""}"><small>${mk}</small>▼ ${esc(wer)}<em>${was}</em></span>`;
+  return `<span class="pll-m${s.frisch?" f":""}" style="--c:${plFarbe(s)}"><small>${mk}</small>▼ ${esc(wer)}<em>${was}</em></span>`;
 }
 function plListe(){
   const G = {};
@@ -4430,10 +4433,10 @@ function plListe(){
   else Z.sort((a,b)=>b.st-a.st || b.f-a.f);
   let letzte = null;
   const zeilen = Z.map(({z,liga})=>{
-    const s=z[0], kopf = PLS==="liga" && liga!==letzte ? `<div class="pll-liga">${esc(liga)}</div>` : ""; letzte = liga;
+    const s=z[0], kopf = PLS==="liga" && liga!==letzte ? `<div class="pll-liga">${flagge(s.land)} ${esc(liga)}</div>` : ""; letzte = liga;
     return `${kopf}<details class="pll-z"><summary>
         <span class="pll-zt">${wann(s.anpfiff)}</span>
-        <span class="pll-sp"><b>${esc(s.heim)} – ${esc(s.gast)}</b>${PLS==="liga"?"":`<small>${esc(liga)}</small>`}</span>
+        <span class="pll-sp"><b>${esc(s.heim)} – ${esc(s.gast)}</b><small>${flagge(s.land)} ${PLS==="liga"?"":esc(liga)}</small></span>
         <span class="pll-ms">${z.map(plMarke).join("")}</span>
       </summary><div class="pll-auf">${z.map(plZeile).join("")}${s.bfId?`<button class="chip" ${klickSpiel({id:s.bfId, heim:s.heim, gast:s.gast})}>Spiel öffnen</button>`:""}</div></details>`; }).join("");
   const knopf = (k,n) => `<button class="${PLS===k?"an":""}" onclick="plSortieren('${k}')">${n}</button>`;

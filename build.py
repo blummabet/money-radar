@@ -446,6 +446,20 @@ def _lz(x):
     return ("+" if x > 0 else "") + (f"{x:g}".replace("-", "−"))
 
 
+# 17.11. (Lucas: „Flagge des Landes der Liga dazu"): Odds-API-Schlüssel → Ländercode (wie Betfair „country")
+_KEY_LAND = (("epl", "GB"), ("efl", "GB"), ("england", "GB"), ("spl", "GB"), ("germany", "DE"), ("spain", "ES"),
+             ("italy", "IT"), ("france", "FR"), ("netherlands", "NL"), ("portugal", "PT"), ("belgium", "BE"),
+             ("turkey", "TR"), ("greece", "GR"), ("austria", "AT"), ("switzerland", "CH"), ("denmark", "DK"),
+             ("norway", "NO"), ("sweden", "SE"), ("poland", "PL"), ("russia", "RU"), ("brazil", "BR"),
+             ("argentina", "AR"), ("chile", "CL"), ("mexico", "MX"), ("usa", "US"), ("japan", "JP"), ("korea", "KR"),
+             ("australia", "AU"), ("china", "CN"), ("uefa", "International"), ("conmebol", "International"))
+
+
+def key_land(k):
+    k = str(k or "")
+    return next((c for w, c in _KEY_LAND if w in k), None)
+
+
 def pinn_linien(prices=None):
     bf = [m for m in (prices or {}).get("matches") or [] if isinstance(m, dict)]
 
@@ -485,7 +499,7 @@ def pinn_linien(prices=None):
             fein = e.get(pre + "fein") or []
             v60 = next((x for x in fein if JETZT - ts(x[0]) <= timedelta(minutes=65)), None)
             basis = {"id": sid, "heim": e["heim"], "gast": e["gast"], "liga": e.get("liga"), "anpfiff": e["anpfiff"],
-                     "top5": top5, "seit": ref[0]}
+                     "top5": top5, "seit": ref[0], "land": key_land(e.get("key"))}
             if x_off:                                  # Halbzeit-1X2: Chance jetzt gegen den ersten Stand
                 try:
                     p_ = lambda pt: (lambda a: [x / sum(a) for x in a])([1 / pt[x_off + k] for k in range(3)])  # noqa: E731
