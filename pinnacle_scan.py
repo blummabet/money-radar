@@ -150,6 +150,12 @@ def fortschreiben(events_by_key, sports, jetzt=None, bf_matches=None, namen=None
                     if ko > jetzt:
                         e.setdefault("lerst", lp)
                     e["ljetzt"] = lp
+                # 17.11.: Betfair-Börse Back + Lay (Odds API) — [ts, Back H, D, A, Lay H, D, A]. „bfxSchluss" = letzter Stand vor Anpfiff.
+                bk_, ly_ = ev.get("bfxBack"), (ln or {}).get("lay")
+                if bk_ and ly_:
+                    e["bfx"] = [jetzt.isoformat(), *bk_, *ly_]
+                    if ko > jetzt:
+                        e["bfxSchluss"] = e["bfx"]
                 # 17.11.: Pinnacle 1. Halbzeit (nur vor Anpfiff, je Spiel alle ~15 Min abgerufen) —
                 # [ts, 1X2 Heim, Remis, Gast, AH-Linie Heim, Q Heim, Q Gast, O/U-Linie, Q Über, Q Unter]
                 ht = ev.get("ht") or {}

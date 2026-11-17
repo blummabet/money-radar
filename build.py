@@ -544,6 +544,31 @@ def pinn_linien(prices=None):
     return {"n": n, "nHz": n_ht, "vor": out}
 
 
+# ── 17.11. Betfair-Börse Back/Lay aus der Odds API (Lucas: „wir würden back und lays dann sehen") ──────────────────
+# Je Betfair-Spiel (matchId) die beste Back- und Lay-Quote aller drei Ausgänge und der letzte Stand vor Anpfiff.
+# Die Spanne Lay/Back zeigt, wie dünn ein Markt ist; die Mitte vor Anpfiff ist eine zweite, saubere Schlussquote.
+def bf_spanne(prices):
+    try:
+        roh = json.loads((BASIS / ".pin" / "pinnacle_alle.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+    bf = [m for m in (prices or {}).get("matches") or [] if isinstance(m, dict) and ts(m.get("kickoff"))]
+    out = {}
+    for e in (roh.get("spiele") or {}).values():
+        x = e.get("bfx")
+        ko = ts(e.get("anpfiff"))
+        if not x or not ko:
+            continue
+        for m in bf:
+            if abs((ko - ts(m["kickoff"])).total_seconds()) > 20 * 60:
+                continue
+            if (_gleich(e["heim"], m.get("home")) and _gleich(e["gast"], m.get("away"), locker=True)) or \
+               (_gleich(e["heim"], m.get("home"), locker=True) and _gleich(e["gast"], m.get("away"))):
+                out[str(m.get("matchId"))] = {"ts": x[0], "back": x[1:4], "lay": x[4:7], "schluss": e.get("bfxSchluss")}
+                break
+    return out
+
+
 # ── Polymarket ───────────────────────────────────────────────────────────────────
 MIN_N = 12           # wie im alten Projekt (PW_RANK_MIN_N): darunter adelt Zufall Verlierer
 MIN_SCHNITT_USD = 500
@@ -2938,6 +2963,15 @@ def statistik(burst, finder):
         qg_ = b.get("qGeld")
         if isinstance(qg_, list) and len(qg_) == 2 and isinstance(qg_[0], (int, float)) and qg_[0] > 1 and isinstance(q, (int, float)):
             zeilen[-1].extend([None, round(q / qg_[0], 3)])
+        # 17.11.: Spanne Back/Lay beim Push (Odds API) und CLV gegen die Börsen-Mitte vor Anpfiff
+        sx, clvx = b.get("spanne"), None
+        if (not b.get("live") and isinstance(q, (int, float)) and isinstance(b.get("schlussX"), (int, float))
+                and b["schlussX"] > 1 and ts(b.get("schlussXTs")) and ts(b.get("anpfiff"))
+                and ts(b["schlussXTs"]) >= ts(b["anpfiff"]) - timedelta(minutes=20)):
+            clvx = round(100 * (q / b["schlussX"] - 1), 1)
+        if isinstance(sx, (int, float)) or clvx is not None:
+            zeilen[-1].extend([None] * (16 - len(zeilen[-1])))
+            zeilen[-1].extend([sx, clvx])
     for z in burst or []:
         if not isinstance(z, dict) or not z.get("push") or not stake_ok(z) or not ts(z.get("sentAt")):
             continue
@@ -2988,7 +3022,7 @@ def statistik(burst, finder):
             z.extend([None] * (14 - len(z)))
             z.append(stake_von[id(z)])
     zeilen.sort(key=lambda z: z[0])
-    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake", "qg"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake", "qg", "sp", "clvx"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return len(zeilen)
 
 # Public-Signale, die nachweislich mit überholtem Stand gesendet wurden (Datum UTC, Spiel normalisiert, 12 Zeichen) → void
@@ -3220,6 +3254,7 @@ def main() -> int:
         "pinnAlle": pinn_alle(consensus, history),
         "pinnDrops": pinn_drops(prices, bf_hist),
         "pinnLinien": pinn_linien(prices),
+        "bfSpanne": bf_spanne(prices),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
         "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, live_m, offen_m)),
         "marktCharts": markt_charts(radar),

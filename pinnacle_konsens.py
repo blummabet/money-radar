@@ -392,7 +392,19 @@ def parse_event(ev) -> dict:
     # einzelnes Buch mit irrer (oft live-traeger) Quote den arithmetischen Schnitt hoch und laesst die
     # Anzeige von Scan zu Scan springen (11 -> 34). Der Median ist ausreisser-fest.
     soft_odds = [_median([x[i] for x in soft_o]) for i in range(3)] if soft_o else None
-    out = {"home": home, "away": away, "commence": ev.get("commence_time"), "eid": ev.get("id"),
+    # 17.11. (Lucas: „back und lays sehen"): Betfair-Börse steckt schon im h2h-Abruf (Regionen uk/eu) — Back-Quoten mitnehmen
+    bfx_back = None
+    for _bk in ("betfair_ex_uk", "betfair_ex_eu"):
+        for bk in ev.get("bookmakers") or []:
+            if bk.get("key") != _bk or bfx_back:
+                continue
+            for mkt in bk.get("markets") or []:
+                if mkt.get("key") != "h2h":
+                    continue
+                oc = {str(o.get("name")): o.get("price") for o in mkt.get("outcomes") or [] if isinstance(o, dict)}
+                if all(isinstance(oc.get(n), (int, float)) for n in (home, away, "Draw")):
+                    bfx_back = [float(oc[home]), float(oc["Draw"]), float(oc[away])]
+    out = {"home": home, "away": away, "commence": ev.get("commence_time"), "eid": ev.get("id"), "bfxBack": bfx_back,
            "pinn": pinn, "soft": soft, "pinnOdds": pinn_odds, "softOdds": soft_odds, "nSoft": len(soft_p),
            "buecher": buecher}
     if pinn_roh:
@@ -1682,14 +1694,25 @@ def parse_linien(ev):
                         out["ou"] = [float(o["point"]), float(o["price"]), float(u["price"])]
             except (TypeError, ValueError):
                 continue
+    for _bk in ("betfair_ex_uk", "betfair_ex_eu"):
+        for bk in ev.get("bookmakers") or []:
+            if bk.get("key") != _bk or "lay" in out:
+                continue
+            for mkt in bk.get("markets") or []:
+                if mkt.get("key") != "h2h_lay":
+                    continue
+                oc = {str(o.get("name")): o.get("price") for o in mkt.get("outcomes") or [] if isinstance(o, dict)}
+                if all(isinstance(oc.get(n), (int, float)) for n in (home, away, "Draw")):
+                    out["lay"] = [float(oc[home]), float(oc["Draw"]), float(oc[away])]
     return (home, away, ev.get("commence_time")), out
 
 
 def fetch_linien(sport_key):
     if not ODDS_KEY:
         return []
-    url = ("%s/sports/%s/odds?apiKey=%s&bookmakers=pinnacle&markets=spreads,totals&oddsFormat=decimal&dateFormat=iso"
-           % (ODDS_BASE, sport_key, ODDS_KEY))
+    # 17.11.: dazu die Lay-Quoten der Betfair-Börse (h2h_lay) — 3 Märkte × 1 „Region" (≤ 10 Bücher) = 3 Credits
+    url = ("%s/sports/%s/odds?apiKey=%s&bookmakers=pinnacle,betfair_ex_uk,betfair_ex_eu&markets=spreads,totals,h2h_lay"
+           "&oddsFormat=decimal&dateFormat=iso" % (ODDS_BASE, sport_key, ODDS_KEY))
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "cocobet-consensus"})
         with urllib.request.urlopen(req, timeout=ODDS_TIMEOUT_S) as r:
@@ -1722,7 +1745,8 @@ def linien_anhaengen(events_by_key, t0, budget=LINIEN_BUDGET_S):
             if ln:
                 e["ln"] = ln
                 n_e += 1
-    print("linien: %d Wettbewerbe, %d Spiele mit Handicap/Über-Unter" % (n_k, n_e))
+    n_lay = sum(1 for evs in events_by_key.values() for e in evs or [] if (e.get("ln") or {}).get("lay") and e.get("bfxBack"))
+    print("linien: %d Wettbewerbe, %d Spiele mit Handicap/Über-Unter, %d mit Betfair Back+Lay" % (n_k, n_e, n_lay))
 
 
 # 17.11. (Lucas: „hat Pinnacle für die Ligen auch Halftime? … damit wir das auch dazu nehmen"): die Probe ergab, dass

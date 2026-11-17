@@ -1591,6 +1591,51 @@ def ki_top3(d):
             break
 
 
+# 17.11. (Lucas: „back und lays … bau das so ein und beobachte das mal"): Spanne der Betfair-Börse (Odds API) zur Auswahl
+SPANNE_HINWEIS = 6.0                 # ab dieser Spanne (Lay über Back, %) steht ein Hinweis im Push
+
+
+def _bfx_index(beleg):
+    """0/1/2 (Heim/Remis/Gast) für einen Sieg-Markt-Beleg, sonst None."""
+    if not beleg or beleg.get("markt") not in ("Match Odds", None) or beleg.get("art") in ("pinnLinie",):
+        return None
+    a = str(beleg.get("auswahl") or "")
+    if a.lower() in ("the draw", "draw", "remis", "x"):
+        return 1
+    if a and a == beleg.get("heim"):
+        return 0
+    if a and a == beleg.get("gast"):
+        return 2
+    return None
+
+
+def spanne(d, beleg):
+    sp_ = (d.get("bfSpanne") or {}).get(str((beleg or {}).get("id")))
+    i = _bfx_index(beleg)
+    if not sp_ or i is None or not ts(sp_.get("ts")) or (JETZT - ts(sp_["ts"])).total_seconds() > 12 * 60:
+        return None
+    bk, ly = sp_["back"][i], sp_["lay"][i]
+    if not (isinstance(bk, (int, float)) and isinstance(ly, (int, float)) and bk > 1 and ly >= bk):
+        return None
+    return {"back": bk, "lay": ly, "pct": round((ly / bk - 1) * 100, 1)}
+
+
+def schluss_x(d, buch):
+    """Vor Anpfiff die Mitte Back/Lay der Börse als zweite Schlussquote an offene Sieg-Markt-Belege schreiben."""
+    for b in buch:
+        if b.get("status") != "offen" or b.get("live"):
+            continue
+        ko = ts(b.get("anpfiff"))
+        sp_ = (d.get("bfSpanne") or {}).get(str(b.get("id")))
+        i = _bfx_index(b)
+        if not ko or JETZT >= ko or not sp_ or i is None or not sp_.get("schluss"):
+            continue
+        x = sp_["schluss"]
+        bk, ly = x[1 + i], x[4 + i]
+        if isinstance(bk, (int, float)) and isinstance(ly, (int, float)) and bk > 1 and ly >= bk:
+            b["schlussX"], b["schlussXTs"] = round((bk + ly) / 2, 3), x[0]
+
+
 # 17.11. (Lucas: „HD-Märkte und Over-Under bei Pinnacle … im Pinnacle-Tab anzeigen", Regel PL1): jede Handicap-/Über-Unter-
 # Bewegung vor Anpfiff, die der Tab zeigt, still ins Buch — zur Pinnacle-Quote, je Spiel, Markt und Seite nur einmal.
 # Nur mit Betfair-Spiel (sonst kein Endstand zum Abrechnen). Kein Push, kein Public.
@@ -1727,6 +1772,15 @@ def main() -> int:
             if erster_lauf:
                 gesehen[key] = JETZT.isoformat()
                 continue
+            try:                             # 17.11.: Spanne Back/Lay mitschreiben, Hinweis bei dünnem Markt
+                sp_ = spanne(d, beleg)
+                if sp_:
+                    beleg["spanne"] = sp_["pct"]
+                    if text is not None and sp_["pct"] >= SPANNE_HINWEIS:
+                        text += (f"\n<i>⚠️ Dünner Markt: Betfair Back {sp_['back']:.2f} / Lay {sp_['lay']:.2f} "
+                                 f"(Spanne {sp_['pct']:.0f} %)</i>").replace(".", ",", 2)
+            except Exception as exc:  # noqa: BLE001
+                print(f"  spanne: {exc}")
             if text is None:                 # 30.10.: nur messen, nicht senden (Schattenbuch)
                 if beleg and not trocken:
                     bilanz.eintragen(buch, beleg, JETZT)
@@ -1825,6 +1879,10 @@ def main() -> int:
                 print(f"  norm: {nn} neu im Buch")
         except Exception as exc:  # noqa: BLE001
             print(f"  norm: {exc}")
+        try:
+            schluss_x(d, buch)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  schlussX: {exc}")
         try:
             bilanz.schreiben(bilanz.aktualisieren(buch, JETZT), JETZT)
         except Exception as exc:  # noqa: BLE001  — Auswertung darf das Pushen nie aufhalten
