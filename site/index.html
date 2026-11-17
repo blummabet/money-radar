@@ -105,6 +105,15 @@ main{padding:22px 28px 60px;min-width:0}
 .feed{display:flex;flex-direction:column}
 /* Wo am meisten liegt */
 .toepfe{display:grid;gap:10px}
+/* 17.11. Zufluss-Balken: Länge = Geld, Farbe = Quote mit/gegen (live: Anteil) */
+.zr-s{position:relative;height:26px;border-radius:7px;background:var(--panel-3);overflow:hidden;margin-top:6px;display:flex;align-items:center;justify-content:space-between;padding:0 9px;gap:8px}
+.zr-s i{position:absolute;left:0;top:0;bottom:0;border-radius:7px}
+.zr-s span,.zr-s em{position:relative;font-size:12.5px;white-space:nowrap}
+.zr-s span{font-weight:700;color:var(--text)} .zr-s em{font-style:normal;font-size:11.5px;font-weight:600;color:var(--text-2)}
+.zr-s.mit i{background:color-mix(in srgb, var(--up) 38%, transparent)} .zr-s.mit em{color:var(--up)}
+.zr-s.gegen i{background:color-mix(in srgb, var(--down) 32%, transparent)} .zr-s.gegen em{color:var(--down)}
+.zr-s.ruhig i{background:color-mix(in srgb, var(--text-3) 30%, transparent)}
+.zr-s.l1 i{background:color-mix(in srgb, var(--bf) 25%, transparent)} .zr-s.l2 i{background:color-mix(in srgb, var(--bf) 45%, transparent)} .zr-s.l3 i{background:color-mix(in srgb, var(--bf) 70%, transparent)}
 /* 17.11. Pinnacle-Linien als kompakte Liste, aufklappbar */
 .pla{padding:8px 0 6px}
 .pla-k{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-size:12px;color:var(--text-3);margin-bottom:4px}
@@ -3117,19 +3126,35 @@ function flussReihe(D, x, istLive, opt={}){
   return `<div class="zr" ${klick(esc(x.heim)+" – "+esc(x.gast), sp?ohneHuelle(spielDetail(sp)):"")}>
     <div class="zr-k"><div class="zr-t">${flagge(x.land)}<b>${esc(x.heim)} – ${esc(x.gast)}</b>${serieTag(serieVon(D, x.id))}</div><div class="zr-e">+${eur(opt.summe ?? fl.eur)}</div></div>
     <div class="zr-m"><span>${zeit} · ${esc(ligaName(x.liga))}</span><span>${esc(marktDe(fl.markt))} ${eur(fl.marktGesamt||ges)} ${drop}${pin}</span></div>
-    <div class="zr-b">${seg}</div>
+    ${opt.max ? zrSkala(fl, istLive, opt.max, kurz) : `<div class="zr-b">${seg}</div>`}
     ${(c=>c?`<div class="jf-qs">${c}</div>`:"")(auchChips(D, x.id))}${istLive?liveStat(x.id):""}
   </div>`;
+}
+// Lucas 17.11. (ScrewStreet-Anregung: „bei Frischer Zufluss und Live alle gleich große Balken, die wenig aussagen"):
+// Länge = neues Geld im Verhältnis zum größten Zufluss der Liste. Farbe vor Anpfiff = zieht die Quote mit dem Geld
+// (grün fällt ≥ 1 %, rot steigt ≥ 1 %, grau hält); live = Anteil des neuen Geldes auf dieser Auswahl (die Zeit drückt
+// live jede Quote, darum dort nicht nach Quote färben).
+function zrSkala(fl, istLive, max, kurz){
+  const w = Math.max(4, Math.min(100, (fl.eur||0)/max*100));
+  const q = fl.quote, qv = fl.quoteVorher, d = q && qv ? (q/qv-1)*100 : null;
+  let art, txt;
+  if(istLive){ const a = fl.anteil||0; art = a>=85 ? "l3" : a>=65 ? "l2" : "l1"; txt = `${a} % des neuen Geldes`; }
+  else if(d!=null && d<=-1){ art="mit"; txt=`Quote fällt ${q2(qv)} → ${q2(q)}`; }
+  else if(d!=null && d>=1){ art="gegen"; txt=`läuft dagegen ${q2(qv)} → ${q2(q)}`; }
+  else { art="ruhig"; txt="Quote hält"; }
+  return `<div class="zr-s ${art}"><i style="width:${w.toFixed(1)}%"></i><span>${esc(kurz(fl.auswahl))} <b>${q2(q)}</b></span><em>${txt}</em></div>`;
 }
 function zuflussKarten(D, max){
   const z = lf(D.zufluss30||[]).filter(x=>(x.fluss||[]).length).slice(0, max);
   if(!z.length) return `<div class="leer">In den letzten 30 Minuten floss vor Anpfiff kein Geld einseitig auf eine Auswahl${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
-  return `<div class="zrl">${z.map(x=>flussReihe(D, x, false)).join("")}</div>`;
+  const mx = Math.max(...z.map(x=>(x.fluss[0]||{}).eur||0), 1);
+  return `<div class="zrl">${z.map(x=>flussReihe(D, x, false, {max:mx})).join("")}</div>`;
 }
 function liveKarten(D, max){
   const z = lf(D.liveZufluss||[]).filter(x=>(x.fluss||[]).length).slice(0, max);
   if(!z.length) return `<div class="leer">Gerade fließt live kein Geld einseitig auf eine Auswahl${ligaModus==="ohne"?" (ohne Top-5)":""}.</div>`;
-  return `<div class="zrl">${z.map(x=>flussReihe(D, x, true)).join("")}</div>`;
+  const mx = Math.max(...z.map(x=>(x.fluss[0]||{}).eur||0), 1);
+  return `<div class="zrl">${z.map(x=>flussReihe(D, x, true, {max:mx})).join("")}</div>`;
 }
 function normChart(liste){
   if(!liste.length) return `<div class="leer">Gerade liegt nirgends ungewöhnlich viel Geld.</div>`;
@@ -4374,8 +4399,8 @@ function seiteBetfair(D){
   const norm = lf(alle).filter(s=>s.xnorm>=1.5&&!s.entschieden).slice(0,8);   // 21.10.: „über der Norm" heißt mind. ×1,5
   const hzl = lf(D.halbzeit||[]);
   const teile = [["🔁 Dauerzufluss", "Abruf für Abruf dieselbe Auswahl vorn", serienKarten(D,8,"betfair")],
-    ["Frischer Zufluss", "vor Anpfiff, 30 Min", zuflussKarten(D,8)],
-    ["Live: Geld fließt rein", "15 Min, entschiedene Spiele raus", liveKarten(D,8)]];
+    ["Frischer Zufluss", "vor Anpfiff, 30 Min · Balkenlänge = neues Geld · grün: Quote fällt mit dem Geld · rot: läuft dagegen · grau: hält", zuflussKarten(D,8)],
+    ["Live: Geld fließt rein", "15 Min, entschiedene Spiele raus · Balkenlänge = neues Geld · kräftiger = mehr vom neuen Geld auf diese Seite", liveKarten(D,8)]];
   // Lucas 20.10.: leere Abschnitte und „Neues Geld je halbe Stunde" raus — wenig Mehrwert, die Seite wird schlanker
   const voll = teile.filter(t=>!t[2].startsWith('<div class="leer">'));
   return `<div class="grid">
