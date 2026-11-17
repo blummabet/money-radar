@@ -3145,8 +3145,6 @@ def speicher_check():
         FEHLER.append("Speicher: große Datei(en) — " + ", ".join(gross) + " (Tagessicherung nimmt nur < 25 MB)")
     if gesamt > SPEICHER_GRENZEN["gedaechtnis"]:
         FEHLER.append(f"Speicher: Gedächtnis {gesamt / 1e6:.0f} MB — aufräumen/verdichten")
-    if aus["statistikMB"] and aus["statistikMB"] * 1e6 > SPEICHER_GRENZEN["statistik"]:
-        FEHLER.append(f"Speicher: statistik.json {aus['statistikMB']} MB — ältere Monate verdichten")
     return aus
 
 
@@ -3343,6 +3341,9 @@ def statistik(burst, finder):
         print(f"  topf-dynamik: {exc}")
     zeilen.sort(key=lambda z: z[0])
     (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake", "qg", "sp", "clvx"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    _sg = (BASIS / "site" / "statistik.json").stat().st_size
+    if _sg > SPEICHER_GRENZEN["statistik"]:
+        FEHLER.append(f"Speicher: statistik.json {_sg / 1e6:.1f} MB — ältere Monate verdichten")
     return len(zeilen)
 
 # Public-Signale, die nachweislich mit überholtem Stand gesendet wurden (Datum UTC, Spiel normalisiert, 12 Zeichen) → void
