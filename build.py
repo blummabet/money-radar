@@ -3029,6 +3029,13 @@ def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
 
 def statistik(burst, finder):
     zeilen = []
+    import markout as _mo_mod
+    global _mo, _gd, _stake_mo, _hz_mo
+    _mo = _mo_mod
+    _ps = BASIS / ".push_state"
+    _gd = _mo.grunddrift(_mo._lesen(_ps / "live_drift.json", {}))
+    _stake_mo = _mo._lesen(_ps / "stake_markout.json", {})
+    _hz_mo = _mo._lesen(_ps / "hz_markout.json", {})
     try:
         buch = json.loads((BASIS / ".push_state" / "buch.json").read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
@@ -3061,6 +3068,9 @@ def statistik(burst, finder):
         if (not b.get("live") and isinstance(q, (int, float)) and isinstance(sl, (int, float)) and sl > 1
                 and ts(b.get("schlussTs")) and ts(b.get("anpfiff")) and ts(b["schlussTs"]) >= ts(b["anpfiff"]) - timedelta(minutes=20)):
             clv = round(100 * (q / sl - 1), 1)
+        if clv is None and b.get("live") and b.get("nach10"):      # 17.11.: Live-CLV = Markout 10 Min minus Grunddrift
+            clv = _mo.bereinigt(q, b.get("nach10"), b.get("stand"), b.get("minute") if b.get("minute") is not None else b.get("min"),
+                                b.get("markt"), b.get("auswahl"), _gd)
         titel = b.get("anzeige") or b.get("titel") or (f"{b.get('heim')} – {b.get('gast')}" if b.get("heim") else "")
         zeilen.append([ts(b["ts"]).strftime("%Y-%m-%dT%H:%M"), art_,
                        round(float(b["r"]), 3) if ab and isinstance(b.get("r"), (int, float)) else None,
@@ -3092,8 +3102,11 @@ def statistik(burst, finder):
         # 10.11. (Stake-Check, Lucas „ja"): das ist das Ergebnis des WALS über alle seine Tickets im Burst (auch Ecken,
         # Totals …) und jede vom Stake-Skript markierte Zeile — nicht dein Tipp. Darum eigene Zeile „stakeWal";
         # „stake" sind ab jetzt die tatsächlich gesendeten Pushes mit Auswahl und Quote aus dem Push (bilanz.py).
+        _sm = _stake_mo.get(f"{str(z.get('sentAt'))[:16]}|{z.get('event')}") or {}
+        _sclv = (_mo.clv_vor(_sm.get("q0"), _sm.get("schluss"), _sm.get("schlussTs"), _sm.get("anpfiff")) if not _sm.get("live")
+                 else _mo.bereinigt(_sm.get("q0"), _sm.get("nach10"), _sm.get("stand"), _sm.get("min"), _sm.get("markt"), _sm.get("auswahl"), _gd)) if _sm else None
         zeilen.append([ts(z["sentAt"]).strftime("%Y-%m-%dT%H:%M"), "stakeWal", round(float(r), 3) if ab else None, int(r > 0) if ab else None,
-                       z.get("quote") if isinstance(z.get("quote"), (int, float)) else None, None, z.get("liga") or z.get("kat") or "",
+                       z.get("quote") if isinstance(z.get("quote"), (int, float)) else None, _sclv, z.get("liga") or z.get("kat") or "",
                        0, 1 if z.get("phase") == "live" else 0, str(z.get("event") or "")[:60], str(z.get("seite") or "")[:40]])
     for e in (finder or {}).get("eintraege") or []:
         if not ts(e.get("gebuchtAt")):
@@ -3106,9 +3119,12 @@ def statistik(burst, finder):
             ab = isinstance(x.get("r"), (int, float))
             if not ab and e.get("ft"):
                 continue
+            _hm = _hz_mo.get(e.get("k") or f"hz:{e.get('matchId')}") or {}
+            _q0, _qs = (_hm.get("q0") or {}).get(wette), _hm.get(wette)
+            _hclv = round(100 * (_q0 / _qs - 1), 1) if isinstance(_q0, (int, float)) and isinstance(_qs, (int, float)) and _qs > 1 else None
             zeilen.append([ts(e["gebuchtAt"]).strftime("%Y-%m-%dT%H:%M"), "hz", round(float(x["r"]), 3) if ab else None,
                            int(bool(x.get("win"))) if ab else None, x.get("quote") if isinstance(x.get("quote"), (int, float)) else None,
-                           None, e.get("league") or e.get("liga") or "", 0, 1, f"{e.get('home') or ''} – {e.get('away') or ''}"[:60], name])
+                           _hclv, e.get("league") or e.get("liga") or "", 0, 1, f"{e.get('home') or ''} – {e.get('away') or ''}"[:60], name])
     # Lucas 31.10.: Public-Regel 1 — jedes Public-Signal als eigene Art „public", Ergebnis vom gleichen Tipp oben
     try:
         pl = json.loads((BASIS / ".push_state" / "public.json").read_text(encoding="utf-8")).get("liste") or []

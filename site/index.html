@@ -4822,7 +4822,7 @@ const STAT_K = {
   walWdh:["Wal-Einstieg, wiederholter Push","Nur gemessen","color-mix(in srgb, var(--poly) 25%, var(--text-3))"],
   ki:["AI-Pick mit Geld (beendet 16.11.)","AI-Picks","var(--akzent, var(--pin))"],
   kiTop3:["AI Top 3 (beendet 16.11.)","AI-Picks","color-mix(in srgb, var(--akzent, var(--pin)) 60%, var(--text-3))"],
-  kiModell:["AI-Modell allein (ohne Geld)","Nur gemessen","color-mix(in srgb, var(--pin) 40%, var(--text-3))"],
+  kiModell:["AI-Modell allein (beendet 17.11.)","Nur gemessen","color-mix(in srgb, var(--pin) 40%, var(--text-3))"],
   // 16.11.: Übersicht-Elemente als eigene Arten (Lucas: „in der Statistik ist es nicht drin") — standardmäßig aus, sonst
   // verwässern 900 Top-3-Zeilen die Push-Summe. Top 3 = erster Einzug je Spiel (wie die Messung in top3.py).
   top3:["Top 3 (erster Einzug)","Übersicht","color-mix(in srgb, var(--bf) 45%, var(--up))"],
@@ -4988,7 +4988,7 @@ function seiteStatistik(){
     ${kpi(K.roi==null?"–":stVz(K.roi)+" %", "Rendite", "je Tipp", stFarbe(K.roi))}
     ${kpi(K.treffer==null?"–":dez(K.treffer,0)+" %", "Treffer", K.erwartet!=null?`Quote sagte ${dez(K.erwartet,0)} %`:"", K.treffer!=null&&K.erwartet!=null?stFarbe(K.treffer-K.erwartet):null)}
     ${kpi(String(K.n), "Abgerechnet", K.offen?`${K.offen} offen`:"")}
-    ${kpi(K.clv==null?"–":stVz(K.clv)+" %", "Schlusskurs", K.clvN?`${K.clvN} mit Schlussquote`:"nur vor Anpfiff", stFarbe(K.clv))}
+    ${kpi(K.clv==null?"–":stVz(K.clv)+" %", "Schlusskurs", K.clvN?`${K.clvN} gemessen · live: 10 Min später, ohne Tor, Zeitdrift abgezogen`:"vor Anpfiff Schlussquote · live 10 Min später", stFarbe(K.clv))}
   </div>`;
   // Kurve: Einheiten kumuliert je Tag
   const ab = Z.filter(z=>z[2]!=null);
@@ -5241,6 +5241,9 @@ const REGELN = [
    mess:[{n:"Stake-Paket Team-Sieg vor Anpfiff", a:["stakeTeam"], live:false}]},
   {id:"ST5", t:"Stake in Top-5/CL/Nations League erst ab $50k", seit:"12.11.", w:"Dort ist kleines Geld Alltag."},
   {id:"ST6", t:"Keine Stake-Pushes bei Top-E-Sport-Turnieren", seit:"12.11. · 16.11. ergänzt", w:"BLAST, IEM, PGL, Majors, LoL-WM, MSI, VCT … — da wettet die Masse auf große Namen.", b:"16.11.: die LoL-WM rutschte durch (Stake nennt sie „World Championship“) — behoben."},
+ ]},
+ {g:"Messung", r:[
+  {id:"M1", t:"Schlusskurs auch live", seit:"17.11.", w:"Vor Anpfiff zählt die letzte Quote vor Anpfiff. Live gibt es keine, darum: Quote beim Signal gegen die Quote 10 Min später, nur wenn kein Tor fiel, minus der Drift, die alle Live-Quoten derselben Art (Markt, Seite, Quotenbereich, Spielphase) in 10 Min ohne Tor von selbst machen. HZ 0:0: letzte Quote vor Wiederanpfiff. Stake-Wal: Betfair-Quote der Wal-Seite beim Push.", b:"Grunddrift braucht ein paar Tage, bis jede Art ≥ 30 Werte hat; bis dahin bleiben Live-Zeilen ohne Wert."},
  ]},
  {g:"Pinnacle · nur gemessen", r:[
   {id:"PL1", t:"Handicap und Über/Unter vor Anpfiff", seit:"17.11.", w:"Für alle Wettbewerbe der Odds API holt der Bau die Pinnacle-Hauptlinie im Asiatischen Handicap und bei Über/Unter, für Spiele mit Anpfiff in den nächsten 6 h alle 15 Min auch die 1. Halbzeit (Sieg, Handicap, Über/Unter). Wandert die Linie oder fällt die Quote auf gleicher Linie (2,5 pp, Top-5 1,5 pp), steht das Spiel im Pinnacle-Tab und geht still ins Buch, zur Pinnacle-Quote. Viertel-Linien werden halb abgerechnet. Kein Push.", b:"Nur Spiele, die auch Betfair führt (für den Endstand).",

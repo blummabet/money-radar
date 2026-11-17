@@ -1915,6 +1915,18 @@ def main() -> int:
             markout_live(d, buch)
         except Exception as exc:  # noqa: BLE001
             print(f"  markout: {exc}")
+        try:                         # 17.11. (Lucas „Punkt 3 machen"): Live-CLV — Grunddrift, HZ-Schlussquote, Stake-Wal-Seite
+            import markout as _mo
+            _ps = BASIS / ".push_state"
+            _mo.drift(d, _ps / "live_drift.json", JETZT)
+            try:
+                _finder = json.loads((BASIS / ".bf" / "hz_finder.json").read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                _finder = {}
+            _mo.hz(d, _finder, _ps / "hz_markout.json", JETZT)
+            _mo.stake(d, _ps / "stake_markout.json", JETZT)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  live-clv: {exc}")
         try:
             schluss_x(d, buch)
         except Exception as exc:  # noqa: BLE001
