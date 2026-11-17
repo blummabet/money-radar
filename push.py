@@ -1592,7 +1592,9 @@ def ki_top3(d):
 
 
 # 17.11. (Lucas: „back und lays … bau das so ein und beobachte das mal"): Spanne der Betfair-Börse (Odds API) zur Auswahl
-SPANNE_HINWEIS = 6.0                 # ab dieser Spanne (Lay über Back, %) steht ein Hinweis im Push
+# 17.11. 09:35: Betfair kommt über die Odds API für Fußball nicht, nur Smarkets/Matchbook — deren Spannen sind vor Anpfiff
+# meist riesig (Median 18 %), das sagt über Betfair nichts. Hinweis im Push darum AUS, nur still mitschreiben und beobachten.
+SPANNE_HINWEIS = 999.0
 
 
 def _bfx_index(beleg):
