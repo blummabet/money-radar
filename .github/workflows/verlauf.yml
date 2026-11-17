@@ -1,0 +1,61 @@
+name: Quotenverlauf eines Spiels (aus dem Gedächtnis)
+
+# 17.11. (Lucas, Liechtenstein U19 – Türkei U19: „Haben wir zu dem Match den Quotenverlauf im System?"):
+# Der Verlauf liegt in .bf/betfair_history.json (72 h, im Actions-Cache vom Mac) — zu groß für die Tagessicherung.
+# Dieser Lauf holt den Cache, sucht das Spiel über ergebnisse.json/betfair_prices.json und legt den Verlauf als
+# Artefakt ab (nichts wird ins Repo geschrieben).
+on:
+  workflow_dispatch:
+    inputs:
+      suche:
+        description: 'Teamname (Teil reicht), z. B. "Liechtenstein U19"'
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verlauf:
+    runs-on: [self-hosted, bau]
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gedächtnis laden
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .bf
+            .pin
+            .push_state
+            .rp
+          key: verlauf-${{ github.run_id }}
+          restore-keys: radar-
+      - name: Spiel suchen und Verlauf schreiben
+        env:
+          SUCHE: ${{ inputs.suche }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          s = os.environ["SUCHE"].lower()
+          lade = lambda p: json.loads(pathlib.Path(p).read_text()) if pathlib.Path(p).exists() else {}
+          hist, erg = lade(".bf/betfair_history.json"), lade(".bf/ergebnisse.json")
+          namen = {k: f"{v.get('h')} – {v.get('a')} ({v.get('l')}, {v.get('ko')}) FT {v.get('ft')}" for k, v in erg.items() if isinstance(v, dict)}
+          for m in (lade(".bf/betfair_prices.json").get("matches") or []):
+              namen.setdefault(str(m.get("matchId")), f"{m.get('home')} – {m.get('away')} ({m.get('league')}, {m.get('kickoff')})")
+          ids = [k for k, n in namen.items() if s in n.lower() and k in hist]
+          print("Treffer:", [(k, namen[k], len(hist[k])) for k in ids])
+          out = {k: {"spiel": namen[k], "punkte": hist[k]} for k in ids}
+          pathlib.Path("verlauf.json").write_text(json.dumps(out, ensure_ascii=False))
+          for k in ids:
+              print("##", namen[k])
+              for p in hist[k]:
+                  mo = p.get("mo") or {}
+                  print(p.get("ts", "")[:16], "min", p.get("min"), "stand", p.get("sc"), "1X2", mo.get("hw"), mo.get("dr"), mo.get("aw"),
+                        "vol", round(p.get("totalVol") or 0), "maerkte", len(p.get("sel") or {}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verlauf
+          path: verlauf.json
+          retention-days: 3
