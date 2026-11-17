@@ -641,16 +641,19 @@ def bf_drops(prices, bf_hist):
     if pinn is None:
         return []
     aus = []
+    _diag = {"vorAnpfiff": 0, "mitVerlauf": 0, "pp3": 0, "pp6": 0}
     for m in (prices or {}).get("matches") or []:
         mid, ko = str(m.get("matchId")), ts(m.get("kickoff"))
         li = m.get("liveInfo") or {}
         # 17.11. Fix: Betwatch meldet auch VOR Anpfiff goal_v1=0 (Status NOT_STARTED) — „live" nur nach der Anpfiffzeit
         if not ko or ko <= JETZT or ko > JETZT + timedelta(hours=24) or mid in pinn or li.get("finished"):
             continue
+        _diag["vorAnpfiff"] += 1
         pts = [x for x in (bf_hist or {}).get(mid) or [] if isinstance(x, dict) and isinstance(x.get("sel"), dict)
                and ts(x.get("ts")) and ts(x["ts"]) < ko]
         if len(pts) < 6 or ts(pts[-1]["ts"]) - ts(pts[0]["ts"]) < timedelta(minutes=60):
             continue
+        _diag["mitVerlauf"] += 1
         letzt, vorl = pts[-1]["sel"], pts[-2]["sel"]
         vor60 = next((x for x in pts if JETZT - ts(x["ts"]) <= timedelta(minutes=65)), None)
         best = None
@@ -672,6 +675,8 @@ def bf_drops(prices, bf_hist):
                 q0, q1 = reihe[0][1], v[1]
                 qv = ((vorl.get(mk) or {}).get(n) or [None, None])[1]
                 pp = (1 / q1 - 1 / q0) * 100
+                _diag["pp3"] += pp >= 3
+                _diag["pp6"] += pp >= BD_MIN_PP
                 # kein Ein-Abruf-Ausreißer: auch der vorletzte Stand liegt schon deutlich unter dem ersten
                 if pp < BD_MIN_PP or q1 > q0 * (1 - BD_MIN_REL) or not isinstance(qv, (int, float)) or qv > q0 * (1 - BD_MIN_REL / 2):
                     continue
@@ -690,7 +695,7 @@ def bf_drops(prices, bf_hist):
         if best:
             aus.append(best)
     aus.sort(key=lambda x: (not x["frisch"], -x["pp"]))
-    print(f"  bf-drops: {len(aus)} Spiele mit Drop · {len(pinn)} Betfair-Spiele hat Pinnacle")
+    print(f"  bf-drops: {len(aus)} Spiele mit Drop · {len(pinn)} Betfair-Spiele hat Pinnacle · {_diag}")
     return aus[:40]
 
 
