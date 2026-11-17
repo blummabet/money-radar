@@ -351,6 +351,8 @@ def pinn_drops(prices, bf_hist=None):
         m = bf_spiel(e)
         li = (m or {}).get("liveInfo") or {}
         namen = [e["heim"], "Remis", e["gast"]]
+        if e.get("key") == "soccer_uefa_nations_league" and (m or {}).get("league"):
+            top5 = bool(TOP5_RX.search(str(m.get("league"))))   # 17.11.: nur Liga A zählt zu den Top-5 (wie bei Betfair)
         basis = {"id": sid, "heim": e["heim"], "gast": e["gast"], "liga": (m or {}).get("league") or e.get("liga"),
                  "land": (m or {}).get("country"), "anpfiff": e["anpfiff"], "top5": top5,
                  "bfId": str(m.get("matchId")) if m else None}
@@ -852,6 +854,17 @@ def _norm_name(t):
     return " ".join(w for w in t.replace("-", " ").split() if w not in {"de", "fc", "cf", "sc", "the", "club"})
 
 
+def _tor_linien(linien, richtung):
+    """[„Over 2.5", „Over 3.5"] → „Over 2.5 / 3.5"."""
+    zahlen = []
+    for l in linien or []:
+        m = re.search(r"\d+(?:[.,]\d+)?", str(l))
+        if m and m.group(0).replace(",", ".") not in zahlen:
+            zahlen.append(m.group(0).replace(",", "."))
+    r = str(richtung or (linien or [""])[0].split(" ")[0]).capitalize()
+    return f"{r} {' / '.join(sorted(zahlen, key=float)[:3])}" if zahlen else r
+
+
 def stake(ledger):
     zeilen = [z for z in (ledger or []) if isinstance(z, dict)]
     grenze = JETZT - timedelta(hours=24)
@@ -861,7 +874,8 @@ def stake(ledger):
         if not t or t < grenze or not z.get("push") or not stake_ok(z):
             continue
         heute.append({"art": ARTEN.get(z.get("art"), z.get("art")), "spiel": z.get("event"), "liga": z.get("liga"),
-                      "auswahl": z.get("auswahl") or z.get("seite") or z.get("richtung"),
+                      # 17.11. (Rundum-Check): Torlinien-Bursts standen als nacktes „Over" da — die Linien stehen im Buch
+                      "auswahl": z.get("auswahl") or z.get("seite") or (_tor_linien(z.get("linien"), z.get("richtung")) if z.get("linien") else z.get("richtung")),
                       "markt": z.get("markt") or ", ".join(z.get("maerkte") or []) or None,
                       "usd": z.get("summeUsd"), "wetten": z.get("nWetten"), "quote": z.get("quote"),
                       "phase": z.get("phase"), "minute": z.get("spielminute"), "faktor": z.get("faktor"),
@@ -2869,11 +2883,25 @@ def _public_gewonnen(p, t0, erg):
     treffer = [e for e in erg if e[0] == th and e[1] == tg and timedelta(hours=-6) <= (e[2] - t0) <= timedelta(hours=36)]
     if not treffer and p.get("live"):
         treffer = [e for e in erg if e[0] == th and e[1] == tg and timedelta(hours=-3) <= (e[2] - t0) <= timedelta(hours=1)]
+    # 17.11.2026 (Rundum-Check): „Man Utd – Roma" fand auch „Man Utd U19 – Roma U19" (gleicher Tag, erstes Wort gleich)
+    # → zwei Treffer → offen. Nachwuchs/Frauen nur mit Nachwuchs/Frauen paaren.
+    if len(treffer) > 1:
+        def _jung(n):
+            return bool(re.search(r"\b(u\s?1\d|u\s?2[0-3]|ii|b|women|w|frauen|reserves?)\b", str(n or "").lower()))
+        j = _jung(p.get("spiel"))
+        treffer = [e for e in treffer if _jung(f"{e[4]} {e[5]}") == j]
     if len(treffer) != 1:
         return None
     _, _, _, ft, heim, gast = treffer[0]
     a = str(p.get("auswahl") or "")
     m = re.match(r"^(Over|Under|Über|Unter)\s+(\d+)[.,]5", a, re.I)
+    mg = re.match(r"^(Over|Under|Über|Unter)\s+(\d+)(?:\s+Goals)?$", a, re.I)
+    if mg and isinstance(ft, (list, tuple)) and len(ft) == 2:
+        # ganze Linie (z. B. „Under 3"): genau getroffen = Einsatz zurück → offen lassen statt falsch werten
+        tore, lin = sum(ft), int(mg.group(2))
+        if tore == lin:
+            return None
+        return (tore > lin) if mg.group(1).lower() in ("over", "über") else (tore < lin)
     if m:
         markt, a = f"Over/Under {m.group(2)}.5 Goals", ("Over" if m.group(1).lower() in ("over", "über") else "Under") + f" {m.group(2)}.5 Goals"
     elif re.match(r"^(remis|unentschieden|draw|the draw|x)$", a, re.I):
@@ -2885,7 +2913,12 @@ def _public_gewonnen(p, t0, erg):
         elif _b._team(a) == tg:
             a = gast
         else:
-            return None
+            # „AFC Ajax" → erstes Wort „afc"; dann reicht, dass genau ein Teamschlüssel im Auswahlnamen steht
+            an = re.sub(r"[^a-z0-9 ]", " ", str(a).lower()).split()
+            if (th in an) != (tg in an):
+                a = heim if th in an else gast
+            else:
+                return None
     if p.get("markt") and not str(p.get("markt")).startswith(("Match", "Sieg")):
         return None                     # Handicap, 1. Halbzeit … nicht aus dem Endstand
     return _b.gewonnen(markt, a, heim, gast, ft, None)
@@ -2944,13 +2977,15 @@ def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
             w_eigen = erg_poly.get((str(p.get("zeit"))[:16], nz(p.get("spiel"))[:12]))
         if w_eigen is None:
             w_eigen = _pub_hand(PUBLIC_ERGEBNIS, t0.strftime("%Y-%m-%d"), nz(p.get("spiel")) + nz(p.get("auswahl")))
-        if w_eigen is not None and r4:
+        # 17.11.2026 (Rundum-Check): die Public-Signale der Regeln 1–3 (31.10.–02.11.) standen zu einem Drittel „offen",
+        # weil das eigene Ergebnis nur ab Regel 4 galt. Das eigene Ergebnis gilt jetzt immer, die Nachbarzeile bleibt Notnagel.
+        if w_eigen is not None:
             if not best:
                 best = [t0.strftime("%Y-%m-%dT%H:%M"), "x", None, None, p.get("quote"), None, p.get("liga") or "", 0,
                         1 if p.get("live") else 0, str(p.get("spiel") or "")[:60], str(p.get("auswahl") or "")[:40], None]
             best = list(best)
             best[2], best[3] = (1.0 if w_eigen else -1.0), int(w_eigen)
-        if best and r4:
+        if best and (r4 or w_eigen is not None):
             q_p = p.get("quote") if isinstance(p.get("quote"), (int, float)) else best[4]
             w_ = best[3]
             # 03.11. (Lucas: HellNight hat gewonnen, Stake hat die Wetten annulliert): Rendite 0 = void → bleibt 0, kein Verlust

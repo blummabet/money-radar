@@ -462,7 +462,8 @@ main{padding:22px 28px 60px;min-width:0}
 .qpills .q-ok{border-color:rgba(47,211,138,.55);background:rgba(47,211,138,.10)}
 .qpills .q-no{border-color:rgba(255,107,107,.45);background:rgba(255,107,107,.08)}
 .qpills .q-ok b{color:var(--up)} .qpills .q-no b{color:var(--down);opacity:.85}
-.qpills .q-z{position:absolute;top:4px;right:6px;font-size:12px;font-weight:800}
+.qpills .q-z{position:absolute;top:3px;right:4px;font-size:10px;font-weight:800;line-height:1}
+.qpills .q-ok small,.qpills .q-no small{padding:0 9px}
 .qpills .q-ok .q-z{color:var(--up)} .qpills .q-no .q-z{color:var(--down)}
 .qpills .q-tipp{box-shadow:inset 0 -2px 0 var(--hz)}
 .qpills .q-tipp small{color:var(--text-2)}
@@ -772,7 +773,7 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .lk-q i.w,.lk-leg i.w{background:color-mix(in srgb, var(--up) 45%, var(--panel-3))} .lk-q i.plus,.lk-leg i.plus{background:var(--up)} .lk-q i.l,.lk-leg i.l{background:var(--panel-3)}
 .lk-leg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--text-2);margin-bottom:12px} .lk-leg span{display:inline-flex;align-items:center;gap:6px}
 @media (max-width:700px){
-  .kz-reihe{grid-template-columns:1fr 1fr} .kz:nth-child(2){border-right:0} .kz:nth-child(-n+2){border-bottom:1px solid var(--line)} .kz-w{font-size:22px} .kz-sp{display:none}
+  .kz-reihe{grid-template-columns:1fr 1fr!important} .kz:nth-child(2){border-right:0} .kz:nth-child(-n+2){border-bottom:1px solid var(--line)} .kz-w{font-size:22px} .kz-sp{display:none}
   .ng{gap:2px;height:120px} .ng-x{gap:2px} .ng-x span{font-size:9.5px} .ng-s span{display:none}
   .np-z{grid-template-columns:minmax(0,1fr) auto;row-gap:6px} .np-t{grid-column:1/-1;grid-row:2}
 }
@@ -921,6 +922,8 @@ aside{background:var(--kopf-bg);backdrop-filter:blur(16px);-webkit-backdrop-filt
 .st-z>span{text-align:right;display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}
 .st-z>span:first-child{text-align:left;align-items:flex-start}
 .st-z small{font-size:11px;color:var(--text-3);font-weight:600}
+.jf-z.st-z{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,.9fr);gap:16px;padding:8px}
+@media (max-width:700px){ .jf-z.st-z{grid-template-columns:minmax(0,1fr) auto;row-gap:6px} }
 .st-z.st-k{border-top:0;padding-top:0;font-size:11.5px;font-weight:700;color:var(--text-3)}
 .st-zn{flex-direction:row!important;align-items:center!important;gap:7px;font-weight:700}
 .st-zn i{width:9px;height:9px;border-radius:50%;flex:none}
@@ -3008,7 +3011,8 @@ function setzenKarten(liste){
     const pct = k => Math.round(100*(S[k]?.usd||0)/ges);
     const nmK = k => k==="heim" ? heim : k==="gast" ? gast : "Remis";
     const name = k => `<div class="duo-n${k===lead?" lead":""}${k==="gast"?" r":""}"><b>${esc(nmK(k))}</b><span>${pct(k)}<small>%</small></span>${S[k]?.jetzt!=null?`<em class="duo-q2">${Math.round(S[k].jetzt*100)} ¢</em>`:""}</div>`;
-    const chip = klar ? `<span class="duo-u ok">✓ eindeutig</span>`
+    const chip = klar && g.w.length===1 ? `<span class="duo-u ok" title="nur ein belegter Wal in diesem Markt">1 Wal</span>`
+      : klar ? `<span class="duo-u ok">✓ eindeutig · ${g.w.length} Wale</span>`
       : `<span class="duo-u nein" title="${gegenMax>=5000?`belegter Wal mit ${usd(gegenMax)} auf der Gegenseite`:`nur ${Math.round(100*anteil)} % auf einer Seite`}">⚔ umstritten</span>`;
     const haupt = `<div class="duo-bar">${keys.map(k=>S[k]?.usd>0?`<i class="${k===lead?"an":""}" style="flex:${S[k].usd} 1 0"></i>`:"").join("")}</div>`;
     const qs = Object.entries(t?.q||{}).filter(([,q])=>q.betrag>0).sort((a,b)=>b[1].betrag-a[1].betrag);
@@ -3028,7 +3032,7 @@ function setzenKarten(liste){
 }
 // ── Liga-Filter (Lucas 17.10.: Top-5 sollen raus, aber per Knopf noch da sein) ──
 // Namen je Quelle: Betfair („Spanish La Liga"), Polymarket-Kürzel („LALIGA", „SEA", „FL1"), Stake („La Liga", „Premier League")
-const TOP5_RE = /^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|uefa champions league|champions league|ucl|epl|bundesliga|la-?liga|la liga|laliga|sea|serie a|ligue-?1|ligue 1|fl1|premier league)$/i;
+const TOP5_RE = /^(english premier league|german bundesliga|spanish la liga|italian serie a|french ligue 1|uefa champions league|champions league|ucl|uefa nations league|uefa nations league a|epl|bundesliga|la-?liga|la liga|laliga|sea|serie a|ligue-?1|ligue 1|fl1|premier league)$/i;
 const istTop5 = liga => TOP5_RE.test(String(liga||"").trim());
 let ligaModus = "ohne";
 try{ ligaModus = localStorage.getItem("radar-liga") || "ohne"; }catch(_){}
@@ -3086,7 +3090,7 @@ const liste = (titel, n, html) => `<details class="als-liste"><summary>${titel} 
 // 21.10.: liefert Betwatch keinen Stand (manche Live-Spiele), steht nur „live" da — kein erfundenes 0:0
 const live = s => s.live ? `<span class="live">${s.live.ht?"HZ":s.live.min!=null?s.live.min+"'":"live"}</span>${s.live.stand && s.live.stand[0]!=null ? ` <b>${s.live.stand[0]}:${s.live.stand[1]}</b>` : ""}` : `<span class="status">${wann(s.anpfiff)}</span>`;
 // Polymarket liefert Liga-Kürzel („EPL", „LIGUE-1", „BRAZIL-SERIE-A", „ESPORTS") — lesbar machen
-const LIGA_PM = {"EPL":"Premier League","LIGUE-1":"Ligue 1","LA-LIGA":"La Liga","LALIGA":"La Liga","BUNDESLIGA":"Bundesliga","SERIE-A":"Serie A","ESPORTS":"E-Sport","SOCCER":"Fußball","MLS":"MLS","UCL":"Champions League","UEL":"Europa League"};
+const LIGA_PM = {"EPL":"Premier League","LIGUE-1":"Ligue 1","LA-LIGA":"La Liga","LALIGA":"La Liga","BUNDESLIGA":"Bundesliga","SERIE-A":"Serie A","ESPORTS":"E-Sport","SOCCER":"Fußball","MLS":"MLS","UCL":"Champions League","UEL":"Europa League","UNL":"Nations League","FIF":"Länderspiel","AFCQ":"Asien-Cup-Quali","CONL":"Conference League","UECL":"Conference League","DOTA2":"Dota 2","CS2":"CS2","LOL":"LoL","WCQ":"WM-Quali"};
 const ligaName = l => { const t = String(l||""); if(!t || t!==t.toUpperCase() || !/[A-Z]/.test(t)) return t; return LIGA_PM[t] || t.toLowerCase().split(/[-\s]+/).filter(Boolean).map(w=>w.length<=3&&w!=="cup"?w.toUpperCase():w[0].toUpperCase()+w.slice(1)).join(" "); };
 const spielInfo = s => D.radar.spiele.find(x=>x.id===s.id);
 
@@ -4287,7 +4291,7 @@ function bfAlleInhalt(alle){
   return `<div class="chips" style="margin:12px 0">${Object.entries(BF_SETS).map(([k,[n,fn]])=>`<button class="chip${k===filterBf?" an":""}" data-filter="${k}">${n} <span style="opacity:.6">${fn(alle).length}</span></button>`).join("")}</div>${spielTabelle(BF_SETS[filterBf][1](alle),"t-bf",25)}`;
 }
 // ── gemeinsame Bausteine der Unterseiten (19.10.) ──
-const kzReihe = kacheln => `<div class="kz-reihe">${kacheln.map(([n,w,u,extra=""])=>`<div class="kz"><span class="kz-n">${n}</span><span class="kz-w">${w}</span><span class="kz-u">${u}</span>${extra}</div>`).join("")}</div>`;
+const kzReihe = kacheln => `<div class="kz-reihe" style="grid-template-columns:repeat(${Math.min(kacheln.length,5)},1fr)">${kacheln.map(([n,w,u,extra=""])=>`<div class="kz"><span class="kz-n">${n}</span><span class="kz-w">${w}</span><span class="kz-u">${u}</span>${extra}</div>`).join("")}</div>`;
 function kzSpark(werte){ if(werte.length<3) return ""; let c=0; const k = werte.map(v=>c+=v); const lo=Math.min(0,...k), hi=Math.max(0,...k), sp=(hi-lo)||1;
   return `<svg class="kz-sp" viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${k.map((y,i)=>`${i?"L":"M"}${(i/(k.length-1)*100).toFixed(1)},${(30-(y-lo)/sp*30).toFixed(1)}`).join("")}" style="stroke:${c>=0?"var(--up)":"var(--down)"}"/></svg>`; }
 function bilanzKachel(D, q, titel){
@@ -4577,14 +4581,14 @@ function seitePinnacle(D){
   return `<div class="grid">
     <div class="panel c12 kz-panel">${kzReihe([
       ["Spiele mit Pinnacle-Quote", pd.n||0, "alle Ligen, vor Anpfiff und live"],
-      ["Drops vor Anpfiff", vor.length, `${vor.filter(x=>x.frisch).length} frisch · ${vor.filter(x=>x.bf&&x.bf.pp>=1).length} mit Betfair`],
+      ["Drops vor Anpfiff", vor.length, `${vor.filter(x=>x.frisch).length} frisch · ${vor.filter(x=>x.bf&&x.bf.pp>=1).length} mit Betfair${(pd.vor||[]).length>vor.length?` · ${(pd.vor||[]).length-vor.length} durch Liga-Filter aus`:""}`],
       ["Live-Drops", liveD.length, "ohne Tor, Team liegt nicht vorn"],
       ["Handicap / Über-Unter", lf((D.pinnLinien||{}).vor||[]).length, `${lf((D.pinnLinien||{}).vor||[]).filter(x=>x.art==="linie").length} Linien verschoben`],
       ["Größte Bewegung", top?`${dez(top.b)} pp`:"–", top?`${esc(top.g.heim)} – ${esc(top.g.gast)}`:""]])}</div>
     ${voll.map(([t,h,k])=>`<div class="panel c12"><div class="ph"><h3>${t}</h3><span class="hint">${h}</span></div><div class="toepfe p3">${k.join("")}</div></div>`).join("")}
     <div class="panel c12"><div class="ph"><h3>Wohin Pinnacle zieht</h3><span class="hint">Spiele mit großem Betfair-Geld · je Spiel der Ausgang mit der größten Bewegung</span></div>${pinZug(D)}</div>
     <div class="panel c12">${liste(`Pinnacle gegen Betfair und Polymarket (${lf(D.sharp).length})`, "", pinKarten(lf(D.sharp)))}</div>
-    <div class="panel c12">${liste(`Alle ${alle.length} Spiele mit Pinnacle-Quote als Liste`, "", pinTabelle(alle,"pin-alle"))}</div>
+    <div class="panel c12">${liste(`Alle ${alle.length} Spiele mit Betfair-Geld und Pinnacle-Quote als Liste`, "", pinTabelle(alle,"pin-alle"))}</div>
   </div>`;
 }
 // Lucas 21.10. („Märkte zeigen fast nur Preise, ‚5 Wale' steht überall"): die Karte zeigt jetzt, was sich BEWEGT —
@@ -4664,7 +4668,7 @@ function seitePoly(D){
     ${(p.setzen||[]).length?`<div class="panel c12"><div class="ph"><h3>Belegte Wale setzen gerade</h3><span class="hint">schlagen nachweislich den Schlusskurs</span></div>${setzenKarten(p.setzen)}</div>`:""}
     ${voll.map(([t,html])=>`<div class="panel c12"><div class="ph"><h3>${t==="Dauerzufluss"?"🔁 ":""}${t}</h3><span class="hint">${t==="Dauerzufluss"?"3 Abschnitte à 10 Min in Folge dieselbe Seite vorn":"Käufe der letzten 30 Min je Seite"}</span></div>${html}</div>`).join("")}
     <div class="panel c12"><div class="ph"><h3>Märkte, nächste 30 Stunden</h3><span class="hint">Preis in Cent = Wahrscheinlichkeit · darunter neues Geld der letzten 30 Min</span>
-      <div class="chips rechts">${sports.map(s=>`<button class="chip${s===filterSport?" an":""}" data-sport="${s}">${s==="alle"?"Alle":SPORT_ICO[s]+" "+s} <span style="opacity:.6">${s==="alle"?p.maerkte.length:p.maerkte.filter(m=>(m.sport||"Fußball")===s).length}</span></button>`).join("")}</div></div>
+      <div class="chips rechts">${sports.map(s=>`<button class="chip${s===filterSport?" an":""}" data-sport="${s}">${s==="alle"?"Alle":SPORT_ICO[s]+" "+s} <span style="opacity:.6">${s==="alle"?lf(p.maerkte).length:lf(p.maerkte).filter(m=>(m.sport||"Fußball")===s).length}</span></button>`).join("")}</div></div>
       ${(()=>{ const lebt = auswahl.filter(m=>(pmBewegung(m)?.neu||0)>=500).sort((a,b)=>pmBewegung(b).neu-pmBewegung(a).neu).slice(0,12);
         const karten = lebt.length ? lebt : auswahl.slice(0,6), rest = auswahl.filter(m=>!karten.includes(m));
         return `<div class="pks">${karten.map(polyKarte).join("")}</div>${rest.length?liste(lebt.length?"Ruhige Märkte":"Weitere Märkte", rest.length, polyTabelle(rest,"p-alle")):""}`; })()}</div>
@@ -4710,7 +4714,7 @@ function stakeZeilen(gr){
   if(!gr.length) return `<div class="leer">In den letzten 24 Stunden keine große Wette.</div>`;
   const max = Math.max(1,...gr.map(x=>x.usd||0));
   return `<div class="jf">${gr.map(x=>`<div class="jf-z st-z">
-      <div class="jf-l"><span class="st-ph ${x.phase==="live"?"live":""}">${x.phase==="live"?"live":"vor"}</span><div style="min-width:0"><b>${esc(/^(over|under)$/i.test(x.auswahl||"") && x.markt ? `${x.auswahl==="Over"||x.auswahl==="over"?"Über":"Unter"} · ${x.markt.split(",")[0]}` : x.auswahl)}${x.quote?` <span class="st-q">@ ${q2(x.quote)}</span>`:""}</b><small>${esc(x.spiel)} · ${uhr(x.zeit)}</small></div></div>
+      <div class="jf-l"><span class="st-ph ${x.phase==="live"?"live":""}">${x.phase==="live"?"live":"vor"}</span><div style="min-width:0"><b>${esc(/^(over|under)$/i.test(x.auswahl||"") && x.markt ? `${x.auswahl==="Over"||x.auswahl==="over"?"Über":"Unter"} · ${x.markt.split(",")[0]}` : String(x.auswahl||"").replace(/^over\b/i,"Über").replace(/^under\b/i,"Unter").replace(/(\d)\.(\d)/g,"$1,$2"))}${x.quote?` <span class="st-q">@ ${q2(x.quote)}</span>`:""}</b><small>${esc(x.spiel)} · ${uhr(x.zeit)}</small></div></div>
       <div class="jf-b"><i style="width:${Math.max(4,(x.usd||0)/max*100).toFixed(1)}%;background:var(--stake)"></i><span>${usd(x.usd)}</span></div>
       <div class="jf-r"><b>${x.wetten} Wetten${x.faktor?` · ×${dez(x.faktor)}`:""}</b><small>${(stakeStatus(x)==="paket"?paketTag(x.rendite):tagFuer(stakeStatus(x)))||x.arten.join(" + ")}</small></div></div>`).join("")}</div>`;
 }
@@ -4772,7 +4776,7 @@ function hzSegmente(cb){
 function seiteHz(D){
   const z = D.hz, cb = z.chancenBuch||{}, heute = z.heute||[];
   const ber = z.bericht||[];
-  const k = ber.slice(0,3).map(b=>[esc(b.wette), `<span style="color:${b.roi>0?"var(--up)":"var(--down)"}">${b.roi>0?"+":""}${dez(b.roi)} %</span>`, `${b.n} Spiele · ${dez(b.treffer,0)} % statt ${dez(b.erwartet,0)} %`]);
+  const k = ber.slice(0,3).map(b=>[esc(b.wette), `<span style="color:${Math.abs(b.roi)<0.05?"var(--text-2)":b.roi>0?"var(--up)":"var(--down)"}">${b.roi>=0.05?"+":""}${dez(Math.abs(b.roi)<0.05?0:b.roi)} %</span>`, `${b.n} Spiele · ${dez(b.treffer,0)} % statt ${dez(b.erwartet,0)} %`]);
   const gruppe = (key, name, unter) => { const g = cb[key]||{}; return {name, unter:`${g.n||0} Spiele · ${unter}`, ist:g.o05Pct, soll:g.o05Erw, roi:g.o05Roi}; };
   const gruppe15 = (key, name) => { const g = cb[key]||{}; return {name, unter:`${g.o15N||0} Spiele`, ist:g.o15Pct, soll:g.o15Erw, roi:g.o15Roi}; };
   return `<div class="grid">
@@ -4817,6 +4821,7 @@ const STAT_K = {
   pserieWdh:["Poly-Dauerzufluss, wiederholter Push","Nur gemessen","color-mix(in srgb, var(--poly) 35%, var(--text-3))"],
   walWdh:["Wal-Einstieg, wiederholter Push","Nur gemessen","color-mix(in srgb, var(--poly) 25%, var(--text-3))"],
   ki:["AI-Pick mit Geld (beendet 16.11.)","AI-Picks","var(--akzent, var(--pin))"],
+  kiTop3:["AI Top 3 (beendet 16.11.)","AI-Picks","color-mix(in srgb, var(--akzent, var(--pin)) 60%, var(--text-3))"],
   kiModell:["AI-Modell allein (ohne Geld)","Nur gemessen","color-mix(in srgb, var(--pin) 40%, var(--text-3))"],
   // 16.11.: Übersicht-Elemente als eigene Arten (Lucas: „in der Statistik ist es nicht drin") — standardmäßig aus, sonst
   // verwässern 900 Top-3-Zeilen die Push-Summe. Top 3 = erster Einzug je Spiel (wie die Messung in top3.py).

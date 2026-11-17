@@ -1662,6 +1662,21 @@ def fetch_totals(sport_key):
             _kontingent_merken(r, "totals")
             data = json.load(r)
         return data if isinstance(data, list) else []
+    except urllib.error.HTTPError as e:
+        # 17.11.2026: Nations League liefert 422 auf alternate_totals — dann nur die Hauptlinie holen statt nichts.
+        if e.code == 422 and "alternate_totals" in url:
+            try:
+                req = urllib.request.Request(url.replace("totals,alternate_totals", "totals"),
+                                             headers={"User-Agent": "cocobet-consensus"})
+                with urllib.request.urlopen(req, timeout=ODDS_TIMEOUT_S) as r:
+                    _kontingent_merken(r, "totals")
+                    data = json.load(r)
+                return data if isinstance(data, list) else []
+            except Exception as e2:
+                print("totals-fetch %s (nur Hauptlinie): %s" % (sport_key, e2))
+                return []
+        print("totals-fetch %s: %s" % (sport_key, e))
+        return []
     except Exception as e:
         print("totals-fetch %s: %s" % (sport_key, e))
         return []
@@ -2222,6 +2237,12 @@ def main():
 
     games.sort(key=lambda g: (g.get("verdict") != "no_anchor", g.get("totVol") or 0), reverse=True)
     covered = sum(1 for g in games if g.get("verdict") != "no_anchor")
+    _kont = dict(KONTINGENT, **verbrauch_loggen(KONTINGENT))
+    # 17.11.2026: Verbrauch je Lauf ins Log — seit Linien + HZ-Abrufen wollen wir den Tagesverbrauch sehen.
+    print("odds-kontingent: Lauf %s (h2h %s, totals %s, linien %s, ht %s) · verbraucht %s · übrig %s · 24h %s" % (
+        KONTINGENT.get("lauf"), KONTINGENT.get("lauf_h2h"), KONTINGENT.get("lauf_totals"),
+        KONTINGENT.get("lauf_linien"), KONTINGENT.get("lauf_ht"), KONTINGENT.get("used"),
+        KONTINGENT.get("remaining"), (_kont.get("tag") or {}).get("gesamt")))
     out = {"generatedAt": now, "count": len(games), "covered": covered,
            # 🔴 25.09.2026: hier stand `sorted(set(LEAGUE_ODDS_KEY.values()))` unter dem Namen
            # „leaguesCovered". Das ist keine Messung, sondern die Handliste — das Feld behauptete
@@ -2255,7 +2276,7 @@ def main():
            "oddsTotals": dict(zaehle_keys(totals_by_key),
                               gewollt=len(_tot_keys),
                               ausgelassen=max(0, len(_tot_keys) - len(totals_by_key))),
-           "oddsKontingent": dict(KONTINGENT, **verbrauch_loggen(KONTINGENT)),
+           "oddsKontingent": _kont,
            "ankerQuote": (round(sum(1 for g in games if g.get("pinn")) / len(games), 3)
                           if games else None),
            "games": games}
