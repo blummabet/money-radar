@@ -1822,7 +1822,7 @@ def ht_anhaengen(events_by_key, t0, budget=None):
     jetzt = datetime.now(timezone.utc)
     abruf = _load(HT_ABRUF, {}) or {}
     abruf = {k: v for k, v in abruf.items() if isinstance(v, str) and v >= (jetzt - timedelta(days=1)).isoformat()}
-    kand = []
+    kand, _warten = [], []
     for k, evs in events_by_key.items():
         for e in evs or []:
             ko = _ts_iso(e.get("commence"))
@@ -1830,6 +1830,7 @@ def ht_anhaengen(events_by_key, t0, budget=None):
                 continue
             letzt = _ts_iso(abruf.get(e["eid"]))
             if letzt and (jetzt - letzt).total_seconds() < HT_ABSTAND_MIN * 60:
+                _warten.append(e["eid"])
                 continue
             kand.append((ko, k, e))
     kand.sort(key=lambda x: x[0])
@@ -1852,7 +1853,8 @@ def ht_anhaengen(events_by_key, t0, budget=None):
         except Exception as exc:  # noqa: BLE001
             print("ht-fetch %s: %s" % (k, str(exc)[:80]))
     _dump(HT_ABRUF, abruf)
-    print("halbzeit: %d Kandidaten (Anpfiff ≤ %.0f h, je %d Min), %d abgerufen mit Pinnacle-HZ" % (len(kand), HT_FENSTER_H, HT_ABSTAND_MIN, n))
+    print("halbzeit: %d Kandidaten (Anpfiff ≤ %.0f h, je %d Min), %d abgerufen mit Pinnacle-HZ, %d warten auf den nächsten 15-Min-Abruf"
+          % (len(kand), HT_FENSTER_H, HT_ABSTAND_MIN, n, len(_warten)))
 
 
 def _ts_iso(s):
