@@ -45,6 +45,10 @@ jobs:
               namen.setdefault(str(m.get("matchId")), f"{m.get('home')} – {m.get('away')} ({m.get('league')}, {m.get('kickoff')})")
           ids = [k for k, n in namen.items() if s in n.lower() and k in hist]
           print("Treffer:", [(k, namen[k], len(hist[k])) for k in ids])
+          if not ids:
+              print("ohne Verlauf:", [(k, n) for k, n in namen.items() if s in n.lower()][:10])
+              teile = [w for w in s.split() if len(w) > 3]
+              print("ähnlich:", [(k, n, k in hist) for k, n in namen.items() if any(w in n.lower() for w in teile)][:20])
           out = {k: {"spiel": namen[k], "punkte": hist[k]} for k in ids}
           pathlib.Path("verlauf.json").write_text(json.dumps(out, ensure_ascii=False))
           for k in ids:
