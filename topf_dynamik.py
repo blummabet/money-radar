@@ -34,6 +34,9 @@ def rechnen(zeilen, jetzt):
     letzte = T._ts(g.get("stand"))
     stich = [t for t in T._stichtage(jetzt - timedelta(days=8), jetzt) if t <= jetzt]
     if letzte and stich and letzte >= stich[-1]:
+        mit = [z for z in zeilen if z.get("p") is not None]
+        g.update(kandidaten=len(mit), abgerechnet=sum(1 for z in mit if isinstance(z.get("r"), (int, float))))
+        T._schreiben(GEW, g)
         return False
     fenster = [z for z in zeilen if T._ts(z.get("ts")) and T._ts(z["ts"]) >= jetzt - timedelta(days=T.FENSTER_TAGE)]
     mit_teilen = [z for z in fenster if z.get("p") is not None]

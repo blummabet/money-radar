@@ -213,9 +213,13 @@ def woche(jetzt, buch=None):
     g = _lesen(GEW, {})
     letzte = _ts(g.get("stand"))
     stich = [t for t in _stichtage(jetzt - timedelta(days=8), jetzt) if t <= jetzt]
-    if letzte and stich and letzte >= stich[-1]:
-        return False
     kand = _lesen(KAND, [])
+    if letzte and stich and letzte >= stich[-1]:
+        # zwischen den Stichtagen nur die Zähler nachziehen (die Seite zeigt, wie sich das Buch füllt)
+        g.update(kandidaten=len(kand), abgerechnet=sum(1 for z in kand if isinstance(z.get("r"), (int, float))),
+                 seit=min((z.get("ts") for z in kand), default=None))
+        _schreiben(GEW, g)
+        return False
     fenster = [z for z in kand if _ts(z.get("ts")) and _ts(z["ts"]) >= jetzt - timedelta(days=FENSTER_TAGE)]
     eff = effekte(fenster)
     quelle = "kandidaten"
