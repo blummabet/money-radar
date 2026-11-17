@@ -105,6 +105,7 @@ main{padding:22px 28px 60px;min-width:0}
 .feed{display:flex;flex-direction:column}
 /* Wo am meisten liegt */
 .toepfe{display:grid;gap:10px}
+.mw-sch{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 /* 17.11. Zufluss-Balken: Länge = Geld, Farbe = Quote mit/gegen (live: Anteil) */
 .zr-s{position:relative;height:26px;border-radius:7px;background:var(--panel-3);overflow:hidden;margin-top:6px;display:flex;align-items:center;justify-content:space-between;padding:0 9px;gap:8px}
 .zr-s i{position:absolute;left:0;top:0;bottom:0;border-radius:7px}
@@ -4343,26 +4344,47 @@ function treemap(werte, W, H){
   if(reihe.length) legen(reihe);
   return out;
 }
-function geldWand(D){
+// Lucas 17.11. (ScrewStreet-Heatmap): zwei Schalter — Fläche „Geld gesamt" oder „neu in 30 Min", Farbe „Markt" oder
+// „Quote zieht mit" (grün: Quote der meisten-Geld-Seite fällt seit 1 h ≥ 1 %, rot: steigt ≥ 1 %, grau: hält; live nach
+// Anteil in Betfair-Orange, weil die Zeit live jede Quote drückt).
+let MWS = (()=>{ try{ return JSON.parse(localStorage.getItem("mwSchalter")) || {f:"gesamt", c:"markt"}; }catch(e){ return {f:"gesamt", c:"markt"}; } })();
+function mwSchalten(k, v){ MWS[k] = v; try{ localStorage.setItem("mwSchalter", JSON.stringify(MWS)); }catch(e){} const el = document.getElementById("mw-box"); if(el) el.innerHTML = geldWandInhalt(D); }
+function mwQuoteFarbe(z){
+  const fu = z.fuehrt; if(!fu) return ["var(--text-3)", null];
+  if(z.live) return [`color-mix(in srgb, var(--bf) ${Math.max(30, Math.min(100, fu.anteil))}%, var(--text-3))`, null];
+  const a = (z.auswahl||[]).find(x=>x[0]===fu.name), q = a&&a[2], q60 = a&&a[3];
+  if(!q || !q60) return ["var(--text-3)", null];
+  const d = (q/q60-1)*100;
+  return [d<=-1 ? "var(--up)" : d>=1 ? "var(--down)" : "var(--text-3)", d];
+}
+function geldWand(D){ return `<div id="mw-box">${geldWandInhalt(D)}</div>`; }
+function geldWandInhalt(D){
   const mc = D.marktCharts; if(!mc) return `<div class="leer">Die Geld-Wand erscheint mit dem nächsten Abruf.</div>`;
   const handy = innerWidth <= 700, W = handy ? Math.max(280, innerWidth-64) : 1100, H = handy ? 500 : 430;
-  const Z = lf(mc.maerkte||[]).slice(0, handy ? 14 : 24);
-  if(!Z.length) return `<div class="leer">Keine Märkte in dieser Auswahl.</div>`;
-  const R = treemap(Z.map(z=>z.eur), W, H);
-  const kach = Z.map((z,i)=>{ const r = R[i], f = MW_FAM.find(x=>x[0]===mwFamilie(z.markt))[2];
+  const neu = MWS.f==="neu", qf = MWS.c==="quote";
+  let Z = lf(mc.maerkte||[]);
+  if(neu) Z = Z.filter(z=>(z.neu||0)>0).sort((a,b)=>b.neu-a.neu);
+  Z = Z.slice(0, handy ? 14 : 24);
+  const knopf = (k,v,n) => `<button class="${MWS[k]===v?"an":""}" onclick="mwSchalten('${k}','${v}')">${n}</button>`;
+  const schalter = `<div class="mw-sch"><div class="seg">${knopf("f","gesamt","Geld gesamt")}${knopf("f","neu","Neu in 30 Min")}</div><div class="seg">${knopf("c","markt","Farbe: Markt")}${knopf("c","quote","Farbe: Quote zieht mit")}</div></div>`;
+  if(!Z.length) return schalter+`<div class="leer">Keine Märkte in dieser Auswahl.</div>`;
+  const R = treemap(Z.map(z=>neu?z.neu:z.eur), W, H);
+  const kach = Z.map((z,i)=>{ const r = R[i], qd = qf ? mwQuoteFarbe(z) : null, f = qf ? qd[0] : MW_FAM.find(x=>x[0]===mwFamilie(z.markt))[2];
     const gr = r.w>=260&&r.h>=200 ? "g xl" : r.w>=170&&r.h>=110 ? "g" : r.w>=110&&r.h>=72 ? "m" : r.w>=70&&r.h>=46 ? "k" : "xs";
     const au = mwAuswahl(z), sum = au.reduce((a,b)=>a+b[1],0)||1, fu = z.fuehrt;
     const zeit = z.live ? `${z.live.min!=null?z.live.min+"'":"live"} ${z.live.stand?.[0]??0}:${z.live.stand?.[1]??0}` : "";
     const titel = `${z.heim} – ${z.gast} · ${marktDe(z.markt)} · ${eur(z.eur)}${fu?` · ${auswahlDe(fu.name)} ${fu.anteil} %`:""}`;
     return `<div class="mw-k ${gr}" style="left:${(r.x/W*100).toFixed(3)}%;top:${(r.y/H*100).toFixed(3)}%;width:${(r.w/W*100).toFixed(3)}%;height:${(r.h/H*100).toFixed(3)}%">
-      <div class="mw-i${mwHeiss(z)?" heiss":""}${z.live?" laeuft":""}" style="--f:${f}"${bk("mw|"+z.k, z.eur, "€")} title="${esc(titel)}" tabindex="0" ${klickSpiel({id:z.id, heim:z.heim, gast:z.gast})}>
+      <div class="mw-i${qf||neu||mwHeiss(z)?" heiss":""}${z.live?" laeuft":""}" style="--f:${f}"${bk("mw|"+z.k, z.eur, "€")} title="${esc(titel)}" tabindex="0" ${klickSpiel({id:z.id, heim:z.heim, gast:z.gast})}>
         <div class="mw-sp">${gr.startsWith("g")?flagge(z.land)+" ":""}${esc(z.heim)} – ${esc(z.gast)}</div>
         <div class="mw-m">${esc(marktDe(z.markt))}${fu?` · <b>${esc(auswahlDe(fu.name))} ${fu.anteil} %</b>`:""}${gr.startsWith("g")&&zeit?` · ${zeit}`:""}</div>
-        <div class="mw-fuss"><span class="mw-e">${eur(z.eur)}</span>${mwHeiss(z)?`<span class="mw-n">+${eur(z.neu)}</span>`:""}</div>
+        <div class="mw-fuss"><span class="mw-e">${neu?"+"+eur(z.neu):eur(z.eur)}</span>${!neu&&mwHeiss(z)?`<span class="mw-n">+${eur(z.neu)}</span>`:""}${qd&&qd[1]!=null&&gr!=="xs"?`<span class="mw-n">${qd[1]>0?"+":""}${dez(qd[1])} %</span>`:""}</div>
         ${gr!=="k"&&gr!=="xs"?`<div class="mw-s">${au.map(a=>`<i style="width:${(a[1]/sum*100).toFixed(1)}%;opacity:${fu&&a[0]===fu.name?1:.35}"></i>`).join("")}</div>`:""}
       </div></div>`; }).join("");
   const da = new Set(Z.map(z=>mwFamilie(z.markt)));
-  return `<div class="mw" style="height:${H}px">${kach}</div>
+  if(qf) return `${schalter}<div class="mw" style="height:${H}px">${kach}</div>
+    <div class="mw-leg"><span><i style="background:var(--up)"></i>Quote der Geld-Seite fällt mit (1 h)</span><span><i style="background:var(--text-3)"></i>hält</span><span><i style="background:var(--down)"></i>läuft dagegen</span><span><i style="background:var(--bf)"></i>live: kräftiger = mehr Anteil</span><span>Fläche = ${neu?"neues Geld 30 Min":"Geld im Markt"}</span></div>`;
+  return `${schalter}<div class="mw" style="height:${H}px">${kach}</div>
     <div class="mw-leg">${MW_FAM.filter(x=>da.has(x[0])).map(x=>`<span><i style="background:color-mix(in srgb, ${x[2]} 18%, var(--glas-a))"></i><i style="background:${x[2]};margin-left:-4px"></i>${x[1]}</span>`).join("")}<span>hell = ruhig · kräftig = gerade neues Geld (30 Min, live 15)</span>${Z.some(z=>z.live)?`<span><i style="background:transparent;box-shadow:inset 0 0 0 1.5px var(--down)"></i>rote Kante = läuft</span>`:""}</div>`;
 }
 // Lucas 23.10. (Betwatch-Screenshot): Hitparade als Tafel zum Drüberschauen — links Zeit/Minute und Stand, Mitte Markt und
