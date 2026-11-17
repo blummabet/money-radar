@@ -424,6 +424,9 @@ def poly_kurse(buch, jetzt):
             b["schluss"], b["schlussTs"] = round(1 / p, 4), t.isoformat()
         if ts and "nach15" not in b and timedelta(minutes=13) <= t - ts <= timedelta(minutes=35):
             b["nach15"] = round(1 / p, 4)
+        # 17.11. (Reddit-Kommentar: „log the price a few minutes after the signal"): auch nach ~5 Min
+        if ts and "nach5" not in b and timedelta(minutes=3) <= t - ts < timedelta(minutes=10):
+            b["nach5"] = round(1 / p, 4)
 
 
 WAL_MESSUNG_AB = "2026-10-24T20:30:00+00:00"   # Lucas 24.10. („messen wir auch die guten Wallets mit?") — ab hier vorwärts

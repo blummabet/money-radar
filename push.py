@@ -1623,6 +1623,35 @@ def spanne(d, beleg):
     return {"back": bk, "lay": ly, "pct": round((ly / bk - 1) * 100, 1), "quelle": q_}
 
 
+def markout_live(d, buch):
+    """17.11. (Reddit-Kommentar zu den Live-Signalen: „log the Betfair price a few minutes after the signal as well as at
+    it, the gap shows how much of the edge is real"): für jeden Live-Beleg auf einem Betfair-Markt die Quote derselben
+    Auswahl ~5 und ~10 Min nach dem Push, mit Stand und Minute → „nach5"/„nach10" = [Quote, Stand, Minute]."""
+    sp_ = {str(x.get("id")): x for x in (d.get("radar") or {}).get("spiele") or []}
+    for b in buch:
+        if b.get("status") != "offen" or not b.get("live") or b.get("markt") in (None, "Polymarket"):
+            continue
+        t0 = ts(b.get("ts"))
+        if not t0:
+            continue
+        alter = (JETZT - t0).total_seconds() / 60
+        stufe = "5" if 3 <= alter < 9 else "10" if 9 <= alter < 20 else None
+        if not stufe or ("nach" + stufe) in b:
+            continue
+        s = sp_.get(str(b.get("id")))
+        if not s:
+            continue
+        m = next((m for m in s.get("maerkteDetail") or [] if m.get("name") == b.get("markt")), None)
+        q = next((a.get("quote") for a in (m or {}).get("auswahl") or [] if a.get("name") == b.get("auswahl")), None)
+        if q is None and b.get("markt") == "Match Odds":
+            seite = "heim" if b.get("auswahl") == b.get("heim") else "gast" if b.get("auswahl") == b.get("gast") else \
+                    "remis" if str(b.get("auswahl")).lower() in ("the draw", "draw") else None
+            q = (s.get("quoten") or {}).get(seite) if seite else None
+        lv = s.get("live") or {}
+        if isinstance(q, (int, float)):
+            b["nach" + stufe] = [q, lv.get("stand"), lv.get("min")]
+
+
 def schluss_x(d, buch):
     """Vor Anpfiff die Mitte Back/Lay der Börse als zweite Schlussquote an offene Sieg-Markt-Belege schreiben."""
     for b in buch:
@@ -1882,6 +1911,10 @@ def main() -> int:
                 print(f"  norm: {nn} neu im Buch")
         except Exception as exc:  # noqa: BLE001
             print(f"  norm: {exc}")
+        try:
+            markout_live(d, buch)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  markout: {exc}")
         try:
             schluss_x(d, buch)
         except Exception as exc:  # noqa: BLE001
