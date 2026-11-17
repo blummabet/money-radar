@@ -516,7 +516,12 @@ def top3_messung(buch):
     for b in alle:
         (spaet if str(b.get("id")) in erst else z).append(b)
         erst.add(str(b.get("id")))
+    r6 = [b for b in z if (b.get("regel") or 1) >= 6]
     gruppen = [("Alle", z),
+               ("Ab Regel 6 (17.11.: Liga-Norm ohne Punkte, Stake zählt mehr)", r6),
+               ("🎰 Stake auf derselben Seite", [b for b in z if "stake" in (b.get("signale") or [])]),
+               ("× über der Liga-Norm (vor Regel 6 mit Punkten, danach still)",
+                [b for b in z if "norm" in (b.get("signale") or []) or b.get("normStill")]),
                ("Spätere Auswahl im selben Spiel (nur gemessen)", spaet), ("Platz 1 beim Einzug", [b for b in z if b.get("rang") == 1]),
                ("Platz 2–3 beim Einzug", [b for b in z if (b.get("rang") or 9) > 1]),
                ("Irgendwann Platz 1", [b for b in z if b.get("bestRang") == 1]),
@@ -550,7 +555,13 @@ def top3_messung(buch):
         urteil = "bestanden" if gesamt["_roi"] - (gesamt["_se"] or 0) > 0 and gesamt["_kante"] else "nicht bestanden"
     letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "markt", "auswahl", "quote", "rang", "punkte", "signale", "status", "win", "ts", "live", "sport")}
               for b in reversed(z)][:15]
-    return {"ab": TOP3_AB, "ziel": TOP3_ZIEL, "urteil": urteil, "gruppen": aus, "letzte": letzte}
+    k6 = _gruppe(r6)
+    urteil6 = None
+    if k6["abgerechnet"] >= TOP3_ZIEL:
+        urteil6 = "bestanden" if k6["_roi"] - (k6["_se"] or 0) > 0 and k6["_kante"] else "nicht bestanden"
+    return {"ab": TOP3_AB, "ziel": TOP3_ZIEL, "urteil": urteil, "gruppen": aus, "letzte": letzte,
+            "r6": {"ab": "2026-11-17", "urteil": urteil6, **{x: v for x, v in k6.items() if not x.startswith("_")}},
+            "alt": {"urteil": urteil, **{x: v for x, v in gesamt.items() if not x.startswith("_")}}}
 
 
 # Lucas 10.11. („muss void sein, darf nicht zählen"): Pushes, die zu einem Preis rausgingen, den es nie gab. Je Eintrag

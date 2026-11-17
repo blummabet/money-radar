@@ -159,8 +159,10 @@ def rangliste(d, jetzt):
             p["push"] = min(2, 1 + 0.5 * (len(pz) - 1))
         if neu >= max(1000, 0.03 * (s.get("eur") or 0)):
             p["neu"] = min(3, math.log2(neu / 1000) + 1)
-        if (s.get("xnorm") or 0) >= 1.5:
-            p["norm"] = min(2, (s["xnorm"] - 1) * 0.8)
+        # Top-3-Regel 6 (17.11., Lucas „wichtiges Element, muss man anpassen"): „über der Liga-Norm" gibt keine Punkte mehr.
+        # Gemessen 05.–17.11., je erster Einzug: mit Norm-Punkt −11,9 % ±10,7 (253), ohne +7,0 % ±8,3 (597), in beiden
+        # Hälften gleich (−11,6 / −12,1). Still mitgeschrieben bleibt es als „normStill".
+        norm_still = (s.get("xnorm") or 0) >= 1.5
         fA, fM = top, mk
         if se:
             m = next((x for x in md if x.get("name") == se.get("markt")), None)
@@ -193,10 +195,11 @@ def rangliste(d, jetzt):
             return bool(_ou(fA.get("name")) and _ou(fA.get("name")) == _ou(g.get("auswahl")))
         burst = next((g for g in gruppen if _burst(g, jetzt) and schluessel(*(str(g.get("spiel") or "").split(" - ", 1) + [""])[:2]) == sk
                       and gleich(g)), None)
+        # Top-3-Regel 6 (17.11.): Stake zählt mehr — mit Stake-Punkt +18,8 % ±15,1 (142), ohne −2,1 % (708), beide Hälften +.
         if burst:
-            p["stake"] = 2
+            p["stake"] = 3
         elif ((aw.get("stake") or {}).get("usd") or 0) >= 1000 and fk and (aw.get("stake") or {}).get("k") == fk:
-            p["stake"] = 1         # Regel 5 (10.11.): nur Geld auf dieselbe Seite
+            p["stake"] = 2         # Regel 5 (10.11.): nur Geld auf dieselbe Seite
         # Lucas 25.10. (Sturm – Ried, 23': xG 0,77 : 0, Schüsse 9 : 0, Geld auf Sturm): das Druck-Radar stützt die
         # Richtung des Geldes → Punkte. Druck-Team = Seite der Auswahl, oder Auswahl ist ein Über. Ab Index 40: 1, ab 70: 2.
         dr = druck.get(str(s.get("id")))
@@ -212,7 +215,7 @@ def rangliste(d, jetzt):
         aus.append({"art": "top3", "id": str(s.get("id")), "heim": s.get("heim"), "gast": s.get("gast"), "liga": s.get("liga"),
                     "anpfiff": s.get("anpfiff"), "live": bool(lv), "top5": bool(s.get("top5")), "normEur": s.get("normEur"), "ligaEur": s.get("ligaEur"), "markt": (fM or {}).get("name"),
                     "auswahl": fA.get("name"), "quote": q, "eur": s.get("eur"), "punkte": round(summe, 2),
-                    "signale": sorted(p), "n": len(p), "familien": mm,
+                    "signale": sorted(p), "n": len(p), "familien": mm, "normStill": norm_still,
                     "pinnMit": (str(s.get("id")), fk) in pinn_mit if fk in ("heim", "remis", "gast") and (fM or {}).get("name") == "Match Odds" else None,
                     # 30.10. (Volendam 37' 1:0, Geld auf den Führenden): Stand beim Einzug + Lage der Auswahl-Seite mitschreiben
                     "stand": stand if lv else None,
@@ -282,7 +285,7 @@ def eintragen(d, buch, jetzt):
             b["bestPunkte"] = max(b.get("bestPunkte") or 0, x["punkte"])
             continue
         b = {**x, "rang": rang, "bestRang": rang, "bestPunkte": x["punkte"], "ts": jetzt.isoformat(), "status": "offen",
-             "regel": 5}   # Regel 5 ab 10.11. ~9:30: Polymarket-/Stake-Punkt (1) nur bei Geld auf dieselbe Seite; Regel 4 ab 05.11.: + „pinnMit" (still); Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
+             "regel": 6}   # Regel 6 ab 17.11. ~14 Uhr: Liga-Norm keine Punkte, Stake 3/2 statt 2/1; Regel 5 ab 10.11. ~9:30: Polymarket-/Stake-Punkt (1) nur bei Geld auf dieselbe Seite; Regel 4 ab 05.11.: + „pinnMit" (still); Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
         buch.append(b)
         offen[k] = b
         neu += 1

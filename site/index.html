@@ -3748,7 +3748,7 @@ function jetztFliesst(D, n=8){
 // auch auf Polymarket/Stake, Liga-Bilanz. Raus: entschieden, klar vorn, Geld unter Quote 1,20 (Absicherung).
 const t3Pushes = s => pushesZu(s).filter(x=>/Halbzeit|Fix/i.test(x.art||""));
 const T3_SIG = [["serie","🔁 Dauerzufluss","var(--bf)"],["push","📣 HZ-Push","var(--down)"],["neu","💶 neues Geld","var(--up)"],
-  ["norm","× Liga-Norm","var(--pin)"],["quote","🔻 Quote gedrückt","var(--hz)"],["poly","🧠 Polymarket","var(--poly)"],["stake","🎰 Stake","var(--stake)"],["maerkte","🧩 Mehrere Märkte","var(--up)"],["druck","📊 Druck","var(--hz)"],["liga","Liga trägt","var(--text-2)"]];
+  ["quote","🔻 Quote gedrückt","var(--hz)"],["poly","🧠 Polymarket","var(--poly)"],["stake","🎰 Stake","var(--stake)"],["maerkte","🧩 Mehrere Märkte","var(--up)"],["druck","📊 Druck","var(--hz)"],["liga","Liga trägt","var(--text-2)"]];
 // Lucas 25.10.: „wenn parallel mehrere Märkte eines Spiels bespielt werden — Heimsieg, aber auch Über, HZ-Sieg, HZ-Über —
 // ist das ein gutes Zeichen, natürlich keine Kontramärkte". Gezählt werden Familien, nicht Linien (Über 2,5 + Über 3,5 = eine).
 // Ein Markt zählt, wenn ≥ 60 % seines neuen Geldes auf eine Auswahl gehen (≥ €2k Top-5, sonst ≥ €500). Läuft irgendwo Geld
@@ -3800,7 +3800,7 @@ function topDreiDaten(D){
     // als eigenes Signal wäre das doppelt. Nur die Halbzeit-Pushes (eigene Märkte, eigene Regel) bringen etwas Neues.
     const pz = t3Pushes(s); if(pz.length) p.push = Math.min(2, 1 + 0.5*(pz.length-1));
     if(neuNennenswert(s, neu)) p.neu = Math.min(3, Math.log2(neu/1000) + 1);
-    if(s.xnorm>=1.5) p.norm = Math.min(2, (s.xnorm-1)*0.8);
+    // Top-3-Regel 6 (17.11.): Liga-Norm gibt keine Punkte mehr (mit −11,9 %, ohne +7,0 %) — muss zu top3.py passen
     // Fokus: die Serie, sonst die Auswahl mit dem meisten neuen Geld
     let fA = top, fM = mk;
     if(se){ const m = md.find(x=>x.name===se.markt), a = m && (m.auswahl||[]).find(x=>x.name===se.auswahl); if(a){ fA = a; fM = m; } }
@@ -3819,10 +3819,11 @@ function topDreiDaten(D){
     const fkey = feedKey(s.heim, s.gast);
     const gleicheSeite = g => fk ? {h:"heim", g:"gast", x:"remis"}[seiteVon(s, g.auswahl)] === fk : !!(ou(fA.name) && ou(fA.name)===ou(g.auswahl));
     const burst = (D.stake?.gruppen||[]).find(g=>istBurst(g) && feedKey(...String(g.spiel||"").split(/\s+-\s+/)) === fkey && gleicheSeite(g));
-    if(burst) p.stake = 2; else if(aw.stake?.usd>=1000 && fk && aw.stake.k===fk) p.stake = 1;
+    if(burst) p.stake = 3; else if(aw.stake?.usd>=1000 && fk && aw.stake.k===fk) p.stake = 2;   // Regel 6: Stake zählt mehr
     // Lucas 25.10. (Sturm – Ried): Druck-Radar stützt die Richtung des Geldes — muss zu top3.py passen
     const dr = ((D.druck||{}).spiele||[]).find(x=>String(x.id)===String(s.id));
-    const drPasst = dr && dr.index>=40 && (fk===dr.seite || ou(fA.name)==="over");
+    const drSt = (dr&&dr.stand)||[0,0], drVorn = !!dr && drSt[0]!=null && drSt[1]!=null && (dr.seite==="heim" ? drSt[0]>drSt[1] : drSt[1]>drSt[0]);   // Druck-Regel 7 wie top3.py
+    const drPasst = dr && !drVorn && dr.index>=40 && (fk===dr.seite || ou(fA.name)==="over");
     if(drPasst) p.druck = dr.index>=70 ? 2 : 1;
     const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
     const summe = Object.values(p).reduce((a,b)=>a+b,0) - (lb?.urteil==="trägt nicht" ? 1 : 0);
@@ -3874,7 +3875,7 @@ function topDreiDaten(D){
 // je Signal ein Feld rundherum (25.10.: + 🧩 mehrere Märkte), je Signal eins; leuchtet ein Feld, zieht dieses Signal. Mitte = Punkte. Die Nr. 1 groß
 // mit Radar-Sweep und Geld-Säulen der letzten 2 h, Nr. 2 und 3 kompakt daneben.
 const T3_ICO = ["🔁","📣","💶","📏","🔻","🧠","🎰","🧩","📊","🏆"];
-const T3_MAX = {serie:4, push:2, neu:3, norm:2, quote:2, poly:2, stake:2, maerkte:2, druck:2, liga:1};
+const T3_MAX = {serie:4, push:2, neu:3, norm:2, quote:2, poly:2, stake:3, maerkte:2, druck:2, liga:1};
 let T3_ERST = true;
 function t3Scheibe(p, summe, gross){
   const R = gross ? 62 : 30, sw = gross ? 13 : 7, M = R + sw, u = 2*Math.PI*R, n = T3_SIG.length, spalt = gross ? 7 : 5, len = u/n - spalt;
@@ -3899,6 +3900,18 @@ function t3Saeulen(werte){
 // Lucas 23.10.: „ja bitte" — die Top 3 werden mitgeschrieben (top3.py) und abgerechnet; Regel vorab fest, Ziel 60
 function t3Messung(D){
   const M = D.pushBilanz?.top3; if(!M) return "";
+  // Top-3-Regel 6 (17.11.): die neue Wertung wird für sich gemessen — oben steht ihre Messung, die alte nur als Zeile darunter
+  if(M.r6){
+    const a = M.r6, al = M.alt||{}, pz = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
+    const ant = Math.min(100, (a.abgerechnet||0)/M.ziel*100);
+    const f = a.urteil==="bestanden" ? "var(--up)" : a.urteil ? "var(--down)" : "var(--text-2)";
+    return `<div class="t3-mess" data-geh="feed" role="button" tabindex="0" title="Details im Feed unter der Bilanz">
+      <span class="t3-mess-t">🧪 ${a.urteil ? (a.urteil==="bestanden"?"✓ Regel 6 bestanden":"✗ Regel 6 nicht bestanden") : "Regel 6 · Messung seit 17.11."}</span>
+      <span class="t3-mess-b"><i style="width:${ant.toFixed(1)}%;background:${f}"></i></span>
+      <span><b>${a.abgerechnet||0}</b> von ${M.ziel} abgerechnet${a.offen?` · ${a.offen} offen`:""}</span>
+      ${a.abgerechnet ? `<span>Treffer <b>${a.treffer} %</b> (Quote sagte ${a.erwartet} %)</span><span>Rendite <b style="color:${a.roi>=0?"var(--up)":"var(--down)"}">${pz(a.roi)}</b></span>` : ""}
+      ${al.abgerechnet ? `<span style="opacity:.7">bis Regel 5: ${al.abgerechnet} Tipps · ${pz(al.roi)}</span>` : ""}</div>`;
+  }
   const a = (M.gruppen||[]).find(g=>g.name==="Alle"); if(!a) return `<div class="t3-mess"><span class="t3-mess-t">🧪 Messung läuft ab jetzt</span><span>jeder neue Einzug in die Top 3 wird zur Quote in dem Moment mitgeschrieben</span></div>`;
   const ant = Math.min(100, a.abgerechnet/M.ziel*100), pz = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
   const f = M.urteil==="bestanden" ? "var(--up)" : M.urteil ? "var(--down)" : "var(--text-2)";
@@ -5254,6 +5267,8 @@ const REGELN = [
   {id:"D7", t:"Druck-Team führt → kein Signal", seit:"16.11.", w:"Führt das Druck-Team, zählt der Druck nicht mehr (keine Top-3-Punkte), wird aber still mitgemessen.", b:"15.11.: Druck-Team vorn −8,6 % (76), hinten +17 % (70).", dr:"ab Regel 7: Druck-Team führt (still, zählt nicht mehr)"},
   {id:"D4", t:"Rote Karten mitschreiben", seit:"01.11.", w:"Index bleibt gleich, nur notiert.", pr:"Druck-Team in Überzahl: neu prüfen bei 40 Pushes (15.11.: 20 · −26 %).", dr:"Rote Karte: Druck-Team in Überzahl"},
   {id:"D-80", t:"Nur bis zur 80. Minute", seit:"–", w:"Druck-Signale bis 80', auf der Startseite ab 85' ausgeblendet (16.11.)."},
+  {id:"T6", t:"Top 3: Liga-Norm ohne Punkte, Stake zählt mehr", seit:"17.11.", w:"„Über der Liga-Norm“ bringt keine Punkte mehr (still mitgeschrieben). Stake-Burst auf derselben Seite 3 statt 2 Punkte, Stake-Geld auf derselben Seite 2 statt 1. Gemessen ab jetzt für sich, Ziel 60 abgerechnet.", b:"05.–17.11., erster Einzug je Spiel: mit Norm-Punkt −11,9 % ±10,7 (253), ohne +7,0 % ±8,3 (597); mit Stake +18,8 % ±15,1 (142), ohne −2,1 % (708). Beide Effekte in beiden Hälften des Zeitraums gleich.",
+   mess:[{n:"Top 3 ab Regel 6", a:["top3","top3p"], ab:"2026-11-17T13"}]},
   {id:"T5", t:"Top 3: Polymarket/Stake nur auf derselben Seite", seit:"10.11.", w:"Ein Punkt nur, wenn das Geld dort auf dieselbe Seite geht."},
   {id:"K2", t:"AI-Pick nur frisch", seit:"11.11.", w:"AI-Pick höchstens 20 Min alt, gleicher Spielstand, gebucht zur aktuellen Top-3-Quote."},
  ]},
