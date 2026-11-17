@@ -105,6 +105,28 @@ main{padding:22px 28px 60px;min-width:0}
 .feed{display:flex;flex-direction:column}
 /* Wo am meisten liegt */
 .toepfe{display:grid;gap:10px}
+/* 17.11. Pinnacle-Linien als kompakte Liste, aufklappbar */
+.pll{grid-column:1 / -1}
+.pll-kopf{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.pll-kopf span{font-size:12px;color:var(--text-3)}
+.pll-liga{font-size:12px;font-weight:800;color:var(--text-3);padding:12px 4px 4px}
+.pll-z{border-top:1px solid var(--line)}
+.pll-z summary{list-style:none;display:grid;grid-template-columns:76px minmax(0,1.1fr) minmax(0,2fr);gap:10px;align-items:center;padding:9px 4px;cursor:pointer}
+.pll-z summary::-webkit-details-marker{display:none}
+.pll-z summary:hover{background:var(--panel-2)}
+.pll-z[open] summary{background:var(--panel-2)}
+.pll-zt{font-size:12px;font-weight:700;color:var(--text-2);white-space:nowrap}
+.pll-sp{min-width:0;display:flex;flex-direction:column}
+.pll-sp b{font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pll-sp small{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pll-ms{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.pll-m{display:inline-flex;align-items:baseline;gap:5px;font-size:13px;font-weight:700;color:var(--pin);background:color-mix(in srgb, var(--pin) 11%, var(--panel));border:1px solid color-mix(in srgb, var(--pin) 35%, transparent);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.pll-m small{font-size:11px;color:var(--text-3);font-weight:700}
+.pll-m em{font-style:normal;font-size:11.5px;color:var(--text-2);font-weight:600}
+.pll-m.f{box-shadow:inset 3px 0 0 var(--pin)}
+.pll-auf{padding:2px 4px 12px}
+.pll-auf .chip{margin-top:8px}
+@media (max-width:700px){ .pll-z summary{grid-template-columns:58px minmax(0,1fr)} .pll-ms{grid-column:1 / -1;justify-content:flex-start} }
 /* 17.11. Pinnacle-Linien: eine Karte je Spiel; je Markt die Seiten als Kacheln, die gezogene Seite farbig */
 .plk{cursor:default}
 .plk-sp{font-weight:800;font-size:16px;color:var(--text);margin:6px 0 4px;line-height:1.25}
@@ -4387,18 +4409,38 @@ function plZeile(s){
     <div class="plk-ks n${seiten.length}">${seiten.map(kachel).join("")}</div>
   </div>`;
 }
-function plKarten(liste){
-  const G = {};
-  liste.forEach(s=>{ (G[s.id] = G[s.id] || []).push(s); });
-  return Object.values(G)
-    .sort((a,b)=>(b.some(x=>x.frisch)-a.some(x=>x.frisch)) || (b.length-a.length) || (new Date(a[0].anpfiff)-new Date(b[0].anpfiff)))
-    .map(z=>{ const s=z[0]; const bf = s.bfId ? klickSpiel({id:s.bfId, heim:s.heim, gast:s.gast}) : "";
-      return `<div class="topf mk plk" ${bf}>
-        <div class="mk-kopf"><span class="mk-liga">${esc(ligaName(s.liga)||"")}</span><span class="mk-zeit">${wann(s.anpfiff)}</span></div>
-        <div class="plk-sp">${esc(s.heim)} – ${esc(s.gast)}</div>
-        ${z.map(plZeile).join("")}
-      </div>`; }).join("");
+// Lucas 17.11. („kompakte Zeile, wenn man klickt klappt es aus … wenn alle Ligen laufen, siehst du sonst nichts; sortieren
+// nach Liga bzw. Drop"): je Spiel eine Zeile mit den Drop-Seiten als kurze Marken, aufklappbar zu den Kacheln.
+let PLS = (()=>{ try{ return localStorage.getItem("plSort") || "drop"; }catch(e){ return "drop"; } })();
+let PLD = [];
+const plStaerke = s => s.art==="linie" ? s.schritte*5 : s.pp;        // ¼-Schritt ≈ 5 pp — grob, nur zum Sortieren
+function plMarke(s){
+  const ah = s.markt.endsWith("AH"), hz = s.markt.startsWith("HZ");
+  const mk = (hz?"HZ ":"") + (s.markt==="HZ" ? "Sieg" : ah ? "HC" : "Tore");
+  const wer = s.markt==="HZ" ? (s.seite===1?"Remis":s.auf) : ah ? `${s.auf} ${lzD(s.linie)}` : `${s.auf} ${lzT(s.linie)}`;
+  const was = s.art==="linie" ? (s.schritte===1?"¼":s.schritte+"×¼") : `+${dez(s.pp)}pp`;
+  return `<span class="pll-m${s.frisch?" f":""}"><small>${mk}</small>▼ ${esc(wer)}<em>${was}</em></span>`;
 }
+function plListe(){
+  const G = {};
+  PLD.forEach(s=>{ (G[s.id] = G[s.id] || []).push(s); });
+  let Z = Object.values(G).map(z=>({z, st:Math.max(...z.map(plStaerke)), f:z.some(x=>x.frisch), liga:ligaName(z[0].liga)||z[0].liga||""}));
+  if(PLS==="liga") Z.sort((a,b)=>a.liga.localeCompare(b.liga) || b.st-a.st);
+  else if(PLS==="zeit") Z.sort((a,b)=>new Date(a.z[0].anpfiff)-new Date(b.z[0].anpfiff));
+  else Z.sort((a,b)=>b.st-a.st || b.f-a.f);
+  let letzte = null;
+  const zeilen = Z.map(({z,liga})=>{
+    const s=z[0], kopf = PLS==="liga" && liga!==letzte ? `<div class="pll-liga">${esc(liga)}</div>` : ""; letzte = liga;
+    return `${kopf}<details class="pll-z"><summary>
+        <span class="pll-zt">${wann(s.anpfiff)}</span>
+        <span class="pll-sp"><b>${esc(s.heim)} – ${esc(s.gast)}</b>${PLS==="liga"?"":`<small>${esc(liga)}</small>`}</span>
+        <span class="pll-ms">${z.map(plMarke).join("")}</span>
+      </summary><div class="pll-auf">${z.map(plZeile).join("")}${s.bfId?`<button class="chip" ${klickSpiel({id:s.bfId, heim:s.heim, gast:s.gast})}>Spiel öffnen</button>`:""}</div></details>`; }).join("");
+  const knopf = (k,n) => `<button class="${PLS===k?"an":""}" onclick="plSortieren('${k}')">${n}</button>`;
+  return `<div class="pll-kopf"><div class="seg">${knopf("drop","Stärkster Drop")}${knopf("liga","Nach Liga")}${knopf("zeit","Nach Anpfiff")}</div><span>${Z.length} Spiele · antippen für Details</span></div>${zeilen}`;
+}
+function plSortieren(k){ PLS = k; try{ localStorage.setItem("plSort", k); }catch(e){} const el = document.getElementById("pll"); if(el) el.innerHTML = plListe(); }
+function plKarten(liste){ PLD = liste; return `<div class="pll" id="pll">${plListe()}</div>`; }
 // Lucas 11.11.: zieht Betfair mit? ✓ beide fallen · ⏳ Betfair hinkt (noch alter Preis) · ✗ Betfair geht dagegen
 function bfZug(s){
   const b = s.bf; if(!b) return `<div class="pdk-bf aus">Betfair: keine Sieg-Quote</div>`;
@@ -4427,7 +4469,7 @@ function seitePinnacle(D){
   const vorS = [...vor].sort((a,b)=>rang(a)-rang(b) || (b.frisch?1:0)-(a.frisch?1:0) || b.pp-a.pp);
   (vor.length?voll:leer).push(["Drops vor Anpfiff", "seit dem ersten Stand · frisch = in der letzten Stunde · zuerst, wo Betfair mitzieht", vorS.map(x=>pinDropKarte(x,false))]);
   const pl = lf((D.pinnLinien||{}).vor||[]);
-  (pl.length?voll:leer).push(["Handicap, Über/Unter & 1. Halbzeit vor Anpfiff", `Pinnacle-Hauptlinie gegen den ersten Stand der letzten 12 h · ${(D.pinnLinien||{}).n||0} Spiele beobachtet, Halbzeit ${(D.pinnLinien||{}).nHz||0} (Anpfiff in ≤ 6 h) · ▼ blau = Drop-Seite, dorthin zieht Pinnacle · ● frisch = in der letzten Stunde · nur gemessen, kein Push`, [plKarten(pl)]]);
+  (pl.length?voll:leer).push(["Handicap, Über/Unter & 1. Halbzeit vor Anpfiff", `▼ = Drop-Seite · gegen den ersten Stand der letzten 12 h · ${(D.pinnLinien||{}).n||0} Spiele beobachtet · nur gemessen, kein Push`, [plKarten(pl)]]);
   return `<div class="grid">
     <div class="panel c12 kz-panel">${kzReihe([
       ["Spiele mit Pinnacle-Quote", pd.n||0, "alle Ligen, vor Anpfiff und live"],
