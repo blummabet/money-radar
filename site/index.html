@@ -105,22 +105,26 @@ main{padding:22px 28px 60px;min-width:0}
 .feed{display:flex;flex-direction:column}
 /* Wo am meisten liegt */
 .toepfe{display:grid;gap:10px}
-/* 17.11. Pinnacle-Linien: eine Karte je Spiel, je Bewegung eine Zeile */
+/* 17.11. Pinnacle-Linien: eine Karte je Spiel; je Markt die Seiten als Kacheln, die gezogene Seite farbig */
 .plk{cursor:default}
-.plk-sp{font-weight:800;font-size:16px;color:var(--text);margin:6px 0 2px;line-height:1.25}
-.plk-z{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 14px;padding:10px 0 9px;border-top:1px solid var(--line);margin-top:8px}
-.plk-m{font-size:12px;font-weight:700;color:var(--text-3)}
-.plk-f{color:var(--pin);font-weight:700;margin-left:4px}
-.plk-w{grid-row:1 / span 2;grid-column:2;align-self:center;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-.plk-w s{color:var(--text-3);font-size:14px;text-decoration-thickness:1px}
-.plk-w i{font-style:normal;color:var(--text-3);margin:0 5px;font-size:13px}
-.plk-w b{font-size:22px;font-weight:800;color:var(--text)}
-.plk-w em{display:block;font-style:normal;font-size:12px;font-weight:700;color:var(--pin);margin-top:1px}
-.plk-s{font-size:13.5px;color:var(--text-2);line-height:1.35;min-width:0}
-.plk-s b{color:var(--text)}
-.plk-t{grid-column:1 / -1;font-size:13px;color:var(--text-2);background:var(--panel-3);border-radius:8px;padding:5px 9px;margin-top:4px}
-.plk-t b{color:var(--pin)}
-.plk-z.frisch .plk-w b{color:var(--pin)}
+.plk-sp{font-weight:800;font-size:16px;color:var(--text);margin:6px 0 4px;line-height:1.25}
+.plk-z{padding:9px 0 4px;border-top:1px solid var(--line);margin-top:6px}
+.plk-m{display:flex;align-items:baseline;gap:8px;font-size:12px;margin-bottom:6px}
+.plk-m span{font-weight:800;color:var(--text)}
+.plk-m em{font-style:normal;color:var(--text-3);font-weight:600}
+.plk-m i{font-style:normal;color:var(--pin);font-weight:700;margin-left:auto}
+.plk-ks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.plk-ks.n3{grid-template-columns:1fr 1fr 1fr}
+.plk-k{border:1px solid var(--line);border-radius:10px;padding:7px 10px;background:var(--panel);min-width:0;opacity:.7}
+.plk-k.an{opacity:1;background:color-mix(in srgb, var(--pin) 12%, var(--panel));border-color:color-mix(in srgb, var(--pin) 55%, transparent)}
+.plk-kn{font-size:13px;font-weight:700;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plk-k.an .plk-kn{color:var(--pin)}
+.plk-kl{font-variant-numeric:tabular-nums;margin-top:1px}
+.plk-kl b{font-size:20px;font-weight:800;color:var(--text)}
+.plk-kl s{font-size:13px;color:var(--text-3);margin-right:6px}
+.plk-k:not(.an) .plk-kl b{font-size:15px;color:var(--text-3)}
+.plk-kq{font-size:12.5px;color:var(--text-2);font-variant-numeric:tabular-nums;margin-top:1px}
+.plk-kq s{color:var(--text-3)}
 .tp-fazit{font-size:13px;color:var(--text-2);margin:2px 0 6px}
 .tp-fazit b{color:var(--text)}
 .tp-fazit.ok{color:var(--up)}.tp-fazit.ok b{color:var(--up)}
@@ -4359,26 +4363,28 @@ function pinDropKarte(s, live){
 const lzD = x => (x>0?"+":x<0?"−":"")+String(Math.abs(x)).replace(".",",");
 const lzT = x => String(x).replace(".",",");
 function plZeile(s){
+  // Lucas 17.11. („ich will sofort sehen, welcher Change auf welches Team bzw. Markt"): je Markt die Seiten als Kacheln
+  // nebeneinander — die Seite, zu der Pinnacle zieht, ist farbig mit ▲, ihre neue Linie/Quote groß, der alte Wert klein.
   const ah = s.markt.endsWith("AH"), hz = s.markt.startsWith("HZ");
-  const mk = (hz?"1. Halbzeit · ":"") + (s.markt==="HZ" ? "Sieger" : ah ? "Handicap" : "Tore Über/Unter");
-  const wette = s.markt==="HZ" ? (s.seite===1?"Remis":s.auf) : ah ? `${s.auf} ${lzD(s.linie)}` : `${s.auf} ${lzT(s.linie)}`;
-  let wert, satz, tag;
-  if(s.art==="linie"){
-    const f = ah ? lzD : lzT;
-    wert = `<s>${f(s.von)}</s><i>→</i><b>${f(s.nach)}</b>`;
-    tag = `${s.nach>s.von?"▲":"▼"} ${s.schritte===1?"¼":s.schritte+"×¼"}`;
-    satz = ah ? `Linie aus Sicht ${esc(s.heim)} · Pinnacle traut <b>${esc(s.auf)}</b> mehr zu`
-              : `Pinnacle erwartet ${s.nach>s.von?"<b>mehr</b>":"<b>weniger</b>"} Tore`;
-  } else {
-    wert = `<s>${q2(s.vonQuote)}</s><i>→</i><b>${q2(s.quote)}</b>`;
-    tag = `+${dez(s.pp)} pp`;
-    satz = `Quote fällt auf <b>${esc(wette)}</b>, Linie unverändert`;
-  }
-  return `<div class="plk-z${s.frisch?" frisch":""}">
-    <div class="plk-m">${mk}${s.frisch?` <span class="plk-f">● frisch</span>`:""}</div>
-    <div class="plk-w">${wert}<em>${tag}</em></div>
-    <div class="plk-s">${satz}</div>
-    <div class="plk-t">Mit dem Zug: <b>${esc(wette)}</b> @ ${q2(s.quote)}</div>
+  const mk = (hz?"1. HZ · ":"") + (s.markt==="HZ" ? "Sieger" : ah ? "Handicap" : "Tore");
+  let seiten;                                   // [Name, Linie jetzt, Linie vorher] je Kachel
+  if(s.markt==="HZ") seiten = [[s.heim],["Remis"],[s.gast]];
+  else if(ah){ const h1 = s.art==="linie" ? s.nach : (s.seite===0 ? s.linie : -s.linie), h0 = s.art==="linie" ? s.von : h1;
+    seiten = [[s.heim, lzD(h1), lzD(h0)], [s.gast, lzD(-h1), lzD(-h0)]]; }
+  else { const l1 = s.art==="linie" ? s.nach : s.linie, l0 = s.art==="linie" ? s.von : l1;
+    seiten = [["Über", lzT(l1), lzT(l0)], ["Unter", lzT(l1), lzT(l0)]]; }
+  const zug = s.markt==="HZ" ? s.seite : s.seite;
+  const was = s.art==="linie" ? `Linie ${s.schritte===1?"¼":s.schritte+"×¼"} verschoben` : `Quote fällt · +${dez(s.pp)} pp`;
+  const kachel = ([n, l1, l0], k) => {
+    const an = k===zug, alt = s.art==="linie" && l0!==undefined && l0!==l1;
+    return `<div class="plk-k${an?" an":""}">
+      <div class="plk-kn">${an?"▲ ":""}${esc(n)}</div>
+      ${l1!==undefined?`<div class="plk-kl">${alt?`<s>${l0}</s>`:""}<b>${l1}</b></div>`:""}
+      ${an?`<div class="plk-kq">${s.art==="quote"?`<s>${q2(s.vonQuote)}</s> `:""}@ ${q2(s.quote)}</div>`:""}
+    </div>`; };
+  return `<div class="plk-z">
+    <div class="plk-m"><span>${mk}</span><em>${was}</em>${s.frisch?`<i>● frisch</i>`:""}</div>
+    <div class="plk-ks n${seiten.length}">${seiten.map(kachel).join("")}</div>
   </div>`;
 }
 function plKarten(liste){
