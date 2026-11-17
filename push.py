@@ -1617,7 +1617,8 @@ def spanne(d, beleg):
     bk, ly = sp_["back"][i], sp_["lay"][i]
     if not (isinstance(bk, (int, float)) and isinstance(ly, (int, float)) and bk > 1 and ly >= bk):
         return None
-    return {"back": bk, "lay": ly, "pct": round((ly / bk - 1) * 100, 1)}
+    q_ = {"smarkets": "Smarkets", "matchbook": "Matchbook"}.get(sp_.get("quelle") or "", "Betfair")
+    return {"back": bk, "lay": ly, "pct": round((ly / bk - 1) * 100, 1), "quelle": q_}
 
 
 def schluss_x(d, buch):
@@ -1775,9 +1776,9 @@ def main() -> int:
             try:                             # 17.11.: Spanne Back/Lay mitschreiben, Hinweis bei dünnem Markt
                 sp_ = spanne(d, beleg)
                 if sp_:
-                    beleg["spanne"] = sp_["pct"]
+                    beleg["spanne"], beleg["spanneQuelle"] = sp_["pct"], sp_["quelle"]
                     if text is not None and sp_["pct"] >= SPANNE_HINWEIS:
-                        text += (f"\n<i>⚠️ Dünner Markt: Betfair Back {sp_['back']:.2f} / Lay {sp_['lay']:.2f} "
+                        text += (f"\n<i>⚠️ Dünner Markt: {sp_['quelle']} Back {sp_['back']:.2f} / Lay {sp_['lay']:.2f} "
                                  f"(Spanne {sp_['pct']:.0f} %)</i>").replace(".", ",", 2)
             except Exception as exc:  # noqa: BLE001
                 print(f"  spanne: {exc}")

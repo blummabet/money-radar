@@ -393,8 +393,10 @@ def parse_event(ev) -> dict:
     # Anzeige von Scan zu Scan springen (11 -> 34). Der Median ist ausreisser-fest.
     soft_odds = [_median([x[i] for x in soft_o]) for i in range(3)] if soft_o else None
     # 17.11. (Lucas: „back und lays sehen"): Betfair-Börse steckt schon im h2h-Abruf (Regionen uk/eu) — Back-Quoten mitnehmen
-    bfx_back = None
-    for _bk in ("betfair_ex_uk", "betfair_ex_eu"):
+    # 17.11. Nachtrag: Betfair-Börse kommt für Fußball NICHT über unseren Zugang (Diagnose: 0 Spiele), Smarkets (367) und
+    # Matchbook (64) schon — beides Börsen mit Back und Lay. Reihenfolge: Betfair, falls doch da, sonst Smarkets, sonst Matchbook.
+    bfx_back, bfx_quelle = None, None
+    for _bk in ("betfair_ex_uk", "betfair_ex_eu", "smarkets", "matchbook"):
         for bk in ev.get("bookmakers") or []:
             if bk.get("key") != _bk or bfx_back:
                 continue
@@ -403,8 +405,8 @@ def parse_event(ev) -> dict:
                     continue
                 oc = {str(o.get("name")): o.get("price") for o in mkt.get("outcomes") or [] if isinstance(o, dict)}
                 if all(isinstance(oc.get(n), (int, float)) for n in (home, away, "Draw")):
-                    bfx_back = [float(oc[home]), float(oc["Draw"]), float(oc[away])]
-    out = {"home": home, "away": away, "commence": ev.get("commence_time"), "eid": ev.get("id"), "bfxBack": bfx_back,
+                    bfx_back, bfx_quelle = [float(oc[home]), float(oc["Draw"]), float(oc[away])], _bk
+    out = {"bfxQuelle": bfx_quelle, "home": home, "away": away, "commence": ev.get("commence_time"), "eid": ev.get("id"), "bfxBack": bfx_back,
            "pinn": pinn, "soft": soft, "pinnOdds": pinn_odds, "softOdds": soft_odds, "nSoft": len(soft_p),
            "buecher": buecher}
     if pinn_roh:
@@ -1694,7 +1696,7 @@ def parse_linien(ev):
                         out["ou"] = [float(o["point"]), float(o["price"]), float(u["price"])]
             except (TypeError, ValueError):
                 continue
-    for _bk in ("betfair_ex_uk", "betfair_ex_eu"):
+    for _bk in ("betfair_ex_uk", "betfair_ex_eu", "smarkets", "matchbook"):
         for bk in ev.get("bookmakers") or []:
             if bk.get("key") != _bk or "lay" in out:
                 continue
@@ -1704,6 +1706,7 @@ def parse_linien(ev):
                 oc = {str(o.get("name")): o.get("price") for o in mkt.get("outcomes") or [] if isinstance(o, dict)}
                 if all(isinstance(oc.get(n), (int, float)) for n in (home, away, "Draw")):
                     out["lay"] = [float(oc[home]), float(oc["Draw"]), float(oc[away])]
+                    out["layQuelle"] = _bk
     return (home, away, ev.get("commence_time")), out
 
 
@@ -1711,7 +1714,7 @@ def fetch_linien(sport_key):
     if not ODDS_KEY:
         return []
     # 17.11.: dazu die Lay-Quoten der Betfair-Börse (h2h_lay) — 3 Märkte × 1 „Region" (≤ 10 Bücher) = 3 Credits
-    url = ("%s/sports/%s/odds?apiKey=%s&bookmakers=pinnacle,betfair_ex_uk,betfair_ex_eu&markets=spreads,totals,h2h_lay"
+    url = ("%s/sports/%s/odds?apiKey=%s&bookmakers=pinnacle,betfair_ex_uk,betfair_ex_eu,smarkets,matchbook&markets=spreads,totals,h2h_lay"
            "&oddsFormat=decimal&dateFormat=iso" % (ODDS_BASE, sport_key, ODDS_KEY))
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "cocobet-consensus"})
@@ -1745,6 +1748,11 @@ def linien_anhaengen(events_by_key, t0, budget=LINIEN_BUDGET_S):
             if ln:
                 e["ln"] = ln
                 n_e += 1
+    for evs in events_by_key.values():           # Back und Lay nur aus DERSELBEN Börse
+        for e in evs or []:
+            ln = e.get("ln") or {}
+            if ln.get("lay") and ln.get("layQuelle") != e.get("bfxQuelle"):
+                ln.pop("lay", None)
     n_lay = sum(1 for evs in events_by_key.values() for e in evs or [] if (e.get("ln") or {}).get("lay") and e.get("bfxBack"))
     _alle = [e for evs in events_by_key.values() for e in evs or []]
     _bu = {}
@@ -1752,8 +1760,13 @@ def linien_anhaengen(events_by_key, t0, budget=LINIEN_BUDGET_S):
         for b_ in e.get("buecher") or []:
             if "betfair" in b_ or "matchbook" in b_ or "smarkets" in b_:
                 _bu[b_] = _bu.get(b_, 0) + 1
-    print("linien-diag: Back %d, Lay %d, Börsen in h2h: %s" % (sum(1 for e in _alle if e.get("bfxBack")),
-          sum(1 for e in _alle if (e.get("ln") or {}).get("lay")), _bu))
+    _lq = {}
+    for e in _alle:
+        q_ = (e.get("ln") or {}).get("layQuelle")
+        if q_:
+            _lq[q_] = _lq.get(q_, 0) + 1
+    print("linien-diag: Back %d, Lay %d (%s), Börsen in h2h: %s" % (sum(1 for e in _alle if e.get("bfxBack")),
+          sum(1 for e in _alle if (e.get("ln") or {}).get("lay")), _lq, _bu))
     print("linien: %d Wettbewerbe, %d Spiele mit Handicap/Über-Unter, %d mit Betfair Back+Lay" % (n_k, n_e, n_lay))
 
 

@@ -154,6 +154,7 @@ def fortschreiben(events_by_key, sports, jetzt=None, bf_matches=None, namen=None
                 bk_, ly_ = ev.get("bfxBack"), (ln or {}).get("lay")
                 if bk_ and ly_:
                     e["bfx"] = [jetzt.isoformat(), *bk_, *ly_]
+                    e["bfxQuelle"] = ev.get("bfxQuelle")
                     if ko > jetzt:
                         e["bfxSchluss"] = e["bfx"]
                 # 17.11.: Pinnacle 1. Halbzeit (nur vor Anpfiff, je Spiel alle ~15 Min abgerufen) —

@@ -564,7 +564,7 @@ def bf_spanne(prices):
                 continue
             if (_gleich(e["heim"], m.get("home")) and _gleich(e["gast"], m.get("away"), locker=True)) or \
                (_gleich(e["heim"], m.get("home"), locker=True) and _gleich(e["gast"], m.get("away"))):
-                out[str(m.get("matchId"))] = {"ts": x[0], "back": x[1:4], "lay": x[4:7], "schluss": e.get("bfxSchluss")}
+                out[str(m.get("matchId"))] = {"ts": x[0], "back": x[1:4], "lay": x[4:7], "schluss": e.get("bfxSchluss"), "quelle": e.get("bfxQuelle")}
                 break
     return out
 
