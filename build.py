@@ -2930,7 +2930,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -3117,6 +3117,71 @@ def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
                                pp.get("seite") if pp.get("quote") else pp.get("fehlt"), pp.get("tiefe"), p.get("quote")])
 
 
+SPEICHER_GRENZEN = {"datei": 23e6, "gedaechtnis": 150e6, "statistik": 4e6}   # Sicherung nimmt Dateien < 25 MB mit
+# betfair_history.json ist größer, baut sich aber in 72 h selbst neu auf (fällt bewusst aus der Sicherung);
+# .st/stake_bet_ledger.json hält rollierend 20.000 Wetten (~22 MB) — knapp unter der Grenze, darum 23 MB als Warnschwelle.
+SPEICHER_OHNE = {"betfair_history.json"}
+
+
+def speicher_check():
+    """Größen im Blick: Gedächtnis-Ordner, größte Datei, Statistik-Datei. Über einer Grenze → Hinweis in FEHLER
+    (steht oben auf der Seite und im Wochencheck), lange bevor die Tagessicherung (25 MB je Datei) oder der Cache kippt."""
+    aus, gross = {}, []
+    gesamt = 0
+    for d in (".bf", ".pin", ".push_state", ".pm", ".pf", ".st", ".rp"):
+        n = 0
+        for f in (BASIS / d).rglob("*") if (BASIS / d).exists() else []:
+            if f.is_file():
+                g = f.stat().st_size
+                n += g
+                if g > SPEICHER_GRENZEN["datei"] and f.name not in SPEICHER_OHNE:
+                    gross.append(f"{d}/{f.name} {g / 1e6:.0f} MB")
+        aus[d] = round(n / 1e6, 1)
+        gesamt += n
+    st = BASIS / "site" / "statistik.json"
+    aus["statistikMB"] = round(st.stat().st_size / 1e6, 2) if st.exists() else None
+    aus["gesamtMB"] = round(gesamt / 1e6, 1)
+    if gross:
+        FEHLER.append("Speicher: große Datei(en) — " + ", ".join(gross) + " (Tagessicherung nimmt nur < 25 MB)")
+    if gesamt > SPEICHER_GRENZEN["gedaechtnis"]:
+        FEHLER.append(f"Speicher: Gedächtnis {gesamt / 1e6:.0f} MB — aufräumen/verdichten")
+    if aus["statistikMB"] and aus["statistikMB"] * 1e6 > SPEICHER_GRENZEN["statistik"]:
+        FEHLER.append(f"Speicher: statistik.json {aus['statistikMB']} MB — ältere Monate verdichten")
+    return aus
+
+
+STAT_ARCHIV = BASIS / ".push_state" / "stat_archiv"
+
+
+def _stat_schluessel(z):
+    art = re.sub(r"(Wdh|Spaeter|Klar)$", "", str(z[1]))
+    return f"{z[0]}|{art}|{z[9]}|{z[10]}"
+
+
+def _stat_archiv(buch_zeilen):
+    """Abgerechnete Buch-Zeilen ins Monats-Archiv schreiben (nur neue), dann alle archivierten Zeilen ergänzen,
+    die im aktuellen Buch fehlen. Gibt die vollständigen Buch-Zeilen zurück."""
+    STAT_ARCHIV.mkdir(parents=True, exist_ok=True)
+    jetzt_keys = {_stat_schluessel(z) for z in buch_zeilen}
+    monate = {}
+    for f in sorted(STAT_ARCHIV.glob("*.json")):
+        try:
+            monate[f.stem] = json.loads(f.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            monate[f.stem] = {}
+    geaendert = set()
+    for z in buch_zeilen:
+        if z[2] is None:
+            continue
+        m, k = z[0][:7], _stat_schluessel(z)
+        if k not in monate.setdefault(m, {}) or monate[m][k] != z:
+            monate[m][k] = z
+            geaendert.add(m)
+    for m in geaendert:
+        (STAT_ARCHIV / f"{m}.json").write_text(json.dumps(monate[m], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    return buch_zeilen + [z for mon in monate.values() for k, z in mon.items() if k not in jetzt_keys]
+
+
 def _topf_still(p):
     """Merkmale alter Topf-Einträge (vor 17.11. ohne „still") aus Art, Quote, Liga — wie public.merkmale."""
     import public as _pub
@@ -3137,6 +3202,19 @@ def statistik(burst, finder):
         buch = json.loads((BASIS / ".push_state" / "buch.json").read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         buch = []
+    # 17.11. (Rundum-Check, Lucas: „Speicher und Performance immer im Hinterkopf"): das Push-Buch hält nur die letzten
+    # BEHALTEN Einträge (~12 Tage) — alles davor fiel still aus der Statistik (alle Betfair-Arten begannen am 05.11.).
+    # Abhilfe 1: einmalig aus den Tagessicherungen geholte ältere Einträge (buch_alt.json, build.yml) mitlesen.
+    try:
+        _alt = json.loads((BASIS / ".push_state" / "buch_alt.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        _alt = []
+    if _alt:
+        _bk = lambda x: (str(x.get("ts"))[:16], x.get("art"), str(x.get("id")), x.get("markt"), x.get("auswahl"))
+        _da = {_bk(x) for x in buch}
+        _erst = min((str(x.get("ts")) for x in buch), default="9")
+        buch = [x for x in _alt if isinstance(x, dict) and str(x.get("ts")) < _erst and _bk(x) not in _da] + buch
+    n_buch0 = len(zeilen)
     doppelt = set()
     for b in buch:
         if b.get("art") not in STAT_ARTEN or b.get("status") not in ("abgerechnet", "offen") or not ts(b.get("ts")):
@@ -3189,6 +3267,12 @@ def statistik(burst, finder):
         if isinstance(sx, (int, float)) or clvx is not None:
             zeilen[-1].extend([None] * (16 - len(zeilen[-1])))
             zeilen[-1].extend([sx, clvx])
+    # Abhilfe 2: jede abgerechnete Zeile aus dem Push-Buch landet in einem Monats-Archiv (kompakt, ~120 Byte je Zeile);
+    # was aus dem Buch gefallen ist, kommt von dort zurück. ~1–2 MB je Monat, in der Tagessicherung enthalten.
+    try:
+        zeilen[n_buch0:] = _stat_archiv(zeilen[n_buch0:])
+    except Exception as exc:  # noqa: BLE001
+        FEHLER.append(f"Statistik-Archiv: {exc}")
     for z in burst or []:
         if not isinstance(z, dict) or not z.get("push") or not stake_ok(z) or not ts(z.get("sentAt")):
             continue
@@ -3491,6 +3575,7 @@ def main() -> int:
         "pinnDrops": pinn_drops(prices, bf_hist),
         "pinnLinien": pinn_linien(prices),
         "bfDrops": bf_drops(prices, bf_hist),   # 17.11. Regel BD1
+        "speicher": speicher_check(),           # 17.11. (Lucas: Speicher/Performance immer im Hinterkopf)
         "t3Dyn": eigen("t3_gewichte.json", ".push_state", default=None),   # 17.11. Top-3-Regel 7
         "topfDyn": eigen("topf_gewichte.json", ".push_state", default=None),   # 17.11. Topf-Regel R31
         "bfSpanne": bf_spanne(prices),

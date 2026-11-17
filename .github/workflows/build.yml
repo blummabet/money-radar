@@ -94,6 +94,36 @@ jobs:
           [ -n "$f" ] || exit 0
           git show "origin/daten:$f" > /tmp/sicherung.tar.gz
           tar xzf /tmp/sicherung.tar.gz --skip-old-files && echo "ergänzt aus $f"
+      # 17.11. (Rundum-Check): Das Push-Buch hält ~12 Tage, ältere Pushes fielen still aus der Statistik. Einmalig alle
+      # Tagessicherungen zu einem Alt-Buch zusammenführen (nur Einträge, die im laufenden Buch fehlen); danach hält das
+      # Monats-Archiv (.push_state/stat_archiv) die Statistik-Zeilen selbst. Läuft nur, solange buch_alt.json fehlt.
+      - name: Alt-Buch aus den Tagessicherungen (einmalig)
+        run: |
+          [ -s .push_state/buch_alt.json ] && { echo "Alt-Buch schon da"; exit 0; }
+          git fetch -q --depth=1 origin daten 2>/dev/null || { echo "keine Sicherung"; exit 0; }
+          mkdir -p /tmp/altbuch && rm -f /tmp/altbuch/*.json
+          for f in $(git ls-tree --name-only origin/daten | grep '^sicherung-.*\.tar\.gz$' | sort); do
+            git show "origin/daten:$f" | tar xzO .push_state/buch.json > "/tmp/altbuch/${f%.tar.gz}.json" 2>/dev/null || true
+          done
+          python3 - <<'PY'
+          import json, glob, pathlib
+          seen, alle = set(), []
+          for f in sorted(glob.glob("/tmp/altbuch/*.json")):
+              try:
+                  for x in json.loads(pathlib.Path(f).read_text()):
+                      k = (str(x.get("ts"))[:16], x.get("art"), str(x.get("id")), x.get("markt"), x.get("auswahl"))
+                      if k not in seen:
+                          seen.add(k); alle.append(x)
+              except Exception as e:
+                  print("übersprungen", f, e)
+          alle.sort(key=lambda x: str(x.get("ts")))
+          for x in alle:                                  # schwere Felder weg, die Statistik braucht sie nicht
+              for k in ("verlauf", "kurve", "saeulen", "reihe", "nach5", "nach10", "vor0", "vor15", "vor30"):
+                  x.pop(k, None)
+          pathlib.Path(".push_state").mkdir(exist_ok=True)
+          pathlib.Path(".push_state/buch_alt.json").write_text(json.dumps(alle, ensure_ascii=False, separators=(",", ":")))
+          print("Alt-Buch:", len(alle), "Einträge", alle[0]["ts"][:10] if alle else "-", "bis", alle[-1]["ts"][:10] if alle else "-")
+          PY
       # 25.10. (Lucas: „neues Projekt sauber halten"): keine Startwerte mehr aus dem alten Projekt. Geht der Cache
       # verloren, fängt das Gedächtnis leer an und lernt in wenigen Tagen neu — besser als alte, anders gerechnete Stände.
       # 20.10.2026 (Lucas: „muss autonom im neuen Projekt laufen"): Stake und Polymarket laufen in DIESEM Repo auf dem

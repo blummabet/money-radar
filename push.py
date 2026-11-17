@@ -1717,8 +1717,20 @@ def pinn_linien_still(d):
                 "schritte": x.get("schritte"), "regel": "PL1"})
 
 
+def bf_drops_still(d):
+    """17.11. Regel BD1 (Lucas: „auf jeden Fall mitschreiben"): Betfair-Drops für Spiele ohne Pinnacle still ins Buch,
+    je Spiel + Markt + Auswahl einmal, zur Quote beim ersten Auftauchen. Kein Push."""
+    for x in d.get("bfDrops") or []:
+        if not isinstance(x.get("quote"), (int, float)) or x["quote"] <= 1:
+            continue
+        yield (f"bd|{x['id']}|{x['markt']}|{x['auf']}", None, None,
+               {"art": "bfDrop", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
+                "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": False, "markt": x["markt"], "auswahl": x["auf"],
+                "quote": x["quote"], "pp": x.get("pp"), "frisch": x.get("frisch"), "eur": x.get("eur"), "regel": "BD1"})
+
+
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────
