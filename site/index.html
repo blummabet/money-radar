@@ -4667,7 +4667,7 @@ function seitePinnacle(D){
   (vor.length?voll:leer).push(["Drops vor Anpfiff", "seit dem ersten Stand · frisch = in der letzten Stunde · zuerst, wo Betfair mitzieht", vorS.map(x=>pinDropKarte(x,false))]);
   // 17.11. Regel BD1 (Lucas, St Kitts – Bonaire): Spiele, die Pinnacle nicht hat, mit ihrem Betfair-Drop
   const bd = lf(D.bfDrops||[]).map(x=>({...x, auf:`${marktDe(x.markt)} · ${auswahlDe(x.auf)}`}));
-  (bd.length?voll:leer).push(["Betfair-Drops (Pinnacle hat das Spiel nicht)", "Quote bei Betfair gegen den ersten Stand der letzten ~6 h · nur mit ≥ €2k auf der Auswahl · frisch = in der letzten Stunde · nur gemessen", bd.map(x=>pinDropKarte(x,false))]);
+  (bd.length?voll:leer).push(["Betfair-Drops (Pinnacle hat das Spiel nicht)", "Quote bei Betfair gegen den ersten Stand der letzten ~6 h · nur mit ≥ €2k auf der Auswahl · frisch = in der letzten Stunde · nur angezeigt, kein Push", bd.map(x=>pinDropKarte(x,false))]);
   const pl = lf((D.pinnLinien||{}).vor||[]);
   (pl.length?voll:leer).push(["Handicap, Über/Unter & 1. Halbzeit vor Anpfiff", `▼ = Drop-Seite · gegen den ersten Stand der letzten 12 h · ${(D.pinnLinien||{}).n||0} Spiele beobachtet · nur gemessen, kein Push`, [plKarten(pl)]]);
   return `<div class="grid">
