@@ -1968,6 +1968,9 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .pdk-quelle{display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;font-size:10.5px;font-weight:700;color:var(--bf);background:color-mix(in srgb, var(--bf) 14%, transparent)}
 .pdk-geld{font-size:12px;color:var(--text-2);margin-top:6px}
 .pdk-geld b{color:var(--up)}
+
+.bd-auf .pdk{max-width:420px;margin-bottom:8px}
+.pll-hinweis{font-size:11.5px;color:var(--text-3)}
 </style>
 </head>
 <body>
@@ -4638,6 +4641,23 @@ function plListe(){
 }
 function plSortieren(k){ PLS = k; try{ localStorage.setItem("plSort", k); }catch(e){} const el = document.getElementById("pll"); if(el) el.innerHTML = plListe(); }
 function plKarten(liste){ PLD = liste; return `<div class="pll" id="pll">${plListe()}</div>`; }
+// 17.11. (Lucas: „Betfair-Drops kompakt wie die Pinnacle-Linien darunter, klicken = groß, extra Knopf zu den Details")
+const bdFarbe = m => /^(Half Time|First Half)/.test(m) ? "var(--mw-hz, var(--hz))" : /^Over\/Under|Both teams/.test(m) ? "var(--mw-tore, #1fc2a4)" : "var(--bf)";
+function bdMarke(x){
+  const mk = x.markt==="Match Odds" ? "Sieg" : x.markt==="Half Time" ? "HZ Sieg" : /^Over\/Under/.test(x.markt) ? "Tore" : /^First Half Goals/.test(x.markt) ? "HZ-Tore" : /^Both/.test(x.markt) ? "Beide treffen" : marktDe(x.markt);
+  return `<span class="pll-m${x.frisch?" f":""}" style="--c:${bdFarbe(x.markt)}"><small>${esc(mk)}</small>▼ ${esc(auswahlDe(x.auf))}<em>${q2(x.vonQuote)} → ${q2(x.quote)} · +${dez(x.pp)}pp${x.frisch?" · frisch":""}</em></span>`;
+}
+function bdListe(liste){
+  if(!liste.length) return `<div class="leer">Gerade kein Betfair-Drop bei Spielen ohne Pinnacle.</div>`;
+  return `<div class="pll"><div class="pll-kopf"><span>${liste.length} Spiele · antippen für Verlauf und Geld</span></div>${liste.map(x=>{
+    const sp = spielInfo({id:x.bfId});
+    return `<details class="pll-z"><summary>
+        <span class="pll-zt">${wann(x.anpfiff)}</span>
+        <span class="pll-sp"><b>${esc(x.heim)} – ${esc(x.gast)}</b><small>${flagge(x.land)} ${esc(ligaName(x.liga)||x.liga||"")}</small></span>
+        <span class="pll-ms">${bdMarke(x)}</span>
+      </summary><div class="pll-auf bd-auf">${pinDropKarte({...x, auf:`${marktDe(x.markt)} · ${auswahlDe(x.auf)}`, bfId:null}, false)}
+        ${sp?`<button class="chip" ${klickSpiel({id:x.bfId, heim:x.heim, gast:x.gast})}>Spiel öffnen</button>`:`<span class="pll-hinweis">Spiel ist nicht im Betfair-Radar (zu wenig Geld) — kein Spielfenster</span>`}</div></details>`; }).join("")}</div>`;
+}
 // Lucas 11.11.: zieht Betfair mit? ✓ beide fallen · ⏳ Betfair hinkt (noch alter Preis) · ✗ Betfair geht dagegen
 function bfZug(s){
   const b = s.bf; if(!b) return `<div class="pdk-bf aus">Betfair: keine Sieg-Quote</div>`;
@@ -4666,8 +4686,8 @@ function seitePinnacle(D){
   const vorS = [...vor].sort((a,b)=>rang(a)-rang(b) || (b.frisch?1:0)-(a.frisch?1:0) || b.pp-a.pp);
   (vor.length?voll:leer).push(["Drops vor Anpfiff", "seit dem ersten Stand · frisch = in der letzten Stunde · zuerst, wo Betfair mitzieht", vorS.map(x=>pinDropKarte(x,false))]);
   // 17.11. Regel BD1 (Lucas, St Kitts – Bonaire): Spiele, die Pinnacle nicht hat, mit ihrem Betfair-Drop
-  const bd = lf(D.bfDrops||[]).map(x=>({...x, auf:`${marktDe(x.markt)} · ${auswahlDe(x.auf)}`}));
-  (bd.length?voll:leer).push(["Betfair-Drops (Pinnacle hat das Spiel nicht)", "Quote bei Betfair gegen den ersten Stand der letzten ~6 h · nur mit ≥ €2k auf der Auswahl · frisch = in der letzten Stunde · kein Push, still gemessen", bd.map(x=>pinDropKarte(x,false))]);
+  const bd = lf(D.bfDrops||[]);
+  (bd.length?voll:leer).push(["Betfair-Drops (Pinnacle hat das Spiel nicht)", "Quote bei Betfair gegen den ersten Stand der letzten ~6 h · Sieg, Halbzeit, Über/Unter, HZ-Tore, beide treffen · nur mit ≥ €2k auf der Auswahl · kein Push, still gemessen", [bdListe(bd)]]);
   const pl = lf((D.pinnLinien||{}).vor||[]);
   (pl.length?voll:leer).push(["Handicap, Über/Unter & 1. Halbzeit vor Anpfiff", `▼ = Drop-Seite · gegen den ersten Stand der letzten 12 h · ${(D.pinnLinien||{}).n||0} Spiele beobachtet · nur gemessen, kein Push`, [plKarten(pl)]]);
   return `<div class="grid">

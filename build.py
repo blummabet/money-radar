@@ -644,10 +644,11 @@ def bf_drops(prices, bf_hist):
     for m in (prices or {}).get("matches") or []:
         mid, ko = str(m.get("matchId")), ts(m.get("kickoff"))
         li = m.get("liveInfo") or {}
-        if not ko or ko <= JETZT or ko > JETZT + timedelta(hours=24) or mid in pinn or li.get("goal_v1") is not None:
+        # 17.11. Fix: Betwatch meldet auch VOR Anpfiff goal_v1=0 (Status NOT_STARTED) — „live" nur nach der Anpfiffzeit
+        if not ko or ko <= JETZT or ko > JETZT + timedelta(hours=24) or mid in pinn or li.get("finished"):
             continue
         pts = [x for x in (bf_hist or {}).get(mid) or [] if isinstance(x, dict) and isinstance(x.get("sel"), dict)
-               and ts(x.get("ts")) and x.get("sc") is None]
+               and ts(x.get("ts")) and ts(x["ts"]) < ko]
         if len(pts) < 6 or ts(pts[-1]["ts"]) - ts(pts[0]["ts"]) < timedelta(minutes=60):
             continue
         letzt, vorl = pts[-1]["sel"], pts[-2]["sel"]
@@ -689,6 +690,7 @@ def bf_drops(prices, bf_hist):
         if best:
             aus.append(best)
     aus.sort(key=lambda x: (not x["frisch"], -x["pp"]))
+    print(f"  bf-drops: {len(aus)} Spiele mit Drop · {len(pinn)} Betfair-Spiele hat Pinnacle")
     return aus[:40]
 
 
@@ -1257,11 +1259,14 @@ def quote_spanne(snaps, stunden=24):
     pts = [x for x in snaps if isinstance(x, dict) and isinstance(x.get("sel"), dict) and ts(x.get("ts"))]
     if len(pts) < 3:
         return {}
-    live = pts[-1].get("sc") is not None
+    # 17.11. Fix: „sc" steht auch vor Anpfiff auf [0, 0] (Betwatch) — vor/live nach der Anpfiffzeit trennen
+    ko = ts(pts[-1].get("kickoff"))
+    vor_ = lambda x: (ts(x["ts"]) < ko) if ko else (x.get("sc") is None)
+    live = not vor_(pts[-1])
     grenze = ts(pts[-1]["ts"]) - timedelta(hours=stunden)
     out = {}
     for x in pts:
-        if ts(x["ts"]) < grenze or (x.get("sc") is not None) != live:
+        if ts(x["ts"]) < grenze or (not vor_(x)) != live:
             continue
         for mk, sel in x["sel"].items():
             for n, v in (sel or {}).items():
