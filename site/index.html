@@ -107,10 +107,12 @@ main{padding:22px 28px 60px;min-width:0}
 .toepfe{display:grid;gap:10px}
 .mw-sch{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 /* 17.11. Quote im Tagesbereich */
-.tl{display:grid;grid-template-columns:auto minmax(40px,1fr) auto;align-items:center;gap:6px;font-size:10.5px;color:var(--text-3);margin-top:6px;font-variant-numeric:tabular-nums}
-.tl i{position:relative;height:4px;border-radius:2px;background:linear-gradient(90deg, color-mix(in srgb, var(--down) 35%, var(--panel-3)), var(--panel-3), color-mix(in srgb, var(--up) 35%, var(--panel-3)))}
-.tl b{position:absolute;top:50%;width:9px;height:9px;border-radius:50%;background:var(--text);transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--panel)}
-.tl em{grid-column:1 / -1;font-style:normal;text-align:center;margin-top:-1px}
+.tl{display:grid;grid-template-columns:28px 1fr 28px;align-items:center;gap:5px;width:100%;max-width:190px;margin:6px auto 0;font-size:10.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.tl.tl > span{font-size:10.5px;font-weight:400;color:var(--text-3)}
+.tl > span:first-child{text-align:right}
+.tl > i{position:relative;display:block;height:4px;border-radius:2px;background:linear-gradient(90deg, color-mix(in srgb, var(--down) 35%, var(--panel-3)), var(--panel-3), color-mix(in srgb, var(--up) 35%, var(--panel-3)))}
+.tl > i > b{position:absolute;top:50%;width:9px;height:9px;border-radius:50%;background:var(--text);transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--panel)}
+.tl.tl > em{grid-column:1 / -1;font-style:normal;font-weight:400;font-size:10.5px;color:var(--text-3);text-align:center;white-space:nowrap}
 /* 17.11. Zufluss-Balken: Länge = Geld, Farbe = Quote mit/gegen (live: Anteil) */
 .zr-s{position:relative;height:26px;border-radius:7px;background:var(--panel-3);overflow:hidden;margin-top:6px;display:flex;align-items:center;justify-content:space-between;padding:0 9px;gap:8px}
 .zr-s i{position:absolute;left:0;top:0;bottom:0;border-radius:7px}
@@ -4446,8 +4448,8 @@ function seiteBetfair(D){
 function tagLeiste(t, q){
   if(!t || !q || !(t[1] > t[0]*1.01)) return "";
   const x = Math.max(0, Math.min(100, (q-t[0])/(t[1]-t[0])*100));
-  const wo = x>=67 ? "nah am Tageshoch · guter Preis" : x<=33 ? "nah am Tagestief · Preis ist schon weg" : "Tagesmitte";
-  return `<div class="tl" title="Quote heute zwischen ${q2(t[0])} und ${q2(t[1])} · jetzt ${q2(q)}"><span>${q2(t[0])}</span><i><b style="left:${x.toFixed(0)}%"></b></i><span>${q2(t[1])}</span><em>${wo}</em></div>`;
+  const wo = x>=67 ? "nahe Tageshoch" : x<=33 ? "nahe Tagestief" : "Tagesmitte";
+  return `<div class="tl" title="Quote heute zwischen ${q2(t[0])} und ${q2(t[1])} · jetzt ${q2(q)} · rechts = höhere Quote (besser für dich)"><span>${q2(t[0])}</span><i><b style="left:${x.toFixed(0)}%"></b></i><span>${q2(t[1])}</span><em>${wo}</em></div>`;
 }
 function pinDropKarte(s, live){
   const bf = s.bfId ? klickSpiel({id:s.bfId, heim:s.heim, gast:s.gast}) : "";
