@@ -39,6 +39,7 @@ FEIN_MIN_ABSTAND = 4 * 60
 FEIN_FENSTER = timedelta(hours=3)
 GROB_MIN_ABSTAND = 30 * 60
 GROB_N = 24
+L_GROB_N = 96          # 17.11.: Handicap/Über-Unter 48 h (Lucas: Verlauf 48 h in der aufgeklappten Ansicht)
 HORIZONT = timedelta(days=7)
 NAH = timedelta(hours=48)                          # fein/grob nur so nah am Anpfiff
 FRUEH_ABSTAND = 3 * 3600
@@ -146,7 +147,7 @@ def fortschreiben(events_by_key, sports, jetzt=None, bf_matches=None, namen=None
                     for feld, abstand in (("lfein", FEIN_MIN_ABSTAND), ("lgrob", GROB_MIN_ABSTAND)):
                         e[feld] = _anhaengen(e.get(feld) or [], lp, abstand, jetzt)
                     e["lfein"] = [x for x in e["lfein"] if jetzt - (_ts(x[0]) or jetzt) <= FEIN_FENSTER]
-                    e["lgrob"] = e["lgrob"][-GROB_N:]
+                    e["lgrob"] = e["lgrob"][-L_GROB_N:]
                     if ko > jetzt:
                         e.setdefault("lerst", lp)
                     e["ljetzt"] = lp

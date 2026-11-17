@@ -460,6 +460,40 @@ def key_land(k):
     return next((c for w, c in _KEY_LAND if w in k), None)
 
 
+def _move_info(pts, o, i, l1, art):
+    """17.11. (Lucas, aufgeklappte Ansicht): wann kam der Move, Sprung oder Drift, Verlauf, Quote direkt nach dem Move
+    gegen jetzt, Gegenseite. pts = Stände [ts, …] zeitlich sortiert, o = Offset der Linie, i = Drop-Seite (0/1)."""
+    pts = [x for x in pts if None not in x[o:o + 3]]
+    if len(pts) < 2:
+        return {}
+    jetzt = pts[-1]
+    info = {"gegen": jetzt[o + 2 - i], "kurve": [], "typ": None, "moveTs": None, "nachMove": None}
+    if art == "linie":
+        k = len(pts) - 1
+        while k > 0 and pts[k - 1][o] == l1:
+            k -= 1
+        info["moveTs"] = pts[k][0]
+        info["nachMove"] = [pts[k][o + 1 + i], jetzt[o + 1 + i]]
+        info["kurve"] = [x[o] for x in pts]
+        schritte = [abs(pts[j][o] - pts[j - 1][o]) for j in range(1, len(pts))]
+    else:
+        auf = [x for x in pts if x[o] == l1]
+        pr = [(_p2(x[o + 1], x[o + 2]) if i == 0 else 1 - _p2(x[o + 1], x[o + 2])) for x in auf]
+        if len(pr) < 2:
+            return info
+        schritte = [pr[j] - pr[j - 1] for j in range(1, len(pr))]
+        j = max(range(len(schritte)), key=lambda q: schritte[q])
+        info["moveTs"] = auf[j + 1][0]
+        info["nachMove"] = [auf[j + 1][o + 1 + i], jetzt[o + 1 + i]]
+        info["kurve"] = [round(x * 100, 1) for x in pr]
+        info["p"] = [round(pr[0] * 100, 1), round(pr[-1] * 100, 1)]
+    ges = sum(abs(x) for x in schritte) or 0
+    if ges:
+        info["typ"] = "Sprung" if max(abs(x) for x in schritte) >= 0.6 * ges else "Drift"
+    info["kurve"] = info["kurve"][-60:]
+    return info
+
+
 def pinn_linien(prices=None):
     bf = [m for m in (prices or {}).get("matches") or [] if isinstance(m, dict)]
 
@@ -497,6 +531,7 @@ def pinn_linien(prices=None):
                 continue
             ref = lg[0]
             fein = e.get(pre + "fein") or []
+            pts = sorted({x[0]: x for x in lg + fein + [lj]}.values(), key=lambda x: x[0])
             v60 = next((x for x in fein if JETZT - ts(x[0]) <= timedelta(minutes=65)), None)
             basis = {"id": sid, "heim": e["heim"], "gast": e["gast"], "liga": e.get("liga"), "anpfiff": e["anpfiff"],
                      "top5": top5, "seit": ref[0], "land": key_land(e.get("key"))}
@@ -531,6 +566,7 @@ def pinn_linien(prices=None):
                                 "von": l0, "nach": l1, "schritte": round(abs(l1 - l0) / 0.25),
                                 "linie": (l1 if i == 0 else -l1) if ah else l1, "quote": (a1, b1)[i],
                                 "frisch": frisch, "verlauf": verlauf})
+                    out[-1].update(_move_info(pts, o, i, l1, "linie"))
                     continue
                 p0, p1 = _p2(a0, b0), _p2(a1, b1)
                 if p0 is None or p1 is None:
@@ -548,6 +584,7 @@ def pinn_linien(prices=None):
                             "frisch": bool(pp60 is not None and pp60 >= PINN_FRISCH_PP[top5]),
                             "verlauf": [round((_p2(x[o + 1], x[o + 2]) if i == 0 else 1 - _p2(x[o + 1], x[o + 2])) * 100, 1)
                                         for x in lg if x[o] == l1 and _p2(x[o + 1], x[o + 2]) is not None]})
+                out[-1].update(_move_info(pts, o, i, l1, "quote"))
     out.sort(key=lambda x: (-int(x["frisch"]), x["art"] != "linie", -(x.get("schritte") or 0), -(x.get("pp") or 0)))
     out = out[:60]
     for x in out:                                  # Betfair-Spiel nur für die gezeigten (Abrechnung der stillen Messung)

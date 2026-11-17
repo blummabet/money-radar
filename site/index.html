@@ -106,6 +106,39 @@ main{padding:22px 28px 60px;min-width:0}
 /* Wo am meisten liegt */
 .toepfe{display:grid;gap:10px}
 /* 17.11. Pinnacle-Linien als kompakte Liste, aufklappbar */
+.pla{padding:12px 0 6px}
+.pla-k{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px}
+.pla-mk{font-weight:800;color:var(--c);font-size:13px;margin-right:4px}
+.pla-c{font-size:12px;font-weight:600;color:var(--text-2);background:var(--panel-3);border-radius:999px;padding:3px 10px}
+.pla-c.f{color:var(--c)}
+.pla-g{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:center;margin-bottom:10px}
+.pla-auf{font-size:13.5px;color:var(--text-2)} .pla-auf b{color:var(--c)}
+.pla-gross{display:flex;align-items:baseline;gap:8px;margin:2px 0 6px;font-variant-numeric:tabular-nums}
+.pla-gross b{font-size:30px;font-weight:800;color:var(--text);letter-spacing:-.5px}
+.pla-gross span{font-size:17px;color:var(--text-2);font-weight:600}
+.pla-gg{display:inline-block;font-size:12.5px;color:var(--text-3);border:1px dashed var(--line);border-radius:8px;padding:3px 9px;font-variant-numeric:tabular-nums}
+.pla-sk{width:100%}
+.pla-ske{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;color:var(--text-3);margin-bottom:-2px}
+.pla-sk svg{width:100%;height:auto;display:block;overflow:visible}
+.pla-t line{stroke:var(--text-3);stroke-width:1;opacity:.5}
+.pla-b{stroke:var(--c);stroke-width:5;opacity:.35;stroke-linecap:round}
+.pla-pf{fill:none;stroke:var(--c);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pla-alt{fill:var(--panel);stroke:var(--text-3);stroke-width:1.5;stroke-dasharray:2.5 2}
+.pla-neu{fill:var(--c)}
+.pla-tx{font-size:12px;font-weight:800;fill:var(--c);text-anchor:middle;font-variant-numeric:tabular-nums}
+.pla-tx.alt{fill:var(--text-3);font-weight:600;text-decoration:line-through}
+.pla-tr{font-size:10px;fill:var(--text-3)}
+.pla-satz{font-size:13px;color:var(--text-2);text-align:center;margin-top:2px} .pla-satz b{color:var(--c)}
+.pla-kv{width:100%;height:56px;display:block}
+.pla-kv path{fill:none;stroke:var(--c);stroke-width:2}
+.pla-kv circle{fill:var(--c)}
+.pla-kl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-3);margin-top:3px} .pla-kl b{color:var(--text)}
+.pla-stl{font-size:11.5px;font-weight:700;color:var(--c)}
+.pla-stw{font-size:26px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums} .pla-stw small{font-size:13px;color:var(--text-3);font-weight:600}
+.pla-stb{height:6px;border-radius:3px;background:var(--panel-3);overflow:hidden;margin-top:4px} .pla-stb i{display:block;height:100%;background:var(--c);border-radius:3px}
+.pla-fu{font-size:13px;color:var(--text-2);border-top:1px solid var(--line);padding-top:8px;font-variant-numeric:tabular-nums}
+.pla-fu b{color:var(--text)} .pla-fu span{font-weight:700;margin-left:6px} .pla-fu .weiter{color:var(--c)} .pla-fu .zurueck{color:var(--text-3)}
+@media (max-width:700px){ .pla-g{grid-template-columns:1fr} }
 .pll{grid-column:1 / -1}
 .pll-kopf{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
 .pll-kopf span{font-size:12px;color:var(--text-3)}
@@ -4385,29 +4418,67 @@ function pinDropKarte(s, live){
 // Spiel, darin je Bewegung eine Zeile: Markt · vorher → jetzt · was es heißt · welche Wette dem Zug folgt.
 const lzD = x => (x>0?"+":x<0?"−":"")+String(Math.abs(x)).replace(".",",");
 const lzT = x => String(x).replace(".",",");
+// Lucas 17.11. (eigener Entwurf der aufgeklappten Ansicht): Skala mit vorher → jetzt (links Heim/Unter, rechts Gast/Über),
+// Drop-Seite groß, Gegenseite gestrichelt, Verlauf mit Sprung/Drift, Stärke, Quote seit dem Move. Keine geschätzten Werte.
+const plAlter = t => { const m = Math.max(0, Math.round((Date.now()-new Date(t))/6e4)); return m<60 ? m+" min" : m<48*60 ? Math.round(m/60)+" h" : Math.round(m/1440)+" T"; };
+const plBis = t => { const m = Math.round((new Date(t)-Date.now())/6e4); if(m<=0) return "läuft"; const T=Math.floor(m/1440), h=Math.floor(m%1440/60); return T ? `${T} T ${h} h` : h ? `${h} h ${m%60} min` : `${m} min`; };
+function plSkala(s){
+  const ah = s.markt.endsWith("AH");
+  let x0, x1, links, rechts, fmt, schritt;
+  if(s.art==="linie"){ x0=s.von; x1=s.nach; schritt=.25; fmt = ah ? lzD : lzT; }
+  else { if(!s.p) return ""; const r = (s.seite===(ah?1:0)) ? v=>v : v=>100-v; x0=r(s.p[0]); x1=r(s.p[1]); schritt=5; fmt=v=>Math.round(v)+" %"; }
+  if(ah){ links=s.heim; rechts=s.gast; } else { links="Unter"; rechts="Über"; }
+  const lo = Math.floor((Math.min(x0,x1)-2*schritt)/schritt)*schritt, hi = Math.ceil((Math.max(x0,x1)+2*schritt)/schritt)*schritt;
+  const W=300, P=14, X = v => P + (v-lo)/(hi-lo)*(W-2*P);
+  let ticks=""; for(let v=lo; v<=hi+1e-9; v+=schritt) ticks += `<line x1="${X(v)}" x2="${X(v)}" y1="30" y2="36" />`;
+  const pf = x1>x0 ? -1 : 1;
+  return `<div class="pla-sk"><div class="pla-ske"><span>◀ ${esc(links)}</span><span>${esc(rechts)} ▶</span></div>
+    <svg viewBox="0 0 ${W} 58" role="img" aria-label="${esc(fmt(x0))} nach ${esc(fmt(x1))}">
+      <g class="pla-t"><line x1="${P}" x2="${W-P}" y1="33" y2="33" />${ticks}</g>
+      <line class="pla-b" x1="${X(x0)}" x2="${X(x1)}" y1="33" y2="33" />
+      <path class="pla-pf" d="M${X(x1)+pf*11},27 L${X(x1)+pf*3},33 L${X(x1)+pf*11},39" />
+      <circle class="pla-alt" cx="${X(x0)}" cy="33" r="6" /><circle class="pla-neu" cx="${X(x1)}" cy="33" r="7" />
+      <text class="pla-tx alt" x="${X(x0)}" y="16">${fmt(x0)}</text><text class="pla-tx" x="${X(x1)}" y="16">${fmt(x1)}</text>
+      <text class="pla-tr" x="${P}" y="54">${fmt(lo)}</text><text class="pla-tr" x="${W-P}" y="54" text-anchor="end">${fmt(hi)}</text>
+    </svg></div>`;
+}
+function plKurve(s){
+  const k = (s.kurve||[]).filter(v=>typeof v==="number"); if(k.length<2) return `<div class="pla-kl">Noch zu wenige Stände</div>`;
+  const W=260, H=56, lo=Math.min(...k), hi=Math.max(...k), sp=(hi-lo)||1;
+  const ah = s.markt.endsWith("AH"), umk = s.art==="linie" && ah && s.seite===0;   // Heim-Drop: Linie fällt → Kurve nach oben zeigen
+  const Y = v => { let t=(v-lo)/sp; if(umk) t=1-t; return H-4-t*(H-8); };
+  const pts = k.map((v,n)=>[n/(k.length-1)*W, Y(v)]);
+  const d = s.art==="linie" ? pts.map((p,n)=>n?`H${p[0].toFixed(1)}V${p[1].toFixed(1)}`:`M${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("") : "M"+pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join("L");
+  const last = pts[pts.length-1];
+  return `<svg class="pla-kv" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d}" /><circle cx="${last[0]}" cy="${last[1]}" r="3.5" /></svg>
+    <div class="pla-kl"><span>${s.art==="linie"?"Linie":"Chance"} · Verlauf</span><b>${s.typ||""}</b></div>`;
+}
 function plZeile(s){
-  // Lucas 17.11. („ich will sofort sehen, welcher Change auf welches Team bzw. Markt"): je Markt die Seiten als Kacheln
-  // nebeneinander — die Drop-Seite (dorthin zieht Pinnacle) ist farbig mit ▼ (Lucas: „der Pfeil gehört runter, es droppt"), ihre neue Linie/Quote groß, der alte Wert klein.
   const ah = s.markt.endsWith("AH"), hz = s.markt.startsWith("HZ");
-  const mk = (hz?"1. HZ · ":"") + (s.markt==="HZ" ? "Sieger" : ah ? "Handicap" : "Tore");
-  let seiten;                                   // [Name, Linie jetzt, Linie vorher] je Kachel
-  if(s.markt==="HZ") seiten = [[s.heim],["Remis"],[s.gast]];
-  else if(ah){ const h1 = s.art==="linie" ? s.nach : (s.seite===0 ? s.linie : -s.linie), h0 = s.art==="linie" ? s.von : h1;
-    seiten = [[s.heim, lzD(h1), lzD(h0)], [s.gast, lzD(-h1), lzD(-h0)]]; }
-  else { const l1 = s.art==="linie" ? s.nach : s.linie, l0 = s.art==="linie" ? s.von : l1;
-    seiten = [["Über", lzT(l1), lzT(l0)], ["Unter", lzT(l1), lzT(l0)]]; }
-  const zug = s.markt==="HZ" ? s.seite : s.seite;
-  const was = s.art==="linie" ? `Linie ${s.schritte===1?"¼":s.schritte+"×¼"} verschoben` : `Quote fällt · +${dez(s.pp)} pp`;
-  const kachel = ([n, l1, l0], k) => {
-    const an = k===zug, alt = s.art==="linie" && l0!==undefined && l0!==l1;
-    return `<div class="plk-k${an?" an":""}">
-      <div class="plk-kn">${an?"▼ ":""}${esc(n)}</div>
-      ${l1!==undefined?`<div class="plk-kl">${alt?`<s>${l0}</s>`:""}<b>${l1}</b></div>`:""}
-      ${an?`<div class="plk-kq">${s.art==="quote"?`<s>${q2(s.vonQuote)}</s> `:""}@ ${q2(s.quote)}</div>`:""}
-    </div>`; };
-  return `<div class="plk-z" style="--c:${plFarbe(s)}">
-    <div class="plk-m"><span>${mk}</span><em>${was}</em>${s.frisch?`<i>● frisch</i>`:""}</div>
-    <div class="plk-ks n${seiten.length}">${seiten.map(kachel).join("")}</div>
+  const mk = (hz?"1. Halbzeit · ":"") + (s.markt==="HZ" ? "Sieger" : ah ? "Handicap" : "Tore");
+  const wer = s.markt==="HZ" ? (s.seite===1?"Remis":s.auf) : s.auf;
+  const lin = s.markt==="HZ" ? "" : ah ? lzD(s.linie) : lzT(s.linie);
+  const gName = ah ? (s.seite===0?s.gast:s.heim) : (s.seite===0?"Unter":"Über"), gLin = ah ? lzD(-s.linie) : lzT(s.linie);
+  const satz = s.art==="linie"
+    ? (ah ? `Linie ${s.schritte===1?"¼":s.schritte+"×¼"} härter für <b>${esc(wer)}</b> (Pinnacle traut ihnen mehr zu)` : `Torlinie ${s.schritte===1?"¼":s.schritte+"×¼"} <b>${s.nach>s.von?"hoch":"runter"}</b>`)
+    : `Gleiche Linie, Quote fällt auf <b>${esc(wer)}</b>`;
+  const staerke = s.art==="linie" ? `${s.schritte===1?"¼":s.schritte+"×¼"}<small> Linie</small>` : `+${dez(s.pp)}<small> pp</small>`;
+  const balken = Math.min(100, s.art==="linie" ? s.schritte*34 : s.pp/8*100);
+  const nm = s.nachMove;
+  const seit = nm && nm[0] && nm[1] ? `<div class="pla-fu">Seit dem Move: <b>${q2(nm[0])}</b> → <b>${q2(nm[1])}</b> <span class="${nm[1]<nm[0]?"weiter":nm[1]>nm[0]?"zurueck":""}">${nm[1]<nm[0]?"fällt weiter":nm[1]>nm[0]?"wieder höher":"unverändert"}</span></div>` : "";
+  return `<div class="plk-z pla" style="--c:${plFarbe(s)}">
+    <div class="pla-k"><span class="pla-mk">${mk}</span>${s.moveTs?`<span class="pla-c">Move vor ${plAlter(s.moveTs)}</span>`:""}<span class="pla-c">Anstoß in ${plBis(s.anpfiff)}</span>${s.frisch?`<span class="pla-c f">● frisch</span>`:""}</div>
+    <div class="pla-g">
+      <div><div class="pla-auf">▼ Drop auf <b>${esc(wer)}</b></div>
+        <div class="pla-gross">${lin?`<b>${lin}</b>`:""}<span>@ ${q2(s.quote)}</span></div>
+        ${s.markt!=="HZ"&&s.gegen?`<div class="pla-gg">${esc(gName)} ${gLin} @ ${q2(s.gegen)}</div>`:""}</div>
+      <div>${s.markt==="HZ"?"":plSkala(s)}<div class="pla-satz">${satz}</div></div>
+    </div>
+    <div class="pla-g">
+      <div>${plKurve(s)}</div>
+      <div class="pla-st"><div class="pla-stl">Stärke</div><div class="pla-stw">${staerke}</div><div class="pla-stb"><i style="width:${balken}%"></i></div></div>
+    </div>
+    ${seit}
   </div>`;
 }
 // Lucas 17.11. („kompakte Zeile, wenn man klickt klappt es aus … wenn alle Ligen laufen, siehst du sonst nichts; sortieren
@@ -4422,7 +4493,7 @@ function plMarke(s){
   const mk = (hz?"HZ ":"") + (s.markt==="HZ" ? "Sieg" : ah ? "HC" : "Tore");
   const wer = s.markt==="HZ" ? (s.seite===1?"Remis":s.auf) : ah ? `${s.auf} ${lzD(s.linie)}` : `${s.auf} ${lzT(s.linie)}`;
   const was = s.art==="linie" ? (s.schritte===1?"¼":s.schritte+"×¼") : `+${dez(s.pp)}pp`;
-  return `<span class="pll-m${s.frisch?" f":""}" style="--c:${plFarbe(s)}"><small>${mk}</small>▼ ${esc(wer)}<em>${was}</em></span>`;
+  return `<span class="pll-m${s.frisch?" f":""}" style="--c:${plFarbe(s)}"><small>${mk}</small>▼ ${esc(wer)}<em>${was}${s.typ==="Sprung"?" ⚡":""}${s.moveTs?` · ${plAlter(s.moveTs)}`:""}</em></span>`;
 }
 function plListe(){
   const G = {};
