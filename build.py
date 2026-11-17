@@ -608,8 +608,11 @@ def pinn_linien(prices=None):
 BD_MAERKTE = re.compile(r"^(Match Odds|Half Time|Over/Under \d\.5 Goals|First Half Goals \d\.5|Both teams to Score\?)$")
 BD_MIN_PP = 6.0          # Chance der Auswahl seit dem ersten Stand (bis ~6 h zurück) um ≥ 6 Prozentpunkte gestiegen
 BD_MIN_REL = 0.12        # und die Quote um ≥ 12 % gefallen
-BD_MIN_EUR_AUSWAHL = 2000
-BD_MIN_EUR_MARKT = 5000
+# Regel BD2 (17.11. 20:20, Lucas: „das Geld ist nicht die Priorität, sondern der Quotendrop"): Geld nur noch als
+# Echtheits-Prüfung — €500 auf der Auswahl, €2k im Markt (BD1: €2k / €5k). Dafür zusätzlich: der Drop muss in den
+# letzten DREI Abrufen stehen (≈ 10 Min), nicht nur in zweien — eine einzelne Wette verbiegt die Quote nicht so lange.
+BD_MIN_EUR_AUSWAHL = 500
+BD_MIN_EUR_MARKT = 2000
 BD_FRISCH_PP = 3.0       # ≥ 3 pp davon in der letzten Stunde
 
 
@@ -654,7 +657,7 @@ def bf_drops(prices, bf_hist):
         if len(pts) < 6 or ts(pts[-1]["ts"]) - ts(pts[0]["ts"]) < timedelta(minutes=60):
             continue
         _diag["mitVerlauf"] += 1
-        letzt, vorl = pts[-1]["sel"], pts[-2]["sel"]
+        letzt, vorl, vorv = pts[-1]["sel"], pts[-2]["sel"], pts[-3]["sel"]
         vor60 = next((x for x in pts if JETZT - ts(x["ts"]) <= timedelta(minutes=65)), None)
         best = None
         for mk, sel in letzt.items():
@@ -674,11 +677,13 @@ def bf_drops(prices, bf_hist):
                     continue
                 q0, q1 = reihe[0][1], v[1]
                 qv = ((vorl.get(mk) or {}).get(n) or [None, None])[1]
+                qvv = ((vorv.get(mk) or {}).get(n) or [None, None])[1]
                 pp = (1 / q1 - 1 / q0) * 100
                 _diag["pp3"] += pp >= 3
                 _diag["pp6"] += pp >= BD_MIN_PP
                 # kein Ein-Abruf-Ausreißer: auch der vorletzte Stand liegt schon deutlich unter dem ersten
-                if pp < BD_MIN_PP or q1 > q0 * (1 - BD_MIN_REL) or not isinstance(qv, (int, float)) or qv > q0 * (1 - BD_MIN_REL / 2):
+                if pp < BD_MIN_PP or q1 > q0 * (1 - BD_MIN_REL) or not isinstance(qv, (int, float)) or qv > q0 * (1 - BD_MIN_REL / 2) \
+                        or not isinstance(qvv, (int, float)) or qvv > q0 * (1 - BD_MIN_REL / 2):
                     continue
                 q60 = (((vor60 or {}).get("sel") or {}).get(mk, {}).get(n) or [None, None])[1] if vor60 else None
                 pp60 = round((1 / q1 - 1 / q60) * 100, 1) if isinstance(q60, (int, float)) and q60 > 1 else None
@@ -686,7 +691,7 @@ def bf_drops(prices, bf_hist):
                 if best is None or pp > best["pp"]:
                     best = {"id": mid, "bfId": mid, "heim": m.get("home"), "gast": m.get("away"), "liga": m.get("league"),
                             "land": m.get("country"), "anpfiff": m.get("kickoff"), "top5": bool(TOP5_RX.search(str(m.get("league") or ""))),
-                            "quelle": "betfair", "markt": mk, "auf": n, "pp": round(pp, 1), "pp60": pp60,
+                            "quelle": "betfair", "regel": "BD2", "markt": mk, "auf": n, "pp": round(pp, 1), "pp60": pp60,
                             "frisch": bool(pp60 is not None and pp60 >= BD_FRISCH_PP), "vonQuote": q0, "quote": q1,
                             "seit": reihe[0][0], "tag": [min(q for _, q in reihe), max(q for _, q in reihe)],
                             "eur": round(v[0] or 0), "marktEur": round(mk_eur),

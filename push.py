@@ -1726,7 +1726,7 @@ def bf_drops_still(d):
         yield (f"bd|{x['id']}|{x['markt']}|{x['auf']}", None, None,
                {"art": "bfDrop", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": False, "markt": x["markt"], "auswahl": x["auf"],
-                "quote": x["quote"], "pp": x.get("pp"), "frisch": x.get("frisch"), "eur": x.get("eur"), "regel": "BD1"})
+                "quote": x["quote"], "pp": x.get("pp"), "frisch": x.get("frisch"), "eur": x.get("eur"), "regel": x.get("regel") or "BD1"})
 
 
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
