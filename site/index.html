@@ -4161,7 +4161,7 @@ function dynTabelle(G, defs, o){
   const status = G.aktiv
     ? `<b style="color:var(--up)">Dynamik aktiv</b> · Faktoren seit ${tagKurz(G.stand)} · Prüfung trägt an ${st.filter(x=>x.traegt).length} von ${st.length} Prüfpunkten`
     : `<b>Dynamik rechnet mit, noch nicht scharf</b> · ${G.abgerechnet||0} von ${G.kandidaten||0} Kandidaten abgerechnet${G.seit?` seit ${tagKurz(G.seit)}`:""} · scharf erst nach Prüfung an ≥ 4 Prüfpunkten (${st.length} bisher${st.length?`, ${st.filter(x=>x.traegt).length} trugen`:""})`;
-  return `<details class="t3r" open><summary>${o.titel} <small>${o.unter}</small></summary>
+  return `<details class="t3r"><summary>${o.titel} <small>${o.unter}</small></summary>
     <div class="t3r-kopf"><span>${o.spalte||"Signal"}</span><span>Punkte</span><span style="text-align:center">Effekt auf die Rendite, letzte ${G.fensterTage||28} Tage (vorsichtig geschätzt)</span><span></span><span></span><span>${G.aktiv?"Faktor":"würde"}</span></div>
     ${zeilen.map(z).join("")}
     <div class="t3r-fuss">${status}<br>Effekt = was der Teil zusätzlich bringt, wenn alles andere gleich ist — kleine Stichproben bleiben nahe 0. ${o.fuss||""} Faktor ×1 = feste Punkte, je Stichtag (Mo + Do) höchstens ±0,25.</div>
