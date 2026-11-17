@@ -4446,7 +4446,7 @@ function seiteBetfair(D){
 function tagLeiste(t, q){
   if(!t || !q || !(t[1] > t[0]*1.01)) return "";
   const x = Math.max(0, Math.min(100, (q-t[0])/(t[1]-t[0])*100));
-  const wo = x>=67 ? "nah am Tageshoch" : x<=33 ? "nah am Tagestief" : "Tagesmitte";
+  const wo = x>=67 ? "nah am Tageshoch · guter Preis" : x<=33 ? "nah am Tagestief · Preis ist schon weg" : "Tagesmitte";
   return `<div class="tl" title="Quote heute zwischen ${q2(t[0])} und ${q2(t[1])} · jetzt ${q2(q)}"><span>${q2(t[0])}</span><i><b style="left:${x.toFixed(0)}%"></b></i><span>${q2(t[1])}</span><em>${wo}</em></div>`;
 }
 function pinDropKarte(s, live){
