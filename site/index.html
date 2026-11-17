@@ -1926,7 +1926,7 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 :root{--ph-h:#e08600;--ph-a:#2f6fe0;--ph-x:#9aa1ad}
 .ph{display:grid;gap:5px}
 .ph-z{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:8px}
-.ph > h4 + .ph-z{margin-top:26px}
+.ph > h4 + .ph-z{margin-top:40px}
 .ph-l{font-size:10.5px;font-weight:800;color:var(--text-3)}
 .ph-b{position:relative;height:26px;border-radius:6px;background:var(--flaeche-2)}
 .ph-b.t{height:12px}
@@ -5778,7 +5778,12 @@ function phasenBand(s, mini=false){
   const t0 = T(Z[0]), last = T(Z.at(-1)) + 5*M;
   const nachKo = ko && (s.live || jetzt > ko);
   const t1 = Math.max(last, nachKo ? ko + 110*M : (ko||0) + 5*M);
-  const x = t => Math.max(0, Math.min(100, (t - t0) / (t1 - t0) * 100));
+  // Lucas 17.11. 21:17 (St Kitts – Bonaire, 2:2 live): „rechts mehr Platz ab Anpfiff, die Stunden davor kompakter" —
+  // läuft das Spiel, bekommt die Zeit vor Anpfiff höchstens 30 % der Breite, das Spiel den Rest.
+  const P = nachKo && ko > t0 ? Math.min(30, (ko - t0) / (t1 - t0) * 100) : null;
+  const x = t => { const r = P==null ? (t - t0) / (t1 - t0) * 100
+      : t < ko ? (t - t0) / (ko - t0) * P : P + (t - ko) / (t1 - ko) * (100 - P);
+    return Math.max(0, Math.min(100, r)); };
   const maxE = Math.max(1, ...Z.map(z=>z[2]||0)), maxT = Math.max(1, ...Z.map(z=>Math.abs(z[4]||0)));
   const op = (v, m) => (0.2 + 0.8*Math.log1p(v)/Math.log1p(m)).toFixed(2);
   const FS = {h:"var(--ph-h)", a:"var(--ph-a)", x:"var(--ph-x)"};
@@ -5793,12 +5798,13 @@ function phasenBand(s, mini=false){
   if(s.live && jetzt < t1) mk.push([jetzt, "jetzt"]);
   mk.sort((a,b)=>a[0]-b[0]);
   let letzteX = -99, reihe = 0;
-  const marker = mk.map(([t, txt])=>{ const p = x(t); reihe = p - letzteX < 13 ? (reihe+1)%2 : 0; letzteX = p;
+  const marker = mk.map(([t, txt])=>{ const p = x(t); reihe = p - letzteX < 9 ? (reihe+1)%3 : 0; letzteX = p;
     const rand = p > 88 ? "transform:translateX(-100%)" : p < 8 ? "transform:none" : "";
-    return `<span class="ph-mk${txt==="jetzt"?" jetzt":""}" style="left:${p.toFixed(2)}%">${mini?"":`<em style="top:${reihe?-28:-15}px;${rand}">${esc(txt)}</em>`}</span>`; }).join("");
+    return `<span class="ph-mk${txt==="jetzt"?" jetzt":""}" style="left:${p.toFixed(2)}%">${mini?"":`<em style="top:${[-15,-28,-41][reihe]}px;${rand}">${esc(txt)}</em>`}</span>`; }).join("");
   if(mini) return `<div class="ph mini" title="Wohin das neue Sieg-Geld je 5 Minuten ging"><div class="ph-b">${sieg}${marker}</div></div>`;
   const uhrzeit = t => new Date(t).toLocaleTimeString("de-AT",{timeZone:TZ,hour:"2-digit",minute:"2-digit"});
-  const achse = [0, 0.25, 0.5, 0.75, 1].map(f=>`<span style="left:${(f*100).toFixed(0)}%">${uhrzeit(t0 + f*(t1-t0))}</span>`).join("");
+  const zeiten = P==null ? [0, 0.25, 0.5, 0.75, 1].map(f=>t0 + f*(t1-t0)) : [t0, ko, ko + 45*M, t1];
+  const achse = zeiten.map(t=>{ const p = x(t); return `<span style="left:${p.toFixed(0)}%${p>=99?";transform:translateX(-100%)":p>0?";transform:translateX(-50%)":""}">${uhrzeit(t)}</span>`; }).join("");
   return `<div class="ph"><h4>Phasenband <small>je 5 Minuten: wohin das neue Geld ging · kräftig = viel</small></h4>
     <div class="ph-z"><span class="ph-l">Sieg</span><div class="ph-b">${sieg}${marker}</div></div>
     <div class="ph-z"><span class="ph-l">Tore</span><div class="ph-b t">${tore}</div></div>
