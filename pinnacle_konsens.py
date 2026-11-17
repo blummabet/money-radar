@@ -1729,7 +1729,7 @@ def ht_probe(events_by_key):
     """17.11. (Lucas: „hat Pinnacle für die Ligen auch Halftime?"): einmal je Stunde nachsehen, ob die Odds API
     Pinnacle-Halbzeitmärkte liefert — erst über den Wettbewerbs-Endpunkt, sonst über ein einzelnes Spiel. Nur Protokoll."""
     try:
-        alt = _load("ht_probe.json", {}) or {}
+        alt = _load("ht_probe2.json", {}) or {}
         letzt = alt.get("ts")
         if letzt and (datetime.now(timezone.utc) - datetime.fromisoformat(letzt)).total_seconds() < 3600:
             return
@@ -1751,6 +1751,32 @@ def ht_probe(events_by_key):
             res["wettbewerb"] = {"status": 200, "events": len(d or []), "maerkte": mk}
         except urllib.error.HTTPError as e:
             res["wettbewerb"] = {"status": e.code, "text": e.read()[:200].decode("utf-8", "replace")}
+        res["spiele"] = []
+        # 17.11. zweiter Versuch: mehrere Wettbewerbe (Top-Ligen zuerst), je das nächste Spiel, auch h2h_h1.
+        # Leere Antworten kosten nichts.
+        for key in [k for k in ("soccer_epl", "soccer_germany_bundesliga", "soccer_spain_la_liga", "soccer_italy_serie_a",
+                                "soccer_netherlands_eredivisie") if k in events_by_key][:4]:
+            try:
+                with urllib.request.urlopen("%s/sports/%s/events?apiKey=%s" % (ODDS_BASE, key, ODDS_KEY), timeout=ODDS_TIMEOUT_S) as r:
+                    evl = json.load(r)
+                evl = sorted([x for x in evl if (x.get("commence_time") or "") > jetzt.isoformat()[:19]],
+                             key=lambda x: x.get("commence_time") or "")
+                if not evl:
+                    continue
+                eid = evl[0]["id"]
+                url = ("%s/sports/%s/events/%s/odds?apiKey=%s&regions=eu&markets=h2h_h1,%s&oddsFormat=decimal&dateFormat=iso"
+                       % (ODDS_BASE, key, eid, ODDS_KEY, HT_MAERKTE))
+                with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "cocobet-consensus"}),
+                                            timeout=ODDS_TIMEOUT_S) as r:
+                    kosten = r.headers.get("x-requests-last")
+                    _kontingent_merken(r, "ht")
+                    d = json.load(r)
+                je = {bk.get("key"): sorted(m.get("key") for m in bk.get("markets") or []) for bk in d.get("bookmakers") or []}
+                res["spiele"].append({"key": key, "spiel": "%s – %s" % (evl[0].get("home_team"), evl[0].get("away_team")),
+                                      "anpfiff": evl[0].get("commence_time"), "kosten": kosten,
+                                      "pinnacle": je.get("pinnacle"), "andereBuecher": len(je) - (1 if "pinnacle" in je else 0)})
+            except urllib.error.HTTPError as e:
+                res["spiele"].append({"key": key, "status": e.code, "text": e.read()[:150].decode("utf-8", "replace")})
         if not (res["wettbewerb"].get("maerkte")):
             try:
                 with urllib.request.urlopen("%s/sports/%s/events?apiKey=%s" % (ODDS_BASE, key, ODDS_KEY), timeout=ODDS_TIMEOUT_S) as r:
@@ -1772,8 +1798,8 @@ def ht_probe(events_by_key):
                                     "beispiel": (d.get("bookmakers") or [{}])[0].get("markets", [])[:3]}
             except urllib.error.HTTPError as e:
                 res["spiel"] = {"status": e.code, "text": e.read()[:200].decode("utf-8", "replace")}
-        _dump("ht_probe.json", res)
-        print("ht_probe:", json.dumps(res, ensure_ascii=False)[:900])
+        _dump("ht_probe2.json", res)
+        print("ht_probe:", json.dumps(res, ensure_ascii=False)[:1600])
     except Exception as exc:  # noqa: BLE001
         print("ht_probe: Fehler", str(exc)[:150])
 
