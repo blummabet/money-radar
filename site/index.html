@@ -4364,7 +4364,7 @@ const lzD = x => (x>0?"+":x<0?"−":"")+String(Math.abs(x)).replace(".",",");
 const lzT = x => String(x).replace(".",",");
 function plZeile(s){
   // Lucas 17.11. („ich will sofort sehen, welcher Change auf welches Team bzw. Markt"): je Markt die Seiten als Kacheln
-  // nebeneinander — die Seite, zu der Pinnacle zieht, ist farbig mit ▲, ihre neue Linie/Quote groß, der alte Wert klein.
+  // nebeneinander — die Drop-Seite (dorthin zieht Pinnacle) ist farbig mit ▼ (Lucas: „der Pfeil gehört runter, es droppt"), ihre neue Linie/Quote groß, der alte Wert klein.
   const ah = s.markt.endsWith("AH"), hz = s.markt.startsWith("HZ");
   const mk = (hz?"1. HZ · ":"") + (s.markt==="HZ" ? "Sieger" : ah ? "Handicap" : "Tore");
   let seiten;                                   // [Name, Linie jetzt, Linie vorher] je Kachel
@@ -4378,7 +4378,7 @@ function plZeile(s){
   const kachel = ([n, l1, l0], k) => {
     const an = k===zug, alt = s.art==="linie" && l0!==undefined && l0!==l1;
     return `<div class="plk-k${an?" an":""}">
-      <div class="plk-kn">${an?"▲ ":""}${esc(n)}</div>
+      <div class="plk-kn">${an?"▼ ":""}${esc(n)}</div>
       ${l1!==undefined?`<div class="plk-kl">${alt?`<s>${l0}</s>`:""}<b>${l1}</b></div>`:""}
       ${an?`<div class="plk-kq">${s.art==="quote"?`<s>${q2(s.vonQuote)}</s> `:""}@ ${q2(s.quote)}</div>`:""}
     </div>`; };
@@ -4427,7 +4427,7 @@ function seitePinnacle(D){
   const vorS = [...vor].sort((a,b)=>rang(a)-rang(b) || (b.frisch?1:0)-(a.frisch?1:0) || b.pp-a.pp);
   (vor.length?voll:leer).push(["Drops vor Anpfiff", "seit dem ersten Stand · frisch = in der letzten Stunde · zuerst, wo Betfair mitzieht", vorS.map(x=>pinDropKarte(x,false))]);
   const pl = lf((D.pinnLinien||{}).vor||[]);
-  (pl.length?voll:leer).push(["Handicap, Über/Unter & 1. Halbzeit vor Anpfiff", `Pinnacle-Hauptlinie gegen den ersten Stand der letzten 12 h · ${(D.pinnLinien||{}).n||0} Spiele beobachtet, Halbzeit ${(D.pinnLinien||{}).nHz||0} (Anpfiff in ≤ 6 h) · ● frisch = in der letzten Stunde · nur gemessen, kein Push`, [plKarten(pl)]]);
+  (pl.length?voll:leer).push(["Handicap, Über/Unter & 1. Halbzeit vor Anpfiff", `Pinnacle-Hauptlinie gegen den ersten Stand der letzten 12 h · ${(D.pinnLinien||{}).n||0} Spiele beobachtet, Halbzeit ${(D.pinnLinien||{}).nHz||0} (Anpfiff in ≤ 6 h) · ▼ blau = Drop-Seite, dorthin zieht Pinnacle · ● frisch = in der letzten Stunde · nur gemessen, kein Push`, [plKarten(pl)]]);
   return `<div class="grid">
     <div class="panel c12 kz-panel">${kzReihe([
       ["Spiele mit Pinnacle-Quote", pd.n||0, "alle Ligen, vor Anpfiff und live"],
