@@ -137,6 +137,19 @@ def fortschreiben(events_by_key, sports, jetzt=None, bf_matches=None, namen=None
                         e.setdefault("bfErst", bp)
                         e["bf"] = _anhaengen(e.get("bf") or [], bp, FRUEH_ABSTAND, jetzt)[-FRUEH_N:]
                 e["jetzt"] = punkt
+                # 17.11.: Asiatisches Handicap + Über/Unter (Hauptlinie) im selben Takt —
+                # [ts, AH-Linie Heim, Quote Heim, Quote Gast, O/U-Linie, Quote Über, Quote Unter]
+                ln = ev.get("ln") or {}
+                if ln:
+                    ah, ou = ln.get("ah") or [None] * 3, ln.get("ou") or [None] * 3
+                    lp = [jetzt.isoformat(), *ah, *ou]
+                    for feld, abstand in (("lfein", FEIN_MIN_ABSTAND), ("lgrob", GROB_MIN_ABSTAND)):
+                        e[feld] = _anhaengen(e.get(feld) or [], lp, abstand, jetzt)
+                    e["lfein"] = [x for x in e["lfein"] if jetzt - (_ts(x[0]) or jetzt) <= FEIN_FENSTER]
+                    e["lgrob"] = e["lgrob"][-GROB_N:]
+                    if ko > jetzt:
+                        e.setdefault("lerst", lp)
+                    e["ljetzt"] = lp
                 neu[sid] = e
         roh = json.dumps({"stand": jetzt.isoformat(), "n": len(neu), "spiele": neu},
                          ensure_ascii=False, separators=(",", ":"))

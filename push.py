@@ -1591,8 +1591,29 @@ def ki_top3(d):
             break
 
 
+# 17.11. (Lucas: „HD-Märkte und Over-Under bei Pinnacle … im Pinnacle-Tab anzeigen", Regel PL1): jede Handicap-/Über-Unter-
+# Bewegung vor Anpfiff, die der Tab zeigt, still ins Buch — zur Pinnacle-Quote, je Spiel, Markt und Seite nur einmal.
+# Nur mit Betfair-Spiel (sonst kein Endstand zum Abrechnen). Kein Push, kein Public.
+def pinn_linien_still(d):
+    for x in (d.get("pinnLinien") or {}).get("vor") or []:
+        if not x.get("bfId") or not isinstance(x.get("quote"), (int, float)) or x["quote"] <= 1:
+            continue
+        l = x.get("linie")
+        if not isinstance(l, (int, float)):
+            continue
+        if x["markt"] == "AH":
+            markt, auswahl = "Asian Handicap", f"{x['auf']} {l:+g}"
+        else:
+            markt, auswahl = "Pinnacle Total", f"{'Over' if x['seite'] == 0 else 'Under'} {l:g}"
+        yield (f"pl|{x['id']}|{x['markt']}|{x['seite']}", None, None,
+               {"art": "pinnLinie", "id": x["bfId"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
+                "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": False, "markt": markt, "auswahl": auswahl,
+                "quote": x["quote"], "lmarkt": x["markt"], "lart": x["art"], "pp": x.get("pp"),
+                "schritte": x.get("schritte"), "regel": "PL1"})
+
+
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────

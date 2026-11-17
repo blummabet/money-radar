@@ -1653,6 +1653,131 @@ def fetch_totals(sport_key):
         return []
 
 
+# ── 17.11.2026 (Lucas: „wir haben so viele Aufrufe, die vergeudet sind … HD-Märkte checken, ob da bei Pinnacle was
+# passiert, beziehungsweise Over-Under genauso"): je Wettbewerb ein zweiter Call NUR für Pinnacle (bookmakers=pinnacle
+# zählt wie eine Region) mit Asiatischem Handicap (spreads) und Über/Unter (totals), jeweils die Hauptlinie.
+# Kosten 2 je Wettbewerb und Lauf (~+27.000/Tag bei 5 Mio./Monat Kontingent, Stand 17.11.: 1,6 Mio. verbraucht/Monat).
+LINIEN_BUDGET_S = float(os.environ.get("BF_LINIEN_BUDGET_S") or 90)
+HT_MAERKTE = "h2h_3_way_h1,spreads_h1,totals_h1"
+
+
+def parse_linien(ev):
+    """Odds-API-Event (bookmakers=pinnacle, markets=spreads,totals) → ((heim, gast, anpfiff), {"ah": [Linie Heim, Quote Heim,
+    Quote Gast], "ou": [Linie, Quote Über, Quote Unter]}). REIN. Fehlt ein Markt, fehlt nur dieser Schlüssel."""
+    home, away = ev.get("home_team"), ev.get("away_team")
+    out = {}
+    for bk in ev.get("bookmakers") or []:
+        if bk.get("key") != "pinnacle":
+            continue
+        for mkt in bk.get("markets") or []:
+            oc = {str(o.get("name")): o for o in mkt.get("outcomes") or [] if isinstance(o, dict)}
+            try:
+                if mkt.get("key") == "spreads" and home in oc and away in oc:
+                    h, g = oc[home], oc[away]
+                    if all(isinstance(x, (int, float)) for x in (h.get("point"), h.get("price"), g.get("price"))):
+                        out["ah"] = [float(h["point"]), float(h["price"]), float(g["price"])]
+                elif mkt.get("key") == "totals" and "Over" in oc and "Under" in oc:
+                    o, u = oc["Over"], oc["Under"]
+                    if all(isinstance(x, (int, float)) for x in (o.get("point"), o.get("price"), u.get("price"))):
+                        out["ou"] = [float(o["point"]), float(o["price"]), float(u["price"])]
+            except (TypeError, ValueError):
+                continue
+    return (home, away, ev.get("commence_time")), out
+
+
+def fetch_linien(sport_key):
+    if not ODDS_KEY:
+        return []
+    url = ("%s/sports/%s/odds?apiKey=%s&bookmakers=pinnacle&markets=spreads,totals&oddsFormat=decimal&dateFormat=iso"
+           % (ODDS_BASE, sport_key, ODDS_KEY))
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "cocobet-consensus"})
+        with urllib.request.urlopen(req, timeout=ODDS_TIMEOUT_S) as r:
+            _kontingent_merken(r, "linien")
+            data = json.load(r)
+        return data if isinstance(data, list) else []
+    except Exception as e:  # noqa: BLE001
+        print("linien-fetch %s: %s" % (sport_key, e))
+        return []
+
+
+def linien_anhaengen(events_by_key, t0, budget=LINIEN_BUDGET_S):
+    """Hängt an jedes Event mit Pinnacle-1X2 die AH-/O/U-Hauptlinie (Feld „ln"). Nur Wettbewerbe, in denen Pinnacle steht."""
+    import time as _t
+    n_k = n_e = 0
+    for k, evs in events_by_key.items():
+        if not any(e.get("pinn") for e in evs or []):
+            continue
+        if _t.monotonic() - t0 > budget:
+            print("linien: Zeitbudget erreicht nach %d Wettbewerben" % n_k)
+            break
+        lm = {}
+        for ev in fetch_linien(k) or []:
+            sk, ln = parse_linien(ev)
+            if ln:
+                lm[sk] = ln
+        n_k += 1
+        for e in evs:
+            ln = lm.get((e.get("home"), e.get("away"), e.get("commence")))
+            if ln:
+                e["ln"] = ln
+                n_e += 1
+    print("linien: %d Wettbewerbe, %d Spiele mit Handicap/Über-Unter" % (n_k, n_e))
+
+
+def ht_probe(events_by_key):
+    """17.11. (Lucas: „hat Pinnacle für die Ligen auch Halftime?"): einmal je Stunde nachsehen, ob die Odds API
+    Pinnacle-Halbzeitmärkte liefert — erst über den Wettbewerbs-Endpunkt, sonst über ein einzelnes Spiel. Nur Protokoll."""
+    try:
+        alt = _load("ht_probe.json", {}) or {}
+        letzt = alt.get("ts")
+        if letzt and (datetime.now(timezone.utc) - datetime.fromisoformat(letzt)).total_seconds() < 3600:
+            return
+        jetzt = datetime.now(timezone.utc)
+        kand = sorted(((e.get("commence") or "", k) for k, evs in events_by_key.items() for e in evs or []
+                       if e.get("pinn") and (e.get("commence") or "") > jetzt.isoformat()[:19]))
+        if not kand:
+            return
+        key = kand[0][1]
+        res = {"ts": jetzt.isoformat(), "key": key}
+        url = ("%s/sports/%s/odds?apiKey=%s&bookmakers=pinnacle&markets=%s&oddsFormat=decimal&dateFormat=iso"
+               % (ODDS_BASE, key, ODDS_KEY, HT_MAERKTE))
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "cocobet-consensus"}),
+                                        timeout=ODDS_TIMEOUT_S) as r:
+                _kontingent_merken(r, "ht")
+                d = json.load(r)
+            mk = sorted({m.get("key") for ev in d or [] for bk in ev.get("bookmakers") or [] for m in bk.get("markets") or []})
+            res["wettbewerb"] = {"status": 200, "events": len(d or []), "maerkte": mk}
+        except urllib.error.HTTPError as e:
+            res["wettbewerb"] = {"status": e.code, "text": e.read()[:200].decode("utf-8", "replace")}
+        if not (res["wettbewerb"].get("maerkte")):
+            try:
+                with urllib.request.urlopen("%s/sports/%s/events?apiKey=%s" % (ODDS_BASE, key, ODDS_KEY), timeout=ODDS_TIMEOUT_S) as r:
+                    evl = json.load(r)
+                evl = sorted([x for x in evl if (x.get("commence_time") or "") > jetzt.isoformat()[:19]],
+                             key=lambda x: x.get("commence_time") or "")
+                if evl:
+                    eid = evl[0]["id"]
+                    url = ("%s/sports/%s/events/%s/odds?apiKey=%s&bookmakers=pinnacle&markets=%s&oddsFormat=decimal&dateFormat=iso"
+                           % (ODDS_BASE, key, eid, ODDS_KEY, HT_MAERKTE))
+                    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "cocobet-consensus"}),
+                                                timeout=ODDS_TIMEOUT_S) as r:
+                        kosten = r.headers.get("x-requests-last")
+                        _kontingent_merken(r, "ht")
+                        d = json.load(r)
+                    mk = sorted({m.get("key") for bk in d.get("bookmakers") or [] for m in bk.get("markets") or []})
+                    res["spiel"] = {"status": 200, "id": eid, "spiel": "%s – %s" % (evl[0].get("home_team"), evl[0].get("away_team")),
+                                    "maerkte": mk, "kosten": kosten,
+                                    "beispiel": (d.get("bookmakers") or [{}])[0].get("markets", [])[:3]}
+            except urllib.error.HTTPError as e:
+                res["spiel"] = {"status": e.code, "text": e.read()[:200].decode("utf-8", "replace")}
+        _dump("ht_probe.json", res)
+        print("ht_probe:", json.dumps(res, ensure_ascii=False)[:900])
+    except Exception as exc:  # noqa: BLE001
+        print("ht_probe: Fehler", str(exc)[:150])
+
+
 def totals_keys(need_keys, live_pool, global_pool, match_fn, max_h=None):
     """Fuer welche Wettbewerbe die Pinnacle-O/U-Leiter geholt wird. REIN (match_fn wird gereicht).
 
@@ -1721,6 +1846,11 @@ def main():
     if _abbruch:
         print("odds: Zeitbudget %.0fs erschoepft -> %d entdeckte Wettbewerbe diesmal ausgelassen "
               "(kuratierte sind vollstaendig)" % (ODDS_BUDGET_S, _abbruch))
+    try:
+        linien_anhaengen(events_by_key, _time.monotonic())
+    except Exception as _e:  # noqa: BLE001
+        print("linien: nicht gelaufen (%s)" % str(_e)[:100])
+    ht_probe(events_by_key)
     # money-radar 18.10.2026: eigener Pinnacle-Scan über ALLE abgerufenen Spiele (nicht nur die Radar-Liste),
     # vor Anpfiff und live — gleich hier, damit ein späterer Timeout ihn nicht mitreißt.
     try:

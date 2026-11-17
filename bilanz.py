@@ -85,9 +85,44 @@ def _team(n):
 
 
 # ── Abrechnung ───────────────────────────────────────────────────────────────────
+def _asiatisch(diff, linie):
+    """17.11.: asiatische Abrechnung. diff = Tordifferenz aus Sicht der Wette (ohne Linie). Viertel-Linien werden
+    auf die zwei Nachbarlinien halbiert. → True, False, "void", "halbsieg", "halbverlust". REIN."""
+    def eins(l):
+        x = diff + l
+        return 1 if x > 0 else 0 if x == 0 else -1
+    if abs(linie * 4 - round(linie * 4)) > 1e-9:
+        return None
+    if abs(linie * 2 - round(linie * 2)) > 1e-9:           # Viertel-Linie
+        a, b = eins(linie - 0.25), eins(linie + 0.25)
+    else:
+        a = b = eins(linie)
+    return {(1, 1): True, (-1, -1): False, (0, 0): "void", (0, 1): "halbsieg", (1, 0): "halbsieg",
+            (0, -1): "halbverlust", (-1, 0): "halbverlust"}.get((a, b))
+
+
 def gewonnen(markt, auswahl, heim, gast, ft, ht):
-    """True/False, oder None wenn der Markt aus dem Stand nicht sicher abrechenbar ist. REIN."""
+    """True/False, oder None wenn der Markt aus dem Stand nicht sicher abrechenbar ist. REIN.
+    17.11.: „Asian Handicap" (Auswahl „<Team> <Linie>") und „Pinnacle Total" (Auswahl „Over 2.75") können außerdem
+    "void", "halbsieg" oder "halbverlust" liefern."""
     m, a = str(markt or ""), str(auswahl or "")
+    if m in ("Asian Handicap", "Pinnacle Total") and ft and len(ft) == 2 and None not in ft:
+        h, g = ft
+        mm = re.match(r"^(.*\S)\s+([+-]?\d+(?:\.\d+)?)$", a)
+        if not mm:
+            return None
+        wer, linie = mm.group(1), float(mm.group(2))
+        if m == "Pinnacle Total":
+            if wer.lower() == "over":
+                return _asiatisch(h + g, -linie)
+            if wer.lower() == "under":
+                return _asiatisch(-(h + g), linie)
+            return None
+        if wer == heim or (_team(wer) and _team(wer) == _team(heim) and _team(wer) != _team(gast)):
+            return _asiatisch(h - g, linie)
+        if wer == gast or (_team(wer) and _team(wer) == _team(gast) and _team(wer) != _team(heim)):
+            return _asiatisch(g - h, linie)
+        return None
     stand = ht if m in ("Half Time", "Half Time Score") or m.startswith("First Half Goals") else ft
     if not stand or len(stand) != 2 or None in stand:
         return None
@@ -201,6 +236,12 @@ def aktualisieren(buch, jetzt):
             if w == "void":
                 b["ft"], b["ht"], b["status"], b["void"] = ft, ht, "nicht abrechenbar", True   # wie Polymarket-void
                 continue
+            if w in ("halbsieg", "halbverlust"):          # 17.11.: Viertel-Linien (Pinnacle-Handicap/-Total)
+                q = b.get("quote") or 0
+                b["ft"], b["ht"], b["status"], b["win"] = ft, ht, "abgerechnet", w == "halbsieg"
+                b["r"] = round((q - 1) / 2, 4) if w == "halbsieg" else -0.5
+                b["halb"] = True
+                continue
             if w is not None and b.get("gegen"):          # layGegen: gewinnt, wenn die Auswahl verliert
                 w = not w
             b["ft"], b["ht"] = ft, ht
@@ -210,7 +251,7 @@ def aktualisieren(buch, jetzt):
                 b["status"] = "abgerechnet"
                 b["win"] = w
                 q = b.get("quote") or 0
-                b["r"] = round((q - 1) * (1 - KOMMISSION), 4) if w else -1.0
+                b["r"] = round((q - 1) * (1 - (0 if b.get("art") == "pinnLinie" else KOMMISSION)), 4) if w else -1.0
         elif jetzt - _ts(b["anpfiff"]) > timedelta(days=VERFALL_TAGE):
             b["status"] = "unaufgelöst"
     # 10.11. (Betfair-Check): ein Endstand „zuletzt gesehen ab Min. 85" kann ein spätes Tor verpassen. Kommt danach der
@@ -225,7 +266,7 @@ def aktualisieren(buch, jetzt):
         if list(ft) == list(b.get("ft") or []) and (ht is None or list(ht) == list(b.get("ht") or [])):
             continue
         w = gewonnen(b.get("markt"), b.get("auswahl"), b.get("heim"), b.get("gast"), ft, ht or b.get("ht"))
-        if w is None or w == "void":
+        if w is None or w == "void" or w in ("halbsieg", "halbverlust") or b.get("halb"):
             continue
         if b.get("gegen"):
             w = not w

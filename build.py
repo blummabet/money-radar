@@ -428,6 +428,101 @@ def pinn_drops(prices, bf_hist=None):
     return {"stand": roh.get("stand"), "n": len(roh.get("spiele") or {}), "vor": vor[:40], "live": live[:20]}
 
 
+# ── 17.11. Pinnacle Asiatisches Handicap + Über/Unter (Lucas: „HD-Märkte checken, ob da bei Pinnacle was passiert,
+# beziehungsweise Over-Under genauso") ─────────────────────────────────────────────────────────────────────────────
+# Vor Anpfiff, gegen den ersten Stand im 12-h-Fenster (wie die 1X2-Drops):
+#   Linie verschoben — die Hauptlinie wandert (z. B. Heim −0,5 → −0,75, Über 2,5 → 2,75). Jeder Viertel-Schritt zählt.
+#   Quote fällt      — gleiche Linie, de-viggte Chance einer Seite steigt um die 1X2-Schwelle (2,5 pp, Top-5 1,5 pp).
+# Live noch nicht: dort verschieben Tore und Zeit die Linien ohnehin.
+def _p2(a, b):
+    try:
+        x, y = 1 / float(a), 1 / float(b)
+        return x / (x + y)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
+def _lz(x):
+    return ("+" if x > 0 else "") + (f"{x:g}".replace("-", "−"))
+
+
+def pinn_linien(prices=None):
+    bf = [m for m in (prices or {}).get("matches") or [] if isinstance(m, dict)]
+
+    def bf_id(e):
+        ko = ts(e["anpfiff"])
+        for m in bf:
+            k2 = ts(m.get("kickoff"))
+            if not ko or not k2 or abs((ko - k2).total_seconds()) > 20 * 60:
+                continue
+            if (_gleich(e["heim"], m.get("home")) and _gleich(e["gast"], m.get("away"), locker=True)) or \
+               (_gleich(e["heim"], m.get("home"), locker=True) and _gleich(e["gast"], m.get("away"))):
+                return str(m.get("matchId"))
+        return None
+    try:
+        roh = json.loads((BASIS / ".pin" / "pinnacle_alle.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {"n": 0, "vor": []}
+    out, n = [], 0
+    for sid, e in (roh.get("spiele") or {}).items():
+        lj, lg = e.get("ljetzt"), e.get("lgrob") or []
+        ko = ts(e.get("anpfiff"))
+        if not lj or not ko or ko <= JETZT or JETZT - (ts(lj[0]) or JETZT) > timedelta(minutes=20):
+            continue
+        n += 1
+        if len(lg) < 2:
+            continue
+        top5 = e.get("key") in PINN_TOP5_KEYS
+        ref = lg[0]
+        fein = e.get("lfein") or []
+        v60 = next((x for x in fein if JETZT - ts(x[0]) <= timedelta(minutes=65)), None)
+        basis = {"id": sid, "heim": e["heim"], "gast": e["gast"], "liga": e.get("liga"), "anpfiff": e["anpfiff"],
+                 "top5": top5, "seit": ref[0]}
+        for markt, o in (("AH", 1), ("OU", 4)):
+            l0, a0, b0 = ref[o:o + 3]
+            l1, a1, b1 = lj[o:o + 3]
+            if None in (l0, a0, b0, l1, a1, b1):
+                continue
+            seiten = (e["heim"], e["gast"]) if markt == "AH" else ("Über", "Unter")
+            verlauf = [x[o] for x in lg if x[o] is not None] + [l1]
+            if l1 != l0:
+                # AH: Linie aus Heimsicht; sinkt sie (−0,5 → −0,75), traut Pinnacle dem Heimteam mehr zu.
+                # O/U: steigt sie, mehr Tore erwartet.
+                i = (0 if l1 < l0 else 1) if markt == "AH" else (0 if l1 > l0 else 1)
+                frisch = bool(v60 and v60[o] is not None and v60[o] != l1)
+                lin_seite = (l1 if i == 0 else -l1) if markt == "AH" else l1
+                out.append({**basis, "markt": markt, "art": "linie", "auf": seiten[i], "seite": i,
+                            "von": l0, "nach": l1, "schritte": round(abs(l1 - l0) / 0.25),
+                            "linie": lin_seite, "quote": (a1, b1)[i], "frisch": frisch, "verlauf": verlauf,
+                            "text": (f"Handicap {e['heim']} {_lz(l0)} → {_lz(l1)}" if markt == "AH"
+                                     else f"Linie {l0:g} → {l1:g}".replace(".", ","))})
+                continue
+            p0, p1 = _p2(a0, b0), _p2(a1, b1)
+            if p0 is None or p1 is None:
+                continue
+            d = (p1 - p0) * 100
+            i = 0 if d > 0 else 1
+            if abs(d) < PINN_VOR_MIN_PP[top5]:
+                continue
+            pp60 = None
+            if v60 and v60[o] == l1 and _p2(v60[o + 1], v60[o + 2]) is not None:
+                pp60 = round((p1 - _p2(v60[o + 1], v60[o + 2])) * 100 * (1 if i == 0 else -1), 1)
+            lin_seite = (l1 if i == 0 else -l1) if markt == "AH" else l1
+            out.append({**basis, "markt": markt, "art": "quote", "auf": seiten[i], "seite": i, "linie": lin_seite,
+                        "vonQuote": (a0, b0)[i], "quote": (a1, b1)[i], "pp": round(abs(d), 1), "pp60": pp60,
+                        "frisch": bool(pp60 is not None and pp60 >= PINN_FRISCH_PP[top5]),
+                        "verlauf": [round((_p2(x[o + 1], x[o + 2]) if i == 0 else 1 - _p2(x[o + 1], x[o + 2])) * 100, 1)
+                                    for x in lg if x[o] == l1 and _p2(x[o + 1], x[o + 2]) is not None]})
+    out.sort(key=lambda x: (-int(x["frisch"]), x["art"] != "linie", -(x.get("schritte") or 0), -(x.get("pp") or 0)))
+    out = out[:60]
+    for x in out:                                  # Betfair-Spiel nur für die gezeigten (Abrechnung der stillen Messung)
+        try:
+            x["bfId"] = bf_id(x)
+        except Exception:  # noqa: BLE001
+            x["bfId"] = None
+    return {"n": n, "vor": out}
+
+
 # ── Polymarket ───────────────────────────────────────────────────────────────────
 MIN_N = 12           # wie im alten Projekt (PW_RANK_MIN_N): darunter adelt Zufall Verlierer
 MIN_SCHNITT_USD = 500
@@ -2610,7 +2705,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -2800,6 +2895,8 @@ def statistik(burst, finder):
             if ("t3", str(b.get("id"))) in doppelt:
                 art_ = "top3Spaeter"
             doppelt.add(("t3", str(b.get("id"))))
+        if art_ == "pinnLinie":                        # 17.11. PL1: je Markt und Art eine eigene Zeile
+            art_ = f"pinn{b.get('lmarkt') or ''}{(b.get('lart') or '').capitalize()}"
         if b.get("klar") and not art_.endswith("Wdh"):   # Regel T1 (16.11.): Tor-Linie im entschiedenen Spiel, nur Money
             art_ = art_ + "Klar"
         ab = b.get("status") == "abgerechnet"
@@ -3101,6 +3198,7 @@ def main() -> int:
         "sharp": sharp(consensus, history),
         "pinnAlle": pinn_alle(consensus, history),
         "pinnDrops": pinn_drops(prices, bf_hist),
+        "pinnLinien": pinn_linien(prices),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
         "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, live_m, offen_m)),
         "marktCharts": markt_charts(radar),
