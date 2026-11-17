@@ -121,7 +121,22 @@ def mehrere_maerkte(s, fA, fM):
     return [] if gegen or len(fam) < 2 else sorted(fam)
 
 
+def faktoren():
+    """Top-3-Regel 7 (17.11.): Gewichte je Signal aus t3_dynamik — nur wenn dort „aktiv" (Walk-Forward bestanden),
+    sonst alle 1,0. Die Seite liest dieselbe Datei (D.t3Dyn)."""
+    try:
+        import t3_dynamik
+        return t3_dynamik.aktive_faktoren()
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _summe(p, f):
+    return sum(v * float(f.get(k, 1.0)) for k, v in p.items())
+
+
 def rangliste(d, jetzt):
+    F = faktoren()
     LB = (d.get("ligaBilanz") or {}).get("ligen") or {}
     serien = d.get("serien") or []
     pushes = (d.get("bfPushes") or {}).get("liste") or []
@@ -211,11 +226,12 @@ def rangliste(d, jetzt):
         lb = LB.get(s.get("liga")) or {}
         if lb.get("urteil") == "trägt":
             p["liga"] = 1
-        summe = sum(p.values()) - (1 if lb.get("urteil") == "trägt nicht" else 0)
+        summe = _summe(p, F) - (1 if lb.get("urteil") == "trägt nicht" else 0)
         aus.append({"art": "top3", "id": str(s.get("id")), "heim": s.get("heim"), "gast": s.get("gast"), "liga": s.get("liga"),
                     "anpfiff": s.get("anpfiff"), "live": bool(lv), "top5": bool(s.get("top5")), "normEur": s.get("normEur"), "ligaEur": s.get("ligaEur"), "markt": (fM or {}).get("name"),
                     "auswahl": fA.get("name"), "quote": q, "eur": s.get("eur"), "punkte": round(summe, 2),
                     "signale": sorted(p), "n": len(p), "familien": mm, "normStill": norm_still,
+                    "p": {k: round(v, 2) for k, v in p.items()},
                     "pinnMit": (str(s.get("id")), fk) in pinn_mit if fk in ("heim", "remis", "gast") and (fM or {}).get("name") == "Match Odds" else None,
                     # 30.10. (Volendam 37' 1:0, Geld auf den Führenden): Stand beim Einzug + Lage der Auswahl-Seite mitschreiben
                     "stand": stand if lv else None,
@@ -263,11 +279,12 @@ def rangliste(d, jetzt):
         sk = schluessel(heim, gast)
         if any(_burst(g, jetzt) and schluessel(*(str(g.get("spiel") or "").split(" - ", 1) + [""])[:2]) == sk
                and team(g.get("auswahl")) == team(fokus) for g in gruppen):
-            p["stake"] = 2
+            p["stake"] = 3   # Regel 6
         aus.append({"art": "top3p", "id": m.get("key"), "heim": heim, "gast": gast, "titel": m.get("titel"), "liga": m.get("liga"),
                     "sport": m.get("sport") or "Fußball", "anpfiff": m.get("anpfiff"), "live": bool(m.get("live")),
                     "top5": bool(m.get("top5")), "markt": "Sieger", "auswahl": fokus, "quote": round(quote, 4),
-                    "preis": round(1 / quote, 4), "usd": m.get("usd"), "punkte": round(sum(p.values()), 2), "signale": sorted(p), "n": len(p)})
+                    "preis": round(1 / quote, 4), "usd": m.get("usd"), "punkte": round(_summe(p, F), 2), "signale": sorted(p), "n": len(p),
+                    "p": {k: round(v, 2) for k, v in p.items()}})
     aus = [x for x in aus if x["n"] >= 2 and x["punkte"] >= 3]
     aus.sort(key=lambda x: -x["punkte"])
     return aus

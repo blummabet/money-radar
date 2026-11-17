@@ -1943,6 +1943,25 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .ph.mini{margin-top:6px}
 .ph.mini .ph-b{height:7px;border-radius:4px}
 .ph.mini .ph-mk{border-left-width:1px;top:-2px;bottom:-2px}
+
+/* 17.11. Top 3: Punkte je Signal + „Wie das Top 3 rechnet" */
+.t3-g .t3-pt{margin-left:6px;font-weight:800;font-size:.92em;color:var(--f);font-variant-numeric:tabular-nums}
+.t3r{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.t3r summary{cursor:pointer;font-weight:700;font-size:14px;list-style:none}
+.t3r summary::-webkit-details-marker{display:none}
+.t3r summary::before{content:"▸ ";color:var(--text-3)} .t3r[open] summary::before{content:"▾ "}
+.t3r summary small{font-weight:500;color:var(--text-3);margin-left:6px}
+.t3r-kopf,.t3r-z{display:grid;grid-template-columns:150px 70px minmax(120px,1fr) 64px minmax(0,1.1fr) 52px;gap:10px;align-items:center}
+.t3r-kopf{font-size:11px;color:var(--text-3);margin:10px 0 4px}
+.t3r-z{padding:5px 0;font-size:13px;border-top:1px solid color-mix(in srgb, var(--line) 60%, transparent)}
+.t3r-n{display:flex;align-items:center;gap:7px;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t3r-n i{width:8px;height:8px;border-radius:2px;background:var(--f);flex:none}
+.t3r-p,.t3r-u{color:var(--text-3);font-size:12px} .t3r-u{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t3r-e{font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.t3r-f{font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.t3r-z .wb-t{position:relative;height:8px}
+.t3r-fuss{font-size:11.5px;color:var(--text-3);margin-top:8px;line-height:1.5}
+@media (max-width:700px){ .t3r-kopf{display:none} .t3r-z{grid-template-columns:minmax(0,1fr) 56px 46px;row-gap:3px} .t3r-p,.t3r-u{display:none} .t3r-z .wb-t{grid-column:1/-1;grid-row:2} }
 </style>
 </head>
 <body>
@@ -3783,6 +3802,9 @@ function t3Wechsel(D, id, markt, auswahl, de, mde){
   return {txt:`↪ gewechselt · zuerst ${de(e[1])}${e[2]?" @ "+q2(e[2]):""}${m?" ("+m+")":""} um ${uhr(e[3])}`,
     tip:`Dieses Spiel stand vorher mit einer anderen Auswahl in den Top 3.` + (g && g.roi!=null ? ` Solche Wechsel lagen bisher bei ${g.roi>0?"+":""}${dez(g.roi)} % (${g.abgerechnet} abgerechnet) — schwächer als der erste Einzug.` : "")};
 }
+// Top-3-Regel 7 (17.11.): Faktor je Signal aus t3_dynamik.py — nur wenn dort „aktiv" (Walk-Forward bestanden), sonst 1
+const t3F = k => (D?.t3Dyn?.aktiv && D.t3Dyn.faktoren && D.t3Dyn.faktoren[k]!=null) ? +D.t3Dyn.faktoren[k] : 1;
+const t3Summe = p => Object.entries(p).reduce((a,[k,v])=>a+v*t3F(k),0);
 function topDreiDaten(D){
   const LB = (D.ligaBilanz||{}).ligen||{};
   const ou = n => (/^(over|under)/i.exec(String(n||""))||[])[1]?.toLowerCase();
@@ -3826,7 +3848,7 @@ function topDreiDaten(D){
     const drPasst = dr && !drVorn && dr.index>=40 && (fk===dr.seite || ou(fA.name)==="over");
     if(drPasst) p.druck = dr.index>=70 ? 2 : 1;
     const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
-    const summe = Object.values(p).reduce((a,b)=>a+b,0) - (lb?.urteil==="trägt nicht" ? 1 : 0);
+    const summe = t3Summe(p) - (lb?.urteil==="trägt nicht" ? 1 : 0);
     const g = {serie: se && `${se.n}× in Folge`, neu: `+${eur(neu)} in ${s.fensterMin||30} Min`, norm: `×${dez(s.xnorm)} der Liga`,
       quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, maerkte: mm.length && "🧩 " + mm.map(k=>T3_FAM[k]).join(" + "), druck: drPasst && `📊 Druck ${esc(dr.seite==="heim"?s.heim:s.gast)} ${dr.index} · xG ${dez(dr.teams[dr.seite].xg)} → nächstes Tor / Über`, push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
       poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
@@ -3858,8 +3880,8 @@ function topDreiDaten(D){
     const wale = ((D.poly.maerkte||[]).find(x=>x.key===m.key)?.wale||[]).filter(x=>x.bewiesen && x.seite===fokus);
     if(wale.length) p.poly = 2;
     const burst = (D.stake?.gruppen||[]).find(g=>istBurst(g) && feedKey(...String(g.spiel||"").split(/\s+-\s+/)) === fkey && feedTeam(g.auswahl)===feedTeam(fokus));
-    if(burst) p.stake = 2;
-    const summe = Object.values(p).reduce((a,b)=>a+b,0);
+    if(burst) p.stake = 3;   // Regel 6
+    const summe = t3Summe(p);
     const titel = esc(pmTitel(m.titel));
     return {key:"pm|"+m.key, p, summe, n:Object.keys(p).length, aus:"",
       wechsel: t3Wechsel(D, m.key, "Sieger", fokus, n=>pmLabel(n, m.titel, m.sport), ()=>""),
@@ -4117,6 +4139,36 @@ function ligaChip(D, liga){
   const gut = w[0] > 0;
   return `<span class="t3-g" style="--f:${gut?"var(--up)":"var(--down)"}" title="${w[4]==="ligabuch" ? `${w[1]} Spiele (90 Tage), bei denen hohes Geld klar auf einer Seite lag` : `${w[1]} eigene Signale in dieser Liga`}: ${w[2]} % getroffen, die Quote erwartete ${w[3]} %"><i></i>${gut?"📈 Liga trifft":"📉 Liga schwach"} ${w[2]}/${w[3]} %</span>`;
 }
+// Lucas 17.11. („cool, wenn du mir anzeigst, wie sich das zusammensetzt"): je Signal die Punkte, was es zuletzt gebracht
+// hat und was die dynamische Gewichtung (Regel 7) daraus machen würde — und ob sie schon scharf ist.
+function t3Rechnung(D){
+  const G = D.t3Dyn; if(!G) return "";
+  const E = G.effekte||{}, V = G.vorschlag||{}, F = G.faktoren||{};
+  const name = Object.fromEntries(T3_SIG.map(([k,n,f])=>[k,[n,f]]));
+  name.norm = ["× Liga-Norm","var(--pin)"];
+  const zeilen = [...T3_SIG.map(x=>x[0]), "norm"].filter(k=>E[k] || k!=="norm");
+  const mx = Math.max(4, ...zeilen.map(k=>Math.abs(E[k]?.effekt||0)));
+  const pz = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
+  const z = k => { const e = E[k], [n,f] = name[k]||[k,"var(--text-3)"], still = k==="norm";
+    const fak = still ? null : (G.aktiv ? F[k] : V[k]);
+    const balken = e ? `<i style="${e.effekt>=0?`left:50%;width:${(e.effekt/mx*50).toFixed(1)}%;background:var(--up)`:`right:50%;width:${(-e.effekt/mx*50).toFixed(1)}%;background:var(--down)`}"></i>` : "";
+    return `<div class="t3r-z" style="--f:${f}">
+      <span class="t3r-n"><i></i>${esc(n.replace(/^[^\p{L}]+\s/u,""))}</span>
+      <span class="t3r-p">${still ? "0 (still)" : `bis ${dez(T3_MAX[k]||1)}`}</span>
+      <div class="wb-t"><span class="wb-0"></span>${balken}</div>
+      <span class="t3r-e" style="color:${!e?"var(--text-3)":e.effekt>=0?"var(--up)":"var(--down)"}">${e?pz(e.effekt):"–"}</span>
+      <span class="t3r-u">${e?`${e.n} mit · ${pz(e.roiMit)} / ohne ${pz(e.roiOhne)}`:"noch zu wenig Daten"}</span>
+      <span class="t3r-f">${fak==null?"":`×${dez(fak,2)}`}</span></div>`; };
+  const wf = G.walkForward||{}, st = wf.starts||[];
+  const status = G.aktiv
+    ? `<b style="color:var(--up)">Dynamik aktiv</b> · Faktoren seit ${tagKurz(G.stand)} · Prüfung trägt an ${st.filter(x=>x.traegt).length} von ${st.length} Prüfpunkten`
+    : `<b>Dynamik rechnet mit, noch nicht scharf</b> · ${G.abgerechnet||0} von ${G.kandidaten||0} Kandidaten abgerechnet${G.seit?` seit ${tagKurz(G.seit)}`:""} · scharf erst nach Prüfung an ≥ 4 Prüfpunkten, voraussichtlich ab ~8.12. (${st.length} bisher${st.length?`, ${st.filter(x=>x.traegt).length} trugen`:""})`;
+  return `<details class="t3r" open><summary>Wie das Top 3 rechnet <small>Regel 6 + 7 · neu gewichtet Montag und Donnerstag</small></summary>
+    <div class="t3r-kopf"><span>Signal</span><span>Punkte</span><span style="text-align:center">Effekt auf die Rendite, letzte ${G.fensterTage||28} Tage (geschrumpft)</span><span></span><span></span><span>${G.aktiv?"Faktor":"würde"}</span></div>
+    ${zeilen.map(z).join("")}
+    <div class="t3r-fuss">${status}<br>Effekt = was das Signal zusätzlich bringt, wenn alle anderen gleich sind — vorsichtig geschätzt, kleine Stichproben bleiben nahe 0. ${G.quelle==="top3-einzuege"?"Noch aus den bisherigen Top-3-Einzügen; ab genug Kandidaten aus dem Kandidaten-Buch.":""} Faktor ×1 = feste Punkte, je Schritt höchstens ±0,25.</div>
+  </details>`;
+}
 function topDrei(D){
   const T = topDreiDaten(D);
   const modus = ligaModus==="ohne" ? "ohne Top-5" : ligaModus==="nur" ? "nur Top-5" : "alle Ligen";
@@ -4125,7 +4177,7 @@ function topDrei(D){
   const karte = (x, i) => {
     const gross = i===0, p = x.p;
     const zeit = x.live ? `<span class="t3-live"><i></i>${x.live}</span>` : `<span class="t3-zeit">${wann(x.anpfiff)}</span>`;
-    const gruende = T3_SIG.filter(([k])=>p[k]).map(([k,n,f])=>`<span class="t3-g${k==="maerkte"||k==="druck"?" hl":""}" style="--f:${f}"><i></i>${esc(x.g[k]||n)}</span>`).join("")
+    const gruende = T3_SIG.filter(([k])=>p[k]).sort((a,b)=>p[b[0]]*t3F(b[0])-p[a[0]]*t3F(a[0])).map(([k,n,f])=>`<span class="t3-g${k==="maerkte"||k==="druck"?" hl":""}" style="--f:${f}"><i></i>${esc(x.g[k]||n)}<b class="t3-pt">+${dez(p[k]*t3F(k))}</b></span>`).join("")
       + (x.aus ? `<span class="t3-g aus" style="--f:var(--text-3)"><i></i>${x.aus}</span>` : "") + ligaChip(D, x.ligaRoh)
       + (x.wechsel ? `<span class="t3-g aus" style="--f:var(--down)" title="${esc(x.wechsel.tip)}"><i></i>${esc(x.wechsel.txt)}</span>` : "")
       + ((D.kiPicks?.heute||[]).some(k=>k.status==="offen" && "bf|"+k.id===x.key && kiGleich(k.markt, k.auswahl, x.marktRoh, x.auswahlRoh))
@@ -4142,7 +4194,8 @@ function topDrei(D){
       </div></div>`; };
   return `<div class="t3${erst?" erst":""}">${T.map(karte).join("")}</div>
     ${t3Messung(D)}
-    <div class="t3-fuss">${T3_SIG.map(([k,n,f])=>`<span style="--f:${f}"><i></i>${n.replace(/^\S+ /,"")}</span>`).join("")}<em>leuchtendes Feld = Signal zieht · ${modus}</em></div>`;
+    ${t3Rechnung(D)}
+    <div class="t3-fuss">${T3_SIG.map(([k,n,f])=>`<span style="--f:${f}"><i></i>${n.replace(/^[^\p{L}]+\s/u,"")}</span>`).join("")}<em>leuchtendes Feld = Signal zieht · ${modus}</em></div>`;
 }
 // Lucas 10.11. 09:26 (TEST): „AI-Picks — erst nur die Live-Statistik, daraus Quoten rechnen, dann schauen, ob das Geld
 // übereinstimmt". ki_picks.py rechnet (Regel A1), hier nur die Anzeige.
@@ -5267,6 +5320,7 @@ const REGELN = [
   {id:"D7", t:"Druck-Team führt → kein Signal", seit:"16.11.", w:"Führt das Druck-Team, zählt der Druck nicht mehr (keine Top-3-Punkte), wird aber still mitgemessen.", b:"15.11.: Druck-Team vorn −8,6 % (76), hinten +17 % (70).", dr:"ab Regel 7: Druck-Team führt (still, zählt nicht mehr)"},
   {id:"D4", t:"Rote Karten mitschreiben", seit:"01.11.", w:"Index bleibt gleich, nur notiert.", pr:"Druck-Team in Überzahl: neu prüfen bei 40 Pushes (15.11.: 20 · −26 %).", dr:"Rote Karte: Druck-Team in Überzahl"},
   {id:"D-80", t:"Nur bis zur 80. Minute", seit:"–", w:"Druck-Signale bis 80', auf der Startseite ab 85' ausgeblendet (16.11.)."},
+  {id:"T7", t:"Top 3: Gewichte dynamisch, erst nach Prüfung scharf", seit:"17.11.", w:"Jeder Lauf schreibt die besten 15 Kandidaten still mit (je Spiel der erste Auftritt, Punkte je Signal) und rechnet sie ab. Montag und Donnerstag: aus den letzten 28 Tagen der Effekt jedes Signals (vorsichtig geschätzt), daraus ein Faktor 0–2, je Schritt höchstens ±0,25. Scharf erst, wenn die Prüfung (Gewichte nur aus den Daten davor, dann die Tage danach) an ≥ 4 Prüfpunkten mehrheitlich und zusammen besser sortiert als die festen Punkte. Fällt sie später durch, zurück auf feste Punkte.", b:"Warum so vorsichtig: im alten Projekt hat automatisches Nachlernen die Tipps in 6 von 6 Prüfungen schlechter sortiert — es jagte Glückssträhnen nach."},
   {id:"T6", t:"Top 3: Liga-Norm ohne Punkte, Stake zählt mehr", seit:"17.11.", w:"„Über der Liga-Norm“ bringt keine Punkte mehr (still mitgeschrieben). Stake-Burst auf derselben Seite 3 statt 2 Punkte, Stake-Geld auf derselben Seite 2 statt 1. Gemessen ab jetzt für sich, Ziel 60 abgerechnet.", b:"05.–17.11., erster Einzug je Spiel: mit Norm-Punkt −11,9 % ±10,7 (253), ohne +7,0 % ±8,3 (597); mit Stake +18,8 % ±15,1 (142), ohne −2,1 % (708). Beide Effekte in beiden Hälften des Zeitraums gleich.",
    mess:[{n:"Top 3 ab Regel 6", a:["top3","top3p"], ab:"2026-11-17T13"}]},
   {id:"T5", t:"Top 3: Polymarket/Stake nur auf derselben Seite", seit:"10.11.", w:"Ein Punkt nur, wenn das Geld dort auf dieselbe Seite geht."},

@@ -1881,6 +1881,11 @@ def main() -> int:
                 print(f"  top3: {n3} neu im Buch")
         except Exception as exc:  # noqa: BLE001
             print(f"  top3: {exc}")
+        try:                         # 17.11. Top-3-Regel 7: Kandidaten-Buch + dynamische Gewichte (erst nach Walk-Forward scharf)
+            import t3_dynamik
+            print("  " + t3_dynamik.lauf(d, JETZT, buch, top3.rangliste(d, JETZT)))
+        except Exception as exc:  # noqa: BLE001
+            print(f"  t3-dynamik: {exc}")
         try:                         # Lucas 04.11.: „Geld über der Quote" still mitmessen + Instagram-Top-3 (ab 17 Uhr)
             import ueber_quote
             nu = ueber_quote.eintragen(d, buch, JETZT, BASIS / ".push_state")

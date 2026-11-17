@@ -3380,6 +3380,7 @@ def main() -> int:
         "pinnAlle": pinn_alle(consensus, history),
         "pinnDrops": pinn_drops(prices, bf_hist),
         "pinnLinien": pinn_linien(prices),
+        "t3Dyn": eigen("t3_gewichte.json", ".push_state", default=None),   # 17.11. Top-3-Regel 7
         "bfSpanne": bf_spanne(prices),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
         "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, live_m, offen_m)),
