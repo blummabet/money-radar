@@ -398,11 +398,39 @@ def liga_werte(buch, liga_bilanz=None):
     return out
 
 
+def _topf_faktoren():
+    """Topf-Regel R31 (17.11., Lucas „ja"): Faktoren je Punkte-Teil aus topf_dynamik — nur wenn dort „aktiv"."""
+    try:
+        import topf_dynamik
+        return topf_dynamik.aktive_faktoren()
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+_JUNG = re.compile(r"\b(u ?1\d|u ?2[0-3]|reserves?|women|frauen|youth|primavera)\b|\(res\)|\bw\)", re.I)
+
+
+def merkmale(c):
+    """Still mitgeschriebene Merkmale eines Kandidaten (keine Punkte), für die Messung in topf_dynamik. REIN."""
+    m = c.get("m") or {}
+    q = m.get("quote")
+    return {"serieLive": m.get("art") == "serie" and bool(m.get("live")),
+            "q22": isinstance(q, (int, float)) and q >= 2.2,
+            "jung": bool(_JUNG.search(f"{m.get('liga') or ''} {m.get('spiel') or ''}"))}
+
+
 def punkte(c, jetzt):
     p = _punkte_roh(c, jetzt)
     if p is None:
         return None
     w = LIGA_WERT.get(liga_schluessel((c.get("m") or {}).get("liga")))
+    if w:
+        c.setdefault("teile", {})["liga"] = round(w[0], 2)
+    else:
+        (c.get("teile") or {}).pop("liga", None)
+    F = _topf_faktoren()
+    if F and c.get("teile"):
+        return round(2 + sum(v * float(F.get(k, 1.0)) for k, v in c["teile"].items()), 1)
     return round(p + (w[0] if w else 0), 1)
 
 
@@ -430,10 +458,13 @@ def _punkte_roh(c, jetzt):
             je_art[e["art"]] = max(je_art.get(e["art"], 0), e["eur"])
     geld = sum(je_art.values())
     kette = max([e.get("n") or 0 for e in ev if e.get("art") in ("serie", "pserie")] or [0])
-    p = 2 + min(5, len(ev) - 1) + 4 * (len(quellen) - 1) + (min(8, max(0, 2 * math.log2(geld / 5000))) if geld > 0 else 0) \
-        + min(4, kette / 2) + min(4, max([e.get("faktor") or 0 for e in ev if e.get("art") == "wal"] or [0])) \
-        - (3 if alter > 90 else 0) + (PINN_PUNKTE_BONUS if c.get("pinn") else 0)      # Regel 30
-    return round(p, 1)
+    teile = {"signale": min(5, len(ev) - 1), "quellen": 4 * (len(quellen) - 1),
+             "geld": (min(8, max(0, 2 * math.log2(geld / 5000))) if geld > 0 else 0), "kette": min(4, kette / 2),
+             "wal": min(4, max([e.get("faktor") or 0 for e in ev if e.get("art") == "wal"] or [0])),
+             "alt": -3 if alter > 90 else 0, "pinn": PINN_PUNKTE_BONUS if c.get("pinn") else 0}      # Regel 30
+    # 17.11. (R31): die Teile einzeln merken — die Messung lernt daraus, welcher Teil trägt
+    c["teile"] = {k: round(v, 2) for k, v in teile.items() if v}
+    return round(2 + sum(teile.values()), 1)
 
 
 # ── Staking-Regel S1 (Lucas 14.11. 14:51, „Staking-Angaben würden die Signale attraktiver machen — erst still
@@ -521,11 +552,12 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None, info=None):
                                    "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                                    "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": c.get("best"),
                                    "stake": stake(c, c.get("best")), "stakeRegel": STAKING_REGEL, "qInfo": m.get("qInfo"),
-                                   "signale": len(c.get("ereignisse") or [])})
+                                   "signale": len(c.get("ereignisse") or []), "p": c.get("bestTeile") or c.get("teile"),
+                                   "still": merkmale(c)})
             t.pop(k, None)
             continue
         if c.get("best") is None or p > c["best"]:
-            c["best"], c["bestZeit"] = p, jetzt.isoformat()
+            c["best"], c["bestZeit"], c["bestTeile"] = p, jetzt.isoformat(), dict(c.get("teile") or {})
         bewertet.append((p, k, c))
     bewertet.sort(key=lambda x: -x[0])
     f = _fenster(jetzt)
@@ -544,7 +576,8 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None, info=None):
             s["liste"].append({"zeit": jetzt.strftime("%Y-%m-%dT%H:%M"), "art": m.get("art"), "spiel": m.get("spiel"),
                                "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                                "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": p, "sperre": sperre,
-                               "stake": stake(c, p), "stakeRegel": STAKING_REGEL, "qInfo": m.get("qInfo"), "signale": len(c.get("ereignisse") or [])})
+                               "stake": stake(c, p), "stakeRegel": STAKING_REGEL, "qInfo": m.get("qInfo"), "signale": len(c.get("ereignisse") or []),
+                               "p": c.get("teile"), "still": merkmale(c)})
             s.setdefault("spiele", []).append(_norm(m.get("spiel")))     # das Spiel heute nicht mehr
             t.pop(k, None)
             print(f"  public gesperrt: {m.get('spiel')} · {sperre}")
@@ -568,6 +601,7 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None, info=None):
             continue
         gesendet += 1
         m["_stake"] = stake(c, p)
+        m["_teile"], m["_still"] = dict(c.get("teile") or {}), merkmale(c)
         aus.append((m, (gesendet, f), p, grund))
         t.pop(k, None)
     return aus
@@ -650,7 +684,8 @@ def buchen(s, m, nr_f, jetzt, punkte=None, grund=None):
                        "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                        "live": bool(m.get("live")), "regel": REGEL, "faktor": m.get("faktor"),
                        "gesendet": True, "punkte": punkte, "grund": grund, "qInfo": m.get("qInfo"),
-                       "stake": m.get("_stake"), "stakeRegel": STAKING_REGEL if m.get("_stake") else None})
+                       "stake": m.get("_stake"), "stakeRegel": STAKING_REGEL if m.get("_stake") else None,
+                       "p": m.get("_teile"), "still": m.get("_still")})
 
 
 def _wann(iso, jetzt):

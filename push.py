@@ -1652,6 +1652,32 @@ def markout_live(d, buch):
             b["nach" + stufe] = [q, lv.get("stand"), lv.get("min")]
 
 
+def markt_vor(d, buch):
+    """17.11. (Lucas, Hull City U21: „die Bestätigung des Marktes hat gefehlt" — erst messen, dann eine Topf-Regel):
+    für jeden Beleg VOR Anpfiff Quote und Geld der Auswahl beim Push (vor0), nach ~15 (vor15) und ~30 Min (vor30):
+    [Quote, Geld auf der Auswahl €, Geld auf den anderen Auswahlen desselben Markts €]."""
+    sp_ = {str(x.get("id")): x for x in (d.get("radar") or {}).get("spiele") or []}
+    for b in buch:
+        if b.get("status") != "offen" or b.get("live") or b.get("markt") in (None, "Polymarket"):
+            continue
+        t0 = ts(b.get("ts"))
+        s = sp_.get(str(b.get("id")))
+        if not t0 or not s or s.get("live"):
+            continue
+        alter = (JETZT - t0).total_seconds() / 60
+        stufe = "0" if alter < 6 else "15" if 12 <= alter < 21 else "30" if 27 <= alter < 40 else None
+        if not stufe or ("vor" + stufe) in b:
+            continue
+        m = next((m for m in s.get("maerkteDetail") or [] if m.get("name") == b.get("markt")), None)
+        if not m:
+            continue
+        a = next((a for a in m.get("auswahl") or [] if a.get("name") == b.get("auswahl")), None)
+        if not a or not isinstance(a.get("quote"), (int, float)):
+            continue
+        rest = sum(x.get("eur") or 0 for x in m.get("auswahl") or [] if x is not a)
+        b["vor" + stufe] = [a["quote"], round(a.get("eur") or 0), round(rest)]
+
+
 def schluss_x(d, buch):
     """Vor Anpfiff die Mitte Back/Lay der Börse als zweite Schlussquote an offene Sieg-Markt-Belege schreiben."""
     for b in buch:
@@ -1932,6 +1958,10 @@ def main() -> int:
             _mo.stake(d, _ps / "stake_markout.json", JETZT)
         except Exception as exc:  # noqa: BLE001
             print(f"  live-clv: {exc}")
+        try:
+            markt_vor(d, buch)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  markt-vor: {exc}")
         try:
             schluss_x(d, buch)
         except Exception as exc:  # noqa: BLE001

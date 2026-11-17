@@ -114,13 +114,13 @@ def _loesen(A, b):
     return [M[i][n] / M[i][i] for i in range(n)]
 
 
-def effekte(zeilen):
+def effekte(zeilen, signale=None):
     """Ridge: r ~ a + live + Σ Signal. Signal-Koeffizienten mit Vorab 0 ± TAU, Achsenabschnitt/live praktisch frei.
     → {signal: {"effekt": pp, "n": mit Signal, "roiMit", "roiOhne"}}. REIN."""
     Z = [z for z in zeilen if isinstance(z.get("r"), (int, float))]
     if len(Z) < 40:
         return {}
-    sig = [s for s in SIGNALE if sum(1 for z in Z if _hat(z, s)) >= 10]
+    sig = [s for s in (signale or SIGNALE) if sum(1 for z in Z if _hat(z, s)) >= 10]
     sd = math.sqrt(sum((z["r"] - sum(y["r"] for y in Z) / len(Z)) ** 2 for z in Z) / (len(Z) - 1)) or 1.0
     lam = (sd / TAU) ** 2
     X = [[1.0, 1.0 if z.get("live") else 0.0] + [1.0 if _hat(z, s) else 0.0 for s in sig] for z in Z]
@@ -142,11 +142,11 @@ def effekte(zeilen):
     return aus
 
 
-def faktoren_neu(alt, eff):
+def faktoren_neu(alt, eff, signale=None, still=None):
     """Ein Wochenschritt: Ziel 1 + Effekt/8 pp in [0, 2], höchstens ±0,25 vom alten Faktor. REIN."""
     neu = {}
-    for s in SIGNALE:
-        if s in STILL:
+    for s in (signale or SIGNALE):
+        if s in (STILL if still is None else still):
             continue
         a = float((alt or {}).get(s, 1.0))
         e = (eff.get(s) or {}).get("effekt")
@@ -174,7 +174,7 @@ def _stichtage(von, bis):
     return aus
 
 
-def walk_forward(kand, jetzt):
+def walk_forward(kand, jetzt, signale=None, still=None):
     """Je Stichtag (Mo/Do, ab 7 Tagen Daten): Faktoren Schritt für Schritt NUR aus den Daten davor fortgeschrieben, dann
     die Tage bis zum nächsten Stichtag: oberes Drittel nach dynamischen gegen oberes Drittel nach festen Punkten."""
     Z = sorted([z for z in kand if isinstance(z.get("r"), (int, float)) and _ts(z.get("ts"))], key=lambda z: z["ts"])
@@ -182,12 +182,13 @@ def walk_forward(kand, jetzt):
         return {"starts": [], "urteil": None}
     t0 = _ts(Z[0]["ts"])
     tage = _stichtage(t0, jetzt)
-    f = {s: 1.0 for s in SIGNALE if s not in STILL}
+    sg, stl = signale or SIGNALE, STILL if still is None else still
+    f = {s: 1.0 for s in sg if s not in stl}
     starts = []
     for i, st in enumerate(tage[:-1]):
         nxt = tage[i + 1]
         vor = [z for z in Z if st - timedelta(days=FENSTER_TAGE) <= _ts(z["ts"]) < st]
-        f = faktoren_neu(f, effekte(vor))
+        f = faktoren_neu(f, effekte(vor, sg), sg, stl)
         if (st - t0).days < 7:
             continue
         test = [z for z in Z if st <= _ts(z["ts"]) < nxt]

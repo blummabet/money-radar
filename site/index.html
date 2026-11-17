@@ -1947,11 +1947,12 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 /* 17.11. Top 3: Punkte je Signal + „Wie das Top 3 rechnet" */
 .t3-g .t3-pt{margin-left:6px;font-weight:800;font-size:.92em;color:var(--f);font-variant-numeric:tabular-nums}
 .t3r{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.panel > .t3r:first-child{border-top:0;margin-top:0;padding-top:0}
 .t3r summary{cursor:pointer;font-weight:700;font-size:14px;list-style:none}
 .t3r summary::-webkit-details-marker{display:none}
 .t3r summary::before{content:"▸ ";color:var(--text-3)} .t3r[open] summary::before{content:"▾ "}
 .t3r summary small{font-weight:500;color:var(--text-3);margin-left:6px}
-.t3r-kopf,.t3r-z{display:grid;grid-template-columns:150px 70px minmax(120px,1fr) 64px minmax(0,1.1fr) 52px;gap:10px;align-items:center}
+.t3r-kopf,.t3r-z{display:grid;grid-template-columns:160px 96px minmax(120px,1fr) 64px minmax(0,1.1fr) 52px;gap:10px;align-items:center}
 .t3r-kopf{font-size:11px;color:var(--text-3);margin:10px 0 4px}
 .t3r-z{padding:5px 0;font-size:13px;border-top:1px solid color-mix(in srgb, var(--line) 60%, transparent)}
 .t3r-n{display:flex;align-items:center;gap:7px;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -4141,33 +4142,49 @@ function ligaChip(D, liga){
 }
 // Lucas 17.11. („cool, wenn du mir anzeigst, wie sich das zusammensetzt"): je Signal die Punkte, was es zuletzt gebracht
 // hat und was die dynamische Gewichtung (Regel 7) daraus machen würde — und ob sie schon scharf ist.
-function t3Rechnung(D){
-  const G = D.t3Dyn; if(!G) return "";
+function dynTabelle(G, defs, o){
+  // defs: [[schlüssel, Name, Farbe, Punkte-Text, still?]] — dieselbe Tabelle für Top 3 (Regel 7) und Topf (R31)
+  if(!G) return "";
   const E = G.effekte||{}, V = G.vorschlag||{}, F = G.faktoren||{};
-  const name = Object.fromEntries(T3_SIG.map(([k,n,f])=>[k,[n,f]]));
-  name.norm = ["× Liga-Norm","var(--pin)"];
-  const zeilen = [...T3_SIG.map(x=>x[0]), "norm"].filter(k=>E[k] || k!=="norm");
-  const mx = Math.max(4, ...zeilen.map(k=>Math.abs(E[k]?.effekt||0)));
+  const zeilen = defs.filter(d=>E[d[0]] || !d[4]);
+  const mx = Math.max(4, ...zeilen.map(d=>Math.abs(E[d[0]]?.effekt||0)));
   const pz = v => v==null ? "–" : (v>0?"+":"")+dez(v)+" %";
-  const z = k => { const e = E[k], [n,f] = name[k]||[k,"var(--text-3)"], still = k==="norm";
-    const fak = still ? null : (G.aktiv ? F[k] : V[k]);
+  const z = ([k,n,f,pt,still]) => { const e = E[k], fak = still ? null : (G.aktiv ? F[k] : V[k]);
     const balken = e ? `<i style="${e.effekt>=0?`left:50%;width:${(e.effekt/mx*50).toFixed(1)}%;background:var(--up)`:`right:50%;width:${(-e.effekt/mx*50).toFixed(1)}%;background:var(--down)`}"></i>` : "";
     return `<div class="t3r-z" style="--f:${f}">
-      <span class="t3r-n"><i></i>${esc(n.replace(/^[^\p{L}]+\s/u,""))}</span>
-      <span class="t3r-p">${still ? "0 (still)" : `bis ${dez(T3_MAX[k]||1)}`}</span>
+      <span class="t3r-n"><i></i>${esc(n)}</span><span class="t3r-p">${pt}</span>
       <div class="wb-t"><span class="wb-0"></span>${balken}</div>
       <span class="t3r-e" style="color:${!e?"var(--text-3)":e.effekt>=0?"var(--up)":"var(--down)"}">${e?pz(e.effekt):"–"}</span>
       <span class="t3r-u">${e?`${e.n} mit · ${pz(e.roiMit)} / ohne ${pz(e.roiOhne)}`:"noch zu wenig Daten"}</span>
       <span class="t3r-f">${fak==null?"":`×${dez(fak,2)}`}</span></div>`; };
-  const wf = G.walkForward||{}, st = wf.starts||[];
+  const st = (G.walkForward||{}).starts||[];
   const status = G.aktiv
     ? `<b style="color:var(--up)">Dynamik aktiv</b> · Faktoren seit ${tagKurz(G.stand)} · Prüfung trägt an ${st.filter(x=>x.traegt).length} von ${st.length} Prüfpunkten`
-    : `<b>Dynamik rechnet mit, noch nicht scharf</b> · ${G.abgerechnet||0} von ${G.kandidaten||0} Kandidaten abgerechnet${G.seit?` seit ${tagKurz(G.seit)}`:""} · scharf erst nach Prüfung an ≥ 4 Prüfpunkten, voraussichtlich ab ~8.12. (${st.length} bisher${st.length?`, ${st.filter(x=>x.traegt).length} trugen`:""})`;
-  return `<details class="t3r" open><summary>Wie das Top 3 rechnet <small>Regel 6 + 7 · neu gewichtet Montag und Donnerstag</small></summary>
-    <div class="t3r-kopf"><span>Signal</span><span>Punkte</span><span style="text-align:center">Effekt auf die Rendite, letzte ${G.fensterTage||28} Tage (geschrumpft)</span><span></span><span></span><span>${G.aktiv?"Faktor":"würde"}</span></div>
+    : `<b>Dynamik rechnet mit, noch nicht scharf</b> · ${G.abgerechnet||0} von ${G.kandidaten||0} Kandidaten abgerechnet${G.seit?` seit ${tagKurz(G.seit)}`:""} · scharf erst nach Prüfung an ≥ 4 Prüfpunkten (${st.length} bisher${st.length?`, ${st.filter(x=>x.traegt).length} trugen`:""})`;
+  return `<details class="t3r" open><summary>${o.titel} <small>${o.unter}</small></summary>
+    <div class="t3r-kopf"><span>${o.spalte||"Signal"}</span><span>Punkte</span><span style="text-align:center">Effekt auf die Rendite, letzte ${G.fensterTage||28} Tage (vorsichtig geschätzt)</span><span></span><span></span><span>${G.aktiv?"Faktor":"würde"}</span></div>
     ${zeilen.map(z).join("")}
-    <div class="t3r-fuss">${status}<br>Effekt = was das Signal zusätzlich bringt, wenn alle anderen gleich sind — vorsichtig geschätzt, kleine Stichproben bleiben nahe 0. ${G.quelle==="top3-einzuege"?"Noch aus den bisherigen Top-3-Einzügen; ab genug Kandidaten aus dem Kandidaten-Buch.":""} Faktor ×1 = feste Punkte, je Schritt höchstens ±0,25.</div>
+    <div class="t3r-fuss">${status}<br>Effekt = was der Teil zusätzlich bringt, wenn alles andere gleich ist — kleine Stichproben bleiben nahe 0. ${o.fuss||""} Faktor ×1 = feste Punkte, je Stichtag (Mo + Do) höchstens ±0,25.</div>
   </details>`;
+}
+// Lucas 17.11. („cool, wenn du mir anzeigst, wie sich das zusammensetzt"): je Signal die Punkte, was es zuletzt gebracht
+// hat und was die dynamische Gewichtung (Regel 7) daraus machen würde — und ob sie schon scharf ist.
+function t3Rechnung(D){
+  const G = D.t3Dyn; if(!G) return "";
+  const defs = [...T3_SIG.map(([k,n,f])=>[k, n.replace(/^[^\p{L}]+\s/u,""), f, `bis ${dez(T3_MAX[k]||1)}`, false]), ["norm","Liga-Norm","var(--pin)","0 (still)",true]];
+  return dynTabelle(G, defs, {titel:"Wie das Top 3 rechnet", unter:"Regel 6 + 7 · neu gewichtet Montag und Donnerstag",
+    fuss: G.quelle==="top3-einzuege" ? "Noch aus den bisherigen Top-3-Einzügen; ab genug Kandidaten aus dem Kandidaten-Buch." : ""});
+}
+// 17.11. Topf-Regel R31: dieselbe Rechnung für die Public-Topf-Punkte, dazu die drei still gemessenen Fragen (Hull City)
+function topfRechnung(D){
+  const G = D.topfDyn; if(!G) return "";
+  const defs = [["signale","weitere Signale","var(--bf)","+1 je · max 5"],["quellen","weitere Quelle","var(--poly)","+4 je"],
+    ["geld","Geld","var(--up)","+2 je ×2 · max 8"],["kette","Dauerzufluss-Kette","var(--bf)","+½ je · max 4"],
+    ["wal","Wal-Vielfaches","var(--poly)","bis 4"],["alt","seit 90 Min nichts","var(--text-3)","−3"],["pinn","Pinnacle zieht mit","var(--pin)","Bonus"],
+    ["liga","Liga-Wertung","var(--text-2)","±"],
+    ["serieLive","Dauerzufluss live","var(--down)","still",true],["q22","Quote ab 2,20","var(--hz)","still",true],["jung","Nachwuchs/Frauen","var(--text-3)","still",true]];
+  return `<div class="panel c12">${dynTabelle(G, defs, {titel:"Wie der Topf rechnet", unter:"Regel R31 · neu gewichtet Montag und Donnerstag", spalte:"Punkte-Teil",
+    fuss: `Punkte-Teile werden seit 17.11. je Kandidat mitgeschrieben; die drei stillen Zeilen (keine Punkte) gelten rückwirkend für alle ${G.alleAbgerechnet||0} abgerechneten Kandidaten.`})}</div>`;
 }
 function topDrei(D){
   const T = topDreiDaten(D);
@@ -5102,7 +5119,7 @@ function seiteStatistik(){
       <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}${seg("lage", [["alle","Jeder Stand"],["vorn","Live: Auswahl führt"],["gleich","Live: gleich"],["hinten","Live: hinten"]])}${seg("qg", [["alle","Jede Quote"],["dagegen","Quote läuft gegen das Geld"],["neutral","Quote hält"],["mit","Quote zieht mit"]])}${seg("sp", [["alle","Jeder Markt"],["eng","Enger Markt (< 3 %)"],["mittel","Spanne 3–6 %"],["duenn","Dünner Markt (≥ 6 %)"]])}</div>
       ${pubModus||neinModus||polyModus?"":`<div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div><div class="hint st-chiphint">Kategorie antippen = nur diese · nochmal antippen = wieder alle</div>`}
     </div>
-    ${pubModus ? topfPanel() : ""}
+    ${pubModus ? topfPanel() + topfRechnung(D) : ""}
     ${pubModus||neinModus ? stakePanel(Z, zeile, tkopf) : ""}
     ${polyModus ? polyPanel(basis) : ""}
     <div class="panel c12">${kopf}${kurve}</div>
@@ -5260,6 +5277,10 @@ function rpSocial(z){
 // messen: {n: Name, a: [Arten], rx: Liga-Regex, ax: Auswahl-Regex, live: true|false, ab: ISO-Zeit}.
 const REGELN = [
  {g:"Public-Kanal · wie ausgewählt wird", r:[
+  {id:"R31", t:"Topf-Punkte lernen dynamisch, erst nach Prüfung scharf", seit:"17.11.", w:"Jeder Topf-Kandidat wird mit seinen Punkte-Teilen (Signale, Quellen, Geld, Kette, Wal, Alter, Pinnacle, Liga) mitgeschrieben. Montag und Donnerstag: Effekt je Teil aus 28 Tagen, Faktor 0–2, je Schritt höchstens ±0,25. Scharf erst, wenn die Prüfung an ≥ 4 Prüfpunkten mehrheitlich und zusammen besser sortiert. Still mitgemessen: Dauerzufluss live, Quote ab 2,20, Nachwuchs/Reserve/Frauen.", b:"Anlass Hull City U21 (17.11.): 10–12 Topf-Punkte +14 %, ab 12 Punkten −1,8 % — die festen Punkte sortieren kaum."},
+  {id:"PB1", t:"Beobachtet: Dauerzufluss live ab Quote 2,20", seit:"17.11.", w:"Keine Regel, nur gemessen. 31.10.–17.11. im Topf: 27 Tipps, −35 % ±40. Erst bei klarem Bild eine Regel.",
+   mess:[{n:"Dauerzufluss live ab 2,20 (Pushes)", a:["serie"], live:true, qmin:2.2},{n:"Dauerzufluss live unter 2,20 (Pushes)", a:["serie"], live:true, qmax:2.2}]},
+  {id:"PV1", t:"Beobachtet: Markt nach dem Signal (vor Anpfiff)", seit:"17.11.", w:"Für jeden Push vor Anpfiff werden Quote und Geld nach 15 und 30 Min mitgeschrieben (gleiche Seite, Gegenseite). Ausgewertet in 2–3 Wochen: trägt „kurz warten, nur bei Nachschub senden“ mehr als sofort senden? Warten bis Anpfiff kostet den Preis (gemessen: +21,6 % → +15,4 %)."},
   {id:"P4", t:"Topf statt sofort", seit:"02.11.", w:"Jedes passende Signal kommt in einen Topf und sammelt Punkte (Geld, Kettenlänge, Quellen, Liga). Zu drei Terminen je Zeitfenster geht der beste Kandidat raus, ein sehr starker sofort."},
   {id:"P22", t:"Termin erst ab 9 Punkten", seit:"13.11.", w:"Vorher reichten 5 Punkte. Lieber ein leerer Termin als ein Lückenfüller.", b:"Topf seit 31.10.: unter 9 Punkten ≈ ±0 %, 9–12 ≈ +7 %, ab 12 ≈ +14 %."},
   {id:"P13/P20", t:"Liga-Wertung", seit:"07.11. / 10.11.", w:"Je Liga Bonus oder Abzug (höchstens ±4 Punkte) aus unserer eigenen Bilanz; Fußball aus dem Liga-Buch der letzten 90 Tage."},
@@ -5330,7 +5351,8 @@ const REGELN = [
 function regelMess(alle, m){
   const rx = m.rx ? new RegExp(m.rx, "i") : null, ax = m.ax ? new RegExp(m.ax, "i") : null;
   return stKennz(alle.filter(z=>m.a.includes(z[1]) && (!m.ab || z[0] >= m.ab) && (m.live==null || !!z[8]===m.live)
-    && (!rx || rx.test(z[6]||"")) && (!ax || ax.test(String(z[10]||"").trim()))));
+    && (!rx || rx.test(z[6]||"")) && (!ax || ax.test(String(z[10]||"").trim()))
+    && (m.qmin==null || (z[4]||0) >= m.qmin) && (m.qmax==null || (z[4]!=null && z[4] < m.qmax))));
 }
 // 16.11. (Lucas: „wöchentlicher Check am Montag — Recap für uns zwei, nur Vorschläge"): wochencheck.json schreibt der
 // Montags-Check in den Zweig „daten", der Seitenbau legt sie neben die Seite.

@@ -3027,6 +3027,13 @@ def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
                                pp.get("seite") if pp.get("quote") else pp.get("fehlt"), pp.get("tiefe"), p.get("quote")])
 
 
+def _topf_still(p):
+    """Merkmale alter Topf-Einträge (vor 17.11. ohne „still") aus Art, Quote, Liga — wie public.merkmale."""
+    import public as _pub
+    return _pub.merkmale({"m": {"art": p.get("art"), "live": p.get("live"), "quote": p.get("quote"),
+                                "liga": p.get("liga"), "spiel": p.get("spiel")}})
+
+
 def statistik(burst, finder):
     zeilen = []
     import markout as _mo_mod
@@ -3136,9 +3143,16 @@ def statistik(burst, finder):
     erg_poly = {(str(b.get("pubZeit")), nz(b.get("spiel"))[:12]): bool(b.get("win")) for b in buch
                 if b.get("art") == "publicErg" and b.get("status") == "abgerechnet"}
     stake_von = {}            # 14.11. Staking-Regel S1: Stake 1–3 je Public-Zeile (still, Flat bleibt die Hauptrechnung)
+    topf_z = []                # 17.11. Topf-Regel R31: jeder Kandidat mit Punkte-Teilen und Ergebnis → topf_dynamik
     for p in pl:
         n_vor = len(zeilen)
         _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz)
+        for z in zeilen[n_vor:]:
+            if z[1] in ("public", "publicNein", "publicGegenwind", "publicNL", "publicQuote"):
+                topf_z.append({"ts": (str(p.get("zeit") or "")[:16] + ":00+00:00"), "p": p.get("p"),
+                               "still": p.get("still") or _topf_still(p), "live": bool(p.get("live")),
+                               "r": z[2] if isinstance(z[2], (int, float)) else None})
+                break
         if p.get("stake"):
             for z in zeilen[n_vor:]:
                 if z[1] in ("public", "publicNein"):
@@ -3147,6 +3161,12 @@ def statistik(burst, finder):
         if id(z) in stake_von:
             z.extend([None] * (14 - len(z)))
             z.append(stake_von[id(z)])
+    try:
+        import topf_dynamik
+        if topf_dynamik.rechnen(topf_z, JETZT):
+            print("  topf-dynamik: Stichtag gerechnet")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  topf-dynamik: {exc}")
     zeilen.sort(key=lambda z: z[0])
     (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake", "qg", "sp", "clvx"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return len(zeilen)
@@ -3381,6 +3401,7 @@ def main() -> int:
         "pinnDrops": pinn_drops(prices, bf_hist),
         "pinnLinien": pinn_linien(prices),
         "t3Dyn": eigen("t3_gewichte.json", ".push_state", default=None),   # 17.11. Top-3-Regel 7
+        "topfDyn": eigen("topf_gewichte.json", ".push_state", default=None),   # 17.11. Topf-Regel R31
         "bfSpanne": bf_spanne(prices),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
         "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, live_m, offen_m)),
