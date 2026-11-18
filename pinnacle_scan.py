@@ -95,6 +95,53 @@ def _anhaengen(liste, punkt, abstand, jetzt):
     return liste
 
 
+# ── Früh-Archiv (18.11., Regel FB1-Vorbereitung) ──────────────────────────────────────────────────────────────────
+# Die erste Auswertung „Früh bewegt" scheiterte an der Schlussquote: pinnacle_alle.json wirft ein Spiel 2,5 h nach
+# Anpfiff weg, die Tagessicherung (01 Uhr) erwischt den Stand kurz vor Anpfiff fast nie (2 von 116 Spielen).
+# Darum: beim Wegwerfen ein kompakter Eintrag — erster Stand, früher Verlauf (≥ 6 h Abstand, nur 1X2), Schlussstand
+# (letzter Pinnacle-Stand vor Anpfiff), Betfair dazu. ~1 KB je Spiel, 60 Tage → wenige MB (Speicher-Regel).
+ARCHIV = Path("frueh_archiv.json")
+ARCHIV_TAGE = 60
+_ARCHIV_NEU = {}
+
+
+def _kurz(p):
+    return [p[0][:16], *p[1:7]] if isinstance(p, list) and len(p) >= 7 else None
+
+
+def _archivieren(sid, e, jetzt):
+    ko = _ts(e.get("anpfiff"))
+    vor = sorted([p for p in (e.get("fein") or []) + (e.get("grob") or []) + (e.get("frueh") or [])
+                  if isinstance(p, list) and _ts(p[0]) and _ts(p[0]) <= ko], key=lambda p: p[0])
+    if not vor or not e.get("erst"):
+        return
+    frueh, letzt = [], None
+    for p in sorted(e.get("frueh") or [], key=lambda p: p[0]):
+        if letzt is None or (_ts(p[0]) - letzt).total_seconds() >= 6 * 3600:
+            frueh.append(_kurz(p))
+            letzt = _ts(p[0])
+    bf = sorted(e.get("bf") or [], key=lambda p: p[0])
+    _ARCHIV_NEU[sid] = {"liga": e.get("liga"), "heim": e.get("heim"), "gast": e.get("gast"), "anpfiff": e.get("anpfiff"),
+                        "erst": _kurz(e["erst"]), "frueh": frueh, "schluss": _kurz(vor[-1]),
+                        "bfErst": e.get("bfErst"), "bf": [b for i, b in enumerate(bf) if i % 2 == 0 or i == len(bf) - 1][-16:],
+                        "lerst": e.get("lerst"), "lschluss": e.get("ljetzt")}
+
+
+def _archiv_schreiben(jetzt):
+    if not _ARCHIV_NEU:
+        return
+    try:
+        a = json.loads(ARCHIV.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        a = {}
+    a.update(_ARCHIV_NEU)
+    grenze = jetzt - timedelta(days=ARCHIV_TAGE)
+    a = {k: v for k, v in a.items() if (_ts(v.get("anpfiff")) or jetzt) >= grenze}
+    ARCHIV.write_text(json.dumps(a, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"pinnacle_scan: {len(_ARCHIV_NEU)} fertige Spiele ins Früh-Archiv ({len(a)} gesamt)")
+    _ARCHIV_NEU.clear()
+
+
 def fortschreiben(events_by_key, sports, jetzt=None, bf_matches=None, namen=None):
     """events_by_key: {sport_key: [parse_event(...)+{key}]}. Schreibt pinnacle_alle.json. Fehler bleiben hier.
     bf_matches: Betfair-Spiele (betfair_prices.json „matches"), namen: Namens-Score (a, b) → 0..1."""
@@ -169,6 +216,17 @@ def fortschreiben(events_by_key, sports, jetzt=None, bf_matches=None, namen=None
                     e.setdefault("herst", hp)
                     e["hjetzt"] = hp
                 neu[sid] = e
+        # 18.11. (erste Auswertung „Früh bewegt"): Ligen, die in diesem Abruf fehlen (Teil-Ausfall der Odds API), nicht
+        # wegwerfen — sonst verschwinden ihre frühen Stände. Fertige Spiele wandern ins Früh-Archiv (Schlussquote!).
+        for sid, e in alt.items():
+            ko = _ts(e.get("anpfiff"))
+            if sid in neu or not ko:
+                continue
+            if e.get("key") not in (events_by_key or {}) and jetzt - ko <= NACH_ANPFIFF:
+                neu[sid] = e
+            elif ko < jetzt:
+                _archivieren(sid, e, jetzt)
+        _archiv_schreiben(jetzt)
         roh = json.dumps({"stand": jetzt.isoformat(), "n": len(neu), "spiele": neu},
                          ensure_ascii=False, separators=(",", ":"))
         DATEI.write_text(roh, encoding="utf-8")
