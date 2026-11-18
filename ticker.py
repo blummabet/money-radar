@@ -41,6 +41,9 @@ def _quellen(d):
             if fl:
                 yield art, x, fl.get("markt"), fl.get("auswahl"), fl.get("quote"), {"eur": fl.get("eur"), "anteil": fl.get("anteil"),
                                                                                     "quoteVorher": fl.get("quoteVorher")}
+    for x in d.get("bfDrops") or []:            # 18.11. 15:22 (Lucas: die neuen Drops aus dem Pinnacle-Tab auch in den Ticker)
+        yield "bfdrop", x, x.get("markt"), x.get("auf"), x.get("quote"), {"pp": x.get("pp"), "eur": x.get("eur"),
+                                                                          "quoteVorher": x.get("vonQuote")}
     for x in d.get("bfUhr") or []:
         yield "uhr", x, x.get("markt"), x.get("auswahl"), x.get("quote"), {"unter": x.get("unter"), "eur": x.get("neu"),
                                                                           "quoteVorher": x.get("q0"), "erwartet": x.get("erwartet")}
@@ -74,7 +77,7 @@ def lauf(d, prices, endst, jetzt=None):
         e["qLetzt"] = q
         for k, v in extra.items():
             if isinstance(v, (int, float)):
-                if k in ("n", "eur", "unter"):
+                if k in ("n", "eur", "unter", "pp"):
                     e[k + "Max"] = max(v, e.get(k + "Max") or 0)
                 e[k] = v
             elif v is not None:

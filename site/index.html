@@ -2759,15 +2759,19 @@ function feedEreignisse(D){
     const serienAuf = new Set(D.ticker.filter(t=>t.art==="serie").map(t=>t.id+"|"+t.markt+"|"+t.auswahl));
     for(const t of lf(D.ticker)){
       if((t.art==="live"||t.art==="zufluss") && serienAuf.has(t.id+"|"+t.markt+"|"+t.auswahl)) continue;
-      const sp = rs.get(String(t.id)), k = t.art==="uhr" ? "uhr" : t.art;
+      const sp = rs.get(String(t.id)), k = t.art;
       const live = t.aktiv && sp?.live ? sp.live : t.live ? {min:t.minErst, stand:t.standErst} : null;
       E.push({heim:t.heim, gast:t.gast, liga:ligaName(t.liga), ligaRoh:t.liga, land:t.land, live, anpfiff:t.anpfiff, sp, q:"betfair", k, bil:k==="uhr"?"bfUhr":k,
-        aus:auswahlDe(t.auswahl), quote:t.qErst, jetzt:t.ft?null:t.qJetzt, markt:marktDe(t.markt), n:t.nMax, anteil:k==="serie"?null:t.anteil, unter:t.unterMax,
+        aus:auswahlDe(t.auswahl), quote:t.qErst, jetzt:t.ft?null:t.qJetzt, markt:marktDe(t.markt), n:t.nMax, anteil:k==="serie"||k==="bfdrop"?null:t.anteil, unter:t.unterMax, pp:t.ppMax,
         wert:t.eurMax||0, b:t.eurMax?eur(t.eurMax):"", zeit:t.erst, status:t.status, spur:t.spur, minErst:t.minErst, aktiv:t.aktiv,
         drop:t.quoteVorher&&t.qErst&&t.quoteVorher-t.qErst>=0.03?[t.quoteVorher,t.qErst]:null,
-        gewicht:k==="uhr"?(t.unterMax||0)*1500:k==="serie"?(t.eurMax||0)*3:(t.eurMax||0)});
+        gewicht:k==="uhr"?(t.unterMax||0)*1500:k==="bfdrop"?(t.ppMax||0)*2000:k==="serie"?(t.eurMax||0)*3:(t.eurMax||0)});
     }
   }
+  // 18.11. 15:22: „Früh bewegt" (FB1) — einmal je Spiel beim Erkennen, Pinnacle 1–7 Tage vor Anpfiff
+  for(const x of lf(D.fruehBewegt?.liste||[]))
+    E.push({heim:x.heim, gast:x.gast, liga:ligaName(x.liga), ligaRoh:x.liga, anpfiff:x.anpfiff, q:"pinnacle", k:"frueh", aus:x.seite, quote:x.qErkannt,
+      jetzt:x.qJetzt, markt:"Sieg-Markt", pp:x.ppJetzt, drop:[x.qErst, x.qErkannt], wert:0, b:"", zeit:x.erkannt, gewicht:(x.ppJetzt||0)*1200});
   if(!Array.isArray(D.ticker)) for(const x of lf(D.serien||[])) E.push({...bfSpiel(x), q:"betfair", k:"serie", bil:"serie", aus:auswahlDe(x.auswahl), quote:x.quote, markt:marktDe(x.markt), n:x.n, wert:x.eur, b:eur(x.eur), zeit:bfZeit, drop:x.quoteStart&&x.quote&&x.quoteStart-x.quote>=0.03?[x.quoteStart,x.quote]:null, gewicht:x.eur*3});
   if(!Array.isArray(D.ticker)) for(const [liste, live] of [[D.liveZufluss, true], [D.zufluss30, false]]) for(const x of lf(liste||[])){ const fl = (x.fluss||[])[0]; if(!fl || inSerie(x.id, fl)) continue;
     E.push({...bfSpiel(x), q:"betfair", k:live?"live":"zufluss", bil:live?"live":"zufluss", aus:auswahlDe(fl.auswahl), quote:fl.quote, markt:marktDe(fl.markt), anteil:fl.anteil, wert:fl.eur, b:eur(fl.eur), zeit:bfZeit,
@@ -2804,6 +2808,7 @@ function fxForm(e){
     return `<div class="fx-v" title="${e.n}× in Folge"><span class="fx-perlen">${Array.from({length:n},()=>`<i style="background:${f}"></i>`).join("")}</span><b style="color:${f}">${e.n}×</b></div>`; }
   if(e.k==="pinnacle" && e.verlauf?.length>2){ const v = e.verlauf, lo = Math.min(...v), hi = Math.max(...v), sp = (hi-lo)||1;
     return `<div class="fx-v"><svg class="fx-kurve" viewBox="0 0 60 18" preserveAspectRatio="none"><path d="${v.map((y,i)=>`${i?"L":"M"}${(i/(v.length-1)*60).toFixed(1)},${(17-(y-lo)/sp*16).toFixed(1)}`).join("")}" style="stroke:${f}"/></svg><b style="color:${f}">${q2(e.drop[0])}→${q2(e.drop[1])}</b></div>`; }
+  if(e.k==="bfdrop"||e.k==="frueh") return `<div class="fx-v" title="Chance seit dem ersten Stand"><span class="fx-wal">${e.k==="frueh"?"📅":"📉"}</span><b style="color:${f}">+${dez(e.pp)} pp</b></div>`;
   if(e.k==="uhr") return `<div class="fx-v" title="Quote gegen die Uhr gedrückt"><span class="fx-wal">⏱</span><b style="color:${f}">−${dez(e.unter)} %</b></div>`;
   if(e.k==="wal") return `<div class="fx-v"><span class="fx-wal">🧠</span><b style="color:${f}">${Math.round((e.preis||0)*100)} ¢</b></div>`;
   if(e.k==="hz") return `<div class="fx-v"><span class="fx-hz">0:0</span><b style="color:${f}">HZ</b></div>`;
@@ -2812,7 +2817,7 @@ function fxForm(e){
   if(e.k==="push") return `<div class="fx-v"><span class="fx-push" style="color:${f}">📣</span><b style="color:${f}">Push</b></div>`;
   return `<div class="fx-v"><b style="color:${f}">${ICO[e.q]}</b></div>`;
 }
-const FX_NAME = {uhr:"gegen die Uhr", serie:"Dauerzufluss", live:"live neu", zufluss:"neu 30 Min", pfluss:"Käufe 30 Min", stake:"große Wetten", push:"gepusht", wal:"Wal-Einstieg", hz:"HZ-Push", pinnacle:"Pinnacle"};
+const FX_NAME = {uhr:"gegen die Uhr", bfdrop:"Betfair-Drop", frueh:"früh bewegt",  serie:"Dauerzufluss", live:"live neu", zufluss:"neu 30 Min", pfluss:"Käufe 30 Min", stake:"große Wetten", push:"gepusht", wal:"Wal-Einstieg", hz:"HZ-Push", pinnacle:"Pinnacle"};
 function fxSeit(e){
   if(!e.jetzt || !e.quote || e.status) return null;
   const r = e.jetzt/e.quote - 1;
@@ -2829,6 +2834,8 @@ function fxAbzeichen(D, g){
   if(g.quellen.length>1) A.push(["gut", `${g.quellen.length} Quellen`]);
   if(g.ev.some(e=>e.k==="pinnacle")) A.push(["gut", "Pinnacle zieht"]);
   if(g.ev.some(e=>e.k==="uhr")) A.push(["gut", "gegen die Uhr"]);
+  if(g.ev.some(e=>e.k==="bfdrop")) A.push(["gut", "Betfair-Drop"]);
+  if(g.ev.some(e=>e.k==="frueh")) A.push(["gut", "früh bewegt"]);
   if(g.ev.some(e=>fxSeit(e)?.c==="gut")) A.push(["gut", "läuft weiter"]);
   if(g.ev.some(e=>fxSeit(e)?.c==="schlecht")) A.push(["schlecht", "läuft zurück"]);
   return A;
@@ -2853,7 +2860,7 @@ function tickerBilanz(D){
   for(const g of G) for(const e of g.ev) if((e.status==="won"||e.status==="lost") && e.quote && e.k!=="push") Z.push({e, g});
   if(Z.length < 5) return "";
   const b = xs => { const n = xs.length; if(!n) return null; const r = xs.reduce((a,{e})=>a+(e.status==="won"?e.quote-1:-1),0); return {n, t:Math.round(100*xs.filter(({e})=>e.status==="won").length/n), roi:100*r/n}; };
-  const zeilen = [["alle Meldungen", Z], ...Object.entries(FX_NAME).filter(([k])=>["serie","live","zufluss","uhr"].includes(k)).map(([k,n])=>[n, Z.filter(({e})=>e.k===k)]),
+  const zeilen = [["alle Meldungen", Z], ...Object.entries(FX_NAME).filter(([k])=>["serie","live","zufluss","uhr","bfdrop"].includes(k)).map(([k,n])=>[n, Z.filter(({e})=>e.k===k)]),
     ["mit mehreren Quellen", Z.filter(({g})=>g.quellen.length>1)], ["Liga gut", Z.filter(({g})=>(D.ligaBilanz?.ligen||{})[g.ligaRoh]?.stufe===1)],
     ["Quote lief danach weiter", Z.filter(({e})=>e.spur?.length>=2 && e.spur[e.spur.length-1][1] < e.quote*0.98)]]
     .map(([n,xs])=>[n,b(xs)]).filter(([,x])=>x && x.n>=3);
@@ -5565,6 +5572,7 @@ const REGELN = [
   {id:"D7", t:"Druck-Team führt → kein Signal", seit:"16.11.", w:"Führt das Druck-Team, zählt der Druck nicht mehr (keine Top-3-Punkte), wird aber still mitgemessen.", b:"15.11.: Druck-Team vorn −8,6 % (76), hinten +17 % (70).", dr:"ab Regel 7: Druck-Team führt (still, zählt nicht mehr)"},
   {id:"D4", t:"Rote Karten mitschreiben", seit:"01.11.", w:"Index bleibt gleich, nur notiert.", pr:"Druck-Team in Überzahl: neu prüfen bei 40 Pushes (15.11.: 20 · −26 %).", dr:"Rote Karte: Druck-Team in Überzahl"},
   {id:"D-80", t:"Nur bis zur 80. Minute", seit:"–", w:"Druck-Signale bis 80', auf der Startseite ab 85' ausgeblendet (16.11.)."},
+  {id:"LD2", t:"Gegen die Uhr als Test-Push im Money-Kanal", seit:"18.11. 15:30", mess:[{n:"Live gegen die Uhr ab LD2", a:["bfUhr"], ab:"2026-11-18T14:30"}], w:"Liegt eine LD1-Meldung ≥ 15 % unter der Uhr-Erwartung (und das Spiel ist nicht entschieden), kommt ein Push „⏱ Gegen die Uhr · 🧪 Test LD2“ — je Spiel höchstens einer. Gemessen wird weiter über die stille LD1-Zeile im Buch (jeder Fall einmal).", b:"Lucas: „gegen die Uhr können wir gern als Push in den Money-Channel“."},
   {id:"LD1b", t:"Live gegen die Uhr: Erwartung per Tor-Rate statt Ø-Drift", seit:"18.11. 14:30", mess:[{n:"Live gegen die Uhr ab LD1b", a:["bfUhr"], ab:"2026-11-18T13:30"}], w:"Was die Uhr allein bringt, wird jetzt aus der Quote damals zurückgerechnet: Tor-Rate für die Restzeit (Poisson; beim Sieg-Markt beide Teams aus den drei Sieg-Quoten), dann auf die Restzeit jetzt übertragen — in Spielminuten, die Pause zählt nicht. Gilt auch für die Push-Zeile D1 (dort ohne Sieg-Markt).", b:"Lucas: „Unter 0,5 4,20 → 2,72 macht keinen Sinn — ein Unter fällt mit der Zeit sowieso.“ Richtig: die Ø-Drift erwartete 3,48, das Tor-Modell ~2,71 — kein Signal. Kasem Bundit (Über 1,5 bei 1:0, 1,80 → 1,64) bleibt eins: die Uhr allein ergäbe ~2,92."},
   {id:"LD1", t:"Betfair live: Quote fällt gegen die Uhr (angezeigt + still gemessen)", seit:"18.11.", mess:[{n:"Live gegen die Uhr", a:["bfUhr"]}], w:"Laufendes Spiel, Sieg / Über-Unter / HZ-Tore, ≥ €2k im Markt, Quote 1,40–6. Fällt die Quote in ~15 Min ohne Tor um ≥ 8 % unter das, was die Uhr allein erwarten ließe (Grunddrift je Markt-Art, Quote, Phase), und lag sie schon im Abruf davor ≥ 5 % darunter, steht das Spiel im Betfair-Tab unter „Live gegen die Uhr“ und im Feed. Keine Geldschwelle. Rote Karte wird markiert, nicht ausgeschlossen. Gemessen: Markout 10 Min minus Grunddrift + Ergebnis. Kein Push.", b:"Lucas 18.11.: „wenn nur die Quote sinkt, wird es auch Signal“ — Verletzungen, Druck, Rot sind dabei eher Hinweise als Störungen."},
   {id:"D1", t:"Dauerzufluss live: Quote gegen die Uhr gedrückt", seit:"18.11.", w:"Live steigt eine Quote meist schon durch die Spielzeit. Fällt sie während der Serie (seit dem letzten Tor) trotzdem um ≥ 3 % und liegt ≥ 5 % unter dem, was die Uhr allein erwarten ließe (Grunddrift je Markt-Art, Quote und Spielphase, höchstens 20 Min hochgerechnet), steht im Push „🔻 Quote gegen die Uhr gedrückt“. Gemessen still über das Feld „uhrDrop“ im Buch.", b:"Anlass Kasem Bundit U21 – Khonkaen U21 (18.11., 77' 1:0, Über 1,5): Geld drückte die Quote, die Uhr hätte sie steigen lassen — stand im Push nur versteckt in der Geld-Zeile."},

@@ -1761,12 +1761,37 @@ def bf_drops_still(d):
                 "quote": x["quote"], "pp": x.get("pp"), "frisch": x.get("frisch"), "eur": x.get("eur"), "regel": x.get("regel") or "BD1"})
 
 
+LD_PUSH_UNTER = 15.0     # Regel LD2: Test-Push ab 15 % unter der Uhr (Anzeige/Messung ab 8 %)
+
+
+def _uhr_text(d, x):
+    st = x.get("stand") or [0, 0]
+    neu = x.get("neu") or 0
+    rot = x.get("rot")
+    return (f"⏱ <b>Gegen die Uhr</b> · Betfair · <i>🧪 Test LD2</i>\n"
+            f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n{e(x.get('liga'))} · 🔴 {x.get('min')}' · {st[0]}:{st[1]}\n\n"
+            f"🔻 <b>{e(remis(_auswahl_de(x['auswahl'])))}{' (Sieg)' if x['markt'] == 'Match Odds' else ' (1. HZ)' if str(x['markt']).startswith('First Half') else ''}: {q2(x.get('q0'))} → {q2(x['quote'])}</b>"
+            + (f" ({x['spielMin'][0]}' → {x['spielMin'][1]}')" if x.get("spielMin") else "") + "\n"
+            f"Nur mit der Uhr wären ~{q2(x.get('erwartet'))} zu erwarten — <b>{str(x.get('unter')).replace('.', ',')} % darunter</b>\n"
+            + (f"💶 +{geld(neu)} auf diese Auswahl · {geld(x.get('marktEur'))} im Markt\n" if neu >= 500
+               else f"<i>kaum neues Geld ({geld(max(0, neu))}) — nur die Quote bewegt sich · {geld(x.get('marktEur'))} im Markt</i>\n")
+            + (f"🟥 Rote Karte im Spiel ({rot[0]}:{rot[1]})\n" if rot else "")
+            + "<i>Quote fällt, obwohl die Spielzeit sie steigen ließe — kein Tor im Fenster.</i>\n"
+            + liga_zeile(d, x.get("liga")))
+
+
 def bf_uhr_still(d):
-    """18.11. Regel LD1: Betfair live gegen die Uhr still ins Buch — je Spiel + Markt + Auswahl + Stand einmal. Kein Push.
-    Markout 10 Min (markout_live) minus Grunddrift ergibt den Live-CLV in der Statistik."""
+    """18.11. Regel LD1: Betfair live gegen die Uhr still ins Buch — je Spiel + Markt + Auswahl + Stand einmal.
+    Markout 10 Min (markout_live) minus Grunddrift ergibt den Live-CLV in der Statistik.
+    Regel LD2 (Lucas 18.11. 15:23 „gegen die Uhr können wir gern als Push in den Money-Channel"): ab 15 % unter der Uhr
+    zusätzlich ein Test-Push, je Spiel höchstens einer (Schlüssel lp|<Spiel>|…, Sperre in main). Gebucht wird nur die
+    stille Zeile — so zählt jeder Fall genau einmal."""
+    tot_s = {str(s.get("id")) for s in (d.get("radar") or {}).get("spiele") or [] if s.get("entschieden")}
     for x in d.get("bfUhr") or []:
         if not isinstance(x.get("quote"), (int, float)) or x["quote"] <= 1:
             continue
+        if (x.get("unter") or 0) >= LD_PUSH_UNTER and str(x["id"]) not in tot_s:
+            yield (f"lp|{x['id']}|{x['markt']}|{x['auswahl']}", _uhr_text(d, x), None, None)
         st = x.get("stand") or [0, 0]
         yield (f"lu|{x['id']}|{x['markt']}|{x['auswahl']}|{st[0]}:{st[1]}", None, None,
                {"art": "bfUhr", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
@@ -1880,6 +1905,8 @@ def main() -> int:
                 # tm| (stakeTeam): je Spiel nur einmal messen — ein Paket kommt oft in mehreren Schüben
                 if any(k.startswith(basis) and (key.startswith("tm|") or (JETZT - ts(v)).total_seconds() < 30 * 60) for k, v in gesehen.items()):
                     continue
+            if key.startswith("lp|") and any(k.startswith("lp|" + key.split("|")[1] + "|") for k in gesehen):
+                continue            # Regel LD2: je Spiel ein Test-Push
             if key.startswith(("se|", "ps|", "ss|")):
                 basis = key.rsplit("|", 1)[0] + "|"
                 if any(k.startswith(basis) and (JETZT - ts(v)).total_seconds() < SERIE_ABSTAND_MIN * 60
