@@ -16,6 +16,7 @@ Alles still in .push_state (live_drift.json, hz_markout.json, stake_markout.json
 from __future__ import annotations
 
 import json
+import math
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -250,3 +251,100 @@ def clv_vor(q0, schluss, schluss_ts, anpfiff):
     if t < ko - timedelta(minutes=20):
         return None
     return round(100 * (q0 / schluss - 1), 1)
+
+
+# ── Uhr-Erwartung per Tor-Rate (18.11. 14:24, Lucas zu „Unter 0,5 4,20 → 2,72 gegen die Uhr": „macht keinen Sinn — ein
+# Unter fällt mit der Zeit sowieso"). Die Ø-Grunddrift je Eimer war für steile Linien falsch (erwartete 3,48, richtig
+# ~2,71). Jetzt: aus der Quote damals die Tor-Rate für die Restzeit zurückrechnen (Poisson), auf die Restzeit jetzt
+# übertragen → Quote, die die Uhr allein ergäbe. Rechnet in SPIELminuten, die Pause zählt also nicht mit.
+SPIEL_ENDE, HZ_ENDE = 93, 47
+
+
+def _p_bis(k, lam):
+    if k < 0:
+        return 0.0
+    t, s = math.exp(-lam), 0.0
+    for i in range(k + 1):
+        s += t
+        t *= lam / (i + 1)
+    return s
+
+
+def _lam_fuer(p_unter, k):
+    lo, hi = 0.0, 15.0
+    if not 0 < p_unter < 1:
+        return None
+    for _ in range(50):
+        m = (lo + hi) / 2
+        if _p_bis(k, m) > p_unter:
+            lo = m
+        else:
+            hi = m
+    return (lo + hi) / 2
+
+
+def _sieg_p(lh, la, d):
+    """P(heim, remis, gast) bei Rest-Toren Poisson(lh), Poisson(la) und Tordifferenz d. REIN."""
+    ph = [math.exp(-lh) * lh ** i / math.factorial(i) for i in range(11)]
+    pa = [math.exp(-la) * la ** i / math.factorial(i) for i in range(11)]
+    h = r = g = 0.0
+    for i, x in enumerate(ph):
+        for j, y in enumerate(pa):
+            e = d + i - j
+            if e > 0:
+                h += x * y
+            elif e == 0:
+                r += x * y
+            else:
+                g += x * y
+    return h, r, g
+
+
+def uhr_erwartung(markt, auswahl, q0, m0, m1, stand, sieg_q0=None, heim=None, gast=None):
+    """Quote, die die Spielzeit allein von Minute m0 bis m1 ergäbe (kein Tor dazwischen). None, wenn nicht rechenbar.
+    Tor-Linien: Poisson. Sieg-Markt: Rest-Tor-Raten beider Teams aus den drei Sieg-Quoten damals (sieg_q0 =
+    {auswahl: quote}). REIN."""
+    if not all(isinstance(x, (int, float)) for x in (q0, m0, m1)) or q0 <= 1 or m1 <= m0 or not stand:
+        return None
+    g = sum(stand)
+    mk, a = str(markt or ""), str(auswahl or "").lower()
+    lm = re.match(r"^(Over/Under|First Half Goals) (\d+)\.5", mk)
+    if lm:
+        ende = HZ_ENDE if lm.group(1) == "First Half Goals" else SPIEL_ENDE
+        if m1 >= ende:
+            return None
+        k = int(lm.group(2)) - g                    # so viele Tore darf es noch geben, damit Unter gewinnt
+        if k < 0:
+            return None
+        unter = a.startswith("under")
+        lam0 = _lam_fuer(1 / q0 if unter else 1 - 1 / q0, k)
+        if lam0 is None:
+            return None
+        lam1 = lam0 * (ende - m1) / max(1.0, ende - m0)
+        p1 = _p_bis(k, lam1)
+        p1 = p1 if unter else 1 - p1
+        return round(1 / p1, 3) if p1 > 0.005 else None
+    if mk == "Match Odds" and isinstance(sieg_q0, dict) and len(sieg_q0) == 3 and m1 < SPIEL_ENDE:
+        namen = list(sieg_q0)
+        remis = next((n for n in namen if str(n).lower() in ("the draw", "draw")), None)
+        if remis is None or heim not in sieg_q0 or gast not in sieg_q0:
+            return None
+        roh = [1 / sieg_q0[heim], 1 / sieg_q0[remis], 1 / sieg_q0[gast]]
+        s = sum(roh)
+        ziel = [x / s for x in roh]
+        d = stand[0] - stand[1]
+        best = None
+        for i in range(1, 41):
+            for j in range(1, 41):
+                lh, la = i * 0.075, j * 0.075
+                p = _sieg_p(lh, la, d)
+                f = sum((p[x] - ziel[x]) ** 2 for x in range(3))
+                if best is None or f < best[0]:
+                    best = (f, lh, la)
+        if best[0] > 0.004:                          # passt nicht zu einem einfachen Tor-Modell → lieber nichts sagen
+            return None
+        fak = (SPIEL_ENDE - m1) / max(1.0, SPIEL_ENDE - m0)
+        p = _sieg_p(best[1] * fak, best[2] * fak, d)
+        i = 0 if auswahl == heim else 1 if auswahl == remis else 2 if auswahl == gast else None
+        return round(1 / p[i], 3) if i is not None and p[i] > 0.005 else None
+    return None

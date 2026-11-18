@@ -708,8 +708,10 @@ def bf_drops(prices, bf_hist):
 # Anlass Kasem Bundit U21 77' 1:0, Über 1,5 gegen die Uhr gedrückt): Betfair LIVE, die Quote fällt gegen die Uhr —
 # auch ohne Geldschwelle. Vorab festgelegt (18.11.2026, 11:35 Wien):
 # * Laufendes Spiel, Sieg-Markt / Über-Unter x,5 / HZ-Tore x,5 (HZ nur bis zur Pause), ≥ €2k im Markt, Quote jetzt 1,40–6.
-# * Fenster ~15 Min (Stand 12–20 Min alt) OHNE Tor. Erwartung = Quote damals ÷ (1 + Grunddrift)^(Min/10), Grunddrift aus
-#   markout (je Markt-Art, Quote, Phase; fehlt sie, zählt 0). Signal, wenn die Quote jetzt ≥ 8 % unter der Erwartung UND
+# * Fenster ~15 Min (Stand 12–20 Min alt) OHNE Tor. Erwartung (LD1b, 18.11. 14:30 nach Lucas' Einwand „ein Unter fällt
+#   mit der Zeit sowieso"): aus der Quote damals die Tor-Rate der Restzeit (Poisson; Sieg-Markt: beide Teams aus den drei
+#   Sieg-Quoten) und auf die Restzeit jetzt übertragen, in Spielminuten (markout.uhr_erwartung). Vorher Ø-Drift je Eimer —
+#   der lag bei steilen Linien daneben (Unter 0,5: 3,48 statt ~2,71). Signal, wenn die Quote jetzt ≥ 8 % unter der Erwartung UND
 #   absolut gefallen ist, und schon im Abruf davor ≥ 5 % darunter lag (kein Einzel-Ausreißer).
 # * Rote Karte im Spiel wird markiert, nicht ausgeschlossen (Lucas: „deine Risiken sind in Wahrheit top Indikatoren").
 # * Je Spiel die stärkste Auswahl. Still ins Buch (art „bfUhr"), Markout 10 Min minus Grunddrift wie der Live-CLV. Kein Push.
@@ -718,11 +720,7 @@ LD_UNTER, LD_UNTER_VOR, LD_MIN_MARKT = 0.08, 0.05, 2000
 
 
 def bf_uhr(prices, bf_hist):
-    try:
-        import markout as _m
-        gd = _m.grunddrift(_m._lesen(BASIS / ".push_state" / "live_drift.json", {}))
-    except Exception:  # noqa: BLE001
-        _m, gd = None, {}
+    import markout as _m
     aus = []
     for m in (prices or {}).get("matches") or []:
         mid, ko, li = str(m.get("matchId")), ts(m.get("kickoff")), m.get("liveInfo") or {}
@@ -742,8 +740,12 @@ def bf_uhr(prices, bf_hist):
         if not sc(jetzt_p) or sc(p0) != sc(jetzt_p) or sc(vor_p) != sc(jetzt_p) or ts(p0["ts"]) < ko:
             continue
         mn = jetzt_p.get("min") if isinstance(jetzt_p.get("min"), (int, float)) else li.get("time")
+        m0, mv = p0.get("min"), vor_p.get("min")
+        # 18.11. 14:30 LD1b: Erwartung in SPIELminuten (Tor-Rate), nicht Ø-Drift je Echtzeit — Pause zählt nicht
+        if not all(isinstance(x, (int, float)) for x in (mn, m0, mv)) or mn - m0 < 5 or mv <= m0:
+            continue
         dt = (ts(jetzt_p["ts"]) - ts(p0["ts"])).total_seconds() / 60
-        dt_v = (ts(vor_p["ts"]) - ts(p0["ts"])).total_seconds() / 60
+        mo0 = {k: v[1] for k, v in ((p0.get("sel") or {}).get("Match Odds") or {}).items() if isinstance(v, list) and isinstance(v[1], (int, float)) and v[1] > 1}
         best = None
         for mk, sel in jetzt_p["sel"].items():
             if not LD_MAERKTE.match(mk) or (mk.startswith("First Half") and (li.get("is_ht") or (isinstance(mn, (int, float)) and mn > 45))):
@@ -761,11 +763,11 @@ def bf_uhr(prices, bf_hist):
                 q1, q0, qv = v[1], w0[1], wv[1]
                 if not all(isinstance(x, (int, float)) and x > 1 for x in (q1, q0, qv)) or not 1.40 <= q1 <= 6 or q1 >= q0:
                     continue
-                m0 = (mn - dt) if isinstance(mn, (int, float)) else None
-                e_ = _m.eimer(mk, n, q0, m0) if _m else None
-                g = gd.get(e_, 0.0) if e_ else 0.0
-                erw = q0 / (1 + g) ** (dt / 10)
-                erw_v = q0 / (1 + g) ** (dt_v / 10)
+                st_ = list(sc(jetzt_p))
+                erw = _m.uhr_erwartung(mk, n, q0, m0, mn, st_, mo0, m.get("home"), m.get("away"))
+                erw_v = _m.uhr_erwartung(mk, n, q0, m0, mv, st_, mo0, m.get("home"), m.get("away"))
+                if not erw or not erw_v:
+                    continue
                 unter = 1 - q1 / erw
                 if unter < LD_UNTER or qv > erw_v * (1 - LD_UNTER_VOR):
                     continue
@@ -774,7 +776,7 @@ def bf_uhr(prices, bf_hist):
                             "anpfiff": m.get("kickoff"), "top5": bool(TOP5_RX.search(str(m.get("league") or ""))), "regel": "LD1",
                             "min": mn, "stand": list(sc(jetzt_p)), "markt": mk, "auswahl": n, "q0": q0, "quote": q1,
                             "erwartet": round(erw, 2), "unter": round(unter, 3), "fensterMin": round(dt),
-                            "ohneUhr": e_ not in gd, "neu": round((v[0] or 0) - (w0[0] or 0)), "marktEur": round(mk_eur),
+                            "ohneUhr": False, "spielMin": [m0, mn], "neu": round((v[0] or 0) - (w0[0] or 0)), "marktEur": round(mk_eur),
                             "rot": [li.get("red_v1") or 0, li.get("red_v2") or 0] if (li.get("red_v1") or li.get("red_v2")) else None,
                             "seit": p0["ts"]}
         if best:

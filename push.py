@@ -1333,20 +1333,16 @@ def _uhr_drop(x, q, q_start, minute_jetzt):
     if q > q_start * 0.97:
         return "", None
     import markout as _m
-    if "gd" not in _GD:
-        try:
-            _GD["gd"] = _m.grunddrift(_m._lesen(BASIS / ".push_state" / "live_drift.json", {}))
-        except Exception:  # noqa: BLE001
-            _GD["gd"] = {}
     dauer = x.get("dauerMin") or 15
-    m0 = (minute_jetzt - dauer) if isinstance(minute_jetzt, (int, float)) else None
-    e_ = _m.eimer(x.get("markt"), x.get("auswahl"), q_start, m0)
-    g = _GD["gd"].get(e_) if e_ else None
-    # Erwartung höchstens über 20 Min hochgerechnet — länger wird die Schätzung zu grob
-    erw = q_start / (1 + g) ** (min(dauer, 20) / 10) if isinstance(g, (int, float)) and g > -0.9 else None
-    if erw is not None and q > erw * 0.95:
+    if not isinstance(minute_jetzt, (int, float)):
         return "", None
-    unter = round(100 * (1 - q / (erw or q_start)), 1)
+    # 18.11. 14:30 (D1b): Erwartung per Tor-Rate in Spielminuten (markout.uhr_erwartung) statt Ø-Drift. Sieg-Markt hat
+    # hier keine Start-Quoten aller drei Ausgänge → keine Zeile (lieber nichts als falsch).
+    erw = _m.uhr_erwartung(x.get("markt"), x.get("auswahl"), q_start, minute_jetzt - min(dauer, 30), minute_jetzt,
+                           list(x.get("stand") or (x.get("tor") or {}).get("nach") or []) or None)
+    if not erw or q > erw * 0.95:
+        return "", None
+    unter = round(100 * (1 - q / erw), 1)
     zusatz = f" — nur mit der Uhr wären eher ~{q2(erw)} zu erwarten" if erw and erw > q_start * 1.01 else ""
     return f"🔻 <b>Quote gegen die Uhr gedrückt: {q2(q_start)} → {q2(q)}</b> in {dauer} Min{zusatz}\n", unter
 
@@ -1423,7 +1419,7 @@ def serie(d):
                            f"Gematchtes Geld kann auch Lay sein: der Markt glaubt eher weniger an diese Seite.</i>\n")
         qg_ = _geld_quote(d, x["id"], x["markt"], x["auswahl"])
         lv = next((sp.get("live") for sp in (d.get("radar") or {}).get("spiele") or [] if sp.get("id") == x["id"]), None)
-        uhr_zeile, uhr_drop = _uhr_drop(x, q, q0 if q0 is not None else q_seit_tor, (lv or {}).get("min"))
+        uhr_zeile, uhr_drop = _uhr_drop({**x, "stand": (lv or {}).get("stand")}, q, q0 if q0 is not None else q_seit_tor, (lv or {}).get("min"))
         st = (f"🔴 {lv.get('min')}' · {(lv.get('stand') or [0, 0])[0]}:{(lv.get('stand') or [0, 0])[1]}" if lv else f"⏰ {anpfiff(x.get('anpfiff'))}")
         text = (f"🔁 <b>Dauerzufluss</b> · Betfair · <b>{x['n']}× in Folge</b>\n"
                 f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n{e(x.get('liga'))} · {st}\n\n"
