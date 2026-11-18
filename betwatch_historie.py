@@ -45,7 +45,7 @@ def inventur(ordner: Path, aus: Path):
     liga_vol = defaultdict(float)
     ticks_je_spiel, vol_je_spiel, vor_std, maerkte_je_spiel = [], [], [], []
     ohne_ticks = ohne_score = jung = 0
-    tick_summe = 0
+    tick_summe = leer = 0
     vol_summe_ticks = vol_summe_meta = 0.0
     fehler = []
     zeilen = []
@@ -75,7 +75,15 @@ def inventur(ordner: Path, aus: Path):
             p = d / f"{mk.get('market_id')}.parquet"
             if not p.exists():
                 continue
-            t = pq.read_table(p, columns=["date", "volume"])
+            try:
+                f = pq.ParquetFile(p)
+                if not {"date", "volume"} <= set(f.schema_arrow.names):
+                    leer += 1
+                    continue
+                t = f.read(columns=["date", "volume"])
+            except Exception as e:  # noqa: BLE001
+                fehler.append(f"{p.name}: {e}")
+                continue
             ticks += t.num_rows
             vol_summe_ticks += sum(v for v in t.column("volume").to_pylist() if v)
             if t.num_rows:
@@ -107,7 +115,7 @@ def inventur(ordner: Path, aus: Path):
     inv = {
         "spiele": n, "tage": dict(sorted(tage.items())), "ligen": len(ligen), "laender": len(laender),
         "topLigen": ligen.most_common(40), "ligenNachVolumen": sorted(((k, round(v)) for k, v in liga_vol.items()), key=lambda x: -x[1])[:40],
-        "nachwuchsReserveFrauen": jung, "ohneTicks": ohne_ticks, "ohneSpielstand": ohne_score,
+        "nachwuchsReserveFrauen": jung, "ohneTicks": ohne_ticks, "ohneSpielstand": ohne_score, "leereMarktDateien": leer,
         "ticksGesamt": tick_summe, "ticksJeSpiel": {"median": q(ticks_je_spiel, .5), "p10": q(ticks_je_spiel, .1), "p90": q(ticks_je_spiel, .9)},
         "volumenJeSpiel": {"median": q(vol_je_spiel, .5), "p10": q(vol_je_spiel, .1), "p90": q(vol_je_spiel, .9)},
         "volumenTicksZuMeta": round(vol_summe_ticks / vol_summe_meta, 4) if vol_summe_meta else None,
