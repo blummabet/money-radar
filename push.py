@@ -1182,7 +1182,7 @@ _VT_CACHE = {}
 
 
 def verteilung(d, b):
-    """Public-Regel R34: Anteil der gewählten Seite am ganzen Markt (0–1) oder None. Betfair: gematchtes Geld je
+    """Public-Regel R34: (Anteil der gewählten Seite am ganzen Markt 0–1, Markt-Betrag) oder None. Betfair: gematchtes Geld je
     Auswahl im Markt (betfair_prices.json). Polymarket: offene Positionen je Seite (poly_buch.json), sonst die Käufe
     je Seite aus dem Fluss. REIN bis aufs einmalige Lesen der beiden Dateien."""
     if not b:
@@ -1195,7 +1195,7 @@ def verteilung(d, b):
             mk = ((_VT_CACHE["bf"].get(sid) or {}).get("markets") or {}).get(b.get("markt")) or {}
             v = {r.get("name"): float(r.get("vol") or 0) for r in mk.get("runners") or []}
             ges = sum(v.values())
-            return round(v[b["auswahl"]] / ges, 3) if ges >= 500 and b.get("auswahl") in v else None
+            return (round(v[b["auswahl"]] / ges, 3), round(ges)) if ges >= 500 and b.get("auswahl") in v else None
         if art in ("pserie", "pfluss", "wal"):
             if "pm" not in _VT_CACHE:
                 _VT_CACHE["pm"] = {str(x.get("key")): x for x in json.loads((BASIS / "poly_buch.json").read_text(encoding="utf-8"))}
@@ -1209,7 +1209,7 @@ def verteilung(d, b):
             if ges < 500:
                 return None
             ziel = [k for k in seiten if k in (b.get("auswahl"), b.get("anzeige")) or _team_gleich(k, b.get("anzeige") or b.get("auswahl"))]
-            return round(seiten[ziel[0]] / ges, 3) if len(ziel) == 1 else None
+            return (round(seiten[ziel[0]] / ges, 3), round(ges)) if len(ziel) == 1 else None
     except Exception as exc:  # noqa: BLE001
         print(f"  verteilung: {exc}")
     return None
@@ -1980,7 +1980,9 @@ def main() -> int:
                 gesendet += 1
                 try:                 # Public-Regel 4 (02.11.): nicht sofort senden — in den Topf, bewertet wird unten
                     if pub:
-                        public.sammeln(pub_stand, {**pub, "verteilung": verteilung(d, beleg)}, JETZT)   # R34
+                        _vt = verteilung(d, beleg)                                          # R34
+                        public.sammeln(pub_stand, {**pub, "verteilung": _vt[0] if _vt else None, "vtMarkt": _vt[1] if _vt else None,
+                                                   "_q": {k: beleg.get(k) for k in ("id", "art", "markt", "auswahl", "anzeige")}}, JETZT)
                     if beleg and beleg.get("art") == "pinn":          # Public-Regel 30: Pinnacle-Drop verstärkt den Kandidaten
                         public.pinn_merken(pub_stand, beleg, JETZT)
                 except Exception as exc:  # noqa: BLE001
@@ -2102,6 +2104,11 @@ def main() -> int:
         try:                         # Public-Regel 4: zu den Terminen den besten Kandidaten aus dem Topf
             _jetzt_live = {public._norm(f"{x.get('heim')} – {x.get('gast')}"): (x.get("live") or {}).get("stand")
                            for x in (d.get("radar") or {}).get("spiele") or [] if x.get("live")}
+            for _c in (pub_stand.get('topf') or {}).values():      # R34: Verteilung vor der Auswahl frisch lesen
+                _qb = (_c.get('m') or {}).get('_q')
+                _vt = verteilung(d, _qb) if _qb else None
+                if _vt:
+                    _c['vt'], _c['vtMarkt'] = _vt
             for m_, pl_, pkt_, grund_ in public.auswahl(pub_stand, JETZT, aktuell=lambda m: _jetzt_live.get(public._norm(m.get("spiel"))),
                                                          toepfe=d.get("toepfe") or [],
                                                          quoten=lambda m: public.quote_lage(m, (d.get("radar") or {}).get("spiele"),

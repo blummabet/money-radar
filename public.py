@@ -312,7 +312,7 @@ def sammeln(s, m, jetzt):
     c = t.get(k) or {"erst": jetzt.isoformat(), "ereignisse": []}
     c["m"] = {x: v for x, v in m.items()}
     if isinstance(m.get("verteilung"), (int, float)):      # R34: letzter bekannter Anteil der Seite am Markt
-        c["vt"] = m["verteilung"]
+        c["vt"], c["vtMarkt"] = m["verteilung"], m.get("vtMarkt")
     c["letzt"] = jetzt.isoformat()
     c["ereignisse"] = (c["ereignisse"] + [{"zeit": jetzt.isoformat(), "art": m.get("art"), "eur": m.get("eur"), "n": m.get("n"),
                                             "faktor": m.get("faktor")}])[-30:]
@@ -517,11 +517,13 @@ def stake(c, p):
 # * Anteil der gewählten Seite am ganzen Markt (Betfair: gematchtes Geld im Markt; Polymarket: offene Positionen,
 #   sonst Käufe je Seite) muss bekannt sein und ≥ 70 % betragen.
 # * 60–70 % nur, wenn im Kandidaten ein Polymarket-Wal auf dieselbe Seite steht (gute Wallets erklären eine knappere
-#   Verteilung). Unter 60 % nie.
+#   Verteilung) ODER ein Dauerzufluss den Markt gedreht hat: die Serie brachte ≥ 30 % des ganzen Markts (R34b, Lucas
+#   18:26: „wenn so ein Dauerfluss mehr sticht als die Verteilung über den Tag, kann das gern zählen"). Unter 60 % nie —
+#   auch kein Dauerzufluss: dann hat er den Markt nicht auf eine Seite gebracht (Team Spirit: $100k neu, danach 52 %).
 # * Unbekannte Verteilung nur bei mindestens 2 Quellen (Betfair/Polymarket/Stake).
 # * Gesperrte Kandidaten gehen mit Grund als „nicht gesendet" in die Liste (gemessen wie Regel 24/25).
 # * Stake 3 nur noch mit mindestens 2 Quellen (vorher auch ab 14 Punkten allein).
-VT_VOLL, VT_MIN = 0.70, 0.60
+VT_VOLL, VT_MIN, VT_FLUSS = 0.70, 0.60, 0.30
 
 
 def vt_sperre(c):
@@ -534,8 +536,10 @@ def vt_sperre(c):
     pct = round(100 * v)
     if v < VT_MIN:
         return f"R34: Markt zu ausgeglichen ({pct} % auf dieser Seite)"
-    if v < VT_VOLL and not any(e.get("art") == "wal" for e in ev):
-        return f"R34: nur {pct} % auf dieser Seite, kein Wal dabei"
+    fluss = max([e.get("eur") or 0 for e in ev if e.get("art") in ("serie", "pserie")] or [0])
+    gedreht = bool(c.get("vtMarkt") and fluss >= VT_FLUSS * c["vtMarkt"])
+    if v < VT_VOLL and not any(e.get("art") == "wal" for e in ev) and not gedreht:
+        return f"R34: nur {pct} % auf dieser Seite, kein Wal und kein Dauerzufluss, der den Markt gedreht hat"
     return None
 
 
