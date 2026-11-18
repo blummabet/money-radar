@@ -1178,6 +1178,43 @@ def _geld_block(fl, minuten):
     return kopf + "<code>" + e("\n".join(zeilen)) + "</code>\n"
 
 
+_VT_CACHE = {}
+
+
+def verteilung(d, b):
+    """Public-Regel R34: Anteil der gewählten Seite am ganzen Markt (0–1) oder None. Betfair: gematchtes Geld je
+    Auswahl im Markt (betfair_prices.json). Polymarket: offene Positionen je Seite (poly_buch.json), sonst die Käufe
+    je Seite aus dem Fluss. REIN bis aufs einmalige Lesen der beiden Dateien."""
+    if not b:
+        return None
+    sid, art = str(b.get("id") or ""), b.get("art")
+    try:
+        if sid.isdigit():
+            if "bf" not in _VT_CACHE:
+                _VT_CACHE["bf"] = {str(m.get("matchId")): m for m in (json.loads((BASIS / ".bf" / "betfair_prices.json").read_text(encoding="utf-8")).get("matches") or [])}
+            mk = ((_VT_CACHE["bf"].get(sid) or {}).get("markets") or {}).get(b.get("markt")) or {}
+            v = {r.get("name"): float(r.get("vol") or 0) for r in mk.get("runners") or []}
+            ges = sum(v.values())
+            return round(v[b["auswahl"]] / ges, 3) if ges >= 500 and b.get("auswahl") in v else None
+        if art in ("pserie", "pfluss", "wal"):
+            if "pm" not in _VT_CACHE:
+                _VT_CACHE["pm"] = {str(x.get("key")): x for x in json.loads((BASIS / "poly_buch.json").read_text(encoding="utf-8"))}
+            e_ = _VT_CACHE["pm"].get(sid) or {}
+            lab = e_.get("labels") or {}
+            seiten = {lab.get(k, k): float(v or 0) for k, v in (e_.get("seiten") or {}).items()}
+            if not seiten or sum(seiten.values()) < 500:
+                pf = next((m for m in (d.get("polyFluss") or {}).get("maerkte") or [] if str(m.get("key")) == sid), {})
+                seiten = {str(k): float(v or 0) for k, v in (pf.get("alle") or {}).items()}
+            ges = sum(seiten.values())
+            if ges < 500:
+                return None
+            ziel = [k for k in seiten if k in (b.get("auswahl"), b.get("anzeige")) or _team_gleich(k, b.get("anzeige") or b.get("auswahl"))]
+            return round(seiten[ziel[0]] / ges, 3) if len(ziel) == 1 else None
+    except Exception as exc:  # noqa: BLE001
+        print(f"  verteilung: {exc}")
+    return None
+
+
 def _poly_geld_block(d, x, lab):
     """Lucas 09.11. (Phantom – ILLYRIANS: „$9,3k — ist das jetzt viel oder wenig? Keinen Plan, wie viel gesamt auf dem
     Markt liegt"): wie beim Betfair-Push der ganze Markt je Seite als Balken, das neue Geld dahinter.
@@ -1943,7 +1980,7 @@ def main() -> int:
                 gesendet += 1
                 try:                 # Public-Regel 4 (02.11.): nicht sofort senden — in den Topf, bewertet wird unten
                     if pub:
-                        public.sammeln(pub_stand, pub, JETZT)
+                        public.sammeln(pub_stand, {**pub, "verteilung": verteilung(d, beleg)}, JETZT)   # R34
                     if beleg and beleg.get("art") == "pinn":          # Public-Regel 30: Pinnacle-Drop verstärkt den Kandidaten
                         public.pinn_merken(pub_stand, beleg, JETZT)
                 except Exception as exc:  # noqa: BLE001

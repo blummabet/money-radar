@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
-REGEL = "R33"   # R33 18.11. ~11:00 Liga-Teil im Topf aus dem geschrumpften Liga-Gewicht (Liga-Regel LW2): (Gewicht − Schnitt) / 3, höchstens ±4 — im Mittel kleiner als vorher (|Punkte| Ø 1,4 → 0,9) · R32 18.11. Tor-Linie still mitgemessen (T8) · R31 17.11. Topf-Gewichte lernen still (R31) · R30 16.11. ~13:00 Pinnacle-Drop mit Geld (Push „Pinnacle · Drop vor Anpfiff") auf dieselbe Seite: +3 Punkte für den Kandidaten im Topf, keine eigenen Pinnacle-Picks · R29 16.11. ~12:45 Betfair-Geld auf Unter vor Anpfiff wieder im Kanal (R7 gilt nur noch live) · R28 16.11. ~12:45 wie R27, Betfair-Teil misst gegen die Ø Quote, zu der das Geld der letzten Stunde gematcht wurde (qGeld, ab €2k gezählt), sonst wie bisher gegen die Quote vor 60 Min · R27 15.11. ~12:10 vor Anpfiff: Quote steigt (Betfair +3 % in 60 Min oder Pinnacle −1,5 pp vom 3-h-Hoch) → gesperrt, fällt sie → +2 Punkte · R26 14.11. ~23:40 ALLE Nations Leagues (UEFA A–D, CONCACAF …) in keiner Art im Kanal (ersetzt R24) · R25 14.11. ~22:30 Gegenwind: Stake/Polymarket/Betfair klar auf der Gegenseite → nicht in den Kanal · R24 14.11. ~22:30 UEFA Nations League A in keiner Art im Kanal · R23 14.11. ~11:45 Freundschaftsspiele in keiner Art im Kanal · R22 13.11. ~17:25 Termin erst ab 9 Punkten (vorher 5) · R20 10.11. ~9:00 Liga-Wertung aus dem Liga-Buch (Fußball, 90 Tage, alle Spiele mit klarem hohem Geld) bzw. allen eigenen Messungen, jedes Spiel+Auswahl einmal · R19 09.11. ~18:50 Geld vor Anpfiff aus allen Ligen (Regel-5-Sperre auf große Ligen aufgehoben, Regel 2 entfernt) · R18 09.11. ~15:30 Polymarket-Dauerzufluss nicht public, wenn bewährtes Geld (≥ $5k, CLV-Untergrenze > 0) oder ein Wal-Push der letzten 6 h auf der Gegenseite liegt (FOKUS – Alliance) · R17 07.11. ~18:00 englische Championship in keiner Art im Kanal · R16 07.11. ~17:30 Stake-Pakete auf ein Team → Team-Sieg zur Betfair-Quote · R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
+REGEL = "R34"   # R34 18.11. ~18:40 Verteilung Pflicht: Seite ≥ 70 % des Markts (60–70 % nur mit Wal), unbekannt nur bei ≥ 2 Quellen; Stake 3 nur mit ≥ 2 Quellen · R33 18.11. ~11:00 Liga-Teil im Topf aus dem geschrumpften Liga-Gewicht (Liga-Regel LW2): (Gewicht − Schnitt) / 3, höchstens ±4 — im Mittel kleiner als vorher (|Punkte| Ø 1,4 → 0,9) · R32 18.11. Tor-Linie still mitgemessen (T8) · R31 17.11. Topf-Gewichte lernen still (R31) · R30 16.11. ~13:00 Pinnacle-Drop mit Geld (Push „Pinnacle · Drop vor Anpfiff") auf dieselbe Seite: +3 Punkte für den Kandidaten im Topf, keine eigenen Pinnacle-Picks · R29 16.11. ~12:45 Betfair-Geld auf Unter vor Anpfiff wieder im Kanal (R7 gilt nur noch live) · R28 16.11. ~12:45 wie R27, Betfair-Teil misst gegen die Ø Quote, zu der das Geld der letzten Stunde gematcht wurde (qGeld, ab €2k gezählt), sonst wie bisher gegen die Quote vor 60 Min · R27 15.11. ~12:10 vor Anpfiff: Quote steigt (Betfair +3 % in 60 Min oder Pinnacle −1,5 pp vom 3-h-Hoch) → gesperrt, fällt sie → +2 Punkte · R26 14.11. ~23:40 ALLE Nations Leagues (UEFA A–D, CONCACAF …) in keiner Art im Kanal (ersetzt R24) · R25 14.11. ~22:30 Gegenwind: Stake/Polymarket/Betfair klar auf der Gegenseite → nicht in den Kanal · R24 14.11. ~22:30 UEFA Nations League A in keiner Art im Kanal · R23 14.11. ~11:45 Freundschaftsspiele in keiner Art im Kanal · R22 13.11. ~17:25 Termin erst ab 9 Punkten (vorher 5) · R20 10.11. ~9:00 Liga-Wertung aus dem Liga-Buch (Fußball, 90 Tage, alle Spiele mit klarem hohem Geld) bzw. allen eigenen Messungen, jedes Spiel+Auswahl einmal · R19 09.11. ~18:50 Geld vor Anpfiff aus allen Ligen (Regel-5-Sperre auf große Ligen aufgehoben, Regel 2 entfernt) · R18 09.11. ~15:30 Polymarket-Dauerzufluss nicht public, wenn bewährtes Geld (≥ $5k, CLV-Untergrenze > 0) oder ein Wal-Push der letzten 6 h auf der Gegenseite liegt (FOKUS – Alliance) · R17 07.11. ~18:00 englische Championship in keiner Art im Kanal · R16 07.11. ~17:30 Stake-Pakete auf ein Team → Team-Sieg zur Betfair-Quote · R15 07.11. ~17:20 Polymarket-Dauerzufluss wieder, nur live + Team-Sieg · R14 07.11. ~17:05 Fix-Verdacht nicht mehr im Kanal · R13 07.11. ~17:00 Liga-Wertung im Topf (±4 Punkte aus eigener Liga-Bilanz) · R12 07.11. ~16:05 Polymarket-Dauerzufluss wieder raus (Lucas „0815-Dreck"; über alles n=384, 56 % bei 54 % erwartet, +4 %) · R11 07.11. ~13:30 Premier League in keiner Art im Kanal · R10 07.11. ~8:45 Polymarket-Dauerzufluss in den Kanal; Stake ohne eigene Quote nimmt die Betfair-Quote · R9 05.11. ~20:15 Live-Kandidat nur ohne Tor seit dem Signal und höchstens 10 Min alt · R8 05.11. ~6:15 Live-Dauerzufluss mit Quote +15 % ohne Tor (Lay-Verdacht) nicht in den Kanal · R7 04.11. ~12:40 Betfair-Geld auf Unter nicht in den Kanal · R6 03.11. ~13:10 live Dauerzufluss: nur Geld seit dem letzten Tor zählt (Kobe – Ratchaburi) · R5 02.11. 21:30 Dauerzufluss aus allen Ligen, 21:35 Quote ab 1,50 überall (Geld vor Anpfiff weiter nur große Ligen) · (R4 ab 02.11. 16 Uhr: Live-Kandidaten dürfen den nächsten Termin vorziehen, ab 18 Uhr erst ab 10 Punkten) · R1 31.10. 10:30 · R2 31.10. 13:10 ohne PL-Betfair-Signale · R3 02.11. ~14:15 Wal nur ≥ 2× üblicher Einsatz, max. 1 je Fenster
 #                · R4 02.11. ~15 Uhr: sammeln statt sofort — Topf, Punkte, drei Termine je Fenster
 WAL_MIN_FAKTOR = 2.0
 WAL_JE_FENSTER = 1
@@ -311,6 +311,8 @@ def sammeln(s, m, jetzt):
     k = _key(m)
     c = t.get(k) or {"erst": jetzt.isoformat(), "ereignisse": []}
     c["m"] = {x: v for x, v in m.items()}
+    if isinstance(m.get("verteilung"), (int, float)):      # R34: letzter bekannter Anteil der Seite am Markt
+        c["vt"] = m["verteilung"]
     c["letzt"] = jetzt.isoformat()
     c["ereignisse"] = (c["ereignisse"] + [{"zeit": jetzt.isoformat(), "art": m.get("art"), "eur": m.get("eur"), "n": m.get("n"),
                                             "faktor": m.get("faktor")}])[-30:]
@@ -499,13 +501,42 @@ def stake(c, p):
     stark = (art in ("serie", "zufluss") and not live) \
         or (art == "wal" and isinstance(m.get("faktor"), (int, float)) and m["faktor"] >= 3) \
         or (art == "pserie" and live)
-    st = 3 if p >= 14 or (p >= 12 and len(quellen) >= 2) else 2 if (p >= 12 or stark) else 1
+    # R34: Stake 3 nur mit mindestens 2 Quellen
+    st = 3 if p >= 12 and len(quellen) >= 2 else 2 if (p >= 12 or stark) else 1
     stand = m.get("stand")
     if art == "serie" and live and isinstance(stand, (list, tuple)) and len(stand) == 2 and stand[0] == stand[1]:
         st = 1
     if isinstance(q, (int, float)) and q >= 2.5:
         st = max(1, st - 1)
     return st
+
+
+# ── Public-Regel R34 (Lucas 18.11. 18:23, Team Spirit – PARIVISION, Stake 3 bei $131k : $119k im Markt: „eine
+# Verteilung müssen wir immer haben … Konstruktionsfehler hoch 5"). Die Geld-Punkte zählten den Betrag, nicht wie
+# einseitig der Markt danach liegt — in großen Märkten reicht dann jeder Umsatz. Vorab festgelegt (18.11., 18:40 Wien):
+# * Anteil der gewählten Seite am ganzen Markt (Betfair: gematchtes Geld im Markt; Polymarket: offene Positionen,
+#   sonst Käufe je Seite) muss bekannt sein und ≥ 70 % betragen.
+# * 60–70 % nur, wenn im Kandidaten ein Polymarket-Wal auf dieselbe Seite steht (gute Wallets erklären eine knappere
+#   Verteilung). Unter 60 % nie.
+# * Unbekannte Verteilung nur bei mindestens 2 Quellen (Betfair/Polymarket/Stake).
+# * Gesperrte Kandidaten gehen mit Grund als „nicht gesendet" in die Liste (gemessen wie Regel 24/25).
+# * Stake 3 nur noch mit mindestens 2 Quellen (vorher auch ab 14 Punkten allein).
+VT_VOLL, VT_MIN = 0.70, 0.60
+
+
+def vt_sperre(c):
+    """R34 → Grund (Text) oder None. REIN."""
+    ev = c.get("ereignisse") or []
+    quellen = {QUELLE.get(e.get("art")) for e in ev} - {None}
+    v = c.get("vt")
+    if not isinstance(v, (int, float)):
+        return None if len(quellen) >= 2 else "R34: Verteilung im Markt unbekannt"
+    pct = round(100 * v)
+    if v < VT_MIN:
+        return f"R34: Markt zu ausgeglichen ({pct} % auf dieser Seite)"
+    if v < VT_VOLL and not any(e.get("art") == "wal" for e in ev):
+        return f"R34: nur {pct} % auf dieser Seite, kein Wal dabei"
+    return None
 
 
 def _termine_vorbei(f, jetzt):
@@ -564,7 +595,7 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None, info=None):
                                    "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": c.get("best"),
                                    "stake": stake(c, c.get("best")), "stakeRegel": STAKING_REGEL, "qInfo": m.get("qInfo"),
                                    "signale": len(c.get("ereignisse") or []), "p": c.get("bestTeile") or c.get("teile"),
-                                   "still": merkmale(c)})
+                                   "still": merkmale(c), "vt": c.get("vt")})
             t.pop(k, None)
             continue
         if c.get("best") is None or p > c["best"]:
@@ -580,15 +611,15 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None, info=None):
             break
         m = c["m"]
         try:
-            sperre = c.get("r27") or (gegenwind(m, toepfe) if toepfe is not None else None)
+            sperre = c.get("r27") or vt_sperre(c) or (gegenwind(m, toepfe) if toepfe is not None else None)
         except Exception:  # noqa: BLE001
-            sperre = c.get("r27")
+            sperre = c.get("r27") or vt_sperre(c)
         if sperre:              # Regel 24/25: nicht in den Kanal, als „nicht gesendet" mit Grund in die Liste (gemessen)
             s["liste"].append({"zeit": jetzt.strftime("%Y-%m-%dT%H:%M"), "art": m.get("art"), "spiel": m.get("spiel"),
                                "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                                "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": p, "sperre": sperre,
                                "stake": stake(c, p), "stakeRegel": STAKING_REGEL, "qInfo": m.get("qInfo"), "signale": len(c.get("ereignisse") or []),
-                               "p": c.get("teile"), "still": merkmale(c)})
+                               "p": c.get("teile"), "still": merkmale(c), "vt": c.get("vt")})
             s.setdefault("spiele", []).append(_norm(m.get("spiel")))     # das Spiel heute nicht mehr
             t.pop(k, None)
             print(f"  public gesperrt: {m.get('spiel')} · {sperre}")
@@ -612,7 +643,7 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None, info=None):
             continue
         gesendet += 1
         m["_stake"] = stake(c, p)
-        m["_teile"], m["_still"] = dict(c.get("teile") or {}), merkmale(c)
+        m["_teile"], m["_still"], m["_vt"] = dict(c.get("teile") or {}), merkmale(c), c.get("vt")
         aus.append((m, (gesendet, f), p, grund))
         t.pop(k, None)
     return aus
@@ -696,7 +727,7 @@ def buchen(s, m, nr_f, jetzt, punkte=None, grund=None):
                        "live": bool(m.get("live")), "regel": REGEL, "faktor": m.get("faktor"),
                        "gesendet": True, "punkte": punkte, "grund": grund, "qInfo": m.get("qInfo"),
                        "stake": m.get("_stake"), "stakeRegel": STAKING_REGEL if m.get("_stake") else None,
-                       "p": m.get("_teile"), "still": m.get("_still")})
+                       "p": m.get("_teile"), "still": m.get("_still"), "vt": m.get("_vt")})
 
 
 def _wann(iso, jetzt):
