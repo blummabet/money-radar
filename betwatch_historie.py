@@ -30,6 +30,19 @@ def _ts(s):
         return None
 
 
+def teams(m):
+    """teams ist meist {home:{name}, away:{name}}, bei manchen Spielen eine Liste."""
+    t = m.get("teams") or {}
+    if isinstance(t, list):
+        if not getattr(teams, "gezeigt", False):
+            teams.gezeigt = True
+            print("teams als Liste, Beispiel:", json.dumps(t)[:300], m.get("league"), flush=True)
+        nm = [(x.get("name") if isinstance(x, dict) else str(x)) for x in t] + [None, None]
+        return nm[0], nm[1]
+    g = lambda k: (t.get(k) or {}).get("name") if isinstance(t.get(k), dict) else t.get(k)
+    return g("home"), g("away")
+
+
 def spiele(ordner: Path):
     for meta in sorted(ordner.glob("*/*/*/*/*.json")):
         if meta.name.startswith("._"):
@@ -63,7 +76,7 @@ def inventur(ordner: Path, aus: Path):
         laender[m.get("country") or "?"] += 1
         if ko:
             tage[ko.date().isoformat()] += 1
-        h, a = (m.get("teams") or {}).get("home", {}).get("name"), (m.get("teams") or {}).get("away", {}).get("name")
+        h, a = teams(m)
         ist_jung = bool(JUNG.search(f"{m.get('league')} {h} {a}"))
         jung += ist_jung
         ticks = 0
