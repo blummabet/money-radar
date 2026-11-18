@@ -739,6 +739,12 @@ def bf_uhr(prices, bf_hist):
         sc = lambda x: tuple(x.get("sc") or ())  # noqa: E731
         if not sc(jetzt_p) or sc(p0) != sc(jetzt_p) or sc(vor_p) != sc(jetzt_p) or ts(p0["ts"]) < ko:
             continue
+        # LD3 (18.11. 17:46, Al Buqaa 61' → 76', Lucas: „das doch wohl eher, weil Ausgleich gemacht"): der Stand springt
+        # oft einen Abruf VOR den Quoten um — p0 zeigte schon 1:1, die Preise noch 0:1 (Al Buqaa 6,60, danach 2,36).
+        # Darum muss der jetzige Stand schon im Abruf VOR p0 gegolten haben.
+        i0 = pts.index(p0)
+        if i0 == 0 or sc(pts[i0 - 1]) != sc(jetzt_p):
+            continue
         mn = jetzt_p.get("min") if isinstance(jetzt_p.get("min"), (int, float)) else li.get("time")
         m0, mv = p0.get("min"), vor_p.get("min")
         # 18.11. 14:30 LD1b: Erwartung in SPIELminuten (Tor-Rate), nicht Ø-Drift je Echtzeit — Pause zählt nicht
@@ -2336,6 +2342,8 @@ def serien(takt, radar):
                     continue
                 x.update({"nGesamt": x["n"], "eurGesamt": x["eur"], "n": len(kt), "eur": tor["seitStand"],
                           "anteil": round(sum(k[2] for k in kt) / len(kt)), "quoteStart": kt[0][3], "seit": iso(kt[0][0]),
+                          # LD3: der erste Abruf nach dem Tor kann noch Vor-Tor-Preise tragen → für „gegen die Uhr" den zweiten
+                          "quoteStartUhr": kt[1][3] if len(kt) >= 2 else None,
                           "dauerMin": round((kt[-1][0] - kt[0][0]).total_seconds() / 60) + 5})
                 if x.get("marktVerteilung"):
                     x["marktVerteilung"] = [[v[0], v[1], v[2], tor["seitStand"] if v[3] else 0] for v in x["marktVerteilung"]]

@@ -1373,7 +1373,8 @@ def serie(d):
         # Lucas 03.11. (Kobe – Ratchaburi: €241k „@ 1,96", das Geld kam großteils bei 1:0 zu ~1,20, dann 1:1 — „Punkt 1
         # einbauen"): REGEL S3 — live zählt nur das Geld SEIT DEM LETZTEN TOR. Ein Tor macht ein anderes Spiel; Geld davor
         # steht nur als Hinweis dabei. Seit dem Tor braucht es wieder 3 Abrufe in Folge und die Mindestsumme.
-        q_seit_tor = x.get("quoteStart")             # Regel D1: Start der Kette seit dem letzten Tor (build.serien, S3)
+        # Regel D1/LD3: Start seit dem letzten Tor — ab dem ZWEITEN Abruf danach (der erste trägt oft noch Vor-Tor-Preise)
+        q_seit_tor = x.get("quoteStartUhr") if x.get("eurGesamt") is not None else x.get("quoteStart")
         if x.get("eurGesamt") is not None:          # REGEL S3 (build.serien): Zahlen schon seit dem letzten Tor
             x = {**x, "eur_vorTor": x["eurGesamt"] - x["eur"], "quoteStart": None}
         key = f"se|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}" + (f"|{x['tor']['nach'][0]}:{x['tor']['nach'][1]}" if x.get("eur_vorTor") is not None else "")
