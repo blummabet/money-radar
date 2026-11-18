@@ -1,46 +1,56 @@
-name: Diagnose Betwatch (Spiel suchen)
+name: Diagnose (Zustand lesen)
 
-# Lucas 21.10.: Lille U19 – Galatasaray U19 fehlt seit dem Anpfiff in den Daten. Fragt Betwatch direkt (events + live),
-# sucht die Paarung und legt das Ergebnis als Issue ab. Der Schlüssel wird nie ausgegeben.
+# 18.11. (Lucas: „Das kam in Public — was waren da die Gründe?"): liest eine Zustandsdatei aus dem Gedächtnis (Cache vom
+# Mac) und gibt nur die Einträge aus, in denen der Suchtext vorkommt. Schreibt nichts ins Repo, nichts in den Cache.
 on:
   workflow_dispatch:
     inputs:
+      datei:
+        description: 'Pfad, z. B. .push_state/public.json'
+        required: true
+        default: .push_state/public.json
       suche:
-        description: 'Suchbegriff (Teamname)'
-        default: 'Lille'
+        description: 'Suchtext (Teil reicht)'
+        required: true
 
 permissions:
   contents: read
-  issues: write
+  actions: read
 
 jobs:
-  suche:
-    runs-on: ubuntu-latest
+  lesen:
+    runs-on: [self-hosted, bau]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Betwatch fragen
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            .bf
+            .pin
+            .push_state
+            .rp
+          key: diagnose-${{ github.run_id }}
+          restore-keys: radar-
+      - name: Lesen
         env:
-          BETWATCH_KEY: ${{ secrets.BETWATCH_KEY }}
+          DATEI: ${{ inputs.datei }}
           SUCHE: ${{ inputs.suche }}
         run: |
-          python3 - <<'PY' > bericht.txt
-          import os, json
-          import fetch_betfair as F
-          s = os.environ.get("SUCHE", "Lille").lower()
-          for pfad in ("/football/events", "/football/live"):
-              d = F._get(pfad) or []
-              treffer = [e for e in d if s in json.dumps(e.get("teams") or {}).lower()]
-              print(f"## {pfad}: {len(d)} Spiele, {len(treffer)} Treffer")
-              for e in treffer:
-                  print("-", e.get("match_id"), (e.get("teams") or {}).get("v1"), "vs", (e.get("teams") or {}).get("v2"),
-                        "|", e.get("league"), "|", e.get("kickoff"), "|", json.dumps(e.get("live_info") or {}))
-                  det = F._get(f"/football/event/{e.get('match_id')}") or {}
-                  mk = det.get("markets") or []
-                  print(f"    Detail: {len(mk)} Märkte, Volumen {sum(float(m.get('average_volume') or 0) for m in mk):.0f}")
+          python3 - <<'PY'
+          import json, os, pathlib
+          p = pathlib.Path(os.environ["DATEI"]).resolve()
+          basis = pathlib.Path.cwd().resolve()
+          assert basis in p.parents and p.suffix == ".json", "nur JSON im Arbeitsordner"
+          d = json.loads(p.read_text())
+          s = os.environ["SUCHE"].lower()
+          def gehe(o, pfad=""):
+              if isinstance(o, dict):
+                  t = json.dumps(o, ensure_ascii=False)
+                  if s in t.lower() and len(t) < 6000 and not any(isinstance(v, (dict, list)) and s in json.dumps(v, ensure_ascii=False).lower() and len(json.dumps(v)) > 1500 for v in o.values()):
+                      print(pfad, t); print(); return
+                  for k, v in o.items(): gehe(v, f"{pfad}/{k}")
+              elif isinstance(o, list):
+                  for i, v in enumerate(o): gehe(v, f"{pfad}[{i}]")
+          gehe(d)
           PY
-          cat bericht.txt
-      - name: Bericht als Issue
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh issue create -R ${{ github.repository }} --title "Betwatch-Suche ${{ inputs.suche }} $(date -u +%FT%H:%MZ)" --body-file bericht.txt
