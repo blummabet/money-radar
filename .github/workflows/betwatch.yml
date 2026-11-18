@@ -1,0 +1,64 @@
+name: Betwatch-Historie (Inventur und Nachspielen)
+
+# 18.11. Lucas hat einen Monat Betwatch-Historie gekauft (Oktober 2026, ~1,5 GB, liegt in ~/Downloads auf dem Mac).
+# Speicher-Regel: Rohdaten bleiben NUR auf dem Mac unter ~/betwatch (nicht im Repo, nicht im Actions-Cache).
+# Ins System kommen nur kleine Ergebnisse (Artefakt, später Auswertungen).
+on:
+  workflow_dispatch:
+    inputs:
+      schritt:
+        description: 'inventur | nachspielen'
+        required: true
+        default: inventur
+      datei:
+        description: 'Archivname in ~/Downloads oder ~/betwatch'
+        required: true
+        default: betwatch_football_2026_10.tar
+
+permissions:
+  contents: read
+
+jobs:
+  betwatch:
+    runs-on: [self-hosted, bau]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Umgebung (eigenes venv mit pyarrow unter ~/betwatch)
+        run: |
+          set -e
+          mkdir -p "$HOME/betwatch"
+          PY=""
+          for p in /opt/homebrew/bin/python3.13 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.11 python3; do command -v "$p" >/dev/null && { PY="$p"; break; }; done
+          [ -x "$HOME/betwatch/venv/bin/python" ] || "$PY" -m venv "$HOME/betwatch/venv"
+          "$HOME/betwatch/venv/bin/python" -c "import pyarrow" 2>/dev/null || "$HOME/betwatch/venv/bin/pip" install -q pyarrow
+          "$HOME/betwatch/venv/bin/python" -c "import pyarrow, sys; print('pyarrow', pyarrow.__version__, sys.version)"
+          df -h "$HOME" | tail -1
+      - name: Archiv auspacken (einmalig)
+        env:
+          DATEI: ${{ inputs.datei }}
+        run: |
+          set -e
+          ZIEL="$HOME/betwatch/${DATEI%.tar}"
+          if [ -f "$ZIEL/.fertig" ]; then echo "schon ausgepackt: $ZIEL"; exit 0; fi
+          QUELLE=""
+          for q in "$HOME/betwatch/$DATEI" "$HOME/Downloads/$DATEI"; do [ -f "$q" ] && { QUELLE="$q"; break; }; done
+          [ -n "$QUELLE" ] || { echo "::error::$DATEI weder in ~/betwatch noch in ~/Downloads"; exit 1; }
+          ls -l "$QUELLE"
+          mkdir -p "$ZIEL"
+          tar -xf "$QUELLE" -C "$ZIEL" --exclude '._*' --exclude '.DS_Store' || { echo "::error::Auspacken fehlgeschlagen (macOS-Schutz für Downloads? Dann Datei nach ~/betwatch verschieben)"; exit 1; }
+          touch "$ZIEL/.fertig"
+          du -sh "$ZIEL"; df -h "$HOME" | tail -1
+      - name: ${{ inputs.schritt }}
+        env:
+          DATEI: ${{ inputs.datei }}
+          SCHRITT: ${{ inputs.schritt }}
+        run: |
+          mkdir -p ergebnis
+          "$HOME/betwatch/venv/bin/python" -I betwatch_historie.py "$SCHRITT" "$HOME/betwatch/${DATEI%.tar}" ergebnis
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: betwatch-${{ inputs.schritt }}
+          path: ergebnis/
+          retention-days: 14
