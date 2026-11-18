@@ -165,6 +165,14 @@ main{padding:22px 28px 60px;min-width:0}
 .pll-auf .chip{margin-top:8px}
 .fb-l{display:block;width:100%;height:56px;margin:6px 0 2px}
 .fb-la{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3)}
+.lg-such{width:100%;max-width:360px;margin:6px 0 12px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg-2, transparent);color:var(--text);font:inherit}
+.lg-k{font-size:12px;color:var(--text-3);margin:14px 0 4px}
+.lg-z{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(120px,1fr) 118px 96px;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.lg-n b{display:block;font-size:14px}.lg-n small,.lg-w small{display:block;font-size:11px;color:var(--text-3)}
+.lg-b{position:relative;height:10px;background:var(--line);border-radius:5px}.lg-b .wb-0{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--text-3)}.lg-b i{position:absolute;top:0;bottom:0;border-radius:5px}
+.lg-w{text-align:right;white-space:nowrap}.lg-t{text-align:right}
+.lg-mehr>summary{cursor:pointer;padding:12px 0 6px;font-size:13px;color:var(--text-2)}
+@media (max-width:700px){ .lg-z{grid-template-columns:minmax(0,1fr) 80px;grid-template-areas:"n w" "b t"} .lg-n{grid-area:n}.lg-w{grid-area:w}.lg-b{grid-area:b}.lg-t{grid-area:t} }
 .fb-mehr>summary{cursor:pointer;padding:10px 4px;font-size:12px;color:var(--text-2)}
 .fb-t{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-2);margin-top:6px}
 @media (max-width:700px){ .pll-z summary{grid-template-columns:58px minmax(0,1fr)} .pll-ms{grid-column:1 / -1;justify-content:flex-start} }
@@ -1993,6 +2001,7 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
   <section class="seite" id="s-poly"></section>
   <section class="seite" id="s-stake"></section>
   <section class="seite" id="s-hz"></section>
+  <section class="seite" id="s-ligen"></section>
   <section class="seite" id="s-statistik"></section>
   <section class="seite" id="s-cards"></section>
 </main>
@@ -3860,13 +3869,15 @@ function topDreiDaten(D){
     const drSt = (dr&&dr.stand)||[0,0], drVorn = !!dr && drSt[0]!=null && drSt[1]!=null && (dr.seite==="heim" ? drSt[0]>drSt[1] : drSt[1]>drSt[0]);   // Druck-Regel 7 wie top3.py
     const drPasst = dr && !drVorn && dr.index>=40 && (fk===dr.seite || ou(fA.name)==="over");
     if(drPasst) p.druck = dr.index>=70 ? 2 : 1;
-    const lb = LB[s.liga]; if(lb?.urteil==="trägt") p.liga = 1;
-    const summe = t3Summe(p) - (lb?.urteil==="trägt nicht" ? 1 : 0);
+    // Liga-Regel LW2 (18.11.): Stufe aus dem geschrumpften Liga-Gewicht (wie top3.py)
+    const lbSt = lb => lb ? (lb.stufe ?? (lb.urteil==="trägt" ? 1 : lb.urteil==="trägt nicht" ? -1 : 0)) : 0;
+    const lb = LB[s.liga], lst = lbSt(lb); if(lst===1) p.liga = 1;
+    const summe = t3Summe(p) - (lst===-1 ? 1 : 0);
     const g = {serie: se && `${se.n}× in Folge`, neu: `+${eur(neu)} in ${s.fensterMin||30} Min`, norm: `×${dez(s.xnorm)} der Liga`,
-      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, maerkte: mm.length && "🧩 " + mm.map(k=>T3_FAM[k]).join(" + "), druck: drPasst && `📊 Druck ${esc(dr.seite==="heim"?s.heim:s.gast)} ${dr.index} · xG ${dez(dr.teams[dr.seite].xg)} → nächstes Tor / Über`, push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: "Liga trägt",
+      quote: `Quote ${q2(fA.q60)} → ${q2(fA.quote)}`, maerkte: mm.length && "🧩 " + mm.map(k=>T3_FAM[k]).join(" + "), druck: drPasst && `📊 Druck ${esc(dr.seite==="heim"?s.heim:s.gast)} ${dr.index} · xG ${dez(dr.teams[dr.seite].xg)} → nächstes Tor / Über`, push: pz.length && `${/Fix/i.test(pz[0].art)?"Fix-Verdacht":"HZ-Geld"} ${uhr(pz[0].zeit)}`, liga: lb?.gewicht!=null ? `Liga gut (${lb.gewicht>0?"+":""}${dez(lb.gewicht)} %)` : "Liga trägt",
       poly: wale.length ? `${wale.length>1?wale.length+" belegte Wale":"belegter Wal"} ${usd(wale.reduce((a,w)=>a+(w.usd||0),0))}` : aw.poly && `Polymarket +${usd(aw.poly.usd)}`,
       stake: burst ? `Stake-Burst ${usd(burst.usd)} · ${burst.wetten} Wetten` : aw.stake && `Stake +${usd(aw.stake.usd)}`};
-    return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lb?.urteil==="trägt nicht" ? "Liga trägt nicht" : "",
+    return {key:"bf|"+s.id, p, summe, n:Object.keys(p).length, g, aus: lst===-1 ? (lb?.gewicht!=null ? `Liga schwach (${dez(lb.gewicht)} %)` : "Liga trägt nicht") : "",
       wechsel: t3Wechsel(D, s.id, fM?.name, fA.name, n=>auswahlDe(n), n=>marktDe(n||"")),
       marktRoh: fM?.name, auswahlRoh: fA.name,
       ligaRoh: s.liga, kopf: `${flagge(s.land)} ${esc(ligaName(s.liga)||"")}`, live: s.live ? `${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}${rotTxt(s.id, s.heim, s.gast) ? " · "+esc(rotTxt(s.id, s.heim, s.gast)) : ""}` : null,
@@ -4365,6 +4376,43 @@ function normPunkte(liste){
       <div class="np-t" title="üblich in dieser Liga: ${eur(s.normEur)}${s.normGeschaetzt?" (geschätzt aus dem Endstand der Liga — für diese Phase noch keine 5 Spiele)":s.normN?` (aus ${s.normN} Spielen)`:""}"><span class="np-1" style="left:${pos(1)}%"></span><i style="width:${pos(x)}%;background:${st(x)}"></i><b style="left:${pos(x)}%;background:${st(x)}">${s.normGeschaetzt?"≈":""}×${dez(x)}</b></div>
       <div class="np-r"><b>${eur(s.eur)}</b>${s.d60>0?`<small>+${eur(s.d60)} in 1 h</small>`:""}</div></div>`; }).join("")}
     <div class="np-leg"><span>Strich = übliches Geld in dieser Liga (×1) · ≈ = geschätzt, Liga hat für diese Phase noch zu wenige Spiele · Geld zu Quoten unter 1,15 zählt nicht mit</span></div></div>`;
+}
+// 18.11. Liga-Regel LW2 (Lucas: „wo sehe ich die, wo ich mitschauen kann"): eigene Seite im Menü
+let LIGA_SUCHE = "";
+function lgZeile(x, m, max){
+  const d = x.gewicht - m, w = Math.min(50, Math.abs(d)/max*50), h = x.hoch;
+  const tag = x.stufe===1 ? `<span class="tag t-won">gut · +1</span>` : x.stufe===-1 ? `<span class="tag t-lost">schwach · −1</span>` : `<span class="tag t-open">neutral</span>`;
+  return `<div class="lg-z" data-n="${esc((ligaName(x.n)||x.n).toLowerCase())}">
+    <div class="lg-n"><b>${esc(ligaName(x.n)||x.n)}</b><small>${h.n} Märkte mit hohem Geld · ${h.treffer} % getroffen, Quote sagte ${h.erwartet} %</small></div>
+    <div class="lg-b"><span class="wb-0"></span><i style="${d>=0?`left:50%;width:${w.toFixed(1)}%;background:var(--up)`:`right:50%;width:${w.toFixed(1)}%;background:var(--down)`}"></i></div>
+    <div class="lg-w"><b style="color:${d>=0?"var(--up)":"var(--down)"}">${x.gewicht>0?"+":""}${dez(x.gewicht)} %</b><small>gemessen ${h.roi>0?"+":""}${dez(h.roi)} %</small></div>
+    <div class="lg-t">${tag}</div></div>`;
+}
+function lgSuchen(v){ LIGA_SUCHE = v.toLowerCase(); document.querySelectorAll(".lg-z").forEach(z=>{ z.style.display = !LIGA_SUCHE || z.dataset.n.includes(LIGA_SUCHE) ? "" : "none"; });
+  document.querySelectorAll(".lg-mehr").forEach(d=>{ if(LIGA_SUCHE) d.open = true; }); }
+function seiteLigen(D){
+  const lb = D.ligaBilanz||{}, w = lb.lw2||{}, pr = w.pruefung||{};
+  const L = Object.entries(lb.ligen||{}).filter(([n,v])=>v.gewicht!=null && lf([{liga:n}]).length).map(([n,v])=>({n,...v})).sort((a,b)=>b.gewicht-a.gewicht);
+  const m = w.mittel||0, max = Math.max(6, ...L.map(x=>Math.abs(x.gewicht-m)));
+  const gut = L.filter(x=>x.stufe===1), schw = L.filter(x=>x.stufe===-1).reverse(), rest = L.filter(x=>!x.stufe);
+  const wochen = (pr.wochen||[]).map(x=>`<tr><td>ab ${tagKurz(x.ab)}</td><td>${x.gut[1]==null?"–":(x.gut[1]>0?"+":"")+dez(x.gut[1])+" %"} <small>(${x.gut[0]})</small></td><td>${x.mitte[1]==null?"–":(x.mitte[1]>0?"+":"")+dez(x.mitte[1])+" %"} <small>(${x.mitte[0]})</small></td><td>${x.schwach[1]==null?"–":(x.schwach[1]>0?"+":"")+dez(x.schwach[1])+" %"} <small>(${x.schwach[0]})</small></td></tr>`).join("");
+  return `<div class="grid">
+    <div class="panel c12 kz-panel">${kzReihe([
+      ["Ligen bewertet", w.ligen||0, `${lb.zeilen?Math.round(lb.zeilen/1000)+"k Märkte":""} · letzte ${lb.fensterTage||90} Tage`],
+      ["Liga gut (+1 im Top 3)", gut.length, `≥ ${dez(3)} pp über dem Schnitt`],
+      ["Liga schwach (−1)", schw.length, `≥ ${dez(3)} pp unter dem Schnitt`],
+      ["Echte Liga-Unterschiede", w.tau!=null?`± ${dez(w.tau)} pp`:"–", `Messungenauigkeit je Liga ± ${dez(w.streuungZufall||0)} pp`],
+      ["Prüfung LW2", `${(pr.wochen||[]).length} / ${pr.ziel||6} Wochen`, pr.urteil ? `Urteil: ${pr.urteil}` : `„gut“ vor „schwach“: ${pr.besser||0}×`]])}</div>
+    <div class="panel c12"><div class="ph"><h3>Liga-Gewicht</h3><span class="hint">ROI, wenn hohes Geld klar auf einer Seite lag · geschrumpft: wenige Märkte → nahe am Schnitt (${m>0?"+":""}${dez(m)} %), viele → das eigene Ergebnis · Strich = Schnitt</span></div>
+      <input class="lg-such" type="search" placeholder="Liga suchen, z. B. Norwegen oder Premier" oninput="lgSuchen(this.value)" value="${esc(LIGA_SUCHE)}">
+      ${gut.length?`<div class="lg-k">Liga gut</div>${gut.map(x=>lgZeile(x,m,max)).join("")}`:""}
+      ${schw.length?`<div class="lg-k">Liga schwach</div>${schw.map(x=>lgZeile(x,m,max)).join("")}`:""}
+      ${rest.length?`<details class="lg-mehr"><summary>${rest.length} Ligen neutral</summary>${rest.map(x=>lgZeile(x,m,max)).join("")}</details>`:""}
+    </div>
+    <div class="panel c12"><div class="ph"><h3>Prüfung: tragen die Liga-Stufen?</h3><span class="hint">Montags eingefroren, die Woche danach abgerechnet · Urteil nach ${pr.ziel||6} Wochen: „gut“ in ≥ 4 Wochen vor „schwach“ und zusammen besser</span></div>
+      ${wochen?`<table class="tbl lg-tab"><thead><tr><th>Woche</th><th>Liga gut</th><th>neutral</th><th>Liga schwach</th></tr></thead><tbody>${wochen}</tbody></table>`:`<div class="leer">Erste Woche läuft seit ${pr.seit?tagKurz(pr.seit):"heute"} — abgerechnet wird am Montag.</div>`}</div>
+    <div class="panel c12">${liste(`Jede Liga als Kästchen (gewonnen / verloren)`, "", `${ligaKaestchen(lb)}`)}</div>
+  </div>`;
 }
 function ligaKaestchen(lb){
   const L = Object.entries((lb||{}).ligen||{}).filter(([n])=>lf([{liga:n}]).length).map(([n,v])=>({n,...v}));
@@ -5407,6 +5455,7 @@ const REGELN = [
   {id:"D7", t:"Druck-Team führt → kein Signal", seit:"16.11.", w:"Führt das Druck-Team, zählt der Druck nicht mehr (keine Top-3-Punkte), wird aber still mitgemessen.", b:"15.11.: Druck-Team vorn −8,6 % (76), hinten +17 % (70).", dr:"ab Regel 7: Druck-Team führt (still, zählt nicht mehr)"},
   {id:"D4", t:"Rote Karten mitschreiben", seit:"01.11.", w:"Index bleibt gleich, nur notiert.", pr:"Druck-Team in Überzahl: neu prüfen bei 40 Pushes (15.11.: 20 · −26 %).", dr:"Rote Karte: Druck-Team in Überzahl"},
   {id:"D-80", t:"Nur bis zur 80. Minute", seit:"–", w:"Druck-Signale bis 80', auf der Startseite ab 85' ausgeblendet (16.11.)."},
+  {id:"LW2", t:"Liga-Gewicht: geschrumpfte Schätzung statt 99 %-Urteil", seit:"18.11.", w:"Je Liga der ROI, wenn hohes Geld klar auf einer Seite lag (Liga-Buch, 90 Tage). Wie stark sich Ligen wirklich unterscheiden, wird aus allen Ligen geschätzt; jede Liga bekommt ein Gewicht zwischen Schnitt und eigenem Ergebnis — je mehr Märkte, desto näher am eigenen. ≥ 3 pp über dem Schnitt = „Liga gut“ (+1 im Top 3), ≥ 3 pp darunter = „Liga schwach“ (−1); Topf: (Gewicht − Schnitt) / 3, höchstens ±4. Prüfung: Stufen montags einfrieren, Woche danach abrechnen; nach 6 Wochen trägt es, wenn „gut“ in ≥ 4 Wochen vor „schwach“ lag und zusammen besser. Sonst zurück zum 99 %-Urteil. Seite: Menü → Ligen.", b:"18.11.: echte Liga-Unterschiede ±7 pp, je Liga aber ±13 pp Messungenauigkeit — darum fielen 183 von 194 Ligen auf „offen“. Vorwärts-Test an 3 Stichtagen: zweimal gut > neutral > schwach."},
   {id:"FB1", t:"Früh bewegt: Pinnacle zieht Tage vor Anpfiff", seit:"18.11.", w:"Steigt bei Pinnacle die Wahrscheinlichkeit einer Seite (Sieg-Markt, ohne Marge) um ≥ 3 pp über den ersten Stand — mindestens 24 h vor Anpfiff, an zwei 3-h-Ständen in Folge —, steht das Spiel im Bereich „Früh bewegt“. Still gemessen: CLV = Pinnacle-Quote beim Erkennen gegen die Pinnacle-Schlussquote; dazu, ob es weiterzieht oder zurückgeht und ob Betfair schon mitzog. Urteil nach 150 Fällen: trägt bei Ø-CLV > +1 % und mehr als der Hälfte positiv. Kein Push.", b:"Erste Auswertung 18.11.: 16 % der Spiele bewegen sich so früh um ≥ 3 pp. Schlussquote fehlte bisher (Tagessicherung um 1 Uhr) — seit 18.11. im Früh-Archiv."},
   {id:"T8", t:"Top 3 + Topf: Nachwuchs und Tor-Linie still mitmessen", seit:"18.11.", w:"Zwei neue stille Merkmale ohne Punkte, rückwirkend für alle Kandidaten: Nachwuchs/Reserve/Frauen und Tor-Linie (Über/Unter, HZ-Tore) statt Sieg-Markt. Die Wochenrechnung (T7 / R31, dort als R32) zeigt ihren Effekt; Punkte bekommen sie erst, wenn wir das vorher festlegen.", b:"Betwatch-Oktober nachgespielt (7.089 Spiele): beide in allen vier Betfair-Signalen schwächer — Nachwuchs −5 bis −15 %, Tor-Linie −1 bis −8 % gegenüber Sieg-Markt. Ein Monat ist kein Beleg, darum nur messen."},
   {id:"T7", t:"Top 3: Gewichte dynamisch, erst nach Prüfung scharf", seit:"17.11.", w:"Jeder Lauf schreibt die besten 15 Kandidaten still mit (je Spiel der erste Auftritt, Punkte je Signal) und rechnet sie ab. Montag und Donnerstag: aus den letzten 28 Tagen der Effekt jedes Signals (vorsichtig geschätzt), daraus ein Faktor 0–2, je Schritt höchstens ±0,25. Scharf erst, wenn die Prüfung (Gewichte nur aus den Daten davor, dann die Tage danach) an ≥ 4 Prüfpunkten mehrheitlich und zusammen besser sortiert als die festen Punkte. Fällt sie später durch, zurück auf feste Punkte.", b:"Warum so vorsichtig: im alten Projekt hat automatisches Nachlernen die Tipps in 6 von 6 Prüfungen schlechter sortiert — es jagte Glückssträhnen nach."},
@@ -5653,9 +5702,9 @@ function cardsKlick(e){
 // Lucas 10.11. („der Feed geht unter"): Feed läuft jetzt als Ticker auf jeder Seite mit — in der Navigation steht dafür die Statistik
 const SEITEN = [["start","Übersicht","var(--text)"],["betfair","Betfair","var(--bf)"],["pinnacle","Pinnacle","var(--pin)"],
   ["poly","Polymarket","var(--poly)"],["stake","Stake","var(--stake)"],["statistik","Statistik","var(--up)"],["cards","Cards","var(--text-3)"]];
-const MENUE = [["feed","Ganzer Feed","var(--down)"],["hz","HZ 0:0","var(--hz)"]];
+const MENUE = [["feed","Ganzer Feed","var(--down)"],["hz","HZ 0:0","var(--hz)"],["ligen","Ligen","var(--bf)"]];
 const ALLE_SEITEN = [...SEITEN, ...MENUE];
-const UNTER = {start:"Wo gerade das Geld liegt, quer über alle Quellen", betfair:"Jedes Spiel im Abruf, gemessen an seiner Liga", pinnacle:"Wohin die schärfste Quote zieht", poly:"Wer setzt, und wer davon nachweislich gut ist", stake:"Serien großer Einsätze", hz:"Spiele, die zur Pause anders laufen als erwartet", cards:"Top-5-Ligen · Picks aus 14 Signalen, Pinnacle als Anker", statistik:"Wie unsere Pushes abschneiden, nach Kategorie und Zeitraum", feed:"Alles, was gerade passiert, neueste zuerst"};
+const UNTER = {start:"Wo gerade das Geld liegt, quer über alle Quellen", betfair:"Jedes Spiel im Abruf, gemessen an seiner Liga", pinnacle:"Wohin die schärfste Quote zieht", poly:"Wer setzt, und wer davon nachweislich gut ist", stake:"Serien großer Einsätze", hz:"Spiele, die zur Pause anders laufen als erwartet", cards:"Top-5-Ligen · Picks aus 14 Signalen, Pinnacle als Anker", statistik:"Wie unsere Pushes abschneiden, nach Kategorie und Zeitraum", ligen:"In welchen Ligen das Geld trägt — und wie stark das System ihnen traut", feed:"Alles, was gerade passiert, neueste zuerst"};
 let aktiv = "start";
 function navAufbauen(z){
   $("#navliste").innerHTML = SEITEN.map(([k,n,f])=>`<button class="nav${k===aktiv?" an":""}" data-geh="${k}"><span class="dot" style="background:${f}"></span>${n}${z[k]?`<span class="cnt">${z[k]}</span>`:""}</button>`).join("");
@@ -5893,7 +5942,7 @@ function render(blitz=false){
 }
 const GEBAUT = new Set();
 const BAUER = {start:()=>seiteStart(D), feed:()=>seiteFeed(D), betfair:()=>seiteBetfair(D), pinnacle:()=>seitePinnacle(D), poly:()=>seitePoly(D),
-  stake:()=>seiteStake(D), hz:()=>seiteHz(D), statistik:()=>seiteStatistik(), cards:()=>seiteCards()};
+  stake:()=>seiteStake(D), hz:()=>seiteHz(D), ligen:()=>seiteLigen(D), statistik:()=>seiteStatistik(), cards:()=>seiteCards()};
 function seiteBauen(k){
   if(!D || GEBAUT.has(k) || !BAUER[k]) return;
   const el = $("#s-"+k); if(!el) return;

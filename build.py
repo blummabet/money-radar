@@ -2812,8 +2812,99 @@ def liga_bilanz():
         urteil = "trägt" if sh["ug"] > 0 else "trägt nicht" if sh["og"] < 0 else "offen"
         out[liga] = {"hoch": sh, "alle": _liga_stat(rr), "urteil": urteil, "abEur": round(p67),
                      "seit": min(r["t"] for r in rr if r.get("t"))}
+    lw2 = _lw2_gewichte(out)
+    try:
+        lw2["pruefung"] = _lw2_pruefung(out, buch)
+    except Exception as exc:  # noqa: BLE001
+        FEHLER.append(f"LW2-Prüfung: {str(exc)[:100]}")
     return {"stand": iso(JETZT), "fensterTage": LIGA_FENSTER_TAGE, "ligen": out,
-            "zeilen": len(buch)}
+            "zeilen": len(buch), "lw2": lw2}
+
+
+# ── Liga-Regel LW2 (Lucas 18.11. „ja, kannst du so bauen"): Liga-Gewicht als geschrumpfte Schätzung ──────────────────
+# Vorab festgelegt (18.11.2026, 10:50 Wien):
+# * Je Liga der ROI bei hohem, einseitigem Geld (wie oben), mit Standardfehler. Wie stark sich Ligen WIRKLICH
+#   unterscheiden (τ), wird jedes Mal aus allen Ligen geschätzt (DerSimonian-Laird). Liga-Gewicht = Ø aller Ligen
+#   + τ²/(τ² + SE²) × (Liga-ROI − Ø): viele Märkte → zählt fast das eigene Ergebnis, wenige → nahe am Schnitt.
+#   18.11.: τ ≈ 7 pp bei typisch ±13 pp je Liga — die Unterschiede sind echt, je Liga aber noch unscharf.
+# * Stufe +1 („Liga gut"), wenn das Gewicht ≥ 3 pp über dem Schnitt liegt, −1 („Liga schwach") bei ≥ 3 pp darunter.
+#   Top 3: +1 Punkt bzw. −1 (statt bisher nur bei 99 %-Urteil). Topf: Liga-Teil = (Gewicht − Ø) / 3, höchstens ±4.
+# * Prüfung: jeden Montag werden die Stufen eingefroren; die Woche danach wird je Stufe abgerechnet (hohes Geld,
+#   ab der Grenze der Liga, ≥ 65 % einseitig). Urteil nach 6 Wochen: trägt, wenn „gut" in ≥ 4 Wochen besser lief als
+#   „schwach" UND über alle Wochen zusammen. Sonst zurück auf das alte 99 %-Urteil.
+LW2_STUFE_PP = 3.0
+LW2_DATEI = BASIS / ".push_state" / "lw2.json"
+LW2_WOCHEN = 6
+
+
+def _lw2_gewichte(ligen):
+    import math
+    st = {}
+    for l, v in ligen.items():
+        h = v.get("hoch") or {}
+        se = (h.get("og", 0) - h.get("ug", 0)) / (2 * 2.33)
+        if se > 0 and isinstance(h.get("roi"), (int, float)):
+            st[l] = (h["roi"], se)
+    if len(st) < 10:
+        return {"ligen": len(st)}
+    w = {l: 1 / s ** 2 for l, (_, s) in st.items()}
+    sw = sum(w.values())
+    m = sum(w[l] * st[l][0] for l in st) / sw
+    q = sum(w[l] * (st[l][0] - m) ** 2 for l in st)
+    c = sw - sum(x * x for x in w.values()) / sw
+    tau2 = max(0.0, (q - (len(st) - 1)) / c)
+    gut = schwach = 0
+    for l, (roi, se) in st.items():
+        g = m + tau2 / (tau2 + se * se) * (roi - m)
+        d = g - m
+        stufe = 1 if d >= LW2_STUFE_PP else -1 if d <= -LW2_STUFE_PP else 0
+        ligen[l].update(gewicht=round(g, 1), lw2Diff=round(d, 1), stufe=stufe)
+        gut += stufe == 1
+        schwach += stufe == -1
+    return {"mittel": round(m, 1), "tau": round(math.sqrt(tau2), 1), "ligen": len(st), "gut": gut, "schwach": schwach,
+            "streuungZufall": round(sorted(s for _, s in st.values())[len(st) // 2], 1)}
+
+
+def _lw2_pruefung(ligen, buch):
+    """Montags Stufen einfrieren, die Woche danach je Stufe abrechnen. → Zusammenfassung für die Seite."""
+    try:
+        p = json.loads(LW2_DATEI.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        p = {}
+    stich = p.setdefault("stichtage", [])
+    montag = (JETZT - timedelta(days=JETZT.weekday())).replace(hour=6, minute=0, second=0, microsecond=0)
+    if JETZT >= montag and (not stich or stich[-1]["ab"] < montag.strftime("%Y-%m-%d")):
+        # erster Stichtag sofort (18.11.), danach jeden Montag
+        ab = (JETZT if not stich else montag).strftime("%Y-%m-%d")
+        stich.append({"ab": ab, "stufen": {l: [v.get("stufe", 0), v.get("abEur") or 0] for l, v in ligen.items() if "stufe" in v}})
+    heute = JETZT.strftime("%Y-%m-%d")
+    for i_, s in enumerate(stich):
+        if s.get("ergebnis"):
+            continue
+        bis = min((datetime.fromisoformat(s["ab"]) + timedelta(days=7)).strftime("%Y-%m-%d"),
+                  stich[i_ + 1]["ab"] if i_ + 1 < len(stich) else "9999")
+        if heute < bis:
+            continue
+        je = {1: [], 0: [], -1: []}
+        for r in buch.values():
+            t = r.get("t") or ""
+            x = s["stufen"].get(r.get("l"))
+            if not x or not (s["ab"] <= t < bis) or (r.get("v") or 0) < x[1] or (r.get("a") or 0) < LIGA_HOCH_ANTEIL:
+                continue
+            if isinstance(r.get("q"), (int, float)) and r["q"] > 1 and r.get("w") is not None:
+                je[x[0]].append((r["q"] - 1) * 0.98 if r["w"] else -1.0)
+        s["ergebnis"] = {str(k): [len(v), round(100 * sum(v) / len(v), 1) if v else None] for k, v in je.items()}
+    LW2_DATEI.parent.mkdir(parents=True, exist_ok=True)
+    LW2_DATEI.write_text(json.dumps(p, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    fertig = [s for s in stich if s.get("ergebnis")]
+    wochen = [{"ab": s["ab"], "gut": s["ergebnis"]["1"], "mitte": s["ergebnis"]["0"], "schwach": s["ergebnis"]["-1"]} for s in fertig]
+    besser = sum(1 for w in wochen if w["gut"][1] is not None and w["schwach"][1] is not None and w["gut"][1] > w["schwach"][1])
+    urteil = None
+    if len(wochen) >= LW2_WOCHEN:
+        sg = sum(w["gut"][0] * (w["gut"][1] or 0) for w in wochen) / max(1, sum(w["gut"][0] for w in wochen))
+        ss = sum(w["schwach"][0] * (w["schwach"][1] or 0) for w in wochen) / max(1, sum(w["schwach"][0] for w in wochen))
+        urteil = "trägt" if besser >= 4 and sg > ss else "trägt nicht"
+    return {"wochen": wochen, "besser": besser, "ziel": LW2_WOCHEN, "urteil": urteil, "seit": stich[0]["ab"] if stich else None}
 
 
 def endstaende():

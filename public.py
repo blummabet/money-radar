@@ -367,7 +367,7 @@ LIGA_ARTEN_AUS = {"publicErg", "layGegen"}     # publicErg = Doppel einer andere
 
 def liga_werte(buch, liga_bilanz=None):
     """buch: Bilanz-Einträge, liga_bilanz: build.liga_bilanz()["ligen"] → {liga: (punkte, n, treffer %, erwartet %, quelle)}. REIN."""
-    g, gesehen = {}, set()
+    g, gesehen, lw2 = {}, set(), {}
     for b in sorted(buch, key=lambda x: x.get("ts") or ""):
         if b.get("status") != "abgerechnet" or b.get("art") in LIGA_ARTEN_AUS or b.get("gegen") or b.get("void"):
             continue
@@ -388,12 +388,16 @@ def liga_werte(buch, liga_bilanz=None):
         n = h.get("n") or 0
         if n >= LIGA_MIN_N and isinstance(h.get("treffer"), (int, float)) and isinstance(h.get("erwartet"), (int, float)):
             g[liga_schluessel(l)] = [n, n * h["treffer"] / 100, n * h["erwartet"] / 100, "ligabuch"]
+            if isinstance((v or {}).get("lw2Diff"), (int, float)):      # Liga-Regel LW2 (18.11.)
+                lw2[liga_schluessel(l)] = v["lw2Diff"]
     out = {}
     for k, (n, t, e_, quelle) in g.items():
         if n < LIGA_MIN_N:
             continue
         diff_pp = 100 * (t - e_) / n
         pkt = max(-LIGA_MAX, min(LIGA_MAX, diff_pp * n / (n + LIGA_DAEMPFUNG) * LIGA_FAKTOR))
+        if quelle == "ligabuch" and k in lw2:     # LW2: (Liga-Gewicht − Ø) / 3, höchstens ±4
+            pkt = max(-LIGA_MAX, min(LIGA_MAX, lw2[k] / 3))
         out[k] = (round(pkt, 1), n, round(100 * t / n), round(100 * e_ / n), quelle)
     return out
 

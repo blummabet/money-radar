@@ -224,9 +224,11 @@ def rangliste(d, jetzt):
         if dr and not _vorn and (dr.get("index") or 0) >= 40 and (fk == dr.get("seite") or _ou(fA.get("name")) == "over"):
             p["druck"] = 2 if dr["index"] >= 70 else 1
         lb = LB.get(s.get("liga")) or {}
-        if lb.get("urteil") == "trägt":
+        # Liga-Regel LW2 (18.11.): Stufe aus dem geschrumpften Liga-Gewicht statt nur dem 99 %-Urteil
+        _st = lb.get("stufe", 1 if lb.get("urteil") == "trägt" else -1 if lb.get("urteil") == "trägt nicht" else 0)
+        if _st == 1:
             p["liga"] = 1
-        summe = _summe(p, F) - (1 if lb.get("urteil") == "trägt nicht" else 0)
+        summe = _summe(p, F) - (1 if _st == -1 else 0)
         aus.append({"art": "top3", "id": str(s.get("id")), "heim": s.get("heim"), "gast": s.get("gast"), "liga": s.get("liga"),
                     "anpfiff": s.get("anpfiff"), "live": bool(lv), "top5": bool(s.get("top5")), "normEur": s.get("normEur"), "ligaEur": s.get("ligaEur"), "markt": (fM or {}).get("name"),
                     "auswahl": fA.get("name"), "quote": q, "eur": s.get("eur"), "punkte": round(summe, 2),
