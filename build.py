@@ -704,6 +704,87 @@ def bf_drops(prices, bf_hist):
     return aus[:40]
 
 
+# ── Regel LD1 (Lucas 18.11. 11:27, „ja kannst du so bauen … im Betfair-Tab als eigener Bereich, oder im Liveticker";
+# Anlass Kasem Bundit U21 77' 1:0, Über 1,5 gegen die Uhr gedrückt): Betfair LIVE, die Quote fällt gegen die Uhr —
+# auch ohne Geldschwelle. Vorab festgelegt (18.11.2026, 11:35 Wien):
+# * Laufendes Spiel, Sieg-Markt / Über-Unter x,5 / HZ-Tore x,5 (HZ nur bis zur Pause), ≥ €2k im Markt, Quote jetzt 1,40–6.
+# * Fenster ~15 Min (Stand 12–20 Min alt) OHNE Tor. Erwartung = Quote damals ÷ (1 + Grunddrift)^(Min/10), Grunddrift aus
+#   markout (je Markt-Art, Quote, Phase; fehlt sie, zählt 0). Signal, wenn die Quote jetzt ≥ 8 % unter der Erwartung UND
+#   absolut gefallen ist, und schon im Abruf davor ≥ 5 % darunter lag (kein Einzel-Ausreißer).
+# * Rote Karte im Spiel wird markiert, nicht ausgeschlossen (Lucas: „deine Risiken sind in Wahrheit top Indikatoren").
+# * Je Spiel die stärkste Auswahl. Still ins Buch (art „bfUhr"), Markout 10 Min minus Grunddrift wie der Live-CLV. Kein Push.
+LD_MAERKTE = re.compile(r"^(Match Odds|Over/Under \d\.5 Goals|First Half Goals \d\.5)$")
+LD_UNTER, LD_UNTER_VOR, LD_MIN_MARKT = 0.08, 0.05, 2000
+
+
+def bf_uhr(prices, bf_hist):
+    try:
+        import markout as _m
+        gd = _m.grunddrift(_m._lesen(BASIS / ".push_state" / "live_drift.json", {}))
+    except Exception:  # noqa: BLE001
+        _m, gd = None, {}
+    aus = []
+    for m in (prices or {}).get("matches") or []:
+        mid, ko, li = str(m.get("matchId")), ts(m.get("kickoff")), m.get("liveInfo") or {}
+        if not ko or ko > JETZT or li.get("finished"):
+            continue
+        pts = [x for x in (bf_hist or {}).get(mid) or [] if isinstance(x, dict) and isinstance(x.get("sel"), dict) and ts(x.get("ts"))]
+        if len(pts) < 4:
+            continue
+        jetzt_p, vor_p = pts[-1], pts[-2]
+        if JETZT - ts(jetzt_p["ts"]) > timedelta(minutes=12):
+            continue
+        alt = [x for x in pts if timedelta(minutes=12) <= ts(jetzt_p["ts"]) - ts(x["ts"]) <= timedelta(minutes=20)]
+        if not alt:
+            continue
+        p0 = alt[-1]
+        sc = lambda x: tuple(x.get("sc") or ())  # noqa: E731
+        if not sc(jetzt_p) or sc(p0) != sc(jetzt_p) or sc(vor_p) != sc(jetzt_p) or ts(p0["ts"]) < ko:
+            continue
+        mn = jetzt_p.get("min") if isinstance(jetzt_p.get("min"), (int, float)) else li.get("time")
+        dt = (ts(jetzt_p["ts"]) - ts(p0["ts"])).total_seconds() / 60
+        dt_v = (ts(vor_p["ts"]) - ts(p0["ts"])).total_seconds() / 60
+        best = None
+        for mk, sel in jetzt_p["sel"].items():
+            if not LD_MAERKTE.match(mk) or (mk.startswith("First Half") and (li.get("is_ht") or (isinstance(mn, (int, float)) and mn > 45))):
+                continue
+            if _linie_durch(mk, list(sc(jetzt_p))):
+                continue
+            mk_eur = sum((v[0] or 0) for v in sel.values() if isinstance(v, list))
+            if mk_eur < LD_MIN_MARKT:
+                continue
+            for n, v in sel.items():
+                w0 = ((p0.get("sel") or {}).get(mk) or {}).get(n)
+                wv = ((vor_p.get("sel") or {}).get(mk) or {}).get(n)
+                if not (isinstance(v, list) and isinstance(w0, list) and isinstance(wv, list)):
+                    continue
+                q1, q0, qv = v[1], w0[1], wv[1]
+                if not all(isinstance(x, (int, float)) and x > 1 for x in (q1, q0, qv)) or not 1.40 <= q1 <= 6 or q1 >= q0:
+                    continue
+                m0 = (mn - dt) if isinstance(mn, (int, float)) else None
+                e_ = _m.eimer(mk, n, q0, m0) if _m else None
+                g = gd.get(e_, 0.0) if e_ else 0.0
+                erw = q0 / (1 + g) ** (dt / 10)
+                erw_v = q0 / (1 + g) ** (dt_v / 10)
+                unter = 1 - q1 / erw
+                if unter < LD_UNTER or qv > erw_v * (1 - LD_UNTER_VOR):
+                    continue
+                if best is None or unter > best["unter"]:
+                    best = {"id": mid, "heim": m.get("home"), "gast": m.get("away"), "liga": m.get("league"), "land": m.get("country"),
+                            "anpfiff": m.get("kickoff"), "top5": bool(TOP5_RX.search(str(m.get("league") or ""))), "regel": "LD1",
+                            "min": mn, "stand": list(sc(jetzt_p)), "markt": mk, "auswahl": n, "q0": q0, "quote": q1,
+                            "erwartet": round(erw, 2), "unter": round(unter, 3), "fensterMin": round(dt),
+                            "ohneUhr": e_ not in gd, "neu": round((v[0] or 0) - (w0[0] or 0)), "marktEur": round(mk_eur),
+                            "rot": [li.get("red_v1") or 0, li.get("red_v2") or 0] if (li.get("red_v1") or li.get("red_v2")) else None,
+                            "seit": p0["ts"]}
+        if best:
+            best["unter"] = round(100 * best["unter"], 1)
+            aus.append(best)
+    aus.sort(key=lambda x: -x["unter"])
+    print(f"  bf-uhr: {len(aus)} live gegen die Uhr")
+    return aus[:30]
+
+
 def bf_spanne(prices):
     try:
         roh = json.loads((BASIS / ".pin" / "pinnacle_alle.json").read_text(encoding="utf-8"))
@@ -3036,7 +3117,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -3696,6 +3777,7 @@ def main() -> int:
         "pinnLinien": pinn_linien(prices),
         "bfDrops": bf_drops(prices, bf_hist),   # 17.11. Regel BD1
         "fruehBewegt": _frueh_bewegt(),          # 18.11. Regel FB1 (Beobachtung)
+        "bfUhr": bf_uhr(prices, bf_hist),        # 18.11. Regel LD1 (Beobachtung)
         "speicher": speicher_check(),           # 17.11. (Lucas: Speicher/Performance immer im Hinterkopf)
         "t3Dyn": eigen("t3_gewichte.json", ".push_state", default=None),   # 17.11. Top-3-Regel 7
         "topfDyn": eigen("topf_gewichte.json", ".push_state", default=None),   # 17.11. Topf-Regel R31

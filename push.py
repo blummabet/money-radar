@@ -1765,8 +1765,22 @@ def bf_drops_still(d):
                 "quote": x["quote"], "pp": x.get("pp"), "frisch": x.get("frisch"), "eur": x.get("eur"), "regel": x.get("regel") or "BD1"})
 
 
+def bf_uhr_still(d):
+    """18.11. Regel LD1: Betfair live gegen die Uhr still ins Buch — je Spiel + Markt + Auswahl + Stand einmal. Kein Push.
+    Markout 10 Min (markout_live) minus Grunddrift ergibt den Live-CLV in der Statistik."""
+    for x in d.get("bfUhr") or []:
+        if not isinstance(x.get("quote"), (int, float)) or x["quote"] <= 1:
+            continue
+        st = x.get("stand") or [0, 0]
+        yield (f"lu|{x['id']}|{x['markt']}|{x['auswahl']}|{st[0]}:{st[1]}", None, None,
+               {"art": "bfUhr", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
+                "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": True, "markt": x["markt"], "auswahl": x["auswahl"],
+                "quote": x["quote"], "quoteStart": x.get("q0"), "erwartet": x.get("erwartet"), "unter": x.get("unter"),
+                "stand": st, "minute": x.get("min"), "rot": x.get("rot"), "eur": x.get("neu"), "regel": "LD1"})
+
+
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────
