@@ -1319,6 +1319,38 @@ def _zeitlich(x) -> str:
     return "⏱ " + " · ".join(teile) + "\n"
 
 
+_GD = {}
+
+
+def _uhr_drop(x, q, q_start, minute_jetzt):
+    """Regel D1 (Lucas 18.11. 11:23, Kasem Bundit U21 77' 1:0, Über 1,5: „war da der Quotendrop nicht etwas, das man
+    highlighten sollte?"): live steigt eine Quote meist mit der Uhr (Über ohne Tor, Führender …). Fällt sie während der
+    Serie trotzdem um ≥ 3 % UND liegt ≥ 5 % unter dem, was die Uhr allein erwarten ließe (Grunddrift aus markout, je
+    Markt-Art, Quote und Spielphase), hat das Geld sie gedrückt → eigene Zeile. Gemessen still über „uhrDrop" im Buch.
+    → (Zeile, Prozent unter Erwartung oder None). REIN bis auf das einmalige Laden der Grunddrift."""
+    if not x.get("live") or not isinstance(q, (int, float)) or not isinstance(q_start, (int, float)) or q_start <= 1:
+        return "", None
+    if q > q_start * 0.97:
+        return "", None
+    import markout as _m
+    if "gd" not in _GD:
+        try:
+            _GD["gd"] = _m.grunddrift(_m._lesen(BASIS / ".push_state" / "live_drift.json", {}))
+        except Exception:  # noqa: BLE001
+            _GD["gd"] = {}
+    dauer = x.get("dauerMin") or 15
+    m0 = (minute_jetzt - dauer) if isinstance(minute_jetzt, (int, float)) else None
+    e_ = _m.eimer(x.get("markt"), x.get("auswahl"), q_start, m0)
+    g = _GD["gd"].get(e_) if e_ else None
+    # Erwartung höchstens über 20 Min hochgerechnet — länger wird die Schätzung zu grob
+    erw = q_start / (1 + g) ** (min(dauer, 20) / 10) if isinstance(g, (int, float)) and g > -0.9 else None
+    if erw is not None and q > erw * 0.95:
+        return "", None
+    unter = round(100 * (1 - q / (erw or q_start)), 1)
+    zusatz = f" — nur mit der Uhr wären eher ~{q2(erw)} zu erwarten" if erw and erw > q_start * 1.01 else ""
+    return f"🔻 <b>Quote gegen die Uhr gedrückt: {q2(q_start)} → {q2(q)}</b> in {dauer} Min{zusatz}\n", unter
+
+
 def serie(d):
     """Lucas 17.10.: wiederholter Zufluss auf dieselbe Auswahl („bei jedem Scan wieder 10.000") ist ein
     eigener KPI. Push ab 3 Abrufen in Folge, wieder bei 5, 8 und 12 — nicht bei jedem neuen Treffer."""
@@ -1345,6 +1377,7 @@ def serie(d):
         # Lucas 03.11. (Kobe – Ratchaburi: €241k „@ 1,96", das Geld kam großteils bei 1:0 zu ~1,20, dann 1:1 — „Punkt 1
         # einbauen"): REGEL S3 — live zählt nur das Geld SEIT DEM LETZTEN TOR. Ein Tor macht ein anderes Spiel; Geld davor
         # steht nur als Hinweis dabei. Seit dem Tor braucht es wieder 3 Abrufe in Folge und die Mindestsumme.
+        q_seit_tor = x.get("quoteStart")             # Regel D1: Start der Kette seit dem letzten Tor (build.serien, S3)
         if x.get("eurGesamt") is not None:          # REGEL S3 (build.serien): Zahlen schon seit dem letzten Tor
             x = {**x, "eur_vorTor": x["eurGesamt"] - x["eur"], "quoteStart": None}
         key = f"se|{x['id']}|{x['markt']}|{x['auswahl']}|{_stufe(x['n'])}" + (f"|{x['tor']['nach'][0]}:{x['tor']['nach'][1]}" if x.get("eur_vorTor") is not None else "")
@@ -1390,6 +1423,7 @@ def serie(d):
                            f"Gematchtes Geld kann auch Lay sein: der Markt glaubt eher weniger an diese Seite.</i>\n")
         qg_ = _geld_quote(d, x["id"], x["markt"], x["auswahl"])
         lv = next((sp.get("live") for sp in (d.get("radar") or {}).get("spiele") or [] if sp.get("id") == x["id"]), None)
+        uhr_zeile, uhr_drop = _uhr_drop(x, q, q0 if q0 is not None else q_seit_tor, (lv or {}).get("min"))
         st = (f"🔴 {lv.get('min')}' · {(lv.get('stand') or [0, 0])[0]}:{(lv.get('stand') or [0, 0])[1]}" if lv else f"⏰ {anpfiff(x.get('anpfiff'))}")
         text = (f"🔁 <b>Dauerzufluss</b> · Betfair · <b>{x['n']}× in Folge</b>\n"
                 f"{flagge(x.get('land'))}<b>{e(x['heim'])} – {e(x['gast'])}</b>\n{e(x.get('liga'))} · {st}\n\n"
@@ -1397,6 +1431,7 @@ def serie(d):
                 f"<i>= im Schnitt {x.get('anteil')} % von allem, was je Abruf in diesem Markt neu kam</i>\n"
                 + _zeitlich(x)
                 + drop
+                + uhr_zeile
                 + _geld_quote_zeile(qg_, q, live=bool(x.get("live")))
                 + lay_hinweis
                 + (stat_zeile(d, x["id"]) if x.get("live") else "")
@@ -1420,6 +1455,7 @@ def serie(d):
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"],
                                 "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht, "qGeld": qg_,
+                                **({"uhrDrop": uhr_drop, "regelD": "D1"} if uhr_drop is not None else {}),
                                 **({"klar": True, "regelT": "T1"} if klar else {})}, (None if klar else pub)
         if lay_verdacht:
             # 06.11. (Lucas „Ja bitte" — Anregung „Reverse Line Movement nicht nur filtern, sondern invertieren"): still die
