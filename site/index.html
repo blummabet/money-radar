@@ -163,6 +163,10 @@ main{padding:22px 28px 60px;min-width:0}
 .pll-m.f{box-shadow:inset 3px 0 0 var(--c)}
 .pll-auf{padding:2px 4px 12px}
 .pll-auf .chip{margin-top:8px}
+.fb-l{display:block;width:100%;height:56px;margin:6px 0 2px}
+.fb-la{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3)}
+.fb-mehr>summary{cursor:pointer;padding:10px 4px;font-size:12px;color:var(--text-2)}
+.fb-t{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-2);margin-top:6px}
 @media (max-width:700px){ .pll-z summary{grid-template-columns:58px minmax(0,1fr)} .pll-ms{grid-column:1 / -1;justify-content:flex-start} }
 /* 17.11. Pinnacle-Linien: eine Karte je Spiel; je Markt die Seiten als Kacheln, die gezogene Seite farbig */
 .plk{cursor:default}
@@ -4659,6 +4663,30 @@ function bdListe(liste){
       </summary><div class="pll-auf bd-auf">${pinDropKarte({...x, auf:`${marktDe(x.markt)} · ${auswahlDe(x.auf)}`, bfId:null}, false)}
         ${sp?`<button class="chip" ${klickSpiel({id:x.bfId, heim:x.heim, gast:x.gast})}>Spiel öffnen</button>`:`<span class="pll-hinweis">Spiel ist nicht im Betfair-Radar (zu wenig Geld) — kein Spielfenster</span>`}</div></details>`; }).join("")}</div>`;
 }
+// 18.11. Regel FB1: kompakte Zeilen wie die Betfair-Drops; aufgeklappt Verlauf der Wahrscheinlichkeit und Betfair
+function fbBis(iso){ const h = (new Date(iso) - Date.now())/36e5; return h >= 48 ? `in ${Math.round(h/24)} Tagen` : `in ${Math.max(0,Math.round(h))} h`; }
+function fbLinie(v){
+  if(!v || v.length < 2) return "";
+  const ys = v.map(x=>x[1]), lo = Math.min(...ys)-0.5, hi = Math.max(...ys)+0.5, W = 280, H = 56;
+  const pt = v.map((x,i)=>`${(i/(v.length-1)*W).toFixed(1)},${(H-(x[1]-lo)/(hi-lo)*H).toFixed(1)}`).join(" ");
+  return `<svg class="fb-l" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pt}" fill="none" stroke="var(--pin)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+    <div class="fb-la"><span>${dez(ys[0])} %</span><span>Wahrscheinlichkeit bei Pinnacle</span><span>${dez(ys[ys.length-1])} %</span></div>`;
+}
+function fbVor(iso){ const h = (Date.now() - new Date(iso))/36e5; return h >= 48 ? `vor ${Math.round(h/24)} Tagen` : `vor ${Math.max(1,Math.round(h))} h`; }
+function fbListe(liste){
+  if(!liste.length) return `<div class="leer">Gerade zieht Pinnacle bei keinem Spiel 1–7 Tage vorher deutlich.</div>`;
+  const zeile = x=>{
+    const w = x.weiter, wt = w >= 1 ? `zieht weiter (+${dez(w)} pp)` : w <= -1 ? `geht zurück (${dez(w)} pp)` : "hält";
+    const bf = x.bfJetzt == null ? "Betfair: noch kein Verlauf" : x.bfJetzt >= 1 ? `✓ Betfair zieht mit (+${dez(x.bfJetzt)} pp)` : x.bfJetzt <= -1 ? `✗ Betfair geht dagegen (${dez(x.bfJetzt)} pp)` : "⏳ Betfair noch unverändert";
+    return `<details class="pll-z"><summary>
+        <span class="pll-zt">${fbBis(x.anpfiff)}</span>
+        <span class="pll-sp"><b>${esc(x.heim)} – ${esc(x.gast)}</b><small>${esc(ligaName(x.liga)||x.liga||"")}</small></span>
+        <span class="pll-ms"><span class="pll-m" style="--c:var(--pin)"><small>Sieg</small>▲ ${esc(x.seite)}<em>${q2(x.qErst)} → ${q2(x.qJetzt)} · +${dez(x.ppJetzt)} pp</em></span></span>
+      </summary><div class="pll-auf">${fbLinie(x.verlauf)}
+        <div class="fb-t"><span>erkannt ${fbVor(x.erkannt)} bei ${q2(x.qErkannt)} (+${dez(x.ppErkannt)} pp) · seitdem ${wt}</span><span>${bf}</span></div></div></details>`; };
+  const oben = liste.slice(0,10), rest = liste.slice(10);
+  return `<div class="pll"><div class="pll-kopf"><span>${liste.length} Spiele · stärkste zuerst · antippen für Verlauf</span></div>${oben.map(zeile).join("")}${rest.length?`<details class="fb-mehr"><summary>${rest.length} weitere zeigen</summary>${rest.map(zeile).join("")}</details>`:""}</div>`;
+}
 // Lucas 11.11.: zieht Betfair mit? ✓ beide fallen · ⏳ Betfair hinkt (noch alter Preis) · ✗ Betfair geht dagegen
 function bfZug(s){
   const b = s.bf; if(!b) return `<div class="pdk-bf aus">Betfair: keine Sieg-Quote</div>`;
@@ -4689,6 +4717,9 @@ function seitePinnacle(D){
   // 17.11. Regel BD1 (Lucas, St Kitts – Bonaire): Spiele, die Pinnacle nicht hat, mit ihrem Betfair-Drop
   const bd = lf(D.bfDrops||[]);
   (bd.length?voll:leer).push(["Betfair-Drops (Pinnacle hat das Spiel nicht)", "Quote bei Betfair gegen den ersten Stand der letzten ~6 h · Sieg, Halbzeit, Über/Unter, HZ-Tore, beide treffen · ab €500 auf der Auswahl, Drop über 3 Abrufe · kein Push, still gemessen", [bdListe(bd)]]);
+  // 18.11. Regel FB1 (Lucas: „bauen, wenn es uns eventuell was bringt"): Pinnacle zieht 1–7 Tage vor Anpfiff
+  const fb = D.fruehBewegt||{}, fbL = lf(fb.liste||[]), fm = fb.mess||{};
+  (fbL.length?voll:leer).push(["Früh bewegt · Beobachtung", `Pinnacle traut einer Seite ≥ 3 pp mehr zu als beim ersten Stand, schon ≥ 24 h vor Anpfiff · Regel FB1: ${fm.abgerechnet||0} von ${fm.ziel||150} gemessen${fm.abgerechnet?` · CLV bisher ${fm.clvMittel>0?"+":""}${dez(fm.clvMittel)} % · ${Math.round(100*(fm.anteilPositiv||0))} % positiv`:""}${fm.urteil?` · Urteil: ${fm.urteil}`:""} · kein Push`, [fbListe(fbL)]]);
   const pl = lf((D.pinnLinien||{}).vor||[]);
   (pl.length?voll:leer).push(["Handicap, Über/Unter & 1. Halbzeit vor Anpfiff", `▼ = Drop-Seite · gegen den ersten Stand der letzten 12 h · ${(D.pinnLinien||{}).n||0} Spiele beobachtet · nur gemessen, kein Push`, [plKarten(pl)]]);
   return `<div class="grid">
@@ -4697,6 +4728,7 @@ function seitePinnacle(D){
       ["Drops vor Anpfiff", vor.length, `${vor.filter(x=>x.frisch).length} frisch · ${vor.filter(x=>x.bf&&x.bf.pp>=1).length} mit Betfair${(pd.vor||[]).length>vor.length?` · ${(pd.vor||[]).length-vor.length} durch Liga-Filter aus`:""}`],
       ["Live-Drops", liveD.length, "ohne Tor, Team liegt nicht vorn"],
       ["Betfair-Drops ohne Pinnacle", bd.length, `${bd.filter(x=>x.frisch).length} frisch`],
+      ["Früh bewegt", fbL.length, `≥ 24 h vor Anpfiff · FB1 ${fm.abgerechnet||0}/${fm.ziel||150}`],
       ["Handicap / Über-Unter", lf((D.pinnLinien||{}).vor||[]).length, `${lf((D.pinnLinien||{}).vor||[]).filter(x=>x.art==="linie").length} Linien verschoben`],
       ["Größte Bewegung", top?`${dez(top.b)} pp`:"–", top?`${esc(top.g.heim)} – ${esc(top.g.gast)}`:""]])}</div>
     ${voll.map(([t,h,k])=>`<div class="panel c12"><div class="ph"><h3>${t}</h3><span class="hint">${h}</span></div><div class="toepfe p3">${k.join("")}</div></div>`).join("")}
@@ -5375,6 +5407,7 @@ const REGELN = [
   {id:"D7", t:"Druck-Team führt → kein Signal", seit:"16.11.", w:"Führt das Druck-Team, zählt der Druck nicht mehr (keine Top-3-Punkte), wird aber still mitgemessen.", b:"15.11.: Druck-Team vorn −8,6 % (76), hinten +17 % (70).", dr:"ab Regel 7: Druck-Team führt (still, zählt nicht mehr)"},
   {id:"D4", t:"Rote Karten mitschreiben", seit:"01.11.", w:"Index bleibt gleich, nur notiert.", pr:"Druck-Team in Überzahl: neu prüfen bei 40 Pushes (15.11.: 20 · −26 %).", dr:"Rote Karte: Druck-Team in Überzahl"},
   {id:"D-80", t:"Nur bis zur 80. Minute", seit:"–", w:"Druck-Signale bis 80', auf der Startseite ab 85' ausgeblendet (16.11.)."},
+  {id:"FB1", t:"Früh bewegt: Pinnacle zieht Tage vor Anpfiff", seit:"18.11.", w:"Steigt bei Pinnacle die Wahrscheinlichkeit einer Seite (Sieg-Markt, ohne Marge) um ≥ 3 pp über den ersten Stand — mindestens 24 h vor Anpfiff, an zwei 3-h-Ständen in Folge —, steht das Spiel im Bereich „Früh bewegt“. Still gemessen: CLV = Pinnacle-Quote beim Erkennen gegen die Pinnacle-Schlussquote; dazu, ob es weiterzieht oder zurückgeht und ob Betfair schon mitzog. Urteil nach 150 Fällen: trägt bei Ø-CLV > +1 % und mehr als der Hälfte positiv. Kein Push.", b:"Erste Auswertung 18.11.: 16 % der Spiele bewegen sich so früh um ≥ 3 pp. Schlussquote fehlte bisher (Tagessicherung um 1 Uhr) — seit 18.11. im Früh-Archiv."},
   {id:"T8", t:"Top 3 + Topf: Nachwuchs und Tor-Linie still mitmessen", seit:"18.11.", w:"Zwei neue stille Merkmale ohne Punkte, rückwirkend für alle Kandidaten: Nachwuchs/Reserve/Frauen und Tor-Linie (Über/Unter, HZ-Tore) statt Sieg-Markt. Die Wochenrechnung (T7 / R31, dort als R32) zeigt ihren Effekt; Punkte bekommen sie erst, wenn wir das vorher festlegen.", b:"Betwatch-Oktober nachgespielt (7.089 Spiele): beide in allen vier Betfair-Signalen schwächer — Nachwuchs −5 bis −15 %, Tor-Linie −1 bis −8 % gegenüber Sieg-Markt. Ein Monat ist kein Beleg, darum nur messen."},
   {id:"T7", t:"Top 3: Gewichte dynamisch, erst nach Prüfung scharf", seit:"17.11.", w:"Jeder Lauf schreibt die besten 15 Kandidaten still mit (je Spiel der erste Auftritt, Punkte je Signal) und rechnet sie ab. Montag und Donnerstag: aus den letzten 28 Tagen der Effekt jedes Signals (vorsichtig geschätzt), daraus ein Faktor 0–2, je Schritt höchstens ±0,25. Scharf erst, wenn die Prüfung (Gewichte nur aus den Daten davor, dann die Tage danach) an ≥ 4 Prüfpunkten mehrheitlich und zusammen besser sortiert als die festen Punkte. Fällt sie später durch, zurück auf feste Punkte.", b:"Warum so vorsichtig: im alten Projekt hat automatisches Nachlernen die Tipps in 6 von 6 Prüfungen schlechter sortiert — es jagte Glückssträhnen nach."},
   {id:"T6", t:"Top 3: Liga-Norm ohne Punkte, Stake zählt mehr", seit:"17.11.", w:"„Über der Liga-Norm“ bringt keine Punkte mehr (still mitgeschrieben). Stake-Burst auf derselben Seite 3 statt 2 Punkte, Stake-Geld auf derselben Seite 2 statt 1. Gemessen ab jetzt für sich, Ziel 60 abgerechnet.", b:"05.–17.11., erster Einzug je Spiel: mit Norm-Punkt −11,9 % ±10,7 (253), ohne +7,0 % ±8,3 (597); mit Stake +18,8 % ±15,1 (142), ohne −2,1 % (708). Beide Effekte in beiden Hälften des Zeitraums gleich.",

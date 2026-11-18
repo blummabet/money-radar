@@ -3163,6 +3163,18 @@ def speicher_check():
     return aus
 
 
+def _frueh_bewegt():
+    """18.11. Regel FB1: Pinnacle zieht ≥ 3 pp, mindestens 24 h vor Anpfiff — Liste + stille Messung (fruehbewegt.py)."""
+    try:
+        import fruehbewegt
+        r = fruehbewegt.lauf(BASIS / ".pin", JETZT)
+        print(f"  früh bewegt: {r['n']} Spiele · FB1 {r['mess'].get('erkannt')} erkannt, {r['mess'].get('abgerechnet')} abgerechnet")
+        return r
+    except Exception as exc:  # noqa: BLE001
+        FEHLER.append(f"Früh bewegt: {str(exc)[:120]}")
+        return None
+
+
 STAT_ARCHIV = BASIS / ".push_state" / "stat_archiv"
 
 
@@ -3592,6 +3604,7 @@ def main() -> int:
         "pinnDrops": pinn_drops(prices, bf_hist),
         "pinnLinien": pinn_linien(prices),
         "bfDrops": bf_drops(prices, bf_hist),   # 17.11. Regel BD1
+        "fruehBewegt": _frueh_bewegt(),          # 18.11. Regel FB1 (Beobachtung)
         "speicher": speicher_check(),           # 17.11. (Lucas: Speicher/Performance immer im Hinterkopf)
         "t3Dyn": eigen("t3_gewichte.json", ".push_state", default=None),   # 17.11. Top-3-Regel 7
         "topfDyn": eigen("topf_gewichte.json", ".push_state", default=None),   # 17.11. Topf-Regel R31
