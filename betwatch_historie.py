@@ -277,6 +277,24 @@ def _ep(d):
     return d.timestamp()
 
 
+# Saisonphase im Oktober (Lucas 18.11.: „gegen Ende der Saison wird es stärker, wenn Tabellen Muster ergeben").
+# Vorab festgelegt nach Land: Ende = Saison endet Okt–Dez (Skandinavien, Baltikum, Irland, Ostasien, Nord-/Südamerika,
+# Mexiko-Apertura); Anfang = Herbst-Frühjahr-Ligen (Spieltag ~7–12) und A-League (Start Okt). Pokale/International eigen.
+PHASE_ENDE = set("NO SE FI IS IE LT LV EE FO JP KR CN US CA BR AR CL CO EC PY UY PE BO VE KZ BY MX".split())
+PHASE_ANFANG = set("GB DE ES IT FR NL BE PT AT CH TR GR PL CZ DK HR RS RO BG HU SK SI CY IL SA AE QA EG MA AU IN UA RU".split())
+POKAL_RX = re.compile(r"cup|copa|pokal|coupe|coppa|trophy|shield|champions|europa|conference|libertadores|sudamericana|friendl|international|nations|qualif", re.I)
+
+
+def saisonphase(liga, land):
+    if POKAL_RX.search(liga or "") or (land or "") in ("International", "", None):
+        return "Pokal/International"
+    if land in PHASE_ENDE:
+        return "Saisonende"
+    if land in PHASE_ANFANG:
+        return "Saisonanfang"
+    return "andere"
+
+
 class Runner:
     __slots__ = ("t", "cv", "cpv", "p")
 
@@ -409,7 +427,7 @@ def nachspielen_spiel(meta_pfad, norm_je_liga):
         for key, x in hts.items():
             if x[0] >= boden_s and x[1] >= 60:
                 treffer_je[key].append((t, *x, sc))
-        gemein = {"id": m.get("match_id"), "liga": liga, "top5": top5, "jung": jung, "live": live, "min": minute,
+        gemein = {"id": m.get("match_id"), "liga": liga, "land": m.get("country"), "phase": saisonphase(liga, m.get("country")), "top5": top5, "jung": jung, "live": live, "min": minute,
                   "stand": list(sc) if sc else None, "t": t, "ko": ko_e}
         # ── Zufluss / Live-Zufluss ──
         fen = 15 if live else 30
@@ -536,7 +554,7 @@ def nachspielen_spiel(meta_pfad, norm_je_liga):
     for n, (r, status) in (maerkte.get("Match Odds") or {}).items():
         q = r.quote(ko_e - 3600, 1800)
         if q and status in ("WINNER", "LOSER") and 1.15 <= q <= 15:
-            kontrolle.append((q, status == "WINNER", liga, top5, jung))
+            kontrolle.append((q, status == "WINNER", liga, top5, jung, saisonphase(liga, m.get("country"))))
     return aus, kontrolle
 
 
@@ -604,6 +622,12 @@ def backtest(ordner: Path, aus: Path):
     # Kontrolle (Markt ohne Signal)
     kz = [{"r": (q - 1) if w else -1.0, "win": w, "quote": q} for q, w, *_ in kontrolle]
     bericht["kontrolleAlleMatchOdds60vorAnpfiff"] = _bewerten(kz)
+    bericht["kontrolleJePhase"] = {ph: _bewerten([{"r": (k[0] - 1) if k[1] else -1.0, "win": k[1], "quote": k[0]} for k in kontrolle if k[5] == ph])
+                                   for ph in ("Saisonende", "Saisonanfang", "Pokal/International", "andere")}
+    _pl = defaultdict(lambda: defaultdict(int))
+    for z in alle:
+        _pl[z.get("phase")][z["liga"]] += 1
+    bericht["ligenJePhase"] = {ph: {"ligen": len(v), "signale": sum(v.values()), "groesste": sorted(v.items(), key=lambda x: -x[1])[:12]} for ph, v in _pl.items()}
     je = defaultdict(list)
     for z in alle:
         je[z["art"]].append(z)
@@ -617,7 +641,11 @@ def backtest(ordner: Path, aus: Path):
                         ("Match Odds", lambda z: z["markt"] == "Match Odds"), ("Tor-Linien", lambda z: "Goals" in z["markt"]),
                         ("Push-Quote ≥ 1,40", lambda z: z["quote"] >= 1.40)):
             g[name] = _bewerten([z for z in zz if f(z)])
+        for ph in ("Saisonende", "Saisonanfang", "Pokal/International", "andere"):
+            g["Phase " + ph] = _bewerten([z for z in zz if z.get("phase") == ph])
+            g["Phase " + ph + " ohne Nachwuchs"] = _bewerten([z for z in zz if z.get("phase") == ph and not z["jung"]])
         for qb in ("<1,60", "1,60–2,19", "2,20–3,99", "≥4,00"):
+
             g["Quote " + qb] = _bewerten([z for z in zz if _qeimer(z["quote"]) == qb])
         if art in ("serie", "zufluss", "live"):
             for lo, hi in ((0, 20000), (20000, 50000), (50000, 150000), (150000, 1e12)):
@@ -653,6 +681,14 @@ def backtest(ordner: Path, aus: Path):
     (aus / "backtest.json").write_text(json.dumps(bericht, ensure_ascii=False, indent=1))
     with gzip.open(aus / "signale.json.gz", "wt") as f:
         json.dump(alle, f, separators=(",", ":"))
+    try:                                     # bleibt auf dem Mac für spätere Fragen (klein, ~1 MB)
+        ziel = Path.home() / "betwatch" / "ergebnisse" / ordner.name
+        ziel.mkdir(parents=True, exist_ok=True)
+        (ziel / "backtest.json").write_text(json.dumps(bericht, ensure_ascii=False))
+        with gzip.open(ziel / "signale.json.gz", "wt") as f:
+            json.dump(alle, f, separators=(",", ":"))
+    except Exception as e:  # noqa: BLE001
+        print("Ergebnis nicht auf dem Mac gesichert:", e)
     print("BERICHT_START")
     print(json.dumps(bericht, ensure_ascii=False))
     print("BERICHT_ENDE")
