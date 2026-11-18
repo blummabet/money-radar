@@ -1317,6 +1317,21 @@ html,body{overflow-x:clip} .app{overflow-x:clip;max-width:100vw} main{overflow-x
 .fx-a{font-weight:700;font-size:13.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fx-q{color:var(--text-2);font-weight:600}
 .fx-drop{font-size:11px;font-weight:700;color:var(--down);flex:none}
+.fx-seit{font-size:11.5px;font-weight:800;margin-left:6px;white-space:nowrap}
+.fx-seit.gut{color:var(--up)}.fx-seit.schlecht{color:var(--down)}.fx-seit.gleich{color:var(--text-3)}
+.fx.stark{border-color:var(--up);box-shadow:0 0 0 1px color-mix(in srgb, var(--up) 35%, transparent)}
+.fx.lebt.stark{box-shadow:inset 3px 0 0 var(--down),0 0 0 1px color-mix(in srgb, var(--up) 35%, transparent)}
+.fx-neu{display:inline-block;font-size:9.5px;font-weight:800;color:#fff;background:var(--down);border-radius:999px;padding:1px 6px;margin-right:6px}
+.fx-neuz{font-size:12px;font-weight:700;color:var(--down);align-self:center;margin-right:6px}
+.fx-stumm{border:0;background:none;padding:0 2px;font-size:11px;cursor:pointer;opacity:.35}.fx-stumm:hover{opacity:1}
+.fx-abz{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 4px}
+.fx-abz span{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px}
+.fx-abz .gut{color:var(--up);background:color-mix(in srgb, var(--up) 12%, transparent)}
+.fx-abz .schlecht{color:var(--down);background:color-mix(in srgb, var(--down) 12%, transparent)}
+.fx-spur{margin:2px 0 4px}.fx-spur svg{display:block;width:100%;height:30px;overflow:visible}
+.fx-spur-l{display:flex;justify-content:space-between;gap:8px;font-size:10.5px;color:var(--text-3)}
+.fx-steuer{margin-top:-4px}
+.tk-bil td{padding:5px 8px}.tk-bil td:nth-child(n+2){text-align:right;white-space:nowrap}
 .fx-st{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;font-size:10px;font-weight:900;margin-left:6px;vertical-align:1px}
 .fx-st.ok{background:color-mix(in srgb, var(--up) 18%, transparent);color:var(--up)}
 .fx-st.nein{background:color-mix(in srgb, var(--down) 18%, transparent);color:var(--down)}
@@ -2737,8 +2752,24 @@ function feedEreignisse(D){
   const E = [], bfZeit = D.quellen?.betfair, pfZeit = D.polyFluss?.stand;
   const inSerie = (id, fl) => (D.serien||[]).some(x=>x.id===id && x.markt===fl.markt && x.auswahl===fl.auswahl);
   const bfSpiel = x => ({heim:x.heim, gast:x.gast, liga:ligaName(x.liga), land:x.land, live:x.live, anpfiff:x.anpfiff, sp:x});
-  for(const x of lf(D.serien||[])) E.push({...bfSpiel(x), q:"betfair", k:"serie", bil:"serie", aus:auswahlDe(x.auswahl), quote:x.quote, markt:marktDe(x.markt), n:x.n, wert:x.eur, b:eur(x.eur), zeit:bfZeit, drop:x.quoteStart&&x.quote&&x.quoteStart-x.quote>=0.03?[x.quoteStart,x.quote]:null, gewicht:x.eur*3});
-  for(const [liste, live] of [[D.liveZufluss, true], [D.zufluss30, false]]) for(const x of lf(liste||[])){ const fl = (x.fluss||[])[0]; if(!fl || inSerie(x.id, fl)) continue;
+  // 18.11. Ticker-Gedächtnis (Ideen 1–6): Betfair-Meldungen mit erstem Auftauchen, Quote damals, jetzt, Ergebnis, Spur.
+  // Eine Meldung je Spiel + Markt + Auswahl (live + Stand) — Serien wachsen in derselben Zeile statt neuer Einträge.
+  if(Array.isArray(D.ticker)){
+    const rs = new Map((D.radar?.spiele||[]).map(s=>[String(s.id), s]));
+    const serienAuf = new Set(D.ticker.filter(t=>t.art==="serie").map(t=>t.id+"|"+t.markt+"|"+t.auswahl));
+    for(const t of lf(D.ticker)){
+      if((t.art==="live"||t.art==="zufluss") && serienAuf.has(t.id+"|"+t.markt+"|"+t.auswahl)) continue;
+      const sp = rs.get(String(t.id)), k = t.art==="uhr" ? "uhr" : t.art;
+      const live = t.aktiv && sp?.live ? sp.live : t.live ? {min:t.minErst, stand:t.standErst} : null;
+      E.push({heim:t.heim, gast:t.gast, liga:ligaName(t.liga), ligaRoh:t.liga, land:t.land, live, anpfiff:t.anpfiff, sp, q:"betfair", k, bil:k==="uhr"?"bfUhr":k,
+        aus:auswahlDe(t.auswahl), quote:t.qErst, jetzt:t.ft?null:t.qJetzt, markt:marktDe(t.markt), n:t.nMax, anteil:k==="serie"?null:t.anteil, unter:t.unterMax,
+        wert:t.eurMax||0, b:t.eurMax?eur(t.eurMax):"", zeit:t.erst, status:t.status, spur:t.spur, minErst:t.minErst, aktiv:t.aktiv,
+        drop:t.quoteVorher&&t.qErst&&t.quoteVorher-t.qErst>=0.03?[t.quoteVorher,t.qErst]:null,
+        gewicht:k==="uhr"?(t.unterMax||0)*1500:k==="serie"?(t.eurMax||0)*3:(t.eurMax||0)});
+    }
+  }
+  if(!Array.isArray(D.ticker)) for(const x of lf(D.serien||[])) E.push({...bfSpiel(x), q:"betfair", k:"serie", bil:"serie", aus:auswahlDe(x.auswahl), quote:x.quote, markt:marktDe(x.markt), n:x.n, wert:x.eur, b:eur(x.eur), zeit:bfZeit, drop:x.quoteStart&&x.quote&&x.quoteStart-x.quote>=0.03?[x.quoteStart,x.quote]:null, gewicht:x.eur*3});
+  if(!Array.isArray(D.ticker)) for(const [liste, live] of [[D.liveZufluss, true], [D.zufluss30, false]]) for(const x of lf(liste||[])){ const fl = (x.fluss||[])[0]; if(!fl || inSerie(x.id, fl)) continue;
     E.push({...bfSpiel(x), q:"betfair", k:live?"live":"zufluss", bil:live?"live":"zufluss", aus:auswahlDe(fl.auswahl), quote:fl.quote, markt:marktDe(fl.markt), anteil:fl.anteil, wert:fl.eur, b:eur(fl.eur), zeit:bfZeit,
       drop:fl.quoteVorher&&fl.quote&&fl.quoteVorher-fl.quote>=0.03?[fl.quoteVorher,fl.quote]:null, gewicht:fl.eur}); }
   for(const x of (D.polySerien||[]).filter(top5Ok)){ const [h,g] = feedTeams(x.titel);
@@ -2753,7 +2784,7 @@ function feedEreignisse(D){
   for(const x of lf(D.stake.gruppen||[])){ const [h,g] = feedTeams(x.spiel);
     E.push({heim:h, gast:g, liga:x.liga, live:x.phase==="live"?{}:null, anpfiff:x.anpfiff, sport:x.kat, q:"stake", k:"stake", aus:x.auswahl, quote:x.quote, markt:(x.arten||[]).join(" + "), faktor:x.faktor, wetten:x.wetten, wert:x.usd, b:usd(x.usd), zeit:x.zeit, status:stakeStatus(x), rendite:x.rendite, gewicht:x.usd}); }
   // 18.11. Regel LD1: Betfair live gegen die Uhr (Lucas: „oder zumindest im Liveticker")
-  for(const x of lf(D.bfUhr||[])){ const sp = (D.radar?.spiele||[]).find(s=>String(s.id)===String(x.id));
+  if(!Array.isArray(D.ticker)) for(const x of lf(D.bfUhr||[])){ const sp = (D.radar?.spiele||[]).find(s=>String(s.id)===String(x.id));
     E.push({heim:x.heim, gast:x.gast, liga:ligaName(x.liga), land:x.land, live:{min:x.min, stand:x.stand}, anpfiff:x.anpfiff, sp, q:"betfair", k:"uhr",
       aus:auswahlDe(x.auswahl), quote:x.quote, markt:marktDe(x.markt), unter:x.unter, drop:[x.q0, x.quote], wert:x.neu>0?x.neu:0, b:x.neu>0?"+"+eur(x.neu):"", zeit:bfZeit, gewicht:(x.unter||0)*1500}); }
   for(const p of lf(D.bfPushes.liste||[])) E.push({heim:p.heim, gast:p.gast, liga:ligaName(p.liga), q:"betfair", k:"push", bil:PUSH_ART[p.art], pushArt:p.art, aus:auswahlDe(p.auf), quote:p.quote, markt:marktDe(p.markt||""), wert:p.eur, b:eur(p.eur), zeit:p.zeit, status:p.status, gewicht:p.eur||0});
@@ -2782,13 +2813,63 @@ function fxForm(e){
   return `<div class="fx-v"><b style="color:${f}">${ICO[e.q]}</b></div>`;
 }
 const FX_NAME = {uhr:"gegen die Uhr", serie:"Dauerzufluss", live:"live neu", zufluss:"neu 30 Min", pfluss:"Käufe 30 Min", stake:"große Wetten", push:"gepusht", wal:"Wal-Einstieg", hz:"HZ-Push", pinnacle:"Pinnacle"};
+function fxSeit(e){
+  if(!e.jetzt || !e.quote || e.status) return null;
+  const r = e.jetzt/e.quote - 1;
+  return {c: r <= -0.02 ? "gut" : r >= 0.02 ? "schlecht" : "gleich", r};
+}
+// Idee 2: „neu seit deinem letzten Besuch" — Zeitpunkt des vorigen Seitenaufrufs, nur im eigenen Browser
+// nutzt das bestehende „Seit du zuletzt da warst"-Gedächtnis (SEIT, wird beim Verlassen der Seite gespeichert)
+const fxNeu = g => !!(typeof SEIT!=="undefined" && SEIT.t && g.ev.some(e=>!SEIT.keys.has(evKey(e))));
+// Idee 5: Abzeichen je Geschichte
+function fxAbzeichen(D, g){
+  const A = [], lb = g.ligaRoh ? (D.ligaBilanz?.ligen||{})[g.ligaRoh] : null;
+  if(lb?.stufe===1) A.push(["gut", `Liga gut ${lb.gewicht>0?"+":""}${dez(lb.gewicht)} %`]);
+  if(lb?.stufe===-1) A.push(["schlecht", `Liga schwach ${dez(lb.gewicht)} %`]);
+  if(g.quellen.length>1) A.push(["gut", `${g.quellen.length} Quellen`]);
+  if(g.ev.some(e=>e.k==="pinnacle")) A.push(["gut", "Pinnacle zieht"]);
+  if(g.ev.some(e=>e.k==="uhr")) A.push(["gut", "gegen die Uhr"]);
+  if(g.ev.some(e=>fxSeit(e)?.c==="gut")) A.push(["gut", "läuft weiter"]);
+  if(g.ev.some(e=>fxSeit(e)?.c==="schlecht")) A.push(["schlecht", "läuft zurück"]);
+  return A;
+}
+// Idee 4: Quotenspur der Hauptmeldung mit Markern (Meldungen ●, Tore ⚽)
+function fxSpur(g){
+  const e = g.ev.find(x=>x.spur?.length>=3); if(!e) return "";
+  const s = e.spur, ys = s.map(p=>p[1]), lo = Math.min(...ys), hi = Math.max(...ys), sp = (hi-lo)||0.01, W = 300, H = 30;
+  const x = i => (i/(s.length-1)*W).toFixed(1), y = v => (H-3-(v-lo)/sp*(H-6)).toFixed(1);
+  const hhmm = z => z ? new Date(z).toLocaleTimeString("de-AT",{hour:"2-digit",minute:"2-digit",timeZone:"UTC"}) : "";
+  const tore = s.map((p,i)=>i && p[2] && s[i-1][2] && (p[2][0]+p[2][1]) > (s[i-1][2][0]+s[i-1][2][1]) ? i : -1).filter(i=>i>0);
+  const mark = g.ev.filter(m=>m.spur===s || (m.aus===e.aus && m.markt===e.markt)).map(m=>{ const t = hhmm(m.zeit); let i = s.findIndex(p=>p[0]>=t); return i<0 ? s.length-1 : i; });
+  return `<div class="fx-spur" title="Quote ${esc(e.aus)} seit ${s[0][0]} UTC"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <polyline points="${s.map((p,i)=>x(i)+","+y(p[1])).join(" ")}" fill="none" stroke="var(--bf)" stroke-width="1.8" vector-effect="non-scaling-stroke"/>
+    ${tore.map(i=>`<line x1="${x(i)}" x2="${x(i)}" y1="0" y2="${H}" stroke="var(--text-3)" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>`).join("")}
+    ${mark.map(i=>`<circle cx="${x(i)}" cy="${y(s[i][1])}" r="3.2" fill="var(--down)"/>`).join("")}</svg>
+    <div class="fx-spur-l"><span>${q2(s[0][1])}</span><span>${esc(e.aus)}${tore.length?` · ⚽ ${tore.length}`:""} · ● Meldung</span><span>${q2(s[s.length-1][1])}</span></div></div>`;
+}
+// Idee 3: Ticker-Bilanz — Meldungen der letzten 24 h, abgerechnet zur Quote bei der Meldung (1 Einheit je Meldung)
+function tickerBilanz(D){
+  const G = feedGeschichten(D), Z = [];
+  for(const g of G) for(const e of g.ev) if((e.status==="won"||e.status==="lost") && e.quote && e.k!=="push") Z.push({e, g});
+  if(Z.length < 5) return "";
+  const b = xs => { const n = xs.length; if(!n) return null; const r = xs.reduce((a,{e})=>a+(e.status==="won"?e.quote-1:-1),0); return {n, t:Math.round(100*xs.filter(({e})=>e.status==="won").length/n), roi:100*r/n}; };
+  const zeilen = [["alle Meldungen", Z], ...Object.entries(FX_NAME).filter(([k])=>["serie","live","zufluss","uhr"].includes(k)).map(([k,n])=>[n, Z.filter(({e})=>e.k===k)]),
+    ["mit mehreren Quellen", Z.filter(({g})=>g.quellen.length>1)], ["Liga gut", Z.filter(({g})=>(D.ligaBilanz?.ligen||{})[g.ligaRoh]?.stufe===1)],
+    ["Quote lief danach weiter", Z.filter(({e})=>e.spur?.length>=2 && e.spur[e.spur.length-1][1] < e.quote*0.98)]]
+    .map(([n,xs])=>[n,b(xs)]).filter(([,x])=>x && x.n>=3);
+  return `<h4 style="margin:18px 0 8px">Was taugen die Meldungen? <span class="kk-klein">letzte 24 h · abgerechnet · 1 Einheit je Meldung zur Quote bei der Meldung</span></h4>
+    <table class="tbl tk-bil"><tbody>${zeilen.map(([n,x])=>`<tr><td>${esc(n)}</td><td>${x.n}</td><td>${x.t} % ✓</td><td style="color:${x.roi>=0?"var(--up)":"var(--down)"}">${x.roi>0?"+":""}${dez(x.roi)} %</td></tr>`).join("")}</tbody></table>`;
+}
 function fxZeile(D, e){
   const st = e.status==="won" ? `<span class="fx-st ok">✓</span>` : e.status==="lost" ? `<span class="fx-st nein">✗</span>` : e.status==="paket" ? paketTag(e.rendite) : "";
   const drop = e.drop && e.k!=="pinnacle" ? `<span class="fx-drop" title="Quote gedrückt">🔻 ${q2(e.drop[0])}</span>` : "";
   const markt = /Über\/Unter|Sieg-Markt|Match Odds/.test(e.markt||"") ? "" : e.markt;
   const meta = [e.k==="push"&&e.pushArt?e.pushArt:FX_NAME[e.k], markt].filter(Boolean).join(" · ");
+  // Idee 1: wo steht die Quote jetzt? grün = weiter in Richtung des Geldes, rot = zurück
+  const sd = fxSeit(e);
+  const seit = sd ? `<span class="fx-seit ${sd.c}" title="Quote bei der Meldung ${q2(e.quote)}, jetzt ${q2(e.jetzt)}">→ ${q2(e.jetzt)}${sd.c==="gut"?" ✓":sd.c==="schlecht"?" ✗":""}</span>` : "";
   return `<div class="fx-z" style="--f:${FARBE[e.q]}">${fxForm(e)}
-    <div class="fx-m"><div class="fx-a">${esc(e.aus||"")}${e.quote?` <span class="fx-q">@ ${q2(e.quote)}</span>`:""}${st}</div>
+    <div class="fx-m"><div class="fx-a">${esc(e.aus||"")}${e.quote?` <span class="fx-q">@ ${q2(e.quote)}</span>`:""}${seit}${st}</div>
       <div class="fx-meta"><span class="fx-ico" style="color:${FARBE[e.q]}">${ICO[e.q]}</span>${drop}${esc(meta)}</div></div>
     <div class="fx-b">${e.wert?esc(e.b):""}</div></div>`;
 }
@@ -2801,7 +2882,7 @@ function feedGeschichten(D, E){
     const g = G.get(k); g.ev.push(e);
     if(e.q==="betfair" && e.sp && !g.sp) g.sp = e.sp;
     if((e.q==="betfair" || e.q==="pinnacle") && !g.bfName){ g.bfName = true; g.heim = e.heim; g.gast = e.gast; }   // Betfair-Namen sind die saubersten
-    for(const f of ["liga","land","anpfiff","sport"]) if(!g[f] && e[f]) g[f] = e[f];
+    for(const f of ["liga","land","anpfiff","sport","ligaRoh"]) if(!g[f] && e[f]) g[f] = e[f];
     const frisch = !e.zeit || Date.now()-new Date(e.zeit) < 3*36e5;   // 21.10.: alter Stake-Burst „live" ist nach Stunden kein Live mehr
     if(e.live && frisch && (!g.live || (e.live.min!=null && g.live.min==null))) g.live = e.live;
   }
@@ -2821,9 +2902,12 @@ function fxKarte(D, g, max=3){
   const quellen = g.quellen.length>1 ? `<span class="fx-mehr" title="mehrere Quellen gleichzeitig">${g.quellen.map(q=>`<i style="background:${FARBE[q]}">${ICO[q]}</i>`).join("")}</span>` : "";
   const ev = g.ev.slice(0,max), rest = g.ev.length-max;
   const sp = g.sp ? spielInfo(g.sp) : null;
-  return `<div class="fx${g.live?" lebt":""}${g.quellen.length>1?" mehrfach":""}"${bk("fx|"+g.k, g.ev.length)} ${sp?klick(esc(g.heim)+" – "+esc(g.gast), ohneHuelle(spielDetail(sp))):""}>
-    <div class="fx-kopf"><span class="mk-liga">${g.land?flagge(g.land):g.sport?sportIco(g.sport):""} ${esc(g.liga||"")}</span><span class="fx-r">${quellen}${live}<span class="fx-vor">${g.zeit?vor(g.zeit):""}</span></span></div>
+  const ab = typeof D === "object" ? fxAbzeichen(D, g) : [], stark = ab.filter(a=>a[0]==="gut").length >= 2;
+  return `<div class="fx${g.live?" lebt":""}${g.quellen.length>1?" mehrfach":""}${stark?" stark":""}${fxNeu(g)?" neu":""}"${bk("fx|"+g.k, g.ev.length)} ${sp?klick(esc(g.heim)+" – "+esc(g.gast), ohneHuelle(spielDetail(sp))):""}>
+    <div class="fx-kopf"><span class="mk-liga">${fxNeu(g)?`<span class="fx-neu">neu</span>`:""}${g.land?flagge(g.land):g.sport?sportIco(g.sport):""} ${esc(g.liga||"")}${g.liga?` <button class="fx-stumm" data-stumm="${esc(g.liga)}" title="Liga im Ticker ausblenden">🔕</button>`:""}</span><span class="fx-r">${quellen}${live}<span class="fx-vor">${g.zeit?vor(g.zeit):""}</span></span></div>
     <div class="fx-titel">${esc(g.heim)}${g.gast?` <span>–</span> ${esc(g.gast)}`:""}</div>
+    ${ab.length?`<div class="fx-abz">${ab.map(([c,t])=>`<span class="${c}">${esc(t)}</span>`).join("")}</div>`:""}
+    ${fxSpur(g)}
     <div class="fx-ev">${ev.map(e=>fxZeile(D,e)).join("")}${rest>0?`<div class="fx-rest">+${rest} weitere</div>`:""}</div>
   </div>`;
 }
@@ -2842,17 +2926,22 @@ function feedListe(D, n=5){
   return G.length ? `<div class="fxl">${G.map(g=>fxKarte(D,g,3)).join("")}</div>` : `<div class="leer">Gerade passiert nichts Auffälliges.</div>`;
 }
 const FEED_ARTEN = [["alle","Alle"],["live","Live"],["vor","Vor Anpfiff"],["serie","🔁 Serien"],["mehr","Mehrere Quellen"],["push","Pushes"]];
-let filterFeed = "alle";
+let filterFeed = "alle", FEED_SORT = "zeit", FEED_STUMM = [];
+try{ FEED_STUMM = JSON.parse(localStorage.getItem("mr_feed_stumm")||"[]"); }catch(_){}
 function seiteFeed(D){
-  const alle = feedGeschichten(D);
+  const alle = feedGeschichten(D).filter(g=>!FEED_STUMM.includes(g.liga));
   const passt = {alle:()=>true, live:g=>!!g.live, vor:g=>!g.live && g.anpfiff && new Date(g.anpfiff)>Date.now(), serie:g=>g.ev.some(e=>e.k==="serie"), mehr:g=>g.quellen.length>1, push:g=>g.ev.some(e=>e.k==="push"||e.k==="wal"||e.k==="hz")};
   const liste = alle.filter(passt[filterFeed]||passt.alle);
   const abschnitte = [["Gerade", g=>g.alterMin<=15], ["Letzte Stunde", g=>g.alterMin>15&&g.alterMin<=60], ["Früher", g=>g.alterMin>60&&g.alterMin<=1440]];
-  const teile = abschnitte.map(([t,f])=>{ const z = liste.filter(f).sort((a,b)=>t==="Gerade"?b.score-a.score:new Date(b.zeit)-new Date(a.zeit)).slice(0,30);
+  const teile = abschnitte.map(([t,f])=>{ const z = liste.filter(f).sort((a,b)=>FEED_SORT==="staerke"||t==="Gerade"?b.score-a.score:new Date(b.zeit)-new Date(a.zeit)).slice(0,30);
     return z.length ? `<div class="fx-abschnitt"><div class="fx-zeit">${t==="Gerade"?`<span class="puls"></span>`:""}${t} <span>${z.length}</span></div><div class="fxl">${z.map(g=>fxKarte(D,g,t==="Gerade"?4:3)).join("")}</div></div>` : ""; }).join("");
   return `<div class="grid"><div class="panel c12">
     <div class="chips feedchips">${FEED_ARTEN.map(([k,n])=>{ const c = alle.filter(passt[k]).length; return c||k==="alle" ? `<button class="chip${k===filterFeed?" an":""}" data-feed="${k}">${n} <span style="opacity:.6">${c}</span></button>` : ""; }).join("")}</div>
+    <div class="chips feedchips fx-steuer">${(()=>{ const neu = alle.filter(fxNeu).length; return neu ? `<span class="fx-neuz">● ${neu} neu seit deinem letzten Besuch</span>` : ""; })()}
+      <button class="chip${FEED_SORT==="zeit"?" an":""}" data-fsort="zeit">nach Zeit</button><button class="chip${FEED_SORT==="staerke"?" an":""}" data-fsort="staerke">nach Stärke</button>
+      ${FEED_STUMM.length?`<button class="chip" data-stumm="" title="${esc(FEED_STUMM.join(", "))}">${FEED_STUMM.length} Liga${FEED_STUMM.length>1?"en":""} ausgeblendet ✕</button>`:""}</div>
     ${teile || `<div class="leer">Hier ist gerade nichts.</div>`}
+    ${tickerBilanz(D)}
   </div><div class="panel c12" id="bilanzpanel">${bilanzKopf()}${bilanzPanel(D)}${bilanzLeiste(D)}${t3MessungDetail(D)}${druckMessungDetail(D)}${normMessungDetail(D)}</div></div>`;
 }
 // Lucas 21.10.: statt sieben großer Kacheln über dem Feed eine Zeile je Push-Art — Rendite als Balken um die Null
@@ -6095,6 +6184,9 @@ document.addEventListener("click", e=>{
   const sp = e.target.closest("[data-sport]"); if(sp){ filterSport = sp.dataset.sport; neuBauen("#s-poly", seitePoly(D)); return; }
   const hf = e.target.closest("[data-hzf]"); if(hf){ hzFilter = hf.dataset.hzf; $("#hz-stats").innerHTML = hzStatsListe(D.hz.chancenBuch||{}); return; }
   const fd = e.target.closest("[data-feed]"); if(fd){ filterFeed = fd.dataset.feed; neuBauen("#s-feed", seiteFeed(D)); return; }
+  const fs = e.target.closest("[data-fsort]"); if(fs){ FEED_SORT = fs.dataset.fsort; neuBauen("#s-feed", seiteFeed(D)); return; }
+  const fm = e.target.closest("[data-stumm]"); if(fm){ e.stopPropagation(); const l = fm.dataset.stumm; FEED_STUMM = l ? [...new Set([...FEED_STUMM, l])] : [];
+    try{ localStorage.setItem("mr_feed_stumm", JSON.stringify(FEED_STUMM)); }catch(_){} neuBauen("#s-feed", seiteFeed(D)); return; }
   const pu = e.target.closest("[data-push]"); if(pu){ filterPush = pu.dataset.push; $("#pushpanel").innerHTML = pushPanel(D); return; }
   const f = e.target.closest("[data-filter]"); if(f){ filterBf = f.dataset.filter; const el = $("#bf-alle"); if(el) el.innerHTML = bfAlleInhalt(lf(D.radar.spiele)); else neuBauen("#s-betfair", seiteBetfair(D)); return; }
   const m = e.target.closest("[data-mehr]");

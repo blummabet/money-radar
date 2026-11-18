@@ -3793,6 +3793,12 @@ def main() -> int:
         "hz": hz(finder),
         "fehler": FEHLER,
     }
+    try:                                   # 18.11. Ticker-Gedächtnis (Lucas: Ideen 1–6 für den Live-Ticker)
+        import ticker
+        daten["ticker"] = ticker.lauf(daten, prices, daten.get("endstaende"), JETZT)
+        print(f"  ticker: {len(daten['ticker'])} Meldungen (24 h)")
+    except Exception as exc:  # noqa: BLE001
+        FEHLER.append(f"Ticker: {str(exc)[:120]}")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(daten, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     try:
