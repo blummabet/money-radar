@@ -19,7 +19,7 @@ import t3_dynamik as T
 BASIS = Path(__file__).resolve().parent
 GEW = BASIS / ".push_state" / "topf_gewichte.json"
 TEILE = ("signale", "quellen", "geld", "kette", "wal", "alt", "pinn", "liga")
-STILL = ("serieLive", "q22", "jung")
+STILL = ("serieLive", "q22", "jung", "torlinie")   # torlinie: Regel R32 (18.11.)
 SIGNALE = TEILE + STILL
 
 

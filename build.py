@@ -3199,7 +3199,8 @@ def _topf_still(p):
     """Merkmale alter Topf-Einträge (vor 17.11. ohne „still") aus Art, Quote, Liga — wie public.merkmale."""
     import public as _pub
     return _pub.merkmale({"m": {"art": p.get("art"), "live": p.get("live"), "quote": p.get("quote"),
-                                "liga": p.get("liga"), "spiel": p.get("spiel")}})
+                                "liga": p.get("liga"), "spiel": p.get("spiel"), "auswahl": p.get("auswahl"),
+                                "auswahlRoh": p.get("auswahlRoh"), "markt": p.get("markt")}})
 
 
 def statistik(burst, finder):
@@ -3337,7 +3338,7 @@ def statistik(burst, finder):
         for z in zeilen[n_vor:]:
             if z[1] in ("public", "publicNein", "publicGegenwind", "publicNL", "publicQuote"):
                 topf_z.append({"ts": (str(p.get("zeit") or "")[:16] + ":00+00:00"), "p": p.get("p"),
-                               "still": p.get("still") or _topf_still(p), "live": bool(p.get("live")),
+                               "still": {**_topf_still(p), **(p.get("still") or {})},   # 18.11.: neue stille Merkmale rückwirkend "live": bool(p.get("live")),
                                "r": z[2] if isinstance(z[2], (int, float)) else None})
                 break
         if p.get("stake"):

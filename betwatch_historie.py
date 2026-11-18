@@ -694,10 +694,83 @@ def backtest(ordner: Path, aus: Path):
     print("BERICHT_ENDE")
 
 
+# ───────────── Prüfung des Verfahrens (Regel T7) auf dem Oktober (Lucas 18.11. „ja") ─────────────
+# Vorab festgelegt (18.11.2026, 10:05 Wien): Kandidaten = alle nachgespielten Betfair-Signale ab Quote 1,40 (erstes
+# Auslösen). Feste Wertung = jedes Signal 1 Punkt (= Ø des Pools). Dynamisch = genau das T7-Verfahren (t3_dynamik:
+# Ridge, τ = 5 pp, Faktor 1 + Effekt/8 pp in [0, 2], ±0,25 je Stichtag Mo/Do, Fenster 28 Tage, nur Daten davor).
+# Zwei Varianten: (a) nur die Signal-Arten, (b) Arten + Merkmale (Top-5, Nachwuchs, Tor-Linie, Quote ≥ 2,20, Geld ≥ €50k),
+# Merkmale neutral bei Faktor 1. Urteil wie T7: ≥ 4 Prüfpunkte, Mehrheit UND zusammen besser.
+def dynamik(aus: Path, ordner: Path):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import t3_dynamik as T
+    quelle = Path.home() / "betwatch" / "ergebnisse" / ordner.name / "signale.json.gz"
+    with gzip.open(quelle, "rt") as f:
+        alle = json.load(f)
+    ARTEN = ("zufluss", "live", "serie", "bfDrop", "liveFuehrt", "serieFuehrt")
+    MERK = ("top5", "jung", "torlinie", "q22", "geld50")
+    zeilen = []
+    for z in alle:
+        if (z.get("quote") or 0) < 1.40:
+            continue
+        m = {"top5": bool(z.get("top5")), "jung": bool(z.get("jung")), "torlinie": "Goals" in str(z.get("markt")),
+             "q22": z["quote"] >= 2.2, "geld50": (z.get("eur") or 0) >= 50000}
+        zeilen.append({"ts": datetime.fromtimestamp(z["t"], timezone.utc).isoformat(), "r": z["r"], "live": z["live"],
+                       "art": z["art"], "m": m})
+    zeilen.sort(key=lambda z: z["ts"])
+    t0, t1 = T._ts(zeilen[0]["ts"]), T._ts(zeilen[-1]["ts"]) + timedelta(days=1)
+    tage = T._stichtage(t0, t1)
+
+    def variante(mit_merkmalen):
+        sig = ARTEN + (MERK if mit_merkmalen else ())
+        # live-Spalte aus: hier hängt die Art (live/serie live) fest am Live-Status — die freie Live-Kontrolle von T7 würde
+        # den Effekt der Live-Arten sonst ganz schlucken
+        rows = [{"ts": z["ts"], "r": z["r"], "live": False, "p": {z["art"]: 1, **{k: 1 for k in MERK if mit_merkmalen and z["m"][k]}},
+                 "still": {"jung": False, "torlinie": False}} for z in zeilen]
+        for r_ in rows:   # Merkmale zählen in p, still bleibt leer (sonst rechnet _hat die eigenen Merkmale nach)
+            r_["still"] = {k: bool(r_["p"].get(k)) for k in ("jung", "torlinie")}
+        f = {s: 1.0 for s in sig}
+        starts, verlauf = [], []
+        wert = lambda r_, f_: sum((f_.get(k, 1.0) if k in ARTEN else f_.get(k, 1.0) - 1.0) for k in r_["p"])
+        for i, st in enumerate(tage[:-1]):
+            nxt = tage[i + 1]
+            vor = [r_ for r_ in rows if st - timedelta(days=T.FENSTER_TAGE) <= T._ts(r_["ts"]) < st]
+            eff = T.effekte(vor, sig)
+            f = T.faktoren_neu(f, eff, sig, ())
+            verlauf.append({"stichtag": st.strftime("%d.%m."), "n": len(vor), "faktoren": dict(f),
+                            "effekte": {k: v["effekt"] for k, v in eff.items()}})
+            if (st - t0).days < 7:
+                continue
+            test = [r_ for r_ in rows if st <= T._ts(r_["ts"]) < nxt]
+            if len(test) < 30:
+                continue
+            dr = max(10, len(test) // 3)
+            dyn = sorted(test, key=lambda r_: -wert(r_, f))[:dr]
+            r_d = sum(r_["r"] for r_ in dyn) / len(dyn)
+            r_f = sum(r_["r"] for r_ in test) / len(test)
+            starts.append({"ab": st.strftime("%d.%m."), "n": len(test), "dynObenDrittel": round(100 * r_d, 1),
+                           "festPool": round(100 * r_f, 1), "traegt": r_d > r_f, "_d": r_d * len(dyn), "_f": r_f * len(dyn)})
+        urteil = None
+        if len(starts) >= 4:
+            urteil = "trägt" if (sum(x["traegt"] for x in starts) > len(starts) / 2 and sum(x["_d"] for x in starts) > sum(x["_f"] for x in starts)) else "trägt nicht"
+        return {"starts": [{k: v for k, v in x.items() if not k.startswith("_")} for x in starts], "urteil": urteil,
+                "zusammenDyn": round(100 * sum(x["_d"] for x in starts) / max(1, sum(max(10, x["n"] // 3) for x in starts)), 1),
+                "zusammenFest": round(100 * sum(x["_f"] for x in starts) / max(1, sum(max(10, x["n"] // 3) for x in starts)), 1),
+                "verlauf": verlauf}
+
+    bericht = {"kandidaten": len(zeilen), "nurArten": variante(False), "mitMerkmalen": variante(True)}
+    aus.mkdir(parents=True, exist_ok=True)
+    (aus / "dynamik.json").write_text(json.dumps(bericht, ensure_ascii=False, indent=1))
+    print("BERICHT_START")
+    print(json.dumps(bericht, ensure_ascii=False))
+    print("BERICHT_ENDE")
+
+
 if __name__ == "__main__":
     schritt, ordner, aus = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3])
     if schritt == "inventur":
         inventur(ordner, aus)
+    elif schritt == "dynamik":
+        dynamik(aus, ordner)
     elif schritt == "backtest":
         backtest(ordner, aus)
     elif schritt == "pruefen":

@@ -407,7 +407,13 @@ def _topf_faktoren():
         return {}
 
 
-_JUNG = re.compile(r"\b(u ?1\d|u ?2[0-3]|reserves?|women|frauen|youth|primavera)\b|\(res\)|\bw\)", re.I)
+_JUNG = re.compile(r"\b(u ?1\d|u ?2[0-3]|reserves?|women|frauen|youth|primavera|ii)\b|\(res\)|\bw\)", re.I)
+# 18.11. Regel T8/R32 (Betwatch-Oktober: Tor-Linien in allen vier Betfair-Signalen schwächer als der Sieg-Markt)
+_TORLINIE = re.compile(r"^(over|under|über|unter) \d", re.I)
+
+
+def ist_torlinie(markt, auswahl):
+    return bool(re.search(r"goals|tore", str(markt or ""), re.I) or _TORLINIE.match(str(auswahl or "")))
 
 
 def merkmale(c):
@@ -416,7 +422,8 @@ def merkmale(c):
     q = m.get("quote")
     return {"serieLive": m.get("art") == "serie" and bool(m.get("live")),
             "q22": isinstance(q, (int, float)) and q >= 2.2,
-            "jung": bool(_JUNG.search(f"{m.get('liga') or ''} {m.get('spiel') or ''}"))}
+            "jung": bool(_JUNG.search(f"{m.get('liga') or ''} {m.get('spiel') or ''}")),
+            "torlinie": ist_torlinie(m.get("markt"), m.get("auswahlRoh") or m.get("auswahl"))}
 
 
 def punkte(c, jetzt):

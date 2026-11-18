@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       schritt:
-        description: 'inventur | pruefen | backtest'
+        description: 'inventur | pruefen | backtest | dynamik'
         required: true
         default: inventur
       datei:

@@ -38,11 +38,23 @@ TAU = 0.05            # Vorab-Streuung eines Signal-Effekts (Rendite je Einheit)
 PP_JE_FAKTOR = 0.08   # 8 pp Effekt = Faktor +1
 SCHRITT = 0.25        # höchstens ±0,25 je Woche
 MIN_STARTS = 4
-SIGNALE = ("serie", "push", "neu", "quote", "poly", "stake", "maerkte", "druck", "liga", "norm")
-STILL = ("norm",)     # gemessen, aber ohne Punkte (Regel 6) — ein Faktor ändert hier nichts
+SIGNALE = ("serie", "push", "neu", "quote", "poly", "stake", "maerkte", "druck", "liga", "norm", "jung", "torlinie")
+# gemessen, aber ohne Punkte — ein Faktor ändert hier nichts. norm: Regel 6. jung/torlinie: Regel T8 (18.11., Lucas „ja"):
+# im Betwatch-Oktober-Backtest waren Nachwuchs/Reserve/Frauen und Tor-Linien in allen vier Betfair-Signalen schwächer —
+# keine feste Regel daraus, sondern still mitmessen; die Wochenrechnung zeigt vorwärts, ob es hier auch so ist.
+STILL = ("norm", "jung", "torlinie")
+
+
+def merkmale(z):
+    """Stille Merkmale aus Liga/Teams/Markt — gilt auch rückwirkend für ältere Kandidaten. REIN."""
+    import public
+    return {"jung": bool(public._JUNG.search(f"{z.get('liga') or ''} {z.get('heim') or ''} {z.get('gast') or ''}")),
+            "torlinie": public.ist_torlinie(z.get("markt"), z.get("auswahl"))}
 
 
 def _hat(z, s):
+    if s in ("jung", "torlinie") and s not in (z.get("still") or {}):
+        return merkmale(z)[s]
     return bool((z.get("p") or {}).get(s) or (z.get("still") or {}).get(s))
 
 
@@ -82,7 +94,7 @@ def kandidaten_eintragen(d, jetzt, rangliste):
             continue
         kand.append({k: x.get(k) for k in ("id", "heim", "gast", "liga", "anpfiff", "live", "top5", "markt", "auswahl",
                                              "quote", "punkte", "p", "stand", "lage")}
-                    | {"still": {"norm": bool(x.get("normStill"))}, "art": "top3k", "rang": rang, "ts": jetzt.isoformat(), "status": "offen"})
+                    | {"still": {"norm": bool(x.get("normStill")), **merkmale(x)}, "art": "top3k", "rang": rang, "ts": jetzt.isoformat(), "status": "offen"})
         da.add(str(x.get("id")))
         neu += 1
     grenze = (jetzt - timedelta(days=60)).isoformat()
@@ -232,7 +244,7 @@ def woche(jetzt, buch=None):
             erst.add(str(b.get("id")))
             if _ts(b.get("ts")) and _ts(b["ts"]) >= jetzt - timedelta(days=FENSTER_TAGE) and b.get("status") == "abgerechnet":
                 z.append({"r": b.get("r"), "live": b.get("live"), "p": {s: 1 for s in b.get("signale") or []},
-                          "still": {"norm": bool(b.get("normStill"))}})
+                          "still": {"norm": bool(b.get("normStill")), **merkmale(b)}})
         eff, quelle = effekte(z), "top3-einzuege"
     vorschlag = faktoren_neu(g.get("vorschlag") or g.get("faktoren") or {}, eff) if quelle == "kandidaten" else \
         dict(g.get("vorschlag") or {s: 1.0 for s in SIGNALE if s not in STILL})
