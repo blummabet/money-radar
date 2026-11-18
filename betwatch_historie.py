@@ -282,7 +282,7 @@ def _ep(d):
 # Mexiko-Apertura); Anfang = Herbst-Frühjahr-Ligen (Spieltag ~7–12) und A-League (Start Okt). Pokale/International eigen.
 PHASE_ENDE = set("NO SE FI IS IE LT LV EE FO JP KR CN US CA BR AR CL CO EC PY UY PE BO VE KZ BY MX".split())
 PHASE_ANFANG = set("GB DE ES IT FR NL BE PT AT CH TR GR PL CZ DK HR RS RO BG HU SK SI CY IL SA AE QA EG MA AU IN UA RU".split())
-POKAL_RX = re.compile(r"cup|copa|pokal|coupe|coppa|trophy|shield|champions|europa|conference|libertadores|sudamericana|friendl|international|nations|qualif", re.I)
+POKAL_RX = re.compile(r"cup|copa|pokal|coupe|coppa|trophy|shield|champions league|europa|conference|libertadores|sudamericana|friendl|international|nations|qualif", re.I)
 
 
 def saisonphase(liga, land):
