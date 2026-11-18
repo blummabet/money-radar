@@ -147,9 +147,115 @@ def inventur(ordner: Path, aus: Path):
     print("Top-Ligen:", ligen.most_common(15))
 
 
+BF_ARTEN = None  # alle Buch-Einträge mit Betwatch-Spiel-ID (Zahl) werden geprüft
+
+
+def pruefen(ordner: Path, aus: Path, buch_dateien):
+    """Nachspiel-Prüfung: Sehen die gekauften Trades zum Push-Zeitpunkt dasselbe wie unser Live-System?
+    Je Buch-Eintrag (Betfair-Arten, Oktober): Quote = letzter Trade / Ø der letzten 5 Min vor dem Push,
+    Geld auf die Auswahl in den 15/30/60 Min davor (zum Vergleich mit `eur`)."""
+    import pyarrow.parquet as pq
+    from datetime import timedelta
+
+    buch = []
+    for f in buch_dateien:
+        try:
+            buch += [x for x in json.loads(Path(f).read_text()) if isinstance(x, dict)]
+        except Exception as e:  # noqa: BLE001
+            print("Buch nicht lesbar:", f, e)
+    ordn = {m.parent.name: m for m in spiele(ordner)}
+    tage = sorted({m.parts[-5] + "-" + m.parts[-4] + "-" + m.parts[-3] for m in ordn.values()})
+    von, bis = tage[0], tage[-1] + "T23:59"
+    kand, gesehen = [], set()
+    for b in buch:
+        t = str(b.get("ts") or "")
+        if not (von <= t[:10] and t[:16] <= bis) or not str(b.get("id") or "").isdigit():
+            continue
+        k = (b.get("art"), b.get("id"), b.get("markt"), b.get("auswahl"), t[:16])
+        if k in gesehen:
+            continue
+        gesehen.add(k)
+        kand.append(b)
+    print(f"Buch: {len(buch)} Einträge, im Datenzeitraum mit Betfair-ID: {len(kand)}", flush=True)
+    cache = {}
+    erg = []
+    stat = Counter()
+    for b in kand:
+        art = b.get("art")
+        meta = ordn.get(str(b["id"]))
+        if not meta:
+            stat["spielFehlt"] += 1
+            erg.append({"art": art, "id": b["id"], "ts": b["ts"], "status": "spielFehlt", "liga": b.get("liga")})
+            continue
+        m = cache.get(meta)
+        if m is None:
+            m = cache[meta] = json.loads(meta.read_text())
+        mk = next((x for x in m.get("markets") or [] if x.get("name") == b.get("markt")), None)
+        rn = next((r for r in (mk or {}).get("runners") or [] if r.get("name") == b.get("auswahl")), None)
+        if not rn:
+            stat["marktFehlt"] += 1
+            erg.append({"art": art, "id": b["id"], "ts": b["ts"], "status": "marktFehlt", "markt": b.get("markt"), "auswahl": b.get("auswahl"),
+                        "maerkte": [x.get("name") for x in m.get("markets") or []][:25]})
+            continue
+        p = meta.parent / f"{mk['market_id']}.parquet"
+        try:
+            t = pq.read_table(p, columns=["date", "cote", "volume", "runner_identifier"]).to_pydict()
+        except Exception:  # noqa: BLE001
+            stat["keineTicks"] += 1
+            continue
+        push = _ts(b["ts"])
+        ri = rn.get("runner_identifier")
+        z = [(d, c, v) for d, c, v, r in zip(t["date"], t["cote"], t["volume"], t["runner_identifier"]) if r == ri and d <= push]
+        if not z:
+            stat["keinHandelVorher"] += 1
+            erg.append({"art": art, "id": b["id"], "ts": b["ts"], "status": "keinHandelVorher"})
+            continue
+        letzte = z[-1][1]
+        f5 = [(c, v) for d, c, v in z if d >= push - timedelta(minutes=5)]
+        vw5 = sum(c * v for c, v in f5) / sum(v for c, v in f5) if f5 and sum(v for c, v in f5) else None
+        geld = {w: sum(v for d, c, v in z if d >= push - timedelta(minutes=w)) for w in (15, 30, 60)}
+        q = b.get("quote")
+        abw = round(100 * (letzte / q - 1), 1) if isinstance(q, (int, float)) and q > 1 else None
+        stat["geprueft"] += 1
+        erg.append({"art": art, "id": b["id"], "ts": b["ts"], "status": "ok", "live": bool(b.get("live")), "liga": b.get("liga"),
+                    "quote": q, "letzte": letzte, "vw5": round(vw5, 3) if vw5 else None, "abwPct": abw,
+                    "alterLetzterTradeMin": round((push - z[-1][0]).total_seconds() / 60, 1),
+                    "eur": b.get("eur"), "geld15": geld[15], "geld30": geld[30], "geld60": geld[60], "summeBis": sum(v for _, _, v in z)})
+    ok = [e for e in erg if e["status"] == "ok" and e["abwPct"] is not None]
+
+    def zus(xs):
+        a = sorted(abs(e["abwPct"]) for e in xs)
+        if not a:
+            return None
+        return {"n": len(a), "medianAbwPct": a[len(a) // 2], "bis2Pct": round(sum(x <= 2 for x in a) / len(a), 3),
+                "bis5Pct": round(sum(x <= 5 for x in a) / len(a), 3)}
+
+    je_art = {}
+    for e in ok:
+        je_art.setdefault(e["art"], []).append(e)
+    verh = {}
+    for w in ("geld15", "geld30", "geld60", "summeBis"):
+        r = sorted(e[w] / e["eur"] for e in ok if isinstance(e.get("eur"), (int, float)) and e["eur"] > 0)
+        verh[w] = {"n": len(r), "median": round(r[len(r) // 2], 3) if r else None}
+    bericht = {"zeitraum": [von, bis], "kandidaten": len(kand), "status": dict(stat), "quoteGesamt": zus(ok),
+               "quoteVorAnpfiff": zus([e for e in ok if not e["live"]]), "quoteLive": zus([e for e in ok if e["live"]]),
+               "quoteJeArt": {k: zus(v) for k, v in sorted(je_art.items(), key=lambda x: -len(x[1]))},
+               "geldZuEur": verh,
+               "groessteAbweichungen": sorted(ok, key=lambda e: -abs(e["abwPct"]))[:15],
+               "fehlendeMaerkte": [e for e in erg if e["status"] == "marktFehlt"][:10],
+               "fehlendeSpieleLigen": Counter(e.get("liga") for e in erg if e["status"] == "spielFehlt").most_common(20)}
+    aus.mkdir(parents=True, exist_ok=True)
+    (aus / "pruefung.json").write_text(json.dumps(bericht, ensure_ascii=False, indent=1, default=str))
+    with gzip.open(aus / "pruefung_zeilen.json.gz", "wt") as f:
+        json.dump(erg, f, default=str)
+    print(json.dumps(bericht, ensure_ascii=False, indent=1, default=str)[:12000])
+
+
 if __name__ == "__main__":
     schritt, ordner, aus = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3])
     if schritt == "inventur":
         inventur(ordner, aus)
+    elif schritt == "pruefen":
+        pruefen(ordner, aus, sys.argv[4:])
     else:
         sys.exit(f"Schritt {schritt} kommt nach der Inventur")

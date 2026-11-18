@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       schritt:
-        description: 'inventur | nachspielen'
+        description: 'inventur | pruefen'
         required: true
         default: inventur
       datei:
@@ -49,13 +49,24 @@ jobs:
           tar -xf "$QUELLE" -C "$ZIEL" --exclude '._*' --exclude '.DS_Store' || { echo "::error::Auspacken fehlgeschlagen (macOS-Schutz für Downloads? Dann Datei nach ~/betwatch verschieben)"; exit 1; }
           touch "$ZIEL/.fertig"
           du -sh "$ZIEL"; df -h "$HOME" | tail -1
+      - name: Gedächtnis laden (Push-Buch für die Prüfung)
+        if: inputs.schritt == 'pruefen'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .bf
+            .pin
+            .push_state
+            .rp
+          key: betwatch-${{ github.run_id }}
+          restore-keys: radar-
       - name: ${{ inputs.schritt }}
         env:
           DATEI: ${{ inputs.datei }}
           SCHRITT: ${{ inputs.schritt }}
         run: |
           mkdir -p ergebnis
-          "$HOME/betwatch/venv/bin/python" -I betwatch_historie.py "$SCHRITT" "$HOME/betwatch/${DATEI%.tar}" ergebnis
+          "$HOME/betwatch/venv/bin/python" -I betwatch_historie.py "$SCHRITT" "$HOME/betwatch/${DATEI%.tar}" ergebnis .push_state/buch_alt.json .push_state/buch.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
