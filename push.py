@@ -56,6 +56,18 @@ STAKE_TOP5_EINDEUTIG = {"UEFA Champions League", "UEFA Nations League", "LaLiga"
 WAL_MIN_USD_TOP5 = 3000      # in den Top-5 sind $1000 Alltag
 WAL_MIN_FAKTOR = 0.25        # Wal-Regel 2 (06.11.): mindestens ¼ des üblichen Einsatzes
 MAX_JE_LAUF = 12             # Notbremse gegen Spam
+SERIE_NEU_ANTEIL, SERIE_NEU_MIN = 0.5, 5000   # Regel S6 (19.11.): weitere Stufe nur mit ≥ 50 % neuem Geld seit dem letzten Push
+SERIE_GELD = BASIS / ".push_state" / "serie_geld.json"
+
+
+def _serie_basis(key):
+    """Schlüssel einer Serie ohne die Stufe: se|id|markt|auswahl[|stand], ps|id|auswahl, ss|id|markt|auswahl. REIN."""
+    t = key.split("|")
+    if t[0] == "ps":
+        return "|".join(t[:3])
+    return "|".join(t[:4] + t[5:])
+
+
 SERIE_ABSTAND_MIN = 30       # Lucas 18.10. (Igdir 7× und 8× im 5-Min-Abstand): dieselbe Serie frühestens nach 30 Min wieder
 
 
@@ -1905,6 +1917,10 @@ def main() -> int:
     d = json.loads(DATEN.read_text(encoding="utf-8"))
     erster_lauf = not STAND.exists()
     gesehen = {} if erster_lauf else json.loads(STAND.read_text(encoding="utf-8"))
+    try:
+        serie_geld = json.loads(SERIE_GELD.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        serie_geld = {}
     grenze = (JETZT - timedelta(days=3)).isoformat()
     gesehen = {k: v for k, v in gesehen.items() if v >= grenze or k.startswith("wa|")}      # alte Einträge vergessen
 
@@ -1946,10 +1962,20 @@ def main() -> int:
             if key.startswith("lp|") and any(k.startswith("lp|" + key.split("|")[1] + "|") for k in gesehen):
                 continue            # Regel LD2: je Spiel ein Test-Push
             if key.startswith(("se|", "ps|", "ss|")):
-                basis = key.rsplit("|", 1)[0] + "|"
-                if any(k.startswith(basis) and (JETZT - ts(v)).total_seconds() < SERIE_ABSTAND_MIN * 60
-                       for k, v in gesehen.items()):
+                # 19.11. (Paris FC (W) – Koge: 3× um 19:33, 5× um 19:43 mit nur €5k neu): die Basis schnitt bei Schlüsseln
+                # mit Spielstand („|1:1") den Stand statt der Stufe ab → die 30-Min-Sperre griff nur innerhalb derselben
+                # Stufe. Jetzt: Basis = Schlüssel ohne die Stufe (Stand bleibt drin — nach einem Tor ist es eine neue Lage).
+                basis = _serie_basis(key)
+                fremd = [k for k in gesehen if k != key and _serie_basis(k) == basis]
+                if any((JETZT - ts(gesehen[k])).total_seconds() < SERIE_ABSTAND_MIN * 60 for k in fremd):
                     continue        # nicht als gesehen markieren: die Stufe kommt nach der Pause mit frischen Zahlen
+                # Regel S6 (Lucas 19.11.: „zu wenig neu, dass der Push relevant ist"): eine weitere Stufe derselben Serie
+                # nur, wenn seit dem letzten Push ≥ 50 % mehr Geld dazukam (mindestens €/$ 5k)
+                betrag = (beleg or {}).get("eur") or (beleg or {}).get("usd")
+                vorher = serie_geld.get(basis)
+                if fremd and isinstance(vorher, (int, float)) and isinstance(betrag, (int, float)) \
+                        and betrag - vorher < max(SERIE_NEU_MIN, SERIE_NEU_ANTEIL * vorher):
+                    continue
             if erster_lauf:
                 gesehen[key] = JETZT.isoformat()
                 continue
@@ -1978,6 +2004,10 @@ def main() -> int:
             if ok:
                 gesehen[key] = JETZT.isoformat()
                 gesendet += 1
+                if key.startswith(("se|", "ps|", "ss|")):           # Regel S6: Betrag beim Push merken
+                    _b = (beleg or {}).get("eur") or (beleg or {}).get("usd")
+                    if isinstance(_b, (int, float)):
+                        serie_geld[_serie_basis(key)] = _b
                 try:                 # Public-Regel 4 (02.11.): nicht sofort senden — in den Topf, bewertet wird unten
                     if pub:
                         _vt = verteilung(d, beleg)                                          # R34
@@ -2096,6 +2126,11 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001  — Auswertung darf das Pushen nie aufhalten
             print(f"  bilanz: {exc}")
         STAND.parent.mkdir(parents=True, exist_ok=True)
+        try:                                   # Regel S6: nur Serien behalten, die noch im Gedächtnis stehen
+            _bas = {_serie_basis(k) for k in gesehen if k.startswith(('se|', 'ps|', 'ss|'))}
+            SERIE_GELD.write_text(json.dumps({k: v for k, v in serie_geld.items() if k in _bas}), encoding='utf-8')
+        except Exception as exc:  # noqa: BLE001
+            print(f'  serie_geld: {exc}')
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
         try:                         # Public-Regel 13: Liga-Wertung aus dem eigenen Buch
             public.LIGA_WERT.clear(); public.LIGA_WERT.update(public.liga_werte(bilanz.laden(), ((d.get("ligaBilanz") or {}).get("ligen"))))
