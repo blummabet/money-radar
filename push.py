@@ -1377,7 +1377,7 @@ def _uhr_drop(x, q, q_start, minute_jetzt):
     # hier keine Start-Quoten aller drei Ausgänge → keine Zeile (lieber nichts als falsch).
     erw = _m.uhr_erwartung(x.get("markt"), x.get("auswahl"), q_start, minute_jetzt - min(dauer, 30), minute_jetzt,
                            list(x.get("stand") or (x.get("tor") or {}).get("nach") or []) or None)
-    if not erw or q > erw * 0.95:
+    if not erw or q > erw * 0.95 or erw <= q_start * 1.03:     # LD4: nur wo die Uhr die Quote steigen ließe
         return "", None
     unter = round(100 * (1 - q / erw), 1)
     zusatz = f" — nur mit der Uhr wären eher ~{q2(erw)} zu erwarten" if erw and erw > q_start * 1.01 else ""

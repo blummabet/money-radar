@@ -774,6 +774,11 @@ def bf_uhr(prices, bf_hist):
                 erw_v = _m.uhr_erwartung(mk, n, q0, m0, mv, st_, mo0, m.get("home"), m.get("away"))
                 if not erw or not erw_v:
                     continue
+                # LD4 (19.11. 12:26, Moik Baku Unter 0,5 5,10 → 2,36, Lucas: „wie kann da immer noch Unter kommen? sinnlos"):
+                # nur Auswahlen, deren Quote die Uhr allein STEIGEN ließe (Über, nicht führendes Team …). Unter, Remis bei
+                # Gleichstand und Führende fallen mit der Zeit ohnehin — schneller fallen heißt dort nicht „Geld gegen die Uhr".
+                if erw <= q0 * 1.03:
+                    continue
                 unter = 1 - q1 / erw
                 if unter < LD_UNTER or qv > erw_v * (1 - LD_UNTER_VOR):
                     continue
