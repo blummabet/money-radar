@@ -580,6 +580,8 @@ VOID_MANUELL = [
     ("Técnica de Cajamarca", "2026-11-12T09:00:00+00:00", "2026-11-12T14:00:00+00:00", "Markt praktisch entschieden (99 ¢)", {"wal"}),
     # 12.11. Germany U19 – Sweden U19 Über 0,5 @ 1,74 bei „72' 0:0": das Tor fiel ~15:29, der Push kam ~15:31 (Lucas)
     ("Germany U19 – Sweden U19", "2026-11-12T14:24:00+00:00", "2026-11-12T14:36:00+00:00", "Tor fiel vor dem Push"),
+    # 19.11. Corinthians – Botafogo, Public „26' 0:0" Corinthians @ 1,59 — das 1:0 fiel genau beim Push (Lucas: „bitte auf void")
+    ("Corinthians – Botafogo FR", "2026-11-19T00:30:00+00:00", "2026-11-19T01:30:00+00:00", "Tor fiel beim Push", {"publicErg", "top3p", "public"}),
 ]
 
 
