@@ -2642,6 +2642,51 @@ def pk1(belegt, maerkte):
     return out
 
 
+# Regel CM1 „Claude-Master" (Lucas 20.11. 19:13: „eine Push von dir mit allen Kriterien, die dir einfallen … zum Testen").
+# Vorab festgelegt 20.11. 19:40 Wien, aus dem Push-Buch 20.10.–20.11. abgeleitet (CLV ohne Vorgriff gemessen):
+# * Einziges Signal mit belastbarem Vorsprung auf den Schlusskurs vor Anpfiff: eine bewährte Wallet setzt mindestens
+#   ihren üblichen Einsatz (Faktor ≥ 1): CLV +4,8 % ± 3,2 (n = 87). Alles andere vor Anpfiff liegt bei 0 bis +1 %;
+#   „Pinnacle + Betfair-Geld" sah mit Vorgriff nach +4,7 % aus, ab dem Moment der Erfüllung −0,2 %.
+#   Live-Signale mit hohem ROI (Polymarket-Dauerzufluss live +15 %) kommen vom Preis im Push-Moment: 15 Min später
+#   gekauft ±0 % — für einen Push nicht erreichbar. Darum nur vor Anpfiff.
+# * Bedingungen: bewährte Wallet (CLV-Untergrenze > 0) hält ≥ $3k und ≥ 1× ihren Schnitt auf einer Seite; Preis 20–80 ¢;
+#   Anpfiff in 20 Min bis 24 h; bewährtes Geld auf den anderen Seiten zusammen ≤ $2k (PK1: kein Streit der Guten).
+# * Je Markt höchstens ein Push. Messung: CLV gegen den Polymarket-Schlusskurs + Ergebnis.
+#   Urteil nach 60 Fällen: trägt bei Ø-CLV > +2 % (die halbe Rückblick-Kante) UND ROI > 0.
+CM1_MIN_USD, CM1_FAKTOR, CM1_GEGEN_MAX = 3000, 1.0, 2000
+
+
+def cm1(belegt, maerkte, wallets):
+    schnitt = {w["wallet"]: w for w in wallets or []}
+    out = []
+    for key, liste in (belegt or {}).items():
+        m = (maerkte or {}).get(key)
+        if not m or m.get("live") or not poly_key_ok(key) or not sport_ok(m.get("sport")):
+            continue
+        ko = ts(m.get("koTs"))
+        if not ko or not timedelta(minutes=20) <= ko - JETZT <= timedelta(hours=24):
+            continue
+        for x in liste:
+            w = schnitt.get(x["wallet"]) or {}
+            su = w.get("schnittUsd")
+            p = (m.get("prices") or {}).get(x["seite"])
+            if x["usd"] < CM1_MIN_USD or not su or x["usd"] / su < CM1_FAKTOR or not isinstance(p, (int, float)) or not 0.2 <= p <= 0.8:
+                continue
+            mit = [y for y in liste if y["seite"] == x["seite"] and y["wallet"] != x["wallet"]]
+            gegen = [y for y in liste if y["seite"] != x["seite"]]
+            if sum(y["usd"] for y in gegen) > CM1_GEGEN_MAX:
+                continue
+            out.append({"key": key, "titel": m.get("titel"), "liga": m.get("league"), "sport": m.get("sport"), "anpfiff": m.get("koTs"),
+                        "seite": x["seite"], "preis": p, "quote": round(1 / p, 3), "usd": x["usd"], "faktor": round(x["usd"] / su, 2),
+                        "schnittUsd": su, "wallet": x["wallet"], "clv": w.get("fensterClv"), "clvUg": w.get("clvUg"), "n": w.get("fensterN"),
+                        "rang": next((i + 1 for i, v in enumerate(wallets or []) if v["wallet"] == x["wallet"]), None),
+                        "pnl": w.get("pnl"), "mit": [{"w": y["wallet"][-4:], "usd": y["usd"]} for y in mit],
+                        "gegenUsd": sum(y["usd"] for y in gegen), "marktUsd": m.get("totalUsd"),
+                        "geldSeite": (m.get("shares") or {}).get(x["seite"]), "geldAlle": sum((m.get("shares") or {}).values()) or None})
+    out.sort(key=lambda c: -c["faktor"] * c["usd"])
+    return out
+
+
 # Lucas 19.10.: „Jetzt fließt Geld rein" bleibt reines Betfair — bekommt dasselbe Spiel in den letzten 30 Min auch auf
 # Polymarket oder Stake Geld, zeigt die Zeile einen kleinen Chip. geld_toepfe füllt diese Karte nebenbei (Betfair-ID → Quelle).
 AUCH_WOANDERS = {}
@@ -3123,7 +3168,7 @@ def betfair_pushes(buch):
     out = []
     for e in buch.get("letzte") or []:
         t = ts(e.get("ts"))
-        if e.get("art") in ("pserie", "wal") or not t or t < JETZT - timedelta(hours=36):   # Polymarket-Pushes stehen unter „Wale"/Poly
+        if e.get("art") in ("pserie", "wal", "cm1") or not t or t < JETZT - timedelta(hours=36):   # Polymarket-Pushes stehen unter „Wale"/Poly
             continue
         out.append({"zeit": e.get("ts"), "art": ((buch.get("arten") or {}).get(e.get("art")) or {}).get("name"),
                     "markt": e.get("markt"), "liga": e.get("liga"), "heim": e.get("heim"), "gast": e.get("gast"),
@@ -3167,7 +3212,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "cm1"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -3836,6 +3881,7 @@ def main() -> int:
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
         "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, live_m, offen_m)),
         "pk1": pk1(pbel, upcoming),             # 20.11. Regel PK1 (Beobachtung)
+        "cm1": cm1(pbel, upcoming, pmd.get("wallets")),   # 20.11. Regel CM1 (Claude-Master, Test-Push)
         "marktCharts": markt_charts(radar),
         "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(live_m or {})}, hr, pfl, pbel),
         "auchWoanders": dict(AUCH_WOANDERS),

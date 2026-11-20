@@ -1850,6 +1850,36 @@ def bf_uhr_still(d):
                 "stand": st, "minute": x.get("min"), "rot": x.get("rot"), "eur": x.get("neu"), "regel": "LD1"})
 
 
+def cm1_push(d):
+    """20.11. Regel CM1 „Claude-Master" (Lucas 19:13: „eine Push von dir … zum Testen"). Kriterien in build.cm1.
+    Test-Push in den Money-Channel, nie Public, nie X. Je Markt höchstens einer (Sperre in main)."""
+    for x in d.get("cm1") or []:
+        mk = urllib.parse.quote(re.sub(r"^(.*?\d{4}-\d{2}-\d{2})-.+$", r"\1", str(x["key"])))
+        z = [f"🧠 <b>CLAUDE-MASTER · Test</b>",
+             f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel') or x['key'])}</b>",
+             f"🕒 {anpfiff(x.get('anpfiff'))}", "",
+             f"🎯 <b>{e(x['seite'])} @ {q2(x['quote'])}</b>  ({round(x['preis'] * 100)}¢ auf Polymarket)", "",
+             "<b>Warum</b>",
+             f"✅ Bewährte Wallet {e(str(x['wallet'])[2:6])}" + (f" (Nr. {x['rang']})" if x.get("rang") else "")
+             + f": schlägt den Schlusskurs um Ø {q2(x.get('clv'))} pp, sicher ≥ {q2(x.get('clvUg'))} pp, {x.get('n')} Wetten",
+             f"✅ Sie hält <b>{geld(x['usd'], '$')}</b> = <b>{q2(x['faktor'])}×</b> ihren üblichen Einsatz ({geld(x['schnittUsd'], '$')})",
+             "✅ Kein bewährtes Geld dagegen" if not x.get("gegenUsd") else f"✅ Bewährtes Geld dagegen nur {geld(x['gegenUsd'], '$')}"]
+        if x.get("mit"):
+            z.append(f"➕ {len(x['mit'])} weitere bewährte Wallet{'s' if len(x['mit']) > 1 else ''} auf derselben Seite "
+                     f"({geld(sum(y['usd'] for y in x['mit']), '$')})")
+        if x.get("geldSeite") and x.get("geldAlle"):
+            z.append(f"📊 {round(100 * x['geldSeite'] / x['geldAlle'])} % des Polymarket-Geldes auf dieser Seite")
+        z += ["", "<i>Rückblick 20.10.–20.11.: genau diese Lage schlug den Schlusskurs im Schnitt um +4,8 % (87 Fälle) — "
+                  "der ROI war dabei ±0. Darum Test: Urteil nach 60 Fällen.</i>", "",
+              f'<a href="https://polymarket.com/event/{mk}">Markt öffnen</a> · '
+              f'<a href="https://polymarket.com/profile/{e(x["wallet"])}">Wallet ansehen</a>']
+        yield (f"cm|{x['key']}|{x['seite']}", "\n".join(z), None,
+               {"art": "cm1", "id": x["key"], "titel": x.get("titel"), "heim": None, "gast": None, "liga": x.get("liga"),
+                "sport": x.get("sport") or "Fußball", "anpfiff": x.get("anpfiff"), "markt": "Polymarket", "auswahl": x["seite"],
+                "anzeige": x["seite"], "quote": x["quote"], "preis": x["preis"], "usd": x["usd"], "faktor": x["faktor"],
+                "wallet": x["wallet"], "mitN": len(x.get("mit") or []), "gegenUsd": x.get("gegenUsd"), "live": False, "regel": "CM1"})
+
+
 def pk1_still(d):
     """20.11. Regel PK1: Konsens bewährter Polymarket-Wallets still ins Buch (kein Push) — je Markt + Seite einmal.
     pk1 = ≥ 2 bewährte Wale einig, ≤ $2k bewährtes Geld dagegen; pk1Streit = dieselbe Mehrheit mit Gegenseite."""
@@ -1863,7 +1893,7 @@ def pk1_still(d):
 
 
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────
@@ -1973,6 +2003,8 @@ def main() -> int:
                     continue
             if key.startswith("lp|") and any(k.startswith("lp|" + key.split("|")[1] + "|") for k in gesehen):
                 continue            # Regel LD2: je Spiel ein Test-Push
+            if key.startswith("cm|") and any(k.startswith("cm|" + key.split("|")[1] + "|") for k in gesehen):
+                continue            # Regel CM1: je Markt ein Push
             if key.startswith(("se|", "ps|", "ss|")):
                 # 19.11. (Paris FC (W) – Koge: 3× um 19:33, 5× um 19:43 mit nur €5k neu): die Basis schnitt bei Schlüsseln
                 # mit Spielstand („|1:1") den Stand statt der Stufe ab → die 30-Min-Sperre griff nur innerhalb derselben

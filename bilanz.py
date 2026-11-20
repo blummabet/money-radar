@@ -33,7 +33,7 @@ ERGEBNISSE = BASIS / ".bf" / "ergebnisse.json"
 KOMMISSION = 0.02
 VERFALL_TAGE = 4          # nach 4 Tagen ohne Ergebnis: „unaufgelöst"
 BEHALTEN = 6000           # 23.10.: Top-3-Messung kommt dazu
-POLY_ARTEN = ("pserie", "wal", "top3p", "walKlein", "publicErg", "pserieGegen", "pk1", "pk1Streit")   # publicErg: 09.11. Public-Signal über Polymarket abrechnen
+POLY_ARTEN = ("pserie", "wal", "top3p", "walKlein", "publicErg", "pserieGegen", "pk1", "pk1Streit", "cm1")   # publicErg: 09.11. Public-Signal über Polymarket abrechnen
 ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "Wal-Einstieg Polymarket", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht", "pinn": "Pinnacle + Geld",
          "serieFuehrt": "Live-Dauerzufluss auf den Führenden (nicht gepusht, ab 30.10.)",
          "serieRuhig": "Dauerzufluss, der abgeebbt ist (Regel S4, nicht gepusht, ab 07.11.)",
@@ -48,6 +48,7 @@ ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "W
          "kiModell": "AI-Modell allein, ohne Geld-Bedingung (still, ab 10.11.)",
          "kiTop3": "AI-Pick, der zugleich in den Top 3 in dieselbe Richtung stand (Test-Push, ab 10.11.; ab 11.11. abends K2: ≤ 20 Min, gleicher Stand, Quote zum Push)",
          "walKlein": "Wal unter ¼ seines üblichen Einsatzes (nicht gepusht, Wal-Regel 2 ab 06.11.)",
+         "cm1": "Claude-Master: bewährte Wallet setzt ≥ 1× ihren Schnitt, keine Gegenwehr (Regel CM1, Test-Push, ab 20.11.)",
          "pk1": "Konsens: ≥ 2 bewährte Wallets einig, keine dagegen (Regel PK1, nicht gepusht, ab 20.11.)",
          "pk1Streit": "Konsens bewährter Wallets mit bewährtem Geld dagegen (Vergleich zu PK1, nicht gepusht, ab 20.11.)",
          "layGegen": "Gegenseite bei Lay-Verdacht (Live-Dauerzufluss, Quote +15 % ohne Tor) — nicht gepusht, ab 06.11.",
