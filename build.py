@@ -3212,7 +3212,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "cm1", "mm1", "mm1Bein", "mm2"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -3727,6 +3727,63 @@ def _linie_durch(markt, stand):
 SIEG_MAERKTE = ("Match Odds", "Half Time", "Draw no Bet")
 
 
+# Regel MM2 „Angriffs-Bild" (Lucas 20.11. 23:49, ersetzt MM1): spannend ist nicht irgendein Markt-Mix, sondern
+# Team Sieg FT · Team Sieg HZ · HZ Über 0,5 · HZ Über 1,5 · Über 1,5 · Über 2,5 · Über 3,5 — dazu Lay-Geld gegen Unter
+# auf denselben Linien (zählt als Über). „Aus dem heraus 3–4 gleichzeitig — das geil." Vorab festgelegt:
+# * Bein = Geld in den letzten 30 Min (vor Anpfiff) bzw. 15 Min (live) auf eine dieser Auswahlen, ≥ 60 % des neuen
+#   Geldes im Markt, ≥ €2k (Top 5: ≥ €10k), Quote ≥ 1,20. Rückwärts-Geld erkennt die Quote: vor Anpfiff steigt die Quote
+#   der Auswahl um > 1 % → Lay. Über/Team mit Lay-Geld zählt nicht; Unter mit Lay-Geld zählt als Über-Bein. Live
+#   zählt Unter als Lay, wenn die Quote trotz Zeitablauf steigt; Sprünge durch Tor/Rot (±40 %) und schon durchgegangene
+#   Linien fallen raus, Sieg-Märkte in entschiedenen Spielen auch.
+# * Widerspruch sperrt: Geld auf beide Teams, oder echtes Unter-Geld (Back) auf einer der Linien.
+# * Push ab 3 Beinen, still gebucht ab 2 (Vergleich). Je Spiel vor Anpfiff einmal, live je Spielstand einmal.
+MM2_LINIEN = ("First Half Goals 0.5", "First Half Goals 1.5", "Over/Under 1.5 Goals", "Over/Under 2.5 Goals", "Over/Under 3.5 Goals")
+MM2_TEAM = ("Match Odds", "Half Time")
+
+
+def mm2_angriff(radar):
+    out = []
+    for sp in radar.get("spiele") or []:
+        live = bool(sp.get("live"))
+        st = (sp.get("live") or {}).get("stand")
+        boden = 10000 if sp.get("top5") else 2000
+        beine, contra, teams = [], [], set()
+        for f in (sp.get("flussLive") if live else sp.get("flussVorher")) or []:
+            mk, aw, q, qv = f.get("markt"), str(f.get("auswahl") or ""), f.get("quote"), f.get("quoteVorher")
+            if mk not in MM2_LINIEN + MM2_TEAM or (f.get("eur") or 0) < boden or (f.get("anteil") or 0) < 60:
+                continue
+            if live and q and qv and not (1 / 1.4 <= q / qv <= 1.4):
+                continue                                   # Tor/Rot dazwischen
+            if live and _linie_durch(mk, st):
+                continue
+            steigt = bool(q and qv and q > qv * 1.01)
+            if mk in MM2_TEAM:
+                if aw == "The Draw" or (live and (sp.get("entschieden") or sp.get("klarVorn"))):
+                    continue
+                if steigt and not live:
+                    continue                               # Lay auf das Team — kein Bein
+                teams.add(aw)
+                beine.append(dict(f, art="team"))
+            elif aw.startswith("Over"):
+                if steigt and not live:
+                    continue                               # Lay auf Über — vor Anpfiff kein Bein
+                if not q or q < 1.2:
+                    continue
+                beine.append(dict(f, art="ueber"))
+            elif aw.startswith("Under"):
+                if steigt:
+                    beine.append(dict(f, art="layUnter"))  # gegen Unter = für Tore
+                else:
+                    contra.append(f)
+        if len(teams) > 1 or contra or len({b["markt"] for b in beine}) < 2:
+            continue
+        beine.sort(key=lambda b: -(b.get("eur") or 0))
+        out.append({k: sp.get(k) for k in ("id", "heim", "gast", "liga", "land", "anpfiff", "live", "top5")}
+                   | {"team": next(iter(teams), None), "beine": beine, "n": len({b["markt"] for b in beine})})
+    out.sort(key=lambda x: (-x["n"], -sum(b.get("eur") or 0 for b in x["beine"])))
+    return out
+
+
 def markt_charts(radar):
     jetzt = {}
     zeilen = []
@@ -3850,6 +3907,7 @@ def main() -> int:
         "radar": (radar := betfair_radar(prices, bf_hist, bf_norm, bf_norm_state)),
         "zufluss30": zufluss_liste(radar, consensus),
         "liveZufluss": live_zufluss(radar),
+        "mmAngriff": mm2_angriff(radar),           # 20.11. Regel MM2
         "polyFluss": (pfl := poly_fluss()),
         "serien": serien((takt_ := takt_fortschreiben(bf_hist)), radar),
         "phasen": phasen(takt_, radar),

@@ -1850,56 +1850,64 @@ def bf_uhr_still(d):
                 "stand": st, "minute": x.get("min"), "rot": x.get("rot"), "eur": x.get("neu"), "regel": "LD1"})
 
 
-# Regel MM1 (Lucas 20.11. 22:27: „diese Mehrfach-Märkte … als Test-Push im Money-Channel. Wir haben ja schon für die
-# einzelnen Märkte die Push — wenn auf mehreren gespielt wird, kommt eine extra Push"). Vorab festgelegt:
-# * Grundlage sind genau die Märkte, die schon als Zufluss zählen (vor Anpfiff 30 Min ≥ €3k, live 15 Min ≥ €3k bzw. €20k in
-#   den Top 5, je ≥ 65 % des neuen Geldes im Markt, Quote ≥ 1,20, Lay-Geld und entschiedene Sieg-Märkte schon raus).
-# * Push, wenn in EINEM Spiel gleichzeitig ≥ 3 verschiedene Märkte so Geld bekommen. Vor Anpfiff je Spiel einmal, live je
-#   Spielstand einmal (nach einem Tor ist es eine neue Lage).
-# * Gebucht wird die Auswahl mit dem meisten Geld als „mm1", die übrigen still als „mm1Bein"; Spiele mit genau 2 Märkten
-#   still als „mm2" (Vergleich). Kein Public, kein X. Urteil nach 100 Pushes: trägt, wenn mm1 besser abschneidet als
-#   dieselben Märkte als Einzel-Push (art zufluss/live) im selben Zeitraum.
-MM1_MIN_MAERKTE = 3
+# Regel MM2 „Angriffs-Bild" (Lucas 20.11. 23:49, ersetzt MM1 von 22:27): Team Sieg FT/HZ, HZ Über 0,5/1,5, Über 1,5/2,5/3,5
+# und Lay-Geld gegen Unter auf diesen Linien — ab 3 gleichzeitig ein Test-Push in den Money-Channel. Erkennung und
+# Schwellen in build.mm2_angriff. Gebucht wird das Bein mit dem meisten Geld („mmA"; ein Lay gegen Unter als die
+# Über-Wette derselben Linie), die übrigen still („mmABein"), Spiele mit genau 2 Beinen still („mmA2"). Nie Public/X.
+# Urteil nach 100 Pushes: trägt, wenn mmA besser abschneidet als Frischer Zufluss / Live-Zufluss im selben Zeitraum.
+MM2_MIN = 3
 
 
-def mm1_push(d):
-    for liste, live in ((d.get("zufluss30") or [], False), (d.get("liveZufluss") or [], True)):
-        for z in liste:
-            fl = [f for f in z.get("fluss") or [] if f.get("markt") and f.get("auswahl")]
-            maerkte = {f["markt"] for f in fl}
-            if len(maerkte) < 2:
-                continue
-            lv = z.get("live") or {}
-            st = lv.get("stand") or [None, None]
-            lage = f"{st[0]}:{st[1]}" if live and None not in st else "vor"
-            fl.sort(key=lambda f: -(f.get("eur") or 0))
-            haupt = fl[0]
-            if len(maerkte) < MM1_MIN_MAERKTE:
-                yield (f"m2|{z.get('id')}|{lage}", None, None, {**_beleg("mm2", z, haupt, live=live), "nMaerkte": len(maerkte),
-                                                                 "beine": [[f["markt"], f["auswahl"], f.get("eur"), f.get("quote")] for f in fl]})
-                continue
-            kopf = (f"{e(z.get('liga'))} · {lv.get('min')}' · <b>{st[0]}:{st[1]}</b>" if live and lv.get("min") is not None and None not in st
-                    else f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}")
-            zeilen = []
-            for f in fl:
-                q, qv = f.get("quote"), f.get("quoteVorher")
-                pf = f" ↓ {q2(qv)}" if q and qv and q < qv - 0.01 else f" ↑ {q2(qv)}" if q and qv and q > qv + 0.01 else ""
-                zeilen.append(f"• <b>{e(remis(_auswahl_de(f['auswahl'])))}</b> <i>{e(_markt_de(f['markt']))}</i> @ <b>{q2(q)}</b>{pf}"
-                              f" · +{geld(f.get('eur'))} ({f.get('anteil')} %)")
-            text = (f"🧩 <b>Geld auf {len(maerkte)} Märkten</b> · Betfair · Test\n"
-                    f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
-                    f"{kopf}\n\n"
-                    f"<b>In den letzten {15 if live else 30} Min gleichzeitig:</b>\n" + "\n".join(zeilen) + "\n\n"
-                    + (stat_zeile(d, z.get("id")) if live else "")
-                    + liga_zeile(d, z.get("liga"))
-                    + "\n<i>Regel MM1 (Test): ≥ 3 Märkte bekommen gleichzeitig einseitig Geld. Nur hier im Money-Kanal.</i>")
-            beine = [[f["markt"], f["auswahl"], f.get("eur"), f.get("quote")] for f in fl]
-            yield (f"mm|{z.get('id')}|{lage}", text, None,
-                   {**_beleg("mm1", z, haupt, live=live), "nMaerkte": len(maerkte), "beine": beine,
-                    **({"stand": st, "minute": lv.get("min")} if live else {})})
-            for f in fl[1:]:
-                yield (f"mb|{z.get('id')}|{lage}|{f['markt']}|{f['auswahl']}", None, None,
-                       {**_beleg("mm1Bein", z, f, live=live), "nMaerkte": len(maerkte), **({"stand": st, "minute": lv.get("min")} if live else {})})
+def _mm_wette(b):
+    """Bein → (markt, auswahl, quote) der Wette, die das Geld nahelegt. Lay gegen Unter → Über derselben Linie."""
+    if b.get("art") != "layUnter":
+        return b["markt"], b["auswahl"], b.get("quote")
+    ueber = str(b["auswahl"]).replace("Under", "Over")
+    q = next((v[2] for v in b.get("marktVerteilung") or [] if v and v[0] == ueber), None)
+    return b["markt"], ueber, q
+
+
+def mm2_push(d):
+    for z in d.get("mmAngriff") or []:
+        live = bool(z.get("live"))
+        lv = z.get("live") or {}
+        st = lv.get("stand") or [None, None]
+        lage = f"{st[0]}:{st[1]}" if live and None not in st else "vor"
+        beine = z.get("beine") or []
+        wetten = [(b, *_mm_wette(b)) for b in beine]
+        def beleg(art, b, mk, aw, q):
+            return {**_beleg(art, z, {"markt": mk, "auswahl": aw, "quote": q, "eur": b.get("eur")}, live=live),
+                    "nBeine": z.get("n"), "bein": b.get("art"), **({"stand": st, "minute": lv.get("min")} if live else {})}
+        b0, mk0, aw0, q0 = wetten[0]
+        if (z.get("n") or 0) < MM2_MIN:
+            yield (f"a2|{z.get('id')}|{lage}", None, None, beleg("mmA2", b0, mk0, aw0, q0))
+            continue
+        kopf = (f"{e(z.get('liga'))} · {lv.get('min')}' · <b>{st[0]}:{st[1]}</b>" if live and lv.get("min") is not None and None not in st
+                else f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}")
+        zeilen = []
+        for b, mk, aw, q in wetten:
+            qa, qv = b.get("quote"), b.get("quoteVorher")
+            pf = f" ↓ {q2(qv)}" if qa and qv and qa < qv - 0.01 else f" ↑ {q2(qv)}" if qa and qv and qa > qv + 0.01 else ""
+            if b.get("art") == "layUnter":
+                zeilen.append(f"• <b>{e(_auswahl_de(aw))}</b> <i>{e(_markt_de(mk))}</i>" + (f" @ <b>{q2(q)}</b>" if q else "")
+                              + f" · Lay gegen {e(_auswahl_de(b['auswahl']))} ({q2(qa)}{pf}) +{geld(b.get('eur'))}")
+            else:
+                zeilen.append(f"• <b>{e(remis(_auswahl_de(aw)))}</b> <i>{e(_markt_de(mk))}</i> @ <b>{q2(q)}</b>{pf}"
+                              f" · +{geld(b.get('eur'))} ({b.get('anteil')} %)")
+        bild = (f"{e(z['team'])} soll gewinnen — mit Toren" if z.get("team") and any(b.get("art") != "team" for b in beine)
+                else f"{e(z['team'])} soll gewinnen" if z.get("team") else "Tore erwartet")
+        text = (f"⚔️ <b>ANGRIFFS-BILD · {z.get('n')} Märkte</b> · Betfair · Test\n"
+                f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
+                f"{kopf}\n\n"
+                f"🎯 <b>{bild}</b>\n"
+                f"<b>In den letzten {15 if live else 30} Min gleichzeitig:</b>\n" + "\n".join(zeilen) + "\n\n"
+                + (stat_zeile(d, z.get("id")) if live else "")
+                + liga_zeile(d, z.get("liga"))
+                + "\n<i>Regel MM2 (Test): ≥ 3 Märkte aus Sieg/HZ-Sieg/HZ-Über/Über zugleich, kein Geld dagegen. Nur im Money-Kanal.</i>")
+        yield (f"ma|{z.get('id')}|{lage}", text, None, beleg("mmA", b0, mk0, aw0, q0))
+        for b, mk, aw, q in wetten[1:]:
+            if q:
+                yield (f"mab|{z.get('id')}|{lage}|{mk}|{aw}", None, None, beleg("mmABein", b, mk, aw, q))
 
 
 def cm1_push(d):
@@ -1945,7 +1953,7 @@ def pk1_still(d):
 
 
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm1_push)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm2_push)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────

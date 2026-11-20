@@ -48,6 +48,9 @@ ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "W
          "kiModell": "AI-Modell allein, ohne Geld-Bedingung (still, ab 10.11.)",
          "kiTop3": "AI-Pick, der zugleich in den Top 3 in dieselbe Richtung stand (Test-Push, ab 10.11.; ab 11.11. abends K2: ≤ 20 Min, gleicher Stand, Quote zum Push)",
          "walKlein": "Wal unter ¼ seines üblichen Einsatzes (nicht gepusht, Wal-Regel 2 ab 06.11.)",
+         "mmA": "Angriffs-Bild: ≥ 3 Märkte aus Sieg/HZ-Sieg/HZ-Über/Über zugleich (Regel MM2, Test-Push, ab 20.11. 23:55)",
+         "mmABein": "MM2: die übrigen Märkte desselben Pushs (nicht einzeln gepusht)",
+         "mmA2": "Angriffs-Bild mit genau 2 Märkten (Vergleich zu MM2, nicht gepusht)",
          "mm1": "Geld auf ≥ 3 Märkten gleichzeitig (Regel MM1, Test-Push, ab 20.11.) — gebucht die Auswahl mit dem meisten Geld",
          "mm1Bein": "MM1: die übrigen Märkte desselben Pushs (nicht einzeln gepusht)",
          "mm2": "Geld auf genau 2 Märkten gleichzeitig (Vergleich zu MM1, nicht gepusht)",
@@ -728,14 +731,14 @@ def zusammenfassen(buch):
                  "wal": teile([b for b in buch if b.get("art") == "wal"])}
     letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "titel", "anzeige", "eur", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
-              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "pk1", "pk1Streit", "mm1Bein", "mm2", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell", "kiTop3")][:40]
+              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "pk1", "pk1Streit", "mm1Bein", "mm2", "mmABein", "mmA2", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell", "kiTop3")][:40]
     # Lucas 20.10. („Übersichtskurve auf die neuen Betfair-Pushes, weil das zählt"): jeder Push als
     # [Zeit UTC, Rendite je Einheit, 1/0] — offen mit None. build.py baut daraus die Bilanz-Kurve.
     grenze = datetime.now(timezone.utc) - timedelta(days=60)
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "druckVorn", "norm", "normMeist", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "pk1", "pk1Streit", "mm1Bein", "mm2", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell", "kiTop3"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "druckVorn", "norm", "normMeist", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "pk1", "pk1Streit", "mm1Bein", "mm2", "mmABein", "mmA2", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell", "kiTop3"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,
