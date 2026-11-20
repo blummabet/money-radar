@@ -37,6 +37,13 @@ from pathlib import Path
 BASIS = Path(__file__).resolve().parent / ".pm"
 MAERKTE = BASIS / "poly_maerkte.json"
 TRACK = BASIS / "poly_wallet_track.json"
+# 20.11. (Lucas: „mehrere Wale auf einer Seite — das muss doch möglich sein"): aufgelöste Einzelpositionen ab $1k
+# 60 Tage aufheben. Bisher gingen sie nach der Auflösung nur in die Wallet-Bilanz ein — welche Wale GEMEINSAM auf
+# einem Spiel saßen, war danach weg, jede Kombinations-Idee musste wochenlang neu gemessen werden. ~250 Positionen
+# am Tag, kompakt je Spiel ≈ 1–2 MB für 60 Tage (Speicher-Regel).
+ERLEDIGT = BASIS / "poly_erledigt.json"
+ERLEDIGT_TAGE, ERLEDIGT_MIN_USD = 60, 1000
+_ERLEDIGT_NEU = []
 
 GAMMA = "https://gamma-api.polymarket.com/events"
 import poly_v2      # 03.11.2026: Data API v1 (/holders, /positions) abgeschaltet → v2 (condition=, cursor, snake_case)
@@ -565,6 +572,8 @@ def track_fortschreiben(track, maerkte, aufgeloest):
             continue
         gew = sieger(preise)
         del openp[ok]
+        if (e.get("usd") or 0) >= ERLEDIGT_MIN_USD:
+            _ERLEDIGT_NEU.append((e, gew))
         if gew is None or e.get("side") not in preise:
             continue                                   # 50:50 oder Seite nicht zuordenbar → nicht werten
         # 22.10.: nur echte Werte vor Anpfiff — kein Rückfall auf den letzten Preis (der liegt im Spiel und kennt
@@ -599,6 +608,28 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         if ko and ko < grenze:
             del openp[ok]                              # nie aufgelöst gesehen → raus
     return {"open": openp, "scores": scores, "updatedAt": JETZT.isoformat(), "geprueft": track.get("geprueft") or {}}
+
+
+def erledigt_schreiben():
+    """Aufgelöste Positionen (ab $1k) je Spiel ablegen: {key: {ko, sport, liga, gew, pos: [[wallet, seite, usd,
+    einstieg, schluss, erstesSehen]]}}. gew None = 50:50/nicht zuordenbar."""
+    if not _ERLEDIGT_NEU:
+        return
+    try:
+        alt = json.loads(ERLEDIGT.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        alt = {}
+    for e, gew in _ERLEDIGT_NEU:
+        sp = alt.setdefault(e["key"], {"ko": e.get("koTs"), "sport": e.get("sport"), "liga": e.get("league"), "gew": gew, "pos": []})
+        einstieg = e.get("entryPrice") or (e.get("firstPrice") if (e.get("htkFirst") or 0) > 0 else None)
+        zeile = [e.get("wallet"), e.get("side"), e.get("usd"), einstieg, e.get("closePrice"), str(e.get("firstTs") or "")[:16]]
+        sp["pos"] = [p for p in sp["pos"] if not (p[0] == zeile[0] and p[1] == zeile[1])] + [zeile]
+    grenze = (JETZT - timedelta(days=ERLEDIGT_TAGE)).isoformat()
+    alt = {k: v for k, v in alt.items() if str(v.get("ko") or "9") >= grenze}
+    tmp = ERLEDIGT.with_suffix(".tmp")
+    tmp.write_text(json.dumps(alt, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    tmp.replace(ERLEDIGT)
+    print(f"  poly_markt: {len(_ERLEDIGT_NEU)} aufgelöste Positionen archiviert · {len(alt)} Spiele im Archiv")
 
 
 def aufloesung_ev(ev):
@@ -678,7 +709,7 @@ def buch_ereignisse():
     keys = {}
     for b in buch:
         ko = _ts(b.get("anpfiff"))
-        if b.get("art") in ("pserie", "wal", "top3p", "publicErg", "pserieGegen") and b.get("status") == "offen" and b.get("id") and ko \
+        if b.get("art") in ("pserie", "wal", "top3p", "publicErg", "pserieGegen", "walKlein", "pk1", "pk1Streit") and b.get("status") == "offen" and b.get("id") and ko \
                 and JETZT - ko > timedelta(hours=2):
             keys[b["id"]] = ko
     neu = {}
@@ -770,6 +801,10 @@ def main() -> int:
     aufg = aufloesungen(track, set(maerkte))
     buch_ereignisse()
     track = track_fortschreiben(track, maerkte, aufg)
+    try:
+        erledigt_schreiben()
+    except Exception as exc:  # noqa: BLE001 — das Archiv darf den Scan nie aufhalten
+        print(f"  poly_markt: Archiv fehlgeschlagen: {exc}")
 
     # Lebensbilanz: zuerst Wallets ohne Wert, dann die mit der meisten Historie
     kand = sorted((w for w, s in track["scores"].items() if isinstance(s, dict) and (s.get("n") or 0) >= 5),

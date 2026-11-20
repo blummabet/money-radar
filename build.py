@@ -2607,6 +2607,41 @@ def belegte_positionen(wallets, track, *quellen):
     return out
 
 
+# Regel PK1 (Lucas 20.11. 18:50 „ja, bitte"): Konsens bewährter Wallets, still gemessen. Vorab festgelegt:
+# * ≥ 2 verschiedene bewährte Wallets (CLV-Untergrenze > 0, je ≥ $1k) auf DERSELBEN Seite, zusammen ≥ $5k,
+# * bewährte Wallets auf allen anderen Seiten zusammen ≤ $2k,
+# * vor Anpfiff (bis 72 h), Preis der Seite 5–95 ¢, Sportarten und Märkte wie überall.
+# Zum Vergleich „pk1Streit": dieselbe Mehrheit, aber > $2k bewährtes Geld dagegen (Lucas' E-Sport-Frage).
+# Gebucht einmal je Markt + Seite beim ersten Erkennen; Abrechnung wie Wal-Pushes (Schlusskurs + Ergebnis).
+# Urteil nach 100 abgerechneten Fällen: trägt, wenn CLV im Mittel > +1 % UND ROI > 0.
+PK1_MIN_WALE, PK1_MIN_USD, PK1_MAX_GEGEN = 2, 5000, 2000
+
+
+def pk1(belegt, maerkte):
+    out = []
+    for key, liste in (belegt or {}).items():
+        m = (maerkte or {}).get(key)
+        if not m or m.get("live") or not poly_key_ok(key) or not sport_ok(m.get("sport")) or not zukunft(m.get("koTs"), nach_h=0, bis_h=72):
+            continue
+        seiten = {}
+        for x in liste:
+            seiten.setdefault(x["seite"], []).append(x)
+        for seite, wale in seiten.items():
+            if len({x["wallet"] for x in wale}) < PK1_MIN_WALE:
+                continue
+            usd = sum(x["usd"] for x in wale)
+            gegen = sum(x["usd"] for s2, l2 in seiten.items() if s2 != seite for x in l2)
+            p = (m.get("prices") or {}).get(seite)
+            if usd < PK1_MIN_USD or not isinstance(p, (int, float)) or not 0.05 <= p <= 0.95:
+                continue
+            out.append({"key": key, "titel": m.get("titel"), "liga": m.get("league"), "sport": m.get("sport"), "anpfiff": m.get("koTs"),
+                        "seite": seite, "preis": p, "quote": round(1 / p, 3), "usd": usd, "nWale": len(wale), "gegenUsd": gegen,
+                        "streit": gegen > PK1_MAX_GEGEN, "marktUsd": m.get("totalUsd"),
+                        "wale": [{"w": x["wallet"][-4:], "usd": x["usd"], "clvUg": x.get("clvUg")} for x in wale]})
+    out.sort(key=lambda x: (x["streit"], -x["usd"]))
+    return out
+
+
 # Lucas 19.10.: „Jetzt fließt Geld rein" bleibt reines Betfair — bekommt dasselbe Spiel in den letzten 30 Min auch auf
 # Polymarket oder Stake Geld, zeigt die Zeile einen kleinen Chip. geld_toepfe füllt diese Karte nebenbei (Betfair-ID → Quelle).
 AUCH_WOANDERS = {}
@@ -3132,7 +3167,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -3800,6 +3835,7 @@ def main() -> int:
         "bfSpanne": bf_spanne(prices),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
         "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, live_m, offen_m)),
+        "pk1": pk1(pbel, upcoming),             # 20.11. Regel PK1 (Beobachtung)
         "marktCharts": markt_charts(radar),
         "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(live_m or {})}, hr, pfl, pbel),
         "auchWoanders": dict(AUCH_WOANDERS),

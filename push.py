@@ -1850,8 +1850,20 @@ def bf_uhr_still(d):
                 "stand": st, "minute": x.get("min"), "rot": x.get("rot"), "eur": x.get("neu"), "regel": "LD1"})
 
 
+def pk1_still(d):
+    """20.11. Regel PK1: Konsens bewährter Polymarket-Wallets still ins Buch (kein Push) — je Markt + Seite einmal.
+    pk1 = ≥ 2 bewährte Wale einig, ≤ $2k bewährtes Geld dagegen; pk1Streit = dieselbe Mehrheit mit Gegenseite."""
+    for x in d.get("pk1") or []:
+        art = "pk1Streit" if x.get("streit") else "pk1"
+        yield (f"pk|{x['key']}|{x['seite']}", None, None,
+               {"art": art, "id": x["key"], "titel": x.get("titel"), "heim": None, "gast": None, "liga": x.get("liga"),
+                "sport": x.get("sport") or "Fußball", "anpfiff": x.get("anpfiff"), "markt": "Polymarket", "auswahl": x["seite"],
+                "anzeige": x["seite"], "quote": x["quote"], "preis": x["preis"], "usd": x["usd"], "nWale": x["nWale"],
+                "gegenUsd": x["gegenUsd"], "marktUsd": x.get("marktUsd"), "wale": x.get("wale"), "live": False, "regel": "PK1"})
+
+
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────
