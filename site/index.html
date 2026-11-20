@@ -2407,10 +2407,15 @@ function merkUmschalten(id){
     MERK.unshift({id:String(s.id), heim:s.heim, gast:s.gast, liga:s.liga, land:s.land, anpfiff:s.anpfiff, t:new Date().toISOString(), eur0:s.eur||0, fokus:merkFokus(s), tipp:null}); }
   merkSpeichern(); merkAnzeigen();
 }
+// 20.11. (Lucas: „mehr auswählen können als nur einen Markt"): je Spiel mehrere Tipps (z. B. Sieg + Über), jeder mit seiner
+// Quote beim Antippen und eigenem ✓/✗. Alte Einträge mit nur einem Tipp (x.tipp) werden beim Lesen übernommen.
+const merkTippsVon = x => x ? (Array.isArray(x.tipps) ? x.tipps : x.tipp ? [x.tipp] : []) : [];
 function merkTippSetzen(id, markt, name){
   const x = gemerkt(id); if(!x) return;
-  if(x.tipp && x.tipp.markt===markt && x.tipp.name===name) x.tipp = null;
-  else { const a = merkAuswahlJetzt(merkSpiel(id), {markt, name}); x.tipp = {markt, name, quote:a?.quote||null}; }
+  const L = merkTippsVon(x).slice(), i = L.findIndex(t=>t.markt===markt && t.name===name);
+  if(i>=0) L.splice(i,1);
+  else { const a = merkAuswahlJetzt(merkSpiel(id), {markt, name}); L.push({markt, name, quote:a?.quote||null}); }
+  x.tipps = L; delete x.tipp;
   merkSpeichern(); merkAnzeigen();
 }
 const merkKnopf = s => { const an = !!gemerkt(s.id);
@@ -2419,13 +2424,15 @@ function merkTipps(s){
   const x = gemerkt(s.id); if(!x) return "";
   const alle = []; for(const m of s.maerkteDetail||[]) for(const a of m.auswahl||[]) if(a.name!=="Rest" && a.quote && a.quote>=1.15) alle.push({m, a});
   alle.sort((p,q)=>q.a.eur-p.a.eur);
-  return `<div class="mt"><span class="mt-l">Dein Tipp?</span>${alle.slice(0,6).map(({m,a})=>{ const an = x.tipp && x.tipp.markt===m.name && x.tipp.name===a.name;
+  const T = merkTippsVon(x);
+  return `<div class="mt"><span class="mt-l">${T.length ? `Deine Tipps (${T.length})` : "Deine Tipps? (mehrere möglich)"}</span>${alle.slice(0,10).map(({m,a})=>{ const an = T.some(t=>t.markt===m.name && t.name===a.name);
     return `<button class="mt-c${an?" an":""}" data-merktipp="${esc(s.id+"|"+m.name+"|"+a.name)}">${esc(auswahlDe(a.name))} <small>${esc(marktDe(m.name))} @ ${q2(a.quote)}</small></button>`; }).join("")}</div>`;
 }
 function merkZeile(x, voll){
-  const s = merkSpiel(x.id), e = (D.endstaende||{})[x.id], t = x.tipp || x.fokus;
+  const s = merkSpiel(x.id), e = (D.endstaende||{})[x.id], T = merkTippsVon(x), t = T[0] || x.fokus;
   let status, w = null;
-  if(e?.ft){ w = t ? tippGewonnen(t.markt, t.name, x.heim, x.gast, e.ft, e.ht) : null;
+  const wv = tt => e?.ft ? tippGewonnen(tt.markt, tt.name, x.heim, x.gast, e.ft, e.ht) : null;
+  if(e?.ft){ w = T.length ? null : t ? wv(t) : null;
     status = `<span class="mz-end">${e.ft.join(":")}</span>`; }
   else if(s?.live) status = `<span class="t3-live"><i></i>${s.live.min!=null?s.live.min+"'":"live"}${s.live.stand?.[0]!=null?` · ${s.live.stand.join(":")}`:""}</span>`;
   else if(new Date(x.anpfiff) > Date.now()) status = `<span class="t3-zeit">${wann(x.anpfiff)}</span>`;
@@ -2433,23 +2440,29 @@ function merkZeile(x, voll){
   const plus = s ? (s.eur||0) - (x.eur0||0) : null;
   const jetzt = s && t ? merkAuswahlJetzt(s, t) : null;
   const fNow = s ? merkFokus(s) : null;
-  const gekippt = !x.tipp && fNow && x.fokus && (fNow.markt!==x.fokus.markt || fNow.name!==x.fokus.name);
+  const gekippt = !T.length && fNow && x.fokus && (fNow.markt!==x.fokus.markt || fNow.name!==x.fokus.name);
   const pz = s ? pushesZu(s).filter(p=>new Date(p.zeit) > new Date(x.t)) : [];
   const se = s ? serieVon(D, s.id) : null;
-  const q0 = x.tipp ? x.tipp.quote : x.fokus?.quote, q1 = jetzt?.quote;
-  const qz = q0 ? `@ ${q2(q0)}${q1 && Math.abs(q1-q0)>=0.01 ? ` → <b class="${q1<q0?"mz-ab":"mz-auf"}">${q2(q1)}</b>` : ""}` : "";
+  const qzVon = (q0, q1) => q0 ? `@ ${q2(q0)}${q1 && Math.abs(q1-q0)>=0.01 ? ` → <b class="${q1<q0?"mz-ab":"mz-auf"}">${q2(q1)}</b>` : ""}` : "";
+  const qz = qzVon(T.length ? T[0].quote : x.fokus?.quote, jetzt?.quote);
+  const wZ = v => v==null ? "" : ` <span class="mz-w ${v?"ok":"no"}">${v?"✓":"✗"}</span>`;
+  const tippZeilen = T.length
+    ? T.map(tt=>`<div class="mz-tipp">Dein Tipp: <b>${esc(auswahlDe(tt.name))}</b> <small>${esc(marktDe(tt.markt))}</small> ${qzVon(tt.quote, s ? merkAuswahlJetzt(s, tt)?.quote : null)}${wZ(wv(tt))}</div>`).join("")
+    : t ? `<div class="mz-tipp">Geld vorn: <b>${esc(auswahlDe(t.name))}</b> <small>${esc(marktDe(t.markt))}</small> ${qz}</div>` : "";
+  const wT = T.map(wv).filter(v=>v!=null);
   const chips = [
     se ? `<span class="t3-g" style="--f:var(--bf)"><i></i>🔁 ${se.n}× in Folge</span>` : "",
     pz.length ? `<span class="t3-g" style="--f:var(--down)"><i></i>📣 ${pz.length} Push${pz.length>1?"es":""} seitdem</span>` : "",
     gekippt ? `<span class="t3-g" style="--f:var(--hz)"><i></i>Geld jetzt vorn: ${esc(auswahlDe(fNow.name))}</span>` : "",
     !s && !e?.ft && new Date(x.anpfiff) > Date.now() ? `<span class="t3-g" style="--f:var(--text-3)"><i></i>gerade nicht im Abruf</span>` : ""].join("");
-  const ergebnis = w==null ? "" : `<span class="mz-w ${w?"ok":"no"}">${w?"✓":"✗"}</span>`;
+  const ergebnis = wT.length ? `<span class="mz-w ${wT.every(Boolean)?"ok":wT.some(Boolean)?"":"no"}">${wT.filter(Boolean).length}/${wT.length} ✓</span>`
+    : w==null ? "" : `<span class="mz-w ${w?"ok":"no"}">${w?"✓":"✗"}</span>`;
   const geld = e?.ft ? ergebnis : plus!=null ? `<b class="mz-plus${plus>0?" pos":""}">${plus>=0?"+":"−"}${eur(Math.abs(plus))}</b><small>seit gemerkt</small>` : "";
   return `<div class="mz${e?.ft?" fertig":""}"${s?bk("mk|"+x.id, s.eur, "€"):""} ${s?klickSpiel({id:s.id, heim:s.heim, gast:s.gast}):""}>
     <div class="mz-i">
       <div class="t3-o"><span class="t3-liga">${flagge(x.land)} ${esc(ligaName(x.liga)||"")}</span>${status}</div>
       <div class="mz-t">${esc(x.heim)} <span>–</span> ${esc(x.gast)}</div>
-      ${t ? `<div class="mz-tipp">${x.tipp?"Dein Tipp":"Geld vorn"}: <b>${esc(auswahlDe(t.name))}</b> <small>${esc(marktDe(t.markt))}</small> ${qz}</div>` : ""}
+      ${tippZeilen}
       ${chips ? `<div class="t3-gs">${chips}</div>` : ""}
     </div>
     <div class="mz-r">${geld}</div>
@@ -5125,6 +5138,9 @@ const STAT_K = {
   layGegen:["Lay-Verdacht: Gegenseite","Nur gemessen","color-mix(in srgb, var(--down) 60%, var(--text-3))"],
   walKlein:["Wal unter ¼ seines Einsatzes","Nur gemessen","color-mix(in srgb, var(--pm, var(--up)) 50%, var(--text-3))"],
   cm1:["Claude-Master (Test)","Test-Push","var(--pm, var(--up))"],
+  mm1:["Geld auf ≥ 3 Märkten (Test)","Test-Push","var(--bf)"],
+  mm1Bein:["MM1: weitere Märkte","Nur gemessen","color-mix(in srgb, var(--bf) 55%, var(--text-3))"],
+  mm2:["Geld auf 2 Märkten","Nur gemessen","color-mix(in srgb, var(--bf) 35%, var(--text-3))"],
   pk1:["Konsens bewährter Wale","Nur gemessen","color-mix(in srgb, var(--pm, var(--up)) 70%, var(--text-3))"],
   pk1Streit:["Konsens bewährter Wale, mit Gegenseite","Nur gemessen","color-mix(in srgb, var(--pm, var(--up)) 35%, var(--text-3))"],
   serieWdh:["Dauerzufluss, wiederholter Push","Nur gemessen","color-mix(in srgb, var(--bf) 25%, var(--text-3))"],
@@ -5587,6 +5603,7 @@ const REGELN = [
   {id:"D1", t:"Dauerzufluss live: Quote gegen die Uhr gedrückt", seit:"18.11.", w:"Live steigt eine Quote meist schon durch die Spielzeit. Fällt sie während der Serie (seit dem letzten Tor) trotzdem um ≥ 3 % und liegt ≥ 5 % unter dem, was die Uhr allein erwarten ließe (Grunddrift je Markt-Art, Quote und Spielphase, höchstens 20 Min hochgerechnet), steht im Push „🔻 Quote gegen die Uhr gedrückt“. Gemessen still über das Feld „uhrDrop“ im Buch.", b:"Anlass Kasem Bundit U21 – Khonkaen U21 (18.11., 77' 1:0, Über 1,5): Geld drückte die Quote, die Uhr hätte sie steigen lassen — stand im Push nur versteckt in der Geld-Zeile."},
   {id:"LW2", t:"Liga-Gewicht: geschrumpfte Schätzung statt 99 %-Urteil", seit:"18.11.", w:"Je Liga der ROI, wenn hohes Geld klar auf einer Seite lag (Liga-Buch, 90 Tage). Wie stark sich Ligen wirklich unterscheiden, wird aus allen Ligen geschätzt; jede Liga bekommt ein Gewicht zwischen Schnitt und eigenem Ergebnis — je mehr Märkte, desto näher am eigenen. ≥ 3 pp über dem Schnitt = „Liga gut“ (+1 im Top 3), ≥ 3 pp darunter = „Liga schwach“ (−1); Topf: (Gewicht − Schnitt) / 3, höchstens ±4. Prüfung: Stufen montags einfrieren, Woche danach abrechnen; nach 6 Wochen trägt es, wenn „gut“ in ≥ 4 Wochen vor „schwach“ lag und zusammen besser. Sonst zurück zum 99 %-Urteil. Seite: Menü → Ligen.", b:"18.11.: echte Liga-Unterschiede ±7 pp, je Liga aber ±13 pp Messungenauigkeit — darum fielen 183 von 194 Ligen auf „offen“. Vorwärts-Test an 3 Stichtagen: zweimal gut > neutral > schwach."},
   {id:"FB1", t:"Früh bewegt: Pinnacle zieht Tage vor Anpfiff", seit:"18.11.", w:"Steigt bei Pinnacle die Wahrscheinlichkeit einer Seite (Sieg-Markt, ohne Marge) um ≥ 3 pp über den ersten Stand — mindestens 24 h vor Anpfiff, an zwei 3-h-Ständen in Folge —, steht das Spiel im Bereich „Früh bewegt“. Still gemessen: CLV = Pinnacle-Quote beim Erkennen gegen die Pinnacle-Schlussquote; dazu, ob es weiterzieht oder zurückgeht und ob Betfair schon mitzog. Urteil nach 150 Fällen: trägt bei Ø-CLV > +1 % und mehr als der Hälfte positiv. Kein Push.", b:"Erste Auswertung 18.11.: 16 % der Spiele bewegen sich so früh um ≥ 3 pp. Schlussquote fehlte bisher (Tagessicherung um 1 Uhr) — seit 18.11. im Früh-Archiv."},
+  {id:"MM1", t:"Betfair: Geld auf mehreren Märkten gleichzeitig", seit:"20.11.", w:"Bekommen in einem Spiel gleichzeitig mindestens 3 verschiedene Märkte einseitig neues Geld — nach denselben Schwellen wie Frischer Zufluss und Live-Zufluss (vor Anpfiff 30 Min ≥ €3k, live 15 Min, je ≥ 65 % des neuen Geldes im Markt, Lay-Geld raus) —, kommt ein eigener Test-Push in den Money-Channel mit allen Märkten. Vor Anpfiff je Spiel einmal, live je Spielstand einmal. Gebucht wird die Auswahl mit dem meisten Geld (MM1), die übrigen Märkte still (MM1: weitere Märkte), Spiele mit genau 2 Märkten still zum Vergleich. Nie Public, nie X. Urteil nach 100 Pushes: trägt, wenn MM1 besser abschneidet als Frischer Zufluss / Live-Zufluss im selben Zeitraum.", b:"Lucas 20.11.: „Das Beste ist immer, wenn Sieg, Halbzeit-Sieg, Halbzeit-Über gespielt wird oder Bewegung auf dem Lay vom Unter — muss ich immer händisch suchen.“ Jede bisherige Regel schaut auf einen Markt für sich.", mess:[{n:"Geld auf ≥ 3 Märkten", a:["mm1"], ab:"2026-11-20T21:30"},{n:"weitere Märkte desselben Pushs", a:["mm1Bein"], ab:"2026-11-20T21:30"},{n:"Geld auf 2 Märkten", a:["mm2"], ab:"2026-11-20T21:30"},{n:"zum Vergleich: Frischer Zufluss + Live-Zufluss", a:["zufluss","live"], ab:"2026-11-20T21:30"}]},
   {id:"CM1", t:"Claude-Master: mein eigener Test-Push", seit:"20.11.", w:"Aus dem Push-Buch 20.10.–20.11. abgeleitet, Kriterien vorab fest: eine bewährte Polymarket-Wallet (Untergrenze des CLV > 0) hält ≥ $3k und mindestens ihren üblichen Einsatz auf einer Seite, Preis 20–80 ¢, Anpfiff in 20 Min bis 24 h, bewährtes Geld auf den anderen Seiten zusammen ≤ $2k. Je Markt ein Push in den Money-Channel, nie Public, nie X. Gemessen gegen den Polymarket-Schlusskurs und das Ergebnis. Urteil nach 60 Fällen: trägt bei Ø-CLV > +2 % und ROI > 0.", b:"Lucas 20.11.: „eine Push von dir mit allen Kriterien, die dir einfallen — zum Testen.“ Im Rückblick hatte nur diese Lage einen belastbaren Vorsprung vor Anpfiff (CLV +4,8 % ± 3,2, n = 87, ROI ±0). Pinnacle + Betfair-Geld sah mit Vorgriff nach +4,7 % aus, ohne Vorgriff −0,2 %. Live-Signale mit hohem ROI kommen vom Preis im Push-Moment: 15 Min später gekauft ±0 %.", mess:[{n:"Claude-Master", a:["cm1"], ab:"2026-11-20T18:00"},{n:"zum Vergleich: Wal-Pushes", a:["wal"], ab:"2026-11-20T18:00"}]},
   {id:"PK1", t:"Polymarket: mehrere bewährte Wale einig", seit:"20.11.", w:"Halten mindestens 2 bewährte Wallets (Untergrenze des CLV > 0, je ≥ $1k) zusammen ≥ $5k auf derselben Seite und bewährte Wallets auf den anderen Seiten zusammen höchstens $2k, wird das still gebucht — vor Anpfiff, Preis 5–95 ¢, je Markt und Seite einmal. Zum Vergleich wird dieselbe Mehrheit mit mehr als $2k bewährtem Geld dagegen getrennt gebucht. Abrechnung wie Wal-Pushes: Schlusskurs und Ergebnis. Urteil nach 100 Fällen: trägt bei Ø-CLV > +1 % und ROI > 0. Kein Push. Dazu werden aufgelöste Wal-Positionen ab $1k seit heute 60 Tage aufgehoben, damit sich Kombinationen auch rückwirkend prüfen lassen.", b:"Nachgerechnet 20.11.: bewährte Wallets schlagen den Schlusskurs danach nur um +0,7 pp. E-Sport: bei 149 von 278 Wal-Pushes saß ein anderer Wal auf der Gegenseite (±0 % ROI); ein Wal allein −14 %, mit anderen auf derselben Seite +10 % (51 Fälle, nicht belastbar).", mess:[{n:"Konsens, keiner dagegen", a:["pk1"], ab:"2026-11-20T18:00"},{n:"Konsens mit Gegenseite", a:["pk1Streit"], ab:"2026-11-20T18:00"},{n:"zum Vergleich: Wal-Pushes", a:["wal"], ab:"2026-11-20T18:00"}]},
   {id:"T8", t:"Top 3 + Topf: Nachwuchs und Tor-Linie still mitmessen", seit:"18.11.", w:"Zwei neue stille Merkmale ohne Punkte, rückwirkend für alle Kandidaten: Nachwuchs/Reserve/Frauen und Tor-Linie (Über/Unter, HZ-Tore) statt Sieg-Markt. Die Wochenrechnung (T7 / R31, dort als R32) zeigt ihren Effekt; Punkte bekommen sie erst, wenn wir das vorher festlegen.", b:"Betwatch-Oktober nachgespielt (7.089 Spiele): beide in allen vier Betfair-Signalen schwächer — Nachwuchs −5 bis −15 %, Tor-Linie −1 bis −8 % gegenüber Sieg-Markt. Ein Monat ist kein Beleg, darum nur messen."},

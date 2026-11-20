@@ -1850,6 +1850,58 @@ def bf_uhr_still(d):
                 "stand": st, "minute": x.get("min"), "rot": x.get("rot"), "eur": x.get("neu"), "regel": "LD1"})
 
 
+# Regel MM1 (Lucas 20.11. 22:27: „diese Mehrfach-Märkte … als Test-Push im Money-Channel. Wir haben ja schon für die
+# einzelnen Märkte die Push — wenn auf mehreren gespielt wird, kommt eine extra Push"). Vorab festgelegt:
+# * Grundlage sind genau die Märkte, die schon als Zufluss zählen (vor Anpfiff 30 Min ≥ €3k, live 15 Min ≥ €3k bzw. €20k in
+#   den Top 5, je ≥ 65 % des neuen Geldes im Markt, Quote ≥ 1,20, Lay-Geld und entschiedene Sieg-Märkte schon raus).
+# * Push, wenn in EINEM Spiel gleichzeitig ≥ 3 verschiedene Märkte so Geld bekommen. Vor Anpfiff je Spiel einmal, live je
+#   Spielstand einmal (nach einem Tor ist es eine neue Lage).
+# * Gebucht wird die Auswahl mit dem meisten Geld als „mm1", die übrigen still als „mm1Bein"; Spiele mit genau 2 Märkten
+#   still als „mm2" (Vergleich). Kein Public, kein X. Urteil nach 100 Pushes: trägt, wenn mm1 besser abschneidet als
+#   dieselben Märkte als Einzel-Push (art zufluss/live) im selben Zeitraum.
+MM1_MIN_MAERKTE = 3
+
+
+def mm1_push(d):
+    for liste, live in ((d.get("zufluss30") or [], False), (d.get("liveZufluss") or [], True)):
+        for z in liste:
+            fl = [f for f in z.get("fluss") or [] if f.get("markt") and f.get("auswahl")]
+            maerkte = {f["markt"] for f in fl}
+            if len(maerkte) < 2:
+                continue
+            lv = z.get("live") or {}
+            st = lv.get("stand") or [None, None]
+            lage = f"{st[0]}:{st[1]}" if live and None not in st else "vor"
+            fl.sort(key=lambda f: -(f.get("eur") or 0))
+            haupt = fl[0]
+            if len(maerkte) < MM1_MIN_MAERKTE:
+                yield (f"m2|{z.get('id')}|{lage}", None, None, {**_beleg("mm2", z, haupt, live=live), "nMaerkte": len(maerkte),
+                                                                 "beine": [[f["markt"], f["auswahl"], f.get("eur"), f.get("quote")] for f in fl]})
+                continue
+            kopf = (f"{e(z.get('liga'))} · {lv.get('min')}' · <b>{st[0]}:{st[1]}</b>" if live and lv.get("min") is not None and None not in st
+                    else f"{e(z.get('liga'))} · {anpfiff(z.get('anpfiff'))}")
+            zeilen = []
+            for f in fl:
+                q, qv = f.get("quote"), f.get("quoteVorher")
+                pf = f" ↓ {q2(qv)}" if q and qv and q < qv - 0.01 else f" ↑ {q2(qv)}" if q and qv and q > qv + 0.01 else ""
+                zeilen.append(f"• <b>{e(remis(_auswahl_de(f['auswahl'])))}</b> <i>{e(_markt_de(f['markt']))}</i> @ <b>{q2(q)}</b>{pf}"
+                              f" · +{geld(f.get('eur'))} ({f.get('anteil')} %)")
+            text = (f"🧩 <b>Geld auf {len(maerkte)} Märkten</b> · Betfair · Test\n"
+                    f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
+                    f"{kopf}\n\n"
+                    f"<b>In den letzten {15 if live else 30} Min gleichzeitig:</b>\n" + "\n".join(zeilen) + "\n\n"
+                    + (stat_zeile(d, z.get("id")) if live else "")
+                    + liga_zeile(d, z.get("liga"))
+                    + "\n<i>Regel MM1 (Test): ≥ 3 Märkte bekommen gleichzeitig einseitig Geld. Nur hier im Money-Kanal.</i>")
+            beine = [[f["markt"], f["auswahl"], f.get("eur"), f.get("quote")] for f in fl]
+            yield (f"mm|{z.get('id')}|{lage}", text, None,
+                   {**_beleg("mm1", z, haupt, live=live), "nMaerkte": len(maerkte), "beine": beine,
+                    **({"stand": st, "minute": lv.get("min")} if live else {})})
+            for f in fl[1:]:
+                yield (f"mb|{z.get('id')}|{lage}|{f['markt']}|{f['auswahl']}", None, None,
+                       {**_beleg("mm1Bein", z, f, live=live), "nMaerkte": len(maerkte), **({"stand": st, "minute": lv.get("min")} if live else {})})
+
+
 def cm1_push(d):
     """20.11. Regel CM1 „Claude-Master" (Lucas 19:13: „eine Push von dir … zum Testen"). Kriterien in build.cm1.
     Test-Push in den Money-Channel, nie Public, nie X. Je Markt höchstens einer (Sperre in main)."""
@@ -1893,7 +1945,7 @@ def pk1_still(d):
 
 
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm1_push)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────
