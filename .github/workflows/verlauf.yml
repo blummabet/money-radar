@@ -10,6 +10,10 @@ on:
       suche:
         description: 'Teamname (Teil reicht), z. B. "Liechtenstein U19"'
         required: true
+      markt:
+        description: 'optional: Markt-Name (Teil reicht), z. B. "Over/Under 1.5" — druckt dessen Quoten je Abruf'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -34,6 +38,7 @@ jobs:
       - name: Spiel suchen und Verlauf schreiben
         env:
           SUCHE: ${{ inputs.suche }}
+          MARKT: ${{ inputs.markt }}
         run: |
           python3 - <<'PY'
           import json, os, pathlib
@@ -57,6 +62,11 @@ jobs:
                   mo = p.get("mo") or {}
                   print(p.get("ts", "")[:16], "min", p.get("min"), "stand", p.get("sc"), "1X2", mo.get("hw"), mo.get("dr"), mo.get("aw"),
                         "vol", round(p.get("totalVol") or 0), "maerkte", len(p.get("sel") or {}))
+                mk = os.environ.get("MARKT", "").lower()
+                if mk:
+                    for name, sel in (p.get("sel") or {}).items():
+                        if mk in name.lower():
+                            print("     ", name, {r: v for r, v in sel.items()})
           PY
       - uses: actions/upload-artifact@v4
         with:
