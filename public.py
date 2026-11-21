@@ -22,6 +22,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import top3 as _top3
+
 BASIS = Path(__file__).resolve().parent
 STAND = BASIS / ".push_state" / "public.json"
 WIEN = ZoneInfo("Europe/Vienna")
@@ -83,6 +85,27 @@ def _ts(s):
 
 def _norm(s) -> str:
     return re.sub(r"[^a-z0-9]", "", str(s or "").lower())[:14]
+
+
+# 21.11. (Nice – PSG ging zweimal in Public, „Nice – Paris St-G" aus Betfair und „Nice - Paris Saint Germain" aus Stake):
+# „schon gesendet" prüfte nur die ersten 14 Zeichen des Titels. Jetzt zusätzlich der Team-Schlüssel aus top3 (erstes
+# tragendes Wort beider Teams, sortiert) — dieselbe Zuordnung, die Top 3 für Stake ↔ Betfair nutzt.
+def _spiel_keys(spiel):
+    ks = {_norm(spiel)} - {""}
+    h, g = _top3._teams_aus_titel(spiel)
+    tk = _top3.schluessel(h, g)
+    if tk:
+        ks.add("t:" + tk)
+    return ks
+
+
+def _schon(s, spiel) -> bool:
+    return bool(_spiel_keys(spiel) & set(s.get("spiele") or []))
+
+
+def _merken(s, spiel):
+    L = s.setdefault("spiele", [])
+    L.extend(k for k in _spiel_keys(spiel) if k not in L)
 
 
 def _fenster(jetzt):
@@ -305,7 +328,7 @@ def _key(m):
 
 def sammeln(s, m, jetzt):
     """Signal in den Topf (nur wenn es die Regel erfüllt und das Spiel heute noch nicht gepostet wurde)."""
-    if not passt(m) or not _norm(m.get("spiel")) or _norm(m.get("spiel")) in s.get("spiele", []):
+    if not passt(m) or not _norm(m.get("spiel")) or _schon(s, m.get("spiel")):
         return
     t = s.setdefault("topf", {})
     k = _key(m)
@@ -602,9 +625,9 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None, info=None):
             p = round(p + bonus, 1)
             if sp27:
                 c["r27"] = sp27
-        if p is None or _norm((c.get("m") or {}).get("spiel")) in s.get("spiele", []):
+        if p is None or _schon(s, (c.get("m") or {}).get("spiel")):
             m = c.get("m") or {}
-            if c.get("best") is not None and _norm(m.get("spiel")) not in s.get("spiele", []):
+            if c.get("best") is not None and not _schon(s, m.get("spiel")):
                 s["liste"].append({"zeit": (c.get("bestZeit") or c.get("letzt") or "")[:16], "art": m.get("art"), "spiel": m.get("spiel"),
                                    "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                                    "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": c.get("best"),
@@ -635,7 +658,7 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None, info=None):
                                "live": bool(m.get("live")), "regel": REGEL, "gesendet": False, "punkte": p, "sperre": sperre,
                                "stake": stake(c, p), "stakeRegel": STAKING_REGEL, "qInfo": m.get("qInfo"), "signale": len(c.get("ereignisse") or []),
                                "p": c.get("teile"), "still": merkmale(c), "vt": c.get("vt")})
-            s.setdefault("spiele", []).append(_norm(m.get("spiel")))     # das Spiel heute nicht mehr
+            _merken(s, m.get("spiel"))     # das Spiel heute nicht mehr
             t.pop(k, None)
             print(f"  public gesperrt: {m.get('spiel')} · {sperre}")
             continue
@@ -656,6 +679,8 @@ def auswahl(s, jetzt, aktuell=None, toepfe=None, quoten=None, info=None):
             grund = "live"
         else:
             continue
+        if any(_spiel_keys(m.get("spiel")) & _spiel_keys(x[0].get("spiel")) for x in aus):
+            continue            # 21.11.: dasselbe Spiel aus zwei Quellen im selben Lauf (Nice – PSG) — nur das stärkere
         gesendet += 1
         m["_stake"] = stake(c, p)
         m["_teile"], m["_still"], m["_vt"] = dict(c.get("teile") or {}), merkmale(c), c.get("vt")
@@ -721,8 +746,7 @@ def platz(s, m, jetzt):
     """None = kein Platz / schon gesendet; sonst (Nr. im Fenster, Fenster-Index)."""
     if jetzt < _ts(AB):
         return None
-    sk = _norm(m.get("spiel"))
-    if not sk or sk in s["spiele"]:
+    if not _norm(m.get("spiel")) or _schon(s, m.get("spiel")):
         return None
     f = _fenster(jetzt)
     # Regel 3: höchstens 1 Wal je Fenster — die übrigen Plätze bleiben für Betfair/Stake
@@ -736,7 +760,7 @@ def buchen(s, m, nr_f, jetzt, punkte=None, grund=None):
     n, f = nr_f
     s["fenster"][str(f)] = n
     s.setdefault("arten", {}).setdefault(str(f), []).append(m.get("art"))
-    s["spiele"].append(_norm(m.get("spiel")))
+    _merken(s, m.get("spiel"))
     s["liste"].append({"zeit": jetzt.strftime("%Y-%m-%dT%H:%M"), "art": m.get("art"), "spiel": m.get("spiel"),
                        "auswahl": m.get("auswahlRoh") or m.get("auswahl"), "quote": m.get("quote"), "liga": m.get("liga"),
                        "live": bool(m.get("live")), "regel": REGEL, "faktor": m.get("faktor"),
