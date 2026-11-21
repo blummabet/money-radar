@@ -1193,21 +1193,79 @@ def _geld_block(fl, minuten):
 _VT_CACHE = {}
 
 
+def _vt_spiel(b):
+    """Betfair-Spiel zum Beleg: über die matchId, sonst (Stake-Belege „stake:…") über die Teamnamen wie in den Top 3."""
+    import top3 as _t3
+    bf = _VT_CACHE["bf"]
+    sid = str(b.get("id") or "")
+    if sid in bf:
+        return bf[sid]
+    k = _t3.schluessel(b.get("heim"), b.get("gast"))
+    if not k:
+        return None
+    if "bfk" not in _VT_CACHE:
+        _VT_CACHE["bfk"] = {}
+        for m in bf.values():
+            kk = _t3.schluessel(m.get("home"), m.get("away"))
+            if kk:
+                _VT_CACHE["bfk"].setdefault(kk, m)
+    return _VT_CACHE["bfk"].get(k)
+
+
+_VT_SIEG = ("Match Odds", "Draw No Bet", "Draw no Bet", "1x2", "Match Winner", "Moneyline", "Match Winner - Twoway")
+
+
+def _vt_markt(m, markt, auswahl):
+    """(Betfair-Markt, Runner-Name, nur zwei Teams?) — 21.11.: Stake nennt Märkte und Auswahlen anders („Over 1.5",
+    „Rayo Vallecano de Madrid", „Draw No Bet"); bisher blieb die Verteilung dann „unbekannt"."""
+    import top3 as _t3
+    mks = (m or {}).get("markets") or {}
+    a = str(auswahl or "")
+    ou = re.match(r"^(Over|Under)\s+(\d+\.5)", a, re.I)
+    if markt in mks:
+        name = markt
+    elif ou:
+        name = f"Over/Under {ou.group(2)} Goals"
+    elif not markt or any(str(markt).startswith(x) for x in _VT_SIEG):
+        name = "Match Odds"
+    else:
+        return None, None, False
+    mk = mks.get(name) or {}
+    runner = [r.get("name") for r in mk.get("runners") or []]
+    if a in runner:
+        r = a
+    elif ou:
+        r = next((x for x in runner if re.match(rf"^{ou.group(1)}\s+{re.escape(ou.group(2))}\b", str(x), re.I)), None)
+    elif re.match(r"^(the )?draw$|^x$|^remis$", a, re.I):
+        r = "The Draw" if "The Draw" in runner else None
+    else:
+        t = _t3.team(a)
+        r = next((x for x in runner if x != "The Draw" and _t3.team(x) == t), None)
+    dnb = name == "Match Odds" and str(markt or "").lower().startswith("draw no bet")
+    return (name if mk else None), r, dnb
+
+
 def verteilung(d, b):
     """Public-Regel R34: (Anteil der gewählten Seite am ganzen Markt 0–1, Markt-Betrag) oder None. Betfair: gematchtes Geld je
     Auswahl im Markt (betfair_prices.json). Polymarket: offene Positionen je Seite (poly_buch.json), sonst die Käufe
-    je Seite aus dem Fluss. REIN bis aufs einmalige Lesen der beiden Dateien."""
+    je Seite aus dem Fluss. REIN bis aufs einmalige Lesen der beiden Dateien.
+    21.11. (Lucas „ja, repariert die Namensgeschichte"): Stake-Belege und abweichende Namen finden ihr Betfair-Spiel über
+    die Teamnamen, ihren Markt und ihre Auswahl über die Linie bzw. das Team; „Draw No Bet" zählt ohne das Remis."""
     if not b:
         return None
     sid, art = str(b.get("id") or ""), b.get("art")
     try:
-        if sid.isdigit():
+        if sid.isdigit() or sid.startswith("stake:") or art in ("stake", "stakeTeam", "stakeWal"):
             if "bf" not in _VT_CACHE:
                 _VT_CACHE["bf"] = {str(m.get("matchId")): m for m in (json.loads((BASIS / ".bf" / "betfair_prices.json").read_text(encoding="utf-8")).get("matches") or [])}
-            mk = ((_VT_CACHE["bf"].get(sid) or {}).get("markets") or {}).get(b.get("markt")) or {}
-            v = {r.get("name"): float(r.get("vol") or 0) for r in mk.get("runners") or []}
+            m = _vt_spiel(b)
+            name, r, dnb = _vt_markt(m, b.get("markt"), b.get("auswahl"))
+            if not name or not r:
+                return None
+            mk = m["markets"][name]
+            v = {x.get("name"): float(x.get("vol") or 0) for x in mk.get("runners") or [] if not (dnb and x.get("name") == "The Draw")}
             ges = sum(v.values())
-            return (round(v[b["auswahl"]] / ges, 3), round(ges)) if ges >= 500 and b.get("auswahl") in v else None
+            return (round(v[r] / ges, 3), round(ges)) if ges >= 500 and r in v else None
         if art in ("pserie", "pfluss", "wal"):
             if "pm" not in _VT_CACHE:
                 _VT_CACHE["pm"] = {str(x.get("key")): x for x in json.loads((BASIS / "poly_buch.json").read_text(encoding="utf-8"))}
@@ -2116,7 +2174,7 @@ def main() -> int:
                     if pub:
                         _vt = verteilung(d, beleg)                                          # R34
                         public.sammeln(pub_stand, {**pub, "verteilung": _vt[0] if _vt else None, "vtMarkt": _vt[1] if _vt else None,
-                                                   "_q": {k: beleg.get(k) for k in ("id", "art", "markt", "auswahl", "anzeige")}}, JETZT)
+                                                   "_q": {k: beleg.get(k) for k in ("id", "art", "markt", "auswahl", "anzeige", "heim", "gast")}}, JETZT)
                     if beleg and beleg.get("art") == "pinn":          # Public-Regel 30: Pinnacle-Drop verstärkt den Kandidaten
                         public.pinn_merken(pub_stand, beleg, JETZT)
                 except Exception as exc:  # noqa: BLE001
