@@ -117,6 +117,8 @@ def _get(url):
                 time.sleep(1)
                 continue
     _STAT["fehler"] += 1
+    _h = urllib.parse.urlparse(url)
+    _STAT.setdefault("wo", {})[_h.netloc + _h.path.split("?")[0][:30]] = _STAT.get("wo", {}).get(_h.netloc + _h.path.split("?")[0][:30], 0) + 1
     return None
 
 
@@ -870,6 +872,8 @@ def main() -> int:
         tmp = p.with_suffix(".tmp")
         tmp.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         tmp.replace(p)
+    if _STAT.get("wo") or _STAT.get("erster"):        # 21.11.: woher die Fehler kommen (seit Tagen ~26 je Lauf)
+        print(f"  poly_markt: Fehler nach Ziel {_STAT.get('wo')} · erster: {_STAT.get('erster')}")
     if _STAT.get("clvUnmoeglich"):
         print(f"  poly_markt: {_STAT['clvUnmoeglich']} Positionen mit unmöglichem CLV (> {CLV_MAX_PP} pp) nicht gewertet")
     print(f"  poly_markt: {len(aufg)} Auflösungen gewertet · {len(track['open'])} offene Wal-Positionen · "
