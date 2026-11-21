@@ -96,7 +96,7 @@ main{padding:22px 28px 60px;min-width:0}
 .leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-2);margin-top:6px}
 .leg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
 .leg b{color:var(--text)}
-.det{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:22px;padding-top:6px}
+.det{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:22px;padding-top:6px}
 .det h4{margin:0 0 8px;font-size:12.5px;color:var(--text-3);font-weight:600}
 .mini-liste{font-size:13px;color:var(--text-2)}
 .mini-liste div{display:flex;justify-content:space-between;gap:10px;padding:3px 0}
@@ -507,7 +507,7 @@ main{padding:22px 28px 60px;min-width:0}
 .dr-kopf{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .dr-kopf h3{margin:0;font-size:17px}
 .dr-x{margin-left:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;width:34px;height:34px}
-.drawer .det{grid-template-columns:1fr;gap:20px}
+.drawer .det{grid-template-columns:minmax(0,1fr);gap:20px}  /* 21.11.: 1fr wuchs mit dem längsten Chip mit → Blatt breiter als der Bildschirm */
 .drawer .det svg{width:100%}
 .drawer .det .mk-i svg{width:62px;height:62px}   /* Lucas 19.10.: die Kreise nahmen die ganze Kachelbreite, die Beschriftung rutschte raus */
 .d-kopf{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--text-2)}
@@ -569,7 +569,7 @@ main{padding:22px 28px 60px;min-width:0}
   .feedpanel{display:none}
   .ticker{display:block}
   .ticker .ph{margin-bottom:2px}
-  .det{grid-template-columns:1fr}
+  .det{grid-template-columns:minmax(0,1fr)}
   .kgrid{grid-template-columns:1fr;gap:8px}
   .mgrid{grid-template-columns:1fr 1fr;gap:6px}
   .mk{padding:8px}
@@ -1370,13 +1370,13 @@ html,body{overflow-x:clip} .app{overflow-x:clip;max-width:100vw} main{overflow-x
 .gs-leg i.f{background:var(--bf)} .gs-leg em{font-style:normal;color:var(--text-3)}
 /* Spiel-Fenster neu (23.10.) */
 .dk{display:flex;flex-direction:column;gap:3px}
-.dk-1{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-2)}
+.dk-1{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-2);flex-wrap:wrap;row-gap:6px}
 .dk-1 .flag{width:18px;height:13px}
 .dk-live{color:var(--down);font-weight:800}
 .dk-2{font-size:14px;color:var(--text-2)} .dk-2 b{color:var(--text);font-size:18px}
 .dk-n{font-weight:800;margin-left:6px}
 .dcs{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;align-content:flex-start}  /* 31.10.: im gestreckten Grid-Feld wurden die Chips zu riesigen Kreisen */
-.dc{--f:var(--text-2);font-size:12.5px;padding:4px 10px;border-radius:999px;background:var(--flaeche-2);color:var(--text);border:1px solid color-mix(in srgb, var(--f) 30%, transparent);white-space:nowrap}
+.dc{--f:var(--text-2);font-size:12.5px;padding:4px 10px;border-radius:999px;background:var(--flaeche-2);color:var(--text);border:1px solid color-mix(in srgb, var(--f) 30%, transparent);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}  /* 21.11.: ein langer Chip (Angriffs-Bild) machte das ganze Blatt breiter als den Bildschirm */
 .dc small{color:var(--text-3);font-size:11px}
 .dc.stark{background:var(--text);color:var(--bg);border-color:transparent;font-weight:800} .dc.stark small{color:color-mix(in srgb, var(--bg) 70%, transparent)}
 .dc.bf{--f:var(--bf);color:var(--bf);font-weight:700}
@@ -2342,7 +2342,7 @@ function teilenText(s){
   fl.sort((x,y)=>y.a.neu-x.a.neu);
   const se = serieVon(D, s.id);
   if(se) z.push(`🔁 ${se.n}× in Folge: ${eur(se.eur)} auf ${auswahlDe(se.auswahl)} @ ${q2(se.quote)} (${marktDe(se.markt)})`);
-  for(const p of pushesZu(s).slice(0,2)) if(!se || auswahlDe(se.auswahl)!==auswahlDe(p.auf)) z.push(`📣 ${p.art||"Push"} um ${uhr(p.zeit)}: ${auswahlDe(p.auf)} @ ${q2(p.quote)}${p.eur?` · ${eur(p.eur)}`:""}`);
+  for(const p of pushesZu(s).slice(0,2)) if(!se || auswahlDe(se.auswahl)!==auswahlDe(p.auf)) z.push(`📣 ${artKurz(p.art)} um ${uhr(p.zeit)}: ${auswahlDe(p.auf)} @ ${q2(p.quote)}${p.eur?` · ${eur(p.eur)}`:""}`);
   const t = fl[0];
   // der Markt im Bild: Serie, sonst der mit dem meisten Geld auf einer Auswahl (Stand, ohne Absicherung)
   let mBest = null, aBest = null; for(const mm of md) for(const aa of mm.auswahl) if(aa.name!=="Rest" && !(aa.quote && aa.quote<1.15) && (!aBest || aa.eur>aBest.eur)){ aBest = aa; mBest = mm; }
@@ -2515,7 +2515,7 @@ function dChips(s, fl, fm){
   const se = serieVon(D, s.id);
   if(se) c.push(`<span class="dc bf">🔁 läuft: ${se.n}× in Folge · ${esc(auswahlDe(se.auswahl))} @ ${q2(se.quote)} · ${eur(se.eur)}</span>`);
   for(const p of pushesZu(s).slice(0,3)) if(!(se && auswahlDe(se.auswahl)===auswahlDe(p.auf) && /Dauer/.test(p.art||"")))
-    c.push(`<span class="dc bf" title="Push ${esc(p.art||"")} um ${uhr(p.zeit)}">📣 ${esc(p.art||"Push")} ${uhr(p.zeit)} · ${esc(auswahlDe(p.auf))} @ ${q2(p.quote)}${p.eur?` · ${eur(p.eur)}`:""}${p.status==="won"?" ✓":p.status==="lost"?" ✗":""}</span>`);
+    c.push(`<span class="dc bf" title="Push ${esc(p.art||"")} um ${uhr(p.zeit)}">📣 ${esc(artKurz(p.art))} ${uhr(p.zeit)} · ${esc(auswahlDe(p.auf))} @ ${q2(p.quote)}${p.eur?` · ${eur(p.eur)}`:""}${p.status==="won"?" ✓":p.status==="lost"?" ✗":""}</span>`);
   // gedrückte Quote: die Auswahl mit dem meisten neuen Geld, gegenüber vor ~1 h
   const md = s.maerkteDetail||[];
   const ta = t && (md.find(m=>m.name===t.markt)?.auswahl||[]).find(a=>a.name===t.name);
@@ -3902,6 +3902,8 @@ function jetztFliesst(D, n=8){
 // Punkte je Signal, jedes Signal ein farbiges Stück im Balken: Dauerzufluss, Push, neues Geld, Liga-Norm, Quote gedrückt,
 // auch auf Polymarket/Stake, Liga-Bilanz. Raus: entschieden, klar vorn, Geld unter Quote 1,20 (Absicherung).
 const t3Pushes = s => pushesZu(s).filter(x=>/Halbzeit|Fix/i.test(x.art||""));
+// 21.11.: Push-Arten tragen lange Beschreibungen („Angriffs-Bild: ≥ 3 Märkte aus … (Regel MM2, …)") — auf Chips nur der Name.
+function artKurz(a){ return String(a||"Push").split(" (")[0].split(": ")[0].split(" — ")[0]; }
 const T3_SIG = [["serie","🔁 Dauerzufluss","var(--bf)"],["push","📣 HZ-Push","var(--down)"],["neu","💶 neues Geld","var(--up)"],
   ["quote","🔻 Quote gedrückt","var(--hz)"],["poly","🧠 Polymarket","var(--poly)"],["stake","🎰 Stake","var(--stake)"],["maerkte","🧩 Mehrere Märkte","var(--up)"],["druck","📊 Druck","var(--hz)"],["liga","Liga trägt","var(--text-2)"]];
 // Lucas 25.10.: „wenn parallel mehrere Märkte eines Spiels bespielt werden — Heimsieg, aber auch Über, HZ-Sieg, HZ-Über —
