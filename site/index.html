@@ -4138,15 +4138,25 @@ function druckGrafik(x){
   let vorher = [0, 0, 0, [0, 0]], tore = "";
   // 03.11.: API-Football korrigiert xG auch nach unten (Shakhtar 57' 1,17 → 62' 0,90 → 78' 1,53). Gezählt wird nur,
   // was über den bisher höchsten Wert hinausgeht — sonst stünde der Wiederanstieg doppelt in den Balken.
-  const hoch = [0, 0];
+  // 21.11. (Lucas: „die Balken kommen mir oft zu wenig vor, obwohl die Stats in der 2. HZ gut aussahen" — Genk 2. HZ:
+  // 7 Schüsse, 3 aufs Tor, 2 Ecken, aber nur 0,59 xG): die Balken zeigen jetzt DRUCK statt reinem xG — mit denselben
+  // Gewichten wie der Druck-Index: xG + 0,12 je Schuss aufs Tor + 0,04 je Ecke. Jeder Teil zählt nur, was über seinen
+  // bisher höchsten Wert hinausgeht.
+  const hoch = [0, 0], hAt = [0, 0], hEck = [0, 0], teil = Array.from({length:19}, ()=>[[0,0,0],[0,0,0]]);
+  const num = v_ => typeof v_ === "number" ? v_ : null;
   for(const p0 of v){
     const p = [p0[0], Math.max(p0[1], hoch[0]), Math.max(p0[2], hoch[1]), ...p0.slice(3)];
-    hoch[0] = p[1]; hoch[1] = p[2];
+    const at = [0,1].map(i=>num((p0[5]||[])[i]) != null ? Math.max(p0[5][i], hAt[i]) : hAt[i]);
+    const eck = [0,1].map(i=>num((p0[6]||[])[i]) != null ? Math.max(p0[6][i], hEck[i]) : hEck[i]);
+    const dAt = [0,1].map(i=>Math.max(0, at[i]-hAt[i])), dEck = [0,1].map(i=>Math.max(0, eck[i]-hEck[i]));
+    hoch[0] = p[1]; hoch[1] = p[2]; hAt[0] = at[0]; hAt[1] = at[1]; hEck[0] = eck[0]; hEck[1] = eck[1];
     const a = vorher[0], e = p[0], dm = Math.max(1, e - a);
     for(let k = Math.floor(a/5); k*5 < e && k < 19; k++){
-      const ueber = Math.max(0, Math.min(e, k*5+5) - Math.max(a, k*5));
-      fach[k][0] += Math.max(0, p[1]-vorher[1]) * ueber/dm;
-      fach[k][1] += Math.max(0, p[2]-vorher[2]) * ueber/dm;
+      const ueber = Math.max(0, Math.min(e, k*5+5) - Math.max(a, k*5)), w_ = ueber/dm;
+      [0,1].forEach(i=>{
+        const dx = Math.max(0, p[1+i]-vorher[1+i]) * w_, da = 0.12*dAt[i]*w_, de = 0.04*dEck[i]*w_;
+        fach[k][i] += dx + da + de; teil[k][i][0] += dx; teil[k][i][1] += dAt[i]*w_; teil[k][i][2] += dEck[i]*w_;
+      });
     }
     const st = p[3], sv = vorher[3]||[0,0];
     if(st && sv && !(x.tore||[]).length) [[0,"var(--bf)",-1,x.heim],[1,"var(--pin)",1,x.gast]].forEach(([k,f,dir,name])=>{ if((st[k]||0) > (sv[k]||0)){ const cx = X(p[0]).toFixed(1);
@@ -4163,14 +4173,15 @@ function druckGrafik(x){
     const blass = (k+1)*5 <= erst, x0 = X(k*5)+.7, w = X(k*5+5)-X(k*5)-1.4;
     [[hx,-1,"var(--bf)",x.heim],[ax,1,"var(--pin)",x.gast]].forEach(([val,dir,f,name])=>{
       const h = Math.min(HOCH, val/VOLL*HOCH); if(h < .8) return;
-      balken += `<rect x="${x0.toFixed(1)}" y="${(dir<0 ? MITTE-h : MITTE).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${f}" opacity="${blass ? .3 : (.45+.55*h/HOCH).toFixed(2)}"><title>${k*5}.–${k*5+5}. Min: ${esc(name)} xG ${dez(val,2)}${blass?" (Durchschnitt bis zum ersten Abruf)":""}</title></rect>`;
+      const tl = teil[k][dir<0?0:1];
+      balken += `<rect x="${x0.toFixed(1)}" y="${(dir<0 ? MITTE-h : MITTE).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${f}" opacity="${blass ? .3 : (.45+.55*h/HOCH).toFixed(2)}"><title>${k*5}.–${k*5+5}. Min: ${esc(name)} Druck ${dez(val,2)} — xG ${dez(tl[0],2)} · aufs Tor ${dez(tl[1],1)} · Ecken ${dez(tl[2],1)}${blass?" (Durchschnitt bis zum ersten Abruf)":""}</title></rect>`;
     });
   });
   const gm = (x.geldMin||[]).filter(g=>g[1]>0), gmax = Math.max(0, ...gm.map(g=>g[1]));
   const geld = gmax >= 300 ? gm.map(([b,e])=>{ const h = Math.max(1.2, Math.sqrt(e/gmax)*10);
     return `<rect x="${(X(b)+.7).toFixed(1)}" y="${(86-h).toFixed(1)}" width="${(X(b+5)-X(b)-1.4).toFixed(1)}" height="${h.toFixed(1)}" rx="1" fill="var(--up)" opacity=".75"><title>${b}.–${b+5}. Min: +${eur(e)} neues Geld</title></rect>`; }).join("") : "";
   const jetzt = X(bis), kurzN = n => esc(String(n||"").length > 14 ? String(n).slice(0,13)+"…" : n);
-  return `<svg viewBox="0 0 ${W} 90" role="img" aria-label="xG je 5 Minuten: ${esc(x.heim)} oben, ${esc(x.gast)} unten${geld?", darunter neues Geld":""}">
+  return `<svg viewBox="0 0 ${W} 90" role="img" aria-label="Druck je 5 Minuten: ${esc(x.heim)} oben, ${esc(x.gast)} unten${geld?", darunter neues Geld":""}">
     <text x="${(x.min||0) < 40 ? L+B : L}" y="7" font-size="7.5" font-weight="800" fill="var(--bf)" text-anchor="${(x.min||0) < 40 ? "end" : "start"}">▲ ${kurzN(x.heim)}</text>
     <text x="${L}" y="${MITTE+HOCH+6}" font-size="7.5" font-weight="800" fill="var(--pin)">▼ ${kurzN(x.gast)}</text>
     <line x1="${L}" x2="${L+B}" y1="${MITTE}" y2="${MITTE}" stroke="var(--line)" stroke-width="1"/>
@@ -4182,7 +4193,7 @@ function druckGrafik(x){
     <text x="${jetzt}" y="7" font-size="7.5" font-weight="900" fill="var(--g)" text-anchor="middle">${bis}'</text>
     ${geld ? `<text x="${L}" y="74" font-size="7" fill="var(--text-3)" font-weight="700">GELD</text>${geld}` : ""}
   </svg>
-  <div class="pr-leg">Balken = xG je 5 Min · ◎ Tor · ${geld?"grün = neues Betfair-Geld · ":""}blass = vor unserem ersten Abruf</div>`;
+  <div class="pr-leg">Balken = Druck je 5 Min (xG + Schüsse aufs Tor + Ecken) · ◎ Tor · ${geld?"grün = neues Betfair-Geld · ":""}blass = vor unserem ersten Abruf</div>`;
 }
 function druckKarte(x){
   const t = x.teams||{}, h = t.heim||{}, g = t.gast||{}, s = x.seite, d = t[s]||{};
