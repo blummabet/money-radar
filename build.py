@@ -827,6 +827,7 @@ MIN_FENSTER = 15    # Aufloesungen im Messfenster, ab denen eine Untergrenze etw
 # 10.11. (Lucas: „Messlatte höher, dass Glückstreffer weg sind"): bei ~200 geprüften Wallets wirkten mit 90 % (z 1,645)
 # rund 10 nur durch Zufall „bewährt" — jetzt 99 % (z 2,33). Stand 10.11.: 32 → 17 bewährte.
 BEWAEHRT_Z = 2.33
+LIVE_ZEIGEN_N, LIVE_MIN_N, LIVE_Z = 10, 30, 1.645    # Regel WL1 (21.11.)
 
 
 POLY_TOP5 = {"epl", "bun", "lal", "sea", "fl1", "lig1", "ucl", "unl"}   # 12.11. (Lucas): Nations League wie Top-5   # 19.10. (Lucas): Champions League zählt zu den Top-5     # Polymarket-Schlüssel-Präfixe der Top-5-Ligen
@@ -914,6 +915,40 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                            "offen": len(pos_je.get(w) or [])})
         zeilen.sort(key=lambda r: -r["gewinn"])
         gewinn_listen[str(tg)] = zeilen[:15]
+    # Regel WL1 (21.11., Lucas „Live ist mir wichtiger — Yield, wie viel vom Wallet gestaked wird"): Live-Rangliste.
+    live_wallets = []
+    for w, sc in scores.items():
+        ln = int(sc.get("liveN") or 0)
+        if ln < LIVE_ZEIGEN_N:
+            continue
+        bs = sc.get("liveSport") or {}
+        haupt = max(bs.items(), key=lambda kv: kv[1][0])[0] if bs else "?"
+        if bs and not sport_ok(haupt):
+            continue
+        ym = float(sc.get("liveRSum") or 0) / ln
+        yv = max(0.0, (float(sc.get("liveRSq") or 0) - ln * ym * ym) / max(1, ln - 1))
+        mn = int(sc.get("moN") or 0)
+        mm = float(sc.get("moSum") or 0) / mn if mn else None
+        mv = max(0.0, (float(sc.get("moSq") or 0) - mn * mm * mm) / max(1, mn - 1)) if mn else None
+        mo_ug = mm - LIVE_Z * math.sqrt(mv / mn) if mn >= 2 else None
+        schnitt = float(sc.get("liveUsd") or 0) / ln
+        pf = sc.get("portfolio")
+        live_wallets.append({
+            "wallet": w, "sport": haupt, "n": ln, "treffer": round(100 * int(sc.get("liveWins") or 0) / ln),
+            "yield": round(100 * ym, 1), "yieldUg": round(100 * (ym - LIVE_Z * math.sqrt(yv / ln)), 1),
+            "moN": mn, "markout": round(mm, 2) if mm is not None else None, "markoutUg": round(mo_ug, 2) if mo_ug is not None else None,
+            "schnittUsd": round(schnitt), "portfolio": pf, "anteil": round(100 * schnitt / pf, 1) if pf else None,
+            "bewaehrt": bool(ln >= LIVE_MIN_N and mn >= LIVE_MIN_N and mo_ug is not None and mo_ug > 0 and ym > 0),
+            "offen": len(pos_je.get(w) or []), "zuletzt": max((sc.get("liveTage") or {"": 0}).keys()),
+        })
+    live_wallets.sort(key=lambda r: (not r["bewaehrt"], -(r["markoutUg"] if r["markoutUg"] is not None else -99), -r["yieldUg"]))
+    live_wallets = live_wallets[:25]
+    for w in wallets:                                      # Folge-Rendite neben dem Schlusskurs
+        sc = scores.get(w["wallet"]) or {}
+        yn = int(sc.get("yN") or 0)
+        w["folgeN"], w["folgeRendite"] = yn, (round(100 * float(sc.get("yRSum") or 0) / yn, 1) if yn else None)
+        pf = sc.get("portfolio")
+        w["anteil"] = round(100 * w["schnittUsd"] / pf, 1) if pf else None
     # Sortiert nach der UNTERGRENZE: wer oben steht, ist nicht nur im Schnitt gut, sondern belegt.
     wallets.sort(key=lambda r: -r["clvUg"])
     wallets = wallets[:20]
@@ -1034,7 +1069,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                      "usd": z.get("usd"), "preis": z.get("whaleEntry"), "anteilSeite": z.get("seitenAnteil"),
                      "liga": z.get("league"), "zeit": z.get("sentAt"), "status": z.get("status")})
     wale.sort(key=lambda r: r["zeit"] or "", reverse=True)
-    return {"wallets": wallets, "gewinnListen": gewinn_listen, "maerkte": auswahl, "walPushes": wale[:20], "setzen": setzen[:20],
+    return {"wallets": wallets, "liveWallets": live_wallets, "gewinnListen": gewinn_listen, "maerkte": auswahl, "walPushes": wale[:20], "setzen": setzen[:20],
             "tradesPushes": tp[:40], "tradesBilanz": bil, "tradesSeit": (trades_record or {}).get("startAb"),
             "regel": {"minN": MIN_N, "minSchnittUsd": MIN_SCHNITT_USD, "minFenster": MIN_FENSTER}}
 

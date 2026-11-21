@@ -391,6 +391,18 @@ def split_guete(shares, trunc):
     return {"art": "abgeschnitten" if trunc else "belastbar", "trunc": bool(trunc)}
 
 
+def portfolio_wert(data):
+    """Summe des aktuellen Werts aller offenen Positionen (Bankroll-Näherung; Bargeld sehen wir nicht)."""
+    v = 0.0
+    for p in data or []:
+        if isinstance(p, dict):
+            try:
+                v += float(p.get("currentValue", p.get("current_value")) or 0)
+            except (TypeError, ValueError):
+                pass
+    return v if v > 0 else None
+
+
 def avg_aus_positionen(data, token):
     for p in data or []:
         if isinstance(p, dict) and str(p.get("asset") or p.get("token") or p.get("tokenId") or "") == str(token):
@@ -531,6 +543,58 @@ def geld_fix_1611(track):
     track["geldFix1611"] = True
 
 
+# Regel WL1 (Lucas 21.11. 20:11: „Live ist mir wichtiger … dann musst du halt einen Yield ausrechnen … wie viel vom
+# Wallet wird gestaked, was kommt raus — eine valide Zahl, die uns beim Bewerten hilft"). Vorab festgelegt:
+# * Bisher wurden nur Positionen gewertet, die wir VOR Anpfiff sahen (Schlusskurs). 39 % der Wal-Positionen sehen wir
+#   zuerst live — Live-Spieler konnten nie bewährt werden.
+# * Je Position, die wir zuerst LIVE sehen (Preis 3–97 ¢): Folge-Rendite je Einheit = 1/Preis − 1 bei Gewinn, sonst −1
+#   (zum Preis unserer ersten Sichtung — das, was man nachspielen kann; jede Wette zählt gleich, damit große Einsätze
+#   den Schnitt nicht tragen), dazu der Live-Markout: Preis 15–30 Min später − Preis bei Sichtung (pp).
+# * Für ALLE gewerteten Positionen (auch vor Anpfiff) dieselbe Folge-Rendite — der Ertrag neben dem Schlusskurs.
+# * Einsatz relativ zum Wallet: Betrag ÷ ihr üblicher Einsatz (Faktor) und, wo wir ihre Positionen abrufen, ÷ Wert
+#   ihres offenen Portfolios (Bankroll-Anteil).
+# * Live-bewährt (WL1): ≥ 30 Live-Wertungen, Untergrenze (z = 1,645) des Live-Markouts > 0 UND Folge-Rendite > 0.
+#   Erst still in der Rangliste; Pushes/Public erst nach Lucas' OK.
+LIVE_MIN_P, LIVE_MAX_P = 0.03, 0.97
+
+
+def _rendite(preis, win):
+    return (1 / preis - 1) if win else -1.0
+
+
+def live_wertung(scores, e, win):
+    """WL1: Folge-Rendite (alle Positionen) und Live-Zweig (zuerst live gesehen) in die Bilanz der Wallet."""
+    p0 = e.get("firstPrice")
+    if not isinstance(p0, (int, float)) or not LIVE_MIN_P <= p0 <= LIVE_MAX_P:
+        return
+    s = scores.setdefault(e["wallet"], {"n": 0, "clvSumPP": 0.0, "wins": 0, "usd": 0})
+    r = _rendite(p0, win)
+    vorab = (e.get("htkFirst") or 0) > 0 and not e.get("liveFirst")
+    for k, ja in (("y", True), ("live", not vorab)):
+        if not ja:
+            continue
+        s[k + "N"] = int(s.get(k + "N") or 0) + 1
+        s[k + "RSum"] = round(float(s.get(k + "RSum") or 0) + r, 4)
+        s[k + "RSq"] = round(float(s.get(k + "RSq") or 0) + r * r, 4)
+        s[k + "Wins"] = int(s.get(k + "Wins") or 0) + (1 if win else 0)
+        s[k + "Usd"] = round(float(s.get(k + "Usd") or 0) + float(e.get("usdFirst") or e.get("usd") or 0))
+    if not vorab:
+        mo = (e["p15"] - p0) * 100 if isinstance(e.get("p15"), (int, float)) else None
+        if mo is not None:
+            s["moN"] = int(s.get("moN") or 0) + 1
+            s["moSum"] = round(float(s.get("moSum") or 0) + mo, 2)
+            s["moSq"] = round(float(s.get("moSq") or 0) + mo * mo, 2)
+        tag = JETZT.date().isoformat()
+        lt = s.setdefault("liveTage", {})
+        v = lt.get(tag) or [0, 0.0, 0, 0.0]
+        lt[tag] = [v[0] + 1, round(v[1] + r, 4), v[2] + (mo is not None), round(v[3] + (mo or 0), 2)]
+        s["liveTage"] = {k: lt[k] for k in sorted(lt)[-TAGE_HALTEN:]}
+        if e.get("sport"):
+            b = s.setdefault("liveSport", {}).setdefault(e["sport"], [0, 0.0])
+            b[0] += 1
+            b[1] = round(b[1] + r, 4)
+
+
 CLV_MAX_PP = 30      # 21.11.: vor Anpfiff bewegt sich kein Preis um mehr als 30 Cent — darüber ist es ein Datenfehler
 
 
@@ -576,7 +640,8 @@ def track_fortschreiben(track, maerkte, aufgeloest):
             if e is None:
                 e = openp[ok] = {"wallet": w, "key": m["key"], "side": side, "league": m.get("league"), "sport": m.get("sport"),
                                  "firstPrice": round(p, 4), "firstTs": JETZT.isoformat(),
-                                 "htkFirst": m.get("hoursToKickoff")}
+                                 "htkFirst": m.get("hoursToKickoff"), "usdFirst": round(float(wh.get("usd") or 0)),
+                                 "liveFirst": bool(m.get("live"))}
             e["lastPrice"] = round(p, 4)
             e["usd"] = round(float(wh.get("usd") or 0))
             if p > 0:
@@ -597,6 +662,11 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         e["lastPrice"] = round(p, 4)
         if not m.get("live") and (_ts(m.get("koTs")) or JETZT + timedelta(1)) > JETZT:
             e["closePrice"] = round(p, 4)
+        # Regel WL1 (21.11.): Live-Markout — Preis der Seite 15–30 Min nach unserer ersten Live-Sichtung
+        if e.get("liveFirst") and e.get("p15") is None and m.get("live"):
+            t0 = _ts(e.get("firstTs"))
+            if t0 and timedelta(minutes=15) <= JETZT - t0 <= timedelta(minutes=30):
+                e["p15"] = round(p, 4)
     for ok in list(openp):
         e = openp[ok]
         preise = aufgeloest.get(e.get("key"))
@@ -610,6 +680,8 @@ def track_fortschreiben(track, maerkte, aufgeloest):
             continue                                   # 50:50 oder Seite nicht zuordenbar → nicht werten
         # 22.10.: nur echte Werte vor Anpfiff — kein Rückfall auf den letzten Preis (der liegt im Spiel und kennt
         # den Ausgang schon) und kein erstes Sehen nach Anpfiff als Einstieg
+        win = e["side"] == gew
+        live_wertung(scores, e, win)
         # 21.11.: gewertet wird ab dem Preis, zu dem WIR die Position zuerst sahen (vor Anpfiff) — das ist, was man
         # nachspielen kann, und es ist sauber. avgPrice (/positions) bleibt nur zur Anzeige: lief der Abruf nach
         # Anpfiff, steckten Live-Käufe darin (Bayern – Köln 0,56 statt 0,91). Unmögliche Sprünge (> 30 pp) zählen nicht.
@@ -621,7 +693,6 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         if abs(clv) > CLV_MAX_PP:
             _STAT["clvUnmoeglich"] = _STAT.get("clvUnmoeglich", 0) + 1
             continue
-        win = e["side"] == gew
         s = scores.setdefault(e["wallet"], {"n": 0, "clvSumPP": 0.0, "wins": 0, "usd": 0})
         s["n"] = (s.get("n") or 0) + 1
         s["clvSumPP"] = round((s.get("clvSumPP") or 0) + clv, 2)
@@ -777,7 +848,8 @@ def main() -> int:
         bereinigung_2111(track)
     except Exception:  # noqa: BLE001
         track = {}
-    bekannt = {w for w, s in (track.get("scores") or {}).items() if isinstance(s, dict) and (s.get("n") or 0) >= BEKANNT_AB_N}
+    bekannt = {w for w, s in (track.get("scores") or {}).items()     # 21.11.: Live-Wertungen zählen mit (WL1)
+               if isinstance(s, dict) and (s.get("n") or 0) + (s.get("liveN") or 0) >= BEKANNT_AB_N}
 
     maerkte, oc_je = {}, {}
     for ev, tag in ereignisse():
@@ -801,7 +873,7 @@ def main() -> int:
     live_k = sorted((m for m in haupt if m["live"]), key=lambda m: -m["totalUsd"])[:HALTER_SPIELE // 2]
     vor_k = sorted((m for m in haupt if not m["live"]), key=lambda m: -m["totalUsd"])
     kandidaten = live_k + vor_k[:HALTER_SPIELE - len(live_k)]
-    pos_cache, pos_budget = {}, [POS_BUDGET]
+    pos_cache, pos_budget, portfolio = {}, [POS_BUDGET], {}
     alte_open = track.get("open") or {}
     for m in kandidaten:
         if not _zeit_ok():
@@ -821,7 +893,7 @@ def main() -> int:
         m["whales"] = wal_auswahl(wale, bekannt)
         tok = {o["label"]: o.get("token") for o in oc_je[m["key"]]}
         for wh in m["whales"]:
-            if (wh.get("usd") or 0) < 1000 or m.get("live"):     # 21.11.: Einstieg nur vor Anpfiff abrufen
+            if (wh.get("usd") or 0) < 1000:
                 continue
             ok = f"{wh['wallet']}|{m['key']}|{wh['side']}"
             if (alte_open.get(ok) or {}).get("entryPrice"):
@@ -832,8 +904,11 @@ def main() -> int:
                     continue
                 pos_budget[0] -= 1
                 pos_cache[wh["wallet"]] = poly_v2.seiten(_get, "positions", 1, user=wh["wallet"], limit=500) or []
+            pf = portfolio_wert(pos_cache[wh["wallet"]])
+            if pf:
+                portfolio[wh["wallet"]] = pf
             ap = avg_aus_positionen(pos_cache[wh["wallet"]], tok.get(wh["side"]))
-            if ap is not None:
+            if ap is not None and not m.get("live"):          # 21.11.: Einstieg nur vor Anpfiff (Live-Käufe verfälschen ihn)
                 wh["avgPrice"] = ap
     print(f"  poly_markt: Halter für {sum(1 for m in maerkte.values() if m['whales'])} Märkte · "
           f"{POS_BUDGET - pos_budget[0]} Einstiegs-Abrufe")
@@ -841,6 +916,9 @@ def main() -> int:
     aufg = aufloesungen(track, set(maerkte))
     buch_ereignisse()
     track = track_fortschreiben(track, maerkte, aufg)
+    for w, pf in portfolio.items():                       # WL1: Bankroll-Näherung = Wert der offenen Positionen
+        sc = track["scores"].setdefault(w, {"n": 0, "clvSumPP": 0.0, "wins": 0, "usd": 0})
+        sc["portfolio"], sc["portfolioTs"] = round(pf), JETZT.isoformat()
     try:
         erledigt_schreiben()
     except Exception as exc:  # noqa: BLE001 — das Archiv darf den Scan nie aufhalten
