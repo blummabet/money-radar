@@ -1,0 +1,21 @@
+{
+ "datum": "16.11.2026",
+ "woche": "9.–15. November",
+ "fazit": "Schwache Public-Woche (−8,5 Einheiten), aber nicht wegen Betfair: die Pushes selbst lagen im Plus (Vereinsfußball +5,1 %). Fast der ganze Verlust kam aus Länderspielen (−5,3) und Frauen-Fußball (−2,5) — Nations League und Freundschaftsspiele sind inzwischen raus. Der Topf hat diesmal schlechter ausgewählt als die Pushes (−24,7 Punkte), in der Woche davor besser (+9,8).",
+ "zahlen": [
+  {"name": "Public", "wert": "−18,8 %", "sub": "45 Tipps · −8,5 Einh."},
+  {"name": "Alle Pushes", "wert": "+5,9 %", "sub": "564 Tipps"},
+  {"name": "Public ohne Länderspiele/Frauen", "wert": "−2,8 %", "sub": "26 Tipps · −0,7 Einh."},
+  {"name": "Woche davor (Public)", "wert": "+14,5 %", "sub": "61 Tipps"}
+ ],
+ "punkte": [
+  {"art": "schlecht", "titel": "Länderspiele im Public", "text": "15 Tipps, 33 % getroffen bei 56 % erwartet, −5,3 Einh. Nations League (P26) und Freundschaftsspiele (P23) sind seit 14.11. gesperrt."},
+  {"art": "info", "titel": "Vereinsfußball live schwach, vor Anpfiff gut", "text": "Public vor Anpfiff 7 Tipps, 5 Treffer, +2,8 — live 10 Tipps, 4 Treffer, −4,4 (drei Über-Picks verloren). Zu wenig, um etwas zu ändern."},
+  {"art": "rein", "titel": "Pinnacle-Drop mit Geld als Verstärker (P30, umgesetzt)", "text": "Pinnacle + Betfair-Push auf dieselbe Seite, nicht im Public: 52 Tipps, +25 %. Seit heute +3 Punkte im Topf."},
+  {"art": "rein", "titel": "Unter vor Anpfiff wieder im Public (P29, umgesetzt)", "text": "Unter 41 Tipps +15,5 % gegen Über 96 · −16,5 %. Live bleibt Unter draußen."},
+  {"art": "rein", "titel": "Klopft an: Stake-Paket als Team-Sieg vor Anpfiff", "text": "38 Tipps, 71 % bei 51 % erwartet, +58 % (± 26). Noch nicht im Public — Kandidat für Ende November."},
+  {"art": "schlecht", "titel": "Wackelt: Betfair-Dauerzufluss live auf Über", "text": "77 Tipps, −14 % (± 10). Bleibt auf Lucas' Wunsch im Public, im Blick behalten."},
+  {"art": "raus", "titel": "Kandidaten zum Aufräumen", "text": "P18 (bewährtes Polymarket-Geld dagegen): gesperrte +12 % (19). W2 (Wal unter ¼ still): stille +9 % (34) vs. gepusht +7 %. Prüfung am 21.11."},
+  {"art": "idee", "titel": "Neu seit heute", "text": "Ø Quote, zu der das Geld der letzten Stunde gematcht wurde, steht im Push und wird gemessen (Filter „Quote gegen das Geld“). P28 nutzt sie für die Sperre „Quote steigt“."}
+ ]
+}
