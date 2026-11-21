@@ -866,6 +866,7 @@ def wale(d):
                     sport=o.get("sport"), betrag=pubmod.geld(usd, "$"), gruende=gr) if preis and 0 < preis < 1 else None)
         if pub:
             pub["faktor"] = round(usd / float(schnitt), 2) if schnitt and usd else None     # Public-Regel 3
+            pub["usd"] = usd                                                                    # Public-Regel 36
             _mit(pub, usd)
             # 10.11. (Lucas: X-Post „lieblos"): dieselben Bausteine wie der Telegram-Push, für die englische X-Fassung
             pub["x"] = {"bars": [[str(namen[sk] or ""), round(p, 3), sk == k] for sk, p in reihe] if (k and reihe) else [],
