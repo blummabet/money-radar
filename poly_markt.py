@@ -529,6 +529,36 @@ def geld_fix_1611(track):
     track["geldFix1611"] = True
 
 
+CLV_MAX_PP = 30      # 21.11.: vor Anpfiff bewegt sich kein Preis um mehr als 30 Cent — darüber ist es ein Datenfehler
+
+
+def bereinigung_2111(track):
+    """Einmalig (21.11., Lucas: „beim Tracken aufpassen, dass wir keinen Fehler haben"): der Einstieg kam bei einem Teil
+    der Positionen aus avgPrice (/positions), auch wenn dieser Abruf erst NACH Anpfiff lief — dann steckten Live-Käufe
+    im Einstieg (Bayern – Köln: Einstieg 0,56 bei 0,91 vor Anpfiff, CLV +35 pp). Tage, an denen eine Wallet im Schnitt
+    mehr als 20 pp CLV je Wette hatte, werden aus ihrer Bilanz genommen (n, CLV, Quadrate, Treffer exakt aus dem
+    Tages-Gedächtnis). Betraf 151 von ~70.000 Wetten, darunter die Nr. 1 und Nr. 5 der Bewährten-Rangliste."""
+    if track.get("bereinigt2111"):
+        return
+    weg = 0
+    for sc in (track.get("scores") or {}).values():
+        for tag, v in list((sc.get("tage") or {}).items()):
+            if not (isinstance(v, list) and len(v) >= 4 and v[0] and abs(v[1] / v[0]) > 20):
+                continue
+            n, c, w, q = int(v[0]), float(v[1]), int(v[2]), float(v[3])
+            for k in ("n", "clvFenN"):
+                sc[k] = max(0, int(sc.get(k) or 0) - n)
+            for k in ("clvSumPP", "clvFenSum"):
+                sc[k] = round(float(sc.get(k) or 0) - c, 2)
+            sc["clvSqSum"] = round(max(0.0, float(sc.get("clvSqSum") or 0) - q), 2)
+            sc["wins"] = max(0, int(sc.get("wins") or 0) - w)
+            sc["bereinigt2111"] = int(sc.get("bereinigt2111") or 0) + n
+            del sc["tage"][tag]
+            weg += n
+    track["bereinigt2111"] = weg or True
+    print(f"  poly_markt: Bereinigung 21.11. — {weg} Wetten mit unmöglichem CLV aus den Bilanzen genommen")
+
+
 def track_fortschreiben(track, maerkte, aufgeloest):
     openp = {k: dict(v) for k, v in (track.get("open") or {}).items()}
     scores = {w: dict(s) for w, s in (track.get("scores") or {}).items()}
@@ -550,8 +580,8 @@ def track_fortschreiben(track, maerkte, aufgeloest):
             if p > 0:
                 e["anteile"] = round(e["usd"] / p, 2)          # 16.11.: Anteile zum Zeitpunkt des Betrags
             e["marktUsd"], e["koTs"] = m.get("totalUsd"), m.get("koTs")
-            if not m.get("live"):
-                e["closePrice"] = round(p, 4)          # letzter Preis vor Anpfiff = Schlusspreis
+            if not m.get("live") and (_ts(m.get("koTs")) or JETZT + timedelta(1)) > JETZT:
+                e["closePrice"] = round(p, 4)          # letzter Preis vor Anpfiff = Schlusspreis (21.11.: auch nach der Uhr)
             if isinstance(wh.get("avgPrice"), (int, float)):
                 e["entryPrice"] = wh["avgPrice"]
     # 10.11. (Polymarket-Check): Preise ALLER offenen Positionen fortschreiben, nicht nur in Märkten, deren Halter
@@ -563,7 +593,7 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         if not isinstance(p, (int, float)):
             continue
         e["lastPrice"] = round(p, 4)
-        if not m.get("live"):
+        if not m.get("live") and (_ts(m.get("koTs")) or JETZT + timedelta(1)) > JETZT:
             e["closePrice"] = round(p, 4)
     for ok in list(openp):
         e = openp[ok]
@@ -578,11 +608,17 @@ def track_fortschreiben(track, maerkte, aufgeloest):
             continue                                   # 50:50 oder Seite nicht zuordenbar → nicht werten
         # 22.10.: nur echte Werte vor Anpfiff — kein Rückfall auf den letzten Preis (der liegt im Spiel und kennt
         # den Ausgang schon) und kein erstes Sehen nach Anpfiff als Einstieg
-        einstieg = e.get("entryPrice") or (e.get("firstPrice") if (e.get("htkFirst") or 0) > 0 else None)
+        # 21.11.: gewertet wird ab dem Preis, zu dem WIR die Position zuerst sahen (vor Anpfiff) — das ist, was man
+        # nachspielen kann, und es ist sauber. avgPrice (/positions) bleibt nur zur Anzeige: lief der Abruf nach
+        # Anpfiff, steckten Live-Käufe darin (Bayern – Köln 0,56 statt 0,91). Unmögliche Sprünge (> 30 pp) zählen nicht.
+        einstieg = e.get("firstPrice") if (e.get("htkFirst") or 0) > 0 else None
         schluss = e.get("closePrice")
         if not isinstance(einstieg, (int, float)) or not isinstance(schluss, (int, float)):
             continue
         clv = (schluss - einstieg) * 100
+        if abs(clv) > CLV_MAX_PP:
+            _STAT["clvUnmoeglich"] = _STAT.get("clvUnmoeglich", 0) + 1
+            continue
         win = e["side"] == gew
         s = scores.setdefault(e["wallet"], {"n": 0, "clvSumPP": 0.0, "wins": 0, "usd": 0})
         s["n"] = (s.get("n") or 0) + 1
@@ -621,8 +657,9 @@ def erledigt_schreiben():
         alt = {}
     for e, gew in _ERLEDIGT_NEU:
         sp = alt.setdefault(e["key"], {"ko": e.get("koTs"), "sport": e.get("sport"), "liga": e.get("league"), "gew": gew, "pos": []})
-        einstieg = e.get("entryPrice") or (e.get("firstPrice") if (e.get("htkFirst") or 0) > 0 else None)
-        zeile = [e.get("wallet"), e.get("side"), e.get("usd"), einstieg, e.get("closePrice"), str(e.get("firstTs") or "")[:16]]
+        einstieg = e.get("firstPrice") if (e.get("htkFirst") or 0) > 0 else None       # 21.11. wie die Wertung
+        zeile = [e.get("wallet"), e.get("side"), e.get("usd"), einstieg, e.get("closePrice"), str(e.get("firstTs") or "")[:16],
+                 e.get("entryPrice")]
         sp["pos"] = [p for p in sp["pos"] if not (p[0] == zeile[0] and p[1] == zeile[1])] + [zeile]
     grenze = (JETZT - timedelta(days=ERLEDIGT_TAGE)).isoformat()
     alt = {k: v for k, v in alt.items() if str(v.get("ko") or "9") >= grenze}
@@ -735,6 +772,7 @@ def main() -> int:
     try:
         track = json.loads(TRACK.read_text(encoding="utf-8"))
         geld_fix_1611(track)
+        bereinigung_2111(track)
     except Exception:  # noqa: BLE001
         track = {}
     bekannt = {w for w, s in (track.get("scores") or {}).items() if isinstance(s, dict) and (s.get("n") or 0) >= BEKANNT_AB_N}
@@ -781,7 +819,7 @@ def main() -> int:
         m["whales"] = wal_auswahl(wale, bekannt)
         tok = {o["label"]: o.get("token") for o in oc_je[m["key"]]}
         for wh in m["whales"]:
-            if (wh.get("usd") or 0) < 1000:
+            if (wh.get("usd") or 0) < 1000 or m.get("live"):     # 21.11.: Einstieg nur vor Anpfiff abrufen
                 continue
             ok = f"{wh['wallet']}|{m['key']}|{wh['side']}"
             if (alte_open.get(ok) or {}).get("entryPrice"):
@@ -832,6 +870,8 @@ def main() -> int:
         tmp = p.with_suffix(".tmp")
         tmp.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         tmp.replace(p)
+    if _STAT.get("clvUnmoeglich"):
+        print(f"  poly_markt: {_STAT['clvUnmoeglich']} Positionen mit unmöglichem CLV (> {CLV_MAX_PP} pp) nicht gewertet")
     print(f"  poly_markt: {len(aufg)} Auflösungen gewertet · {len(track['open'])} offene Wal-Positionen · "
           f"{len(track['scores'])} Wallets · Abrufe ok {_STAT['ok']} / Fehler {_STAT['fehler']} · {time.time() - _START:.0f} s")
     return 0
