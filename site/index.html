@@ -4423,7 +4423,7 @@ function tpSeite(x, kurz){
 }
 function tpZeile(id){
   const P = (D && D.torprofil || {})[String(id).replace(/^bf\|/,"")]; if(!P) return "";
-  const mark = P.hinweis ? `<span class="tp-m hin" title="Regel TP1: torreich, erst ${P.tore} Tor(e), Druck ${P.druck} — still gemessen">🔥 torreich – erst ${P.tore} Tor${P.tore===1?"":"e"}</span>`
+  const mark = P.hinweis ? `<span class="tp-m hin" title="Regel TP1: torreich, erst ${P.tore} Tor(e), Druck ${P.druck} — still gemessen">🔥 torreich – ${P.tore===0?"noch torlos":"erst 1 Tor"}</span>`
     : P.torreich ? `<span class="tp-m reich">torreich</span>` : P.torarm ? `<span class="tp-m arm" title="Form: wenig Tore — Druck wird hier oft nicht zu Toren">🧊 torarm</span>` : "";
   const mk = P.markt!=null ? ` · Markt ${dez(P.markt)}` : "";
   const tip = `${P.heim.amOrt?"Heim":"Heimteam"}: Ø ${dez(P.heim.avg)}, Ü2,5 ${P.heim.ue25}/${P.heim.n}, 0:0 ${P.heim.null}× · ${P.gast.amOrt?"Auswärts":"Gast"}: Ø ${dez(P.gast.avg)}, Ü2,5 ${P.gast.ue25}/${P.gast.n}, 0:0 ${P.gast.null}× — Details im Spielblatt`;
@@ -4432,7 +4432,7 @@ function tpZeile(id){
 function tpKasten(s){
   // 22.11. 19:07 (Lucas: „zugeklappt, nur die wichtigste Info — beim Draufklicken die Spiele, besser lesbar")
   const P = (D && D.torprofil || {})[String(s.id)]; if(!P) return "";
-  const mark = P.hinweis ? `<span class="tp-m hin">🔥 torreich – erst ${P.tore} Tor${P.tore===1?"":"e"}</span>`
+  const mark = P.hinweis ? `<span class="tp-m hin">🔥 torreich – ${P.tore===0?"noch torlos":"erst 1 Tor"}</span>`
     : P.torreich ? `<span class="tp-m reich">torreich</span>` : P.torarm ? `<span class="tp-m arm">🧊 torarm</span>` : "";
   const diff = P.markt!=null ? P.erwartung - P.markt : null;
   const vglKurz = P.markt!=null ? ` <small>· Markt ${dez(P.markt)}</small>` : "";
