@@ -28,6 +28,7 @@ BASIS = Path(__file__).resolve().parent
 DATEN = BASIS / "site" / "data.json"
 CACHE = BASIS / ".bf" / "live_stats.json"
 BASE_URL = "https://v3.football.api-sports.io"
+OHNE_PAUSE_KURZ, OHNE_VERSUCHE = 6, 3    # 22.11.: leere Statistik am Spielanfang — erst 3× nach 6 Min nachfragen
 MAX_JE_LAUF = 40         # 25.10.: HZ-Finder im alten Projekt abgedreht → 40 × 288 ≈ 11.500 von 75.000/Tag (60-%-Regel bremst weiter)
 ANTEIL = 0.6
 FRISCH_MIN = 4          # jünger als das → nicht neu abrufen (30.10.: 9 → 4, jeder Lauf; Lucas: „2:0 sehen wir noch nicht")
@@ -566,12 +567,24 @@ def main() -> int:
     info = None
     neue_ticks = []
     diag = {"kandidaten": len(kand), "faellig": 0, "ohneZuordnung": [], "ohneStatistik": [], "abgerufen": 0, "budget": None}
+    ohne_alt = {}
     if kand and os.environ.get("APISPORTS_KEY"):
         n, info = budget()
         # 25.10.: Ligen ohne Statistik bei API-Football (z. B. 3. Ligen, Reserven, Hongkong-Pokal) nicht jeden Lauf neu
         # fragen — 30 Min Pause, dann noch einmal (manche liefern erst ab einer gewissen Minute)
-        ohne = (cache.get("_ohneStatistik") or {}).get("ids") or {}
-        ohne = {k: t for k, t in ohne.items() if JETZT - (_zeit(t) or JETZT) < timedelta(minutes=30)}
+        # 22.11. (Lucas: „wir haben wirklich keine Statistiken zur türkischen Super League?" — Kasimpasa 27', Konyaspor 26'):
+        # API-Football liefert in den ersten Minuten oft noch leere Statistiken. Der erste leere Abruf beim Anpfiff sperrte
+        # das Spiel dann 30 Min — bis zur ~31. Minute keine Statistik. Jetzt: die ersten 3 leeren Abrufe nur 6 Min Pause,
+        # erst danach 30 Min.
+        ohne_roh = (cache.get("_ohneStatistik") or {}).get("ids") or {}
+        ohne = {}
+        for k, t in ohne_roh.items():
+            ts_, nv = (t[0], int(t[1])) if isinstance(t, list) else (t, 3)
+            pause = OHNE_PAUSE_KURZ if nv < OHNE_VERSUCHE else 30
+            if JETZT - (_zeit(ts_) or JETZT) < timedelta(minutes=pause):
+                ohne[k] = [ts_, nv]
+            elif nv < 50:
+                ohne_alt[k] = nv
         offen = [s for s in kand if s["id"] not in ohne
                  and JETZT - (_zeit((cache.get(s["id"]) or {}).get("ts")) or JETZT - timedelta(days=1)) > timedelta(minutes=FRISCH_MIN)]
         diag["faellig"], diag["budget"] = len(offen), n
@@ -597,7 +610,7 @@ def main() -> int:
                 st = statistik((r or {}).get("response"), hid)
                 if not st:
                     diag["ohneStatistik"].append(f"{sp.get('heim')} – {sp.get('gast')}")
-                    ohne[sp["id"]] = JETZT.isoformat()
+                    ohne[sp["id"]] = [JETZT.isoformat(), ohne_alt.get(sp["id"], 0) + 1]
                 if st:
                     # Abdeckung: in wie vielen Abrufen gibt es echtes xG, Strafraum-Schüsse, beides (48 h)
                     ab = cache.get("_abdeckung") or {"z": []}
