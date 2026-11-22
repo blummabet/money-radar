@@ -489,8 +489,30 @@ def cpo(d):
                 best = kand
         if best:
             out.append(best)
-    out.sort(key=lambda x: (-x["index"], -(x["eur"] or 0)))
+    for x in out:
+        x.update(cpo_staerke(x))
+    out.sort(key=lambda x: -x["temp"])
     return out
+
+
+def cpo_staerke(x):
+    """22.11. 15:24 (Lucas: „Temperatur-Anzeige … gewichtet: mehr Geld, mehr Druck, Quote sogar runter = Stärke").
+    Je Teil 0–100, Temperatur = Mittel. Festgelegt:
+    Cash: 50 × log10(€/1.000) (3k → 24, 10k → 50, 30k → 74, 100k → 100) × Einseitigkeit (65 % → 0,8 … 100 % → 1).
+    Pressure: der Druck-Index selbst. Odds: 40 + 6 je % unter der Uhr; ist die Quote sogar gefallen, mindestens
+    70 + 3 je % Fall. Nur Anzeige und Messung (Temperatur steht im Buch)."""
+    e = max(1.0, float(x.get("eur") or 0))
+    ant = min(100.0, max(65.0, float(x.get("anteil") or 65)))
+    cash = max(0.0, min(100.0, 50 * math.log10(e / 1000))) * (0.8 + 0.2 * (ant - 65) / 35)
+    druck = float(x.get("index") or 0)
+    odds = 40 + 6 * float(x.get("unterUhr") or 0)
+    q, q0 = x.get("quote"), x.get("q0")
+    if x.get("faellt") and isinstance(q, (int, float)) and isinstance(q0, (int, float)) and q0 > 1:
+        odds = max(odds, 70 + 3 * 100 * (1 - q / q0))
+    odds = max(0.0, min(100.0, odds))
+    t = {"cashW": round(cash), "druckW": round(min(100.0, druck)), "oddsW": round(odds)}
+    t["temp"] = round((t["cashW"] + t["druckW"] + t["oddsW"]) / 3)
+    return t
 
 
 def druck_radar(d, cache, live_ids, neue_ticks):

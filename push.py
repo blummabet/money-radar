@@ -2008,7 +2008,8 @@ def cpo_still(d):
                {"art": "cpo", "id": x["id"], "heim": x.get("heim"), "gast": x.get("gast"), "liga": x.get("liga"), "land": x.get("land"),
                 "anpfiff": x.get("anpfiff"), "markt": x["markt"], "auswahl": x["auswahl"], "anzeige": x["auswahl"], "quote": x["quote"],
                 "eur": x.get("eur"), "anteil": x.get("anteil"), "live": True, "stand": st, "minute": x.get("min"),
-                "druck": x.get("index"), "unterUhr": x.get("unterUhr"), "erwartet": x.get("erwartet"), "regel": "CPO1"})
+                "druck": x.get("index"), "unterUhr": x.get("unterUhr"), "erwartet": x.get("erwartet"), "temp": x.get("temp"),
+                "regel": "CPO1"})
         if x.get("faellt"):          # 22.11. 12:26 (Lucas: „beste wäre, wenn sie sogar leicht sinkt"): Teilgruppe still
             yield (f"cpof|{x['id']}|{x['markt']}|{x['auswahl']}|{st[0]}:{st[1]}", None, None,
                    {"art": "cpoFaellt", "id": x["id"], "heim": x.get("heim"), "gast": x.get("gast"), "liga": x.get("liga"),
