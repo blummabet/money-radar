@@ -1451,6 +1451,13 @@ html,body{overflow-x:clip} .app{overflow-x:clip;max-width:100vw} main{overflow-x
 /* 23.10. abends: Top 3 als Radar-Scheiben */
 .t3-panel{overflow:hidden}
 .t3{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);grid-template-rows:auto auto;gap:12px}
+.tp{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:12px;color:var(--text-2);margin-top:6px;min-width:0}
+.tp b{color:var(--text)} .tp .tp-m{font-weight:800;padding:1px 7px;border-radius:999px;border:1px solid currentColor}
+.tp .tp-m.reich{color:var(--up)} .tp .tp-m.arm{color:var(--hz)} .tp .tp-m.hin{color:var(--down);background:color-mix(in srgb,var(--down) 12%,transparent)}
+.tpk{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tpk table{width:100%;border-collapse:collapse;font-size:12.5px} .tpk td{padding:3px 4px;border-top:1px solid var(--line)} .tpk td.r{text-align:right;font-variant-numeric:tabular-nums}
+.tpk td.n{color:var(--text-3)} .tpk .x0{color:var(--hz);font-weight:700} .tpk .x3{color:var(--up);font-weight:700}
+@media (max-width:640px){.tpk{grid-template-columns:minmax(0,1fr)}}
 .t3-k{position:relative;display:flex;gap:14px;align-items:center;padding:12px 14px;border-radius:16px;cursor:pointer;min-width:0;
   background:radial-gradient(120% 140% at 0% 50%, color-mix(in srgb, var(--glow) 13%, transparent), transparent 55%), var(--glas-a);border:1px solid var(--rand);transition:transform .15s, border-color .15s}
 .t3-k:hover{transform:translateY(-1px);border-color:color-mix(in srgb, var(--glow) 45%, var(--rand))}
@@ -2712,6 +2719,7 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
     ${ohneKopf?"":dKopf(s)}${s.live?liveStat(s.id,true):""}${dChips(s, fl, fm)}
     ${saeulen?`<div class="sv">${saeulen}</div>`:""}
     ${(()=>{ try{ return torKasten(s); }catch(e){ console.error(e); return ""; } })()}
+    ${(()=>{ try{ return tpKasten(s); }catch(e){ console.error(e); return ""; } })()}
     ${(()=>{ try{ return phasenBand(s); }catch(e){ console.error(e); return ""; } })()}
     ${(()=>{ try{ return spielZeitleiste(s); }catch(e){ console.error(e); return ""; } })()}
     <div><h4>Märkte <small>größere Kachel = mehr Geld im Markt</small></h4>${marktWand2(s)||"–"}</div>
@@ -4207,6 +4215,7 @@ function druckKarte(x){
     <div class="pr-graf">${druckGrafik(x)}</div>
     <div class="pr-fakt"><span>xG <b>${dez(h.xg)}</b> : <b>${dez(g.xg)}</b></span><span>aufs Tor <b>${h.aufsTor??"–"}</b> : <b>${g.aufsTor??"–"}</b></span><span>Ecken <b>${h.ecken??"–"}</b> : <b>${g.ecken??"–"}</b></span>${letzte.length?`<span class="neu">letzte 15': ${letzte.join(" · ")}</span>`:""}</div>
     ${z && z.eur ? `<div class="pr-geld">💶 +${eur(z.eur)} in 15 Min auf ${esc(auswahlDe(z.auswahl||""))}${z.quote?` @ ${q2(z.quote)}`:""}</div>` : ""}
+    ${tpZeile(x.id)}
   </div>`;
 }
 // Lucas 01.11.: Ecken-Welle (≥ 3 Ecken in ~15 Min, 2. HZ, Team hinten oder gleich) als Abzeichen
@@ -4225,7 +4234,7 @@ function druckZeile(x){
   return `<div class="pr-z${x.index>=70?" heiss":""}" style="--g:${druckFarbe(x.index)}" ${klickSpiel({id:x.id, heim:x.heim, gast:x.gast})}>
     <b class="pr-zi">${x.index}</b>
     <div class="pr-zm">${welleChip(x)}<div class="pr-zt"><span class="${s==="heim"?"an":""}">${esc(x.heim)}</span><em>${st[0]??0}:${st[1]??0}</em><span class="${s==="gast"?"an":""}">${esc(x.gast)}</span></div>
-      <div class="pr-zu"><span class="lv">● ${x.min}'</span> ${flagge(x.land)} ${esc(ligaName(x.liga)||"")} · xG ${dez(d.xg)}${x.quelle!=="xG"?" (geschätzt)":""}${letzte.length?` · <span class="neu">15': ${letzte.join(" · ")}</span>`:""}</div></div>
+      <div class="pr-zu"><span class="lv">● ${x.min}'</span> ${flagge(x.land)} ${esc(ligaName(x.liga)||"")} · xG ${dez(d.xg)}${x.quelle!=="xG"?" (geschätzt)":""}${letzte.length?` · <span class="neu">15': ${letzte.join(" · ")}</span>`:""}</div>${tpZeile(x.id)}</div></div>
   </div>`;
 }
 const DR_ART = {welle:["🚩 Ecken-Welle","var(--poly)"], druck:["Druck","var(--hz)"], index:["Index","var(--down)"], tor:["Tor","var(--up)"], geld:["Geld","var(--bf)"], ecke:["Ecken","var(--pin)"]};
@@ -4312,7 +4321,7 @@ function cpoPanel(D){
         <span class="dc" style="--f:var(--up)">💶 Cash <b>+${eur(x.eur)}</b> · ${x.anteil} %</span>
         <span class="dc" style="--f:var(--down)">🔥 Druck <b>${x.index}</b> · ${esc(seiteN(x)||"")}</span>
         <span class="dc" style="--f:var(--pin)${x.faellt?";border-width:2px;font-weight:700":""}">📉 Quote ${x.q0?`${q2(x.q0)} → `:""}<b>${q2(x.quote)}</b>${x.faellt?" · fällt":x.erwartet?` · Uhr ${q2(x.erwartet)} · hält`:""}</span>
-      </div></div>`;
+      </div>${tpZeile(x.id)}</div>`;
   return `<div class="panel c12"><div class="ph"><h3>💶🔥📉 CPO · Cash · Pressure · Odds</h3><span class="hint">Test · live: Geld + Druck vom selben Team + Quote hält gegen die Uhr · 🌡️ = Mittel der drei Ringe (0–100)</span></div>
     ${S.length ? `<div class="pks">${S.map(karte).join("")}</div>` : `<div class="leer">Gerade erfüllt kein Live-Spiel alle drei: Geld in 15 Min, Druck ab 55, Quote nicht über der Uhr.</div>`}</div>`;
 }
@@ -4381,6 +4390,30 @@ function topfRechnung(D){
   return `<div class="panel c12">${dynTabelle(G, defs, {titel:"Wie der Topf rechnet", unter:"Regel R31 · neu gewichtet Montag und Donnerstag", spalte:"Punkte-Teil",
     fuss: `Punkte-Teile werden seit 17.11. je Kandidat mitgeschrieben; die stillen Zeilen (keine Punkte) gelten rückwirkend für alle ${G.alleAbgerechnet||0} abgerechneten Kandidaten.`})}</div>`;
 }
+// 22.11. Torprofil (Lucas: „wie spielen die zu Hause die letzten Spiele, wie das Auswärtsteam auswärts … Teams, die drücken
+// wie irre, aber immer torarme Spiele"): torprofil.py — letzte 6 Heim- bzw. Auswärtsspiele, Ø Tore, Über 2,5, 0:0.
+function tpSeite(x, kurz){
+  if(!x) return "–";
+  return `Ø <b>${dez(x.avg)}</b> · Ü2,5 <b>${x.ue25}/${x.n}</b>${x.null?` · ${x.null}× 0:0`:""}${!kurz && x.htAvg!=null?` · HZ Ø ${dez(x.htAvg)}`:""}${x.amOrt?"":` <small title="zu wenige Spiele am Ort — letzte ${x.n} insgesamt">(alle)</small>`}`;
+}
+function tpZeile(id){
+  const P = (D && D.torprofil || {})[String(id).replace(/^bf\|/,"")]; if(!P) return "";
+  const mark = P.hinweis ? `<span class="tp-m hin" title="Regel TP1: torreich, erst ${P.tore} Tor(e), Druck ${P.druck} — still gemessen">🔥 torreich – erst ${P.tore} Tor${P.tore===1?"":"e"}</span>`
+    : P.torreich ? `<span class="tp-m reich">torreich</span>` : P.torarm ? `<span class="tp-m arm" title="Form: wenig Tore — Druck wird hier oft nicht zu Toren">🧊 torarm</span>` : "";
+  const mk = P.markt!=null ? ` · Markt ${dez(P.markt)}` : "";
+  return `<div class="tp">${mark}<span>⚽ Form ${P.erwartung!=null?`<b>${dez(P.erwartung)}</b> Tore${mk}`:""}</span><span>H ${tpSeite(P.heim, true)}</span><span>G ${tpSeite(P.gast, true)}</span></div>`;
+}
+function tpKasten(s){
+  const P = (D && D.torprofil || {})[String(s.id)]; if(!P) return "";
+  const tab = (x, wer, ort) => !x ? "" : `<div><h4 style="margin:0 0 4px">${esc(wer)} <small>${x.amOrt?`letzte ${x.n} ${ort}`:`letzte ${x.n} Spiele`}</small></h4>
+    <div class="kk-klein" style="margin-bottom:4px">${tpSeite(x)} · schießt ${dez(x.fuer)}, kassiert ${dez(x.gegen)}</div>
+    <table>${(x.spiele||[]).map(z=>{ const t = z[3].split(":").reduce((a,b)=>a+(+b),0);
+      return `<tr><td class="n">${esc(z[0])}</td><td class="n">${z[1]==="H"?"H":"A"}</td><td>${esc(z[2]||"")}</td><td class="r ${t===0?"x0":t>=3?"x3":""}">${esc(z[3])}</td><td class="r n">${z[4]?`(${esc(z[4])})`:""}</td></tr>`; }).join("")}</table></div>`;
+  const vgl = P.markt!=null ? ` · Markt jetzt <b>${dez(P.markt)}</b> Tore/90${P.erwartung-P.markt>=0.5?" — Form erwartet deutlich mehr":P.markt-P.erwartung>=0.5?" — Markt erwartet deutlich mehr als die Form":""}` : "";
+  return `<div><h4>⚽ Torprofil <small>Form-Erwartung <b>${dez(P.erwartung)}</b> Tore${vgl}</small></h4>${tpZeile(s.id)}
+    <div class="tpk" style="margin-top:8px">${tab(P.heim, s.heim, "Heimspiele")}${tab(P.gast, s.gast, "Auswärtsspiele")}</div>
+    <div class="kk-klein" style="margin-top:6px">Form-Erwartung = (Heim-Tore + Gast-Gegentore)/2 + (Gast-Tore + Heim-Gegentore)/2. Grün ≥ 3 Tore, orange 0:0, in Klammern Halbzeit.</div></div>`;
+}
 function topDrei(D){
   const T = topDreiDaten(D);
   const modus = ligaModus==="ohne" ? "ohne Top-5" : ligaModus==="nur" ? "nur Top-5" : "alle Ligen";
@@ -4403,6 +4436,7 @@ function topDrei(D){
         ${gross ? t3Saeulen(x.saeulen) : ""}
         ${(()=>{ try{ const sp = x.key.startsWith("bf|") ? (D.radar.spiele||[]).find(q=>"bf|"+q.id===x.key) : null; return sp ? phasenBand(sp, true) : ""; }catch(e){ return ""; } })()}
         <div class="t3-gs">${gruende}</div>
+        ${tpZeile(x.key)}
       </div></div>`; };
   return `<div class="t3${erst?" erst":""}">${T.map(karte).join("")}</div>
     ${t3Messung(D)}
@@ -5200,6 +5234,7 @@ const STAT_K = {
   cpo:["CPO: Cash · Pressure · Odds","Nur gemessen","var(--down)"],
   stakeKlein:["Stake unter 5 % von Betfair","Nur gemessen","color-mix(in srgb, var(--st, var(--up)) 45%, var(--text-3))"],
   cpoFaellt:["CPO, Quote fällt","Nur gemessen","color-mix(in srgb, var(--down) 60%, var(--text-3))"],
+  torHinweis:["Torprofil: torreich, wenig Tore","Nur gemessen","color-mix(in srgb, var(--up) 60%, var(--text-3))"],
   mmA:["Angriffs-Bild (Test)","Test-Push","var(--bf)"],
   mmABein:["Angriffs-Bild: weitere Märkte","Nur gemessen","color-mix(in srgb, var(--bf) 55%, var(--text-3))"],
   mmA2:["Angriffs-Bild, 2 Märkte","Nur gemessen","color-mix(in srgb, var(--bf) 35%, var(--text-3))"],
@@ -5671,6 +5706,7 @@ const REGELN = [
   {id:"D1", t:"Dauerzufluss live: Quote gegen die Uhr gedrückt", seit:"18.11.", w:"Live steigt eine Quote meist schon durch die Spielzeit. Fällt sie während der Serie (seit dem letzten Tor) trotzdem um ≥ 3 % und liegt ≥ 5 % unter dem, was die Uhr allein erwarten ließe (Grunddrift je Markt-Art, Quote und Spielphase, höchstens 20 Min hochgerechnet), steht im Push „🔻 Quote gegen die Uhr gedrückt“. Gemessen still über das Feld „uhrDrop“ im Buch.", b:"Anlass Kasem Bundit U21 – Khonkaen U21 (18.11., 77' 1:0, Über 1,5): Geld drückte die Quote, die Uhr hätte sie steigen lassen — stand im Push nur versteckt in der Geld-Zeile."},
   {id:"LW2", t:"Liga-Gewicht: geschrumpfte Schätzung statt 99 %-Urteil", seit:"18.11.", w:"Je Liga der ROI, wenn hohes Geld klar auf einer Seite lag (Liga-Buch, 90 Tage). Wie stark sich Ligen wirklich unterscheiden, wird aus allen Ligen geschätzt; jede Liga bekommt ein Gewicht zwischen Schnitt und eigenem Ergebnis — je mehr Märkte, desto näher am eigenen. ≥ 3 pp über dem Schnitt = „Liga gut“ (+1 im Top 3), ≥ 3 pp darunter = „Liga schwach“ (−1); Topf: (Gewicht − Schnitt) / 3, höchstens ±4. Prüfung: Stufen montags einfrieren, Woche danach abrechnen; nach 6 Wochen trägt es, wenn „gut“ in ≥ 4 Wochen vor „schwach“ lag und zusammen besser. Sonst zurück zum 99 %-Urteil. Seite: Menü → Ligen.", b:"18.11.: echte Liga-Unterschiede ±7 pp, je Liga aber ±13 pp Messungenauigkeit — darum fielen 183 von 194 Ligen auf „offen“. Vorwärts-Test an 3 Stichtagen: zweimal gut > neutral > schwach."},
   {id:"FB1", t:"Früh bewegt: Pinnacle zieht Tage vor Anpfiff", seit:"18.11.", w:"Steigt bei Pinnacle die Wahrscheinlichkeit einer Seite (Sieg-Markt, ohne Marge) um ≥ 3 pp über den ersten Stand — mindestens 24 h vor Anpfiff, an zwei 3-h-Ständen in Folge —, steht das Spiel im Bereich „Früh bewegt“. Still gemessen: CLV = Pinnacle-Quote beim Erkennen gegen die Pinnacle-Schlussquote; dazu, ob es weiterzieht oder zurückgeht und ob Betfair schon mitzog. Urteil nach 150 Fällen: trägt bei Ø-CLV > +1 % und mehr als der Hälfte positiv. Kein Push.", b:"Erste Auswertung 18.11.: 16 % der Spiele bewegen sich so früh um ≥ 3 pp. Schlussquote fehlte bisher (Tagessicherung um 1 Uhr) — seit 18.11. im Früh-Archiv."},
+  {id:"TP1", t:"Torprofil: torreich, aber erst wenig Tore", seit:"22.11.", w:"Je Spiel die letzten 6 Heimspiele des Heimteams und die letzten 6 Auswärtsspiele des Gasts (API-Football, sonst die letzten 6 überhaupt): Ø Tore, Über 2,5, 0:0, Halbzeit. Form-Erwartung = (Heim-Tore + Gast-Gegentore)/2 + (Gast-Tore + Heim-Gegentore)/2. Torreich: Erwartung ab 3,0 oder mindestens 8 von 12 Spielen über 2,5. Torarm: Erwartung bis 2,0 oder mindestens 6 von 12 Spielen mit höchstens einem Tor. Hinweis „torreich – erst x Tore“: live, höchstens 1 Tor, Druck-Index ab 55, Form torreich. Kein Push — still gebucht: Über (Tore + 0,5) zur Betfair-Quote, je Spiel und Stand einmal. Urteil nach 100 Fällen: trägt, wenn die Trefferquote über der liegt, die die Quote erwartet, und die Rendite über der des Druck-Radars allein.", b:"Lucas 22.11.: „wie spielen die zu Hause die letzten Spiele, wie das Auswärtsteam auswärts, wie viele Tore, wie viele 0:0 … Panathinaikos drückt wie irre, aber sehr torarme Spiele.“", mess:[{n:"torreich – erst ≤ 1 Tor", a:["torHinweis"], ab:"2026-11-22T18:00"},{n:"zum Vergleich: Druck-Radar", a:["druck"], ab:"2026-11-22T18:00"}]},
   {id:"CPO1", t:"CPO: Cash · Pressure · Odds", seit:"22.11.", w:"Live-Spiele, in denen alle drei zusammenkommen. Cash: Live-Zufluss der letzten 15 Min (Schwellen wie der Live-Zufluss-Push) auf Sieg, HZ-Sieg, Über oder HZ-Über — kein Remis, kein Unter. Pressure: Druck-Index ab 55 vom Team, auf das das Geld geht (bei Über: irgendein Team); führt dieses Team schon, zählt es nicht. Odds: die Quote liegt höchstens dort, wo die Uhr allein sie seit 12–20 Min (gleicher Stand) hingebracht hätte; ohne Uhr-Modell (HZ-Sieg): nicht gestiegen. Je Spiel die stärkste Auswahl, die besten drei auf der Übersicht. Kein Push — still gebucht zur Quote beim Erkennen. Urteil nach 100 Fällen: trägt, wenn die Rendite über der des Druck-Radars allein liegt.", b:"Lucas 22.11.: „wo Cash fließt, wo Pressure da ist und wo die Quoten zumindest nicht steigen — alle drei Kriterien.“ Die Quote wird gegen die Uhr gemessen: live steigen Über und das Team bei Gleichstand mit der Zeit von selbst.", mess:[{n:"CPO", a:["cpo"], ab:"2026-11-22T09:30"},{n:"davon Quote sogar gefallen", a:["cpoFaellt"], ab:"2026-11-22T11:30"},{n:"zum Vergleich: Druck-Radar", a:["druck"], ab:"2026-11-22T09:30"},{n:"zum Vergleich: Live-Zufluss", a:["live"], ab:"2026-11-22T09:30"}]},
   {id:"MM2", t:"Betfair: Angriffs-Bild auf mehreren Märkten", seit:"20.11.", w:"Ersetzt MM1. Gezählt werden nur diese Märkte: Team-Sieg, Team-Sieg zur Halbzeit, HZ Über 0,5, HZ Über 1,5, Über 1,5, Über 2,5, Über 3,5 — und Lay-Geld gegen Unter auf diesen Linien (zählt als Über). Je Markt: neues Geld in den letzten 30 Min vor Anpfiff bzw. 15 Min live, ≥ 60 % des neuen Geldes, ≥ €2k (Top 5: ≥ €10k). Lay erkennt die Quote: steigt sie vor Anpfiff um mehr als 1 %, war es Lay-Geld. Gesperrt, wenn Geld auf beide Teams oder echtes Unter-Geld dabei ist. Ab 3 Märkten gleichzeitig ein Test-Push in den Money-Channel (vor Anpfiff je Spiel, live je Spielstand einmal); gebucht wird der Markt mit dem meisten Geld, die übrigen still, Spiele mit genau 2 Märkten still zum Vergleich. Nie Public, nie X. Urteil nach 100 Pushes: trägt, wenn MM2 besser abschneidet als Frischer Zufluss / Live-Zufluss im selben Zeitraum.", b:"Lucas 20.11. 23:49: „Team Sieg FT, Team Sieg HT, Over 0.5 HT, Over 1.5 HT, Over 1.5, 2.5, 3.5, ggf. Under-Lays — aus dem heraus 3–4 gleichzeitig, das geil.“ MM1 zählte jeden Markt-Mix (auch Unter), das war zu breit.", mess:[{n:"Angriffs-Bild ≥ 3 Märkte", a:["mmA"], ab:"2026-11-20T22:55"},{n:"weitere Märkte desselben Pushs", a:["mmABein"], ab:"2026-11-20T22:55"},{n:"Angriffs-Bild 2 Märkte", a:["mmA2"], ab:"2026-11-20T22:55"},{n:"zum Vergleich: Frischer Zufluss + Live-Zufluss", a:["zufluss","live"], ab:"2026-11-20T22:55"}]},
   {id:"MM1", t:"Betfair: Geld auf mehreren Märkten gleichzeitig (beendet 20.11. 23:55, ersetzt durch MM2)", seit:"20.11.", w:"Bekommen in einem Spiel gleichzeitig mindestens 3 verschiedene Märkte einseitig neues Geld — nach denselben Schwellen wie Frischer Zufluss und Live-Zufluss (vor Anpfiff 30 Min ≥ €3k, live 15 Min, je ≥ 65 % des neuen Geldes im Markt, Lay-Geld raus) —, kommt ein eigener Test-Push in den Money-Channel mit allen Märkten. Vor Anpfiff je Spiel einmal, live je Spielstand einmal. Gebucht wird die Auswahl mit dem meisten Geld (MM1), die übrigen Märkte still (MM1: weitere Märkte), Spiele mit genau 2 Märkten still zum Vergleich. Nie Public, nie X. Urteil nach 100 Pushes: trägt, wenn MM1 besser abschneidet als Frischer Zufluss / Live-Zufluss im selben Zeitraum.", b:"Lucas 20.11.: „Das Beste ist immer, wenn Sieg, Halbzeit-Sieg, Halbzeit-Über gespielt wird oder Bewegung auf dem Lay vom Unter — muss ich immer händisch suchen.“ Jede bisherige Regel schaut auf einen Markt für sich.", mess:[{n:"Geld auf ≥ 3 Märkten", a:["mm1"], ab:"2026-11-20T21:30"},{n:"weitere Märkte desselben Pushs", a:["mm1Bein"], ab:"2026-11-20T21:30"},{n:"Geld auf 2 Märkten", a:["mm2"], ab:"2026-11-20T21:30"},{n:"zum Vergleich: Frischer Zufluss + Live-Zufluss", a:["zufluss","live"], ab:"2026-11-20T21:30"}]},

@@ -2056,6 +2056,29 @@ def cpo_still(d):
                     "minute": x.get("min"), "druck": x.get("index"), "regel": "CPO1"})
 
 
+def tp_still(d):
+    """22.11. Regel TP1 (Torprofil): „torreich – erst x Tore" — live, ≤ 1 Tor, Druck ≥ 55, Form torreich. Still Über (Tore + 0,5)
+    zur Betfair-Quote ins Buch, je Spiel und Stand einmal. Kein Push."""
+    radar = {str(s.get("id")): s for s in (d.get("radar") or {}).get("spiele") or []}
+    for rid, p in (d.get("torprofil") or {}).items():
+        sp = radar.get(rid)
+        if not p.get("hinweis") or not sp:
+            continue
+        lv = sp.get("live") or {}
+        st, tore = lv.get("stand") or [None, None], p.get("tore")
+        li = next((x for x in (sp.get("torFluss") or {}).get("linien") or [] if x.get("l") == tore + 0.5), None)
+        q = (li or {}).get("oq")
+        if not isinstance(q, (int, float)) or q <= 1.01:
+            continue
+        markt, aw = f"Over/Under {tore}.5 Goals", f"Over {tore}.5 Goals"
+        yield (f"tp|{rid}|{st[0]}:{st[1]}", None, None,
+               {"art": "torHinweis", "id": rid, "titel": f"{sp.get('heim')} – {sp.get('gast')}", "heim": sp.get("heim"),
+                "gast": sp.get("gast"), "liga": sp.get("liga"), "land": sp.get("land"), "anpfiff": sp.get("anpfiff"),
+                "markt": markt, "auswahl": aw, "anzeige": f"Über {tore},5", "quote": q, "live": True, "stand": st,
+                "minute": lv.get("min"), "druck": p.get("druck"), "formErw": p.get("erwartung"), "marktRate": p.get("markt"),
+                "ue25": p.get("ue25"), "nForm": p.get("n"), "regel": "TP1"})
+
+
 def pk1_still(d):
     """20.11. Regel PK1: Konsens bewährter Polymarket-Wallets still ins Buch (kein Push) — je Markt + Seite einmal.
     pk1 = ≥ 2 bewährte Wale einig, ≤ $2k bewährtes Geld dagegen; pk1Streit = dieselbe Mehrheit mit Gegenseite."""
@@ -2069,7 +2092,7 @@ def pk1_still(d):
 
 
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm2_push, cpo_still)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm2_push, cpo_still, tp_still)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────

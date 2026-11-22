@@ -588,6 +588,7 @@ def main() -> int:
     kand = kandidaten(d)
     info = None
     neue_ticks = []
+    live_fx, n = [], 0
     diag = {"kandidaten": len(kand), "faellig": 0, "ohneZuordnung": [], "ohneStatistik": [], "abgerufen": 0, "budget": None}
     ohne_alt = {}
     if kand and os.environ.get("APISPORTS_KEY"):
@@ -612,6 +613,7 @@ def main() -> int:
         diag["faellig"], diag["budget"] = len(offen), n
         if n >= 2 and offen:
             fixtures = (get("/fixtures?live=all") or {}).get("response") or []
+            live_fx = fixtures
             n -= 1
             try:
                 d["apifPruefung"] = apif_pruefung(fixtures)
@@ -688,6 +690,15 @@ def main() -> int:
         d["cpo"] = cpo(d)                        # 22.11. Regel CPO1
     except Exception as exc:  # noqa: BLE001
         print("live_stats: CPO", exc)
+    try:                                         # 22.11. Torprofil (Regel TP1) — Rest-Budget dieses Laufs
+        import torprofil
+        if os.environ.get("APISPORTS_KEY"):
+            if n <= 0 and not kand:
+                n = 4                            # kein Live-Spiel → kein Budget-Abruf; ein paar Abrufe für die nächsten Spiele
+            ab = torprofil.lauf(d, live_fx, get, n, zuordnen)
+            print(f"live_stats: Torprofil {len(d.get('torprofil') or {})} Spiele · {ab} Abrufe")
+    except Exception as exc:  # noqa: BLE001
+        print("live_stats: Torprofil", exc)
     DATEN.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"live_stats: {len(d['liveStats'])} Spiele mit Statistik, Kandidaten {len(kand)}, Kontingent {info}")
     print(f"live_stats: fällig {diag['faellig']} · Budget {diag['budget']} · abgerufen {diag['abgerufen']} · ohne Zuordnung "
