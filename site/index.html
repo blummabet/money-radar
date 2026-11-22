@@ -4234,7 +4234,7 @@ function druckZeile(x){
   return `<div class="pr-z${x.index>=70?" heiss":""}" style="--g:${druckFarbe(x.index)}" ${klickSpiel({id:x.id, heim:x.heim, gast:x.gast})}>
     <b class="pr-zi">${x.index}</b>
     <div class="pr-zm">${welleChip(x)}<div class="pr-zt"><span class="${s==="heim"?"an":""}">${esc(x.heim)}</span><em>${st[0]??0}:${st[1]??0}</em><span class="${s==="gast"?"an":""}">${esc(x.gast)}</span></div>
-      <div class="pr-zu"><span class="lv">● ${x.min}'</span> ${flagge(x.land)} ${esc(ligaName(x.liga)||"")} · xG ${dez(d.xg)}${x.quelle!=="xG"?" (geschätzt)":""}${letzte.length?` · <span class="neu">15': ${letzte.join(" · ")}</span>`:""}</div>${tpZeile(x.id)}</div></div>
+      <div class="pr-zu"><span class="lv">● ${x.min}'</span> ${flagge(x.land)} ${esc(ligaName(x.liga)||"")} · xG ${dez(d.xg)}${x.quelle!=="xG"?" (geschätzt)":""}${letzte.length?` · <span class="neu">15': ${letzte.join(" · ")}</span>`:""}</div>${tpZeile(x.id)}</div>
   </div>`;
 }
 const DR_ART = {welle:["🚩 Ecken-Welle","var(--poly)"], druck:["Druck","var(--hz)"], index:["Index","var(--down)"], tor:["Tor","var(--up)"], geld:["Geld","var(--bf)"], ecke:["Ecken","var(--pin)"]};
