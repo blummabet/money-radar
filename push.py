@@ -1159,6 +1159,7 @@ def stake(d):
             _mit(pub, g.get("usd"))
             if pub:
                 pub["x"] = {"wetten": g.get("wetten"), "faktor": g.get("faktor")}
+                pub["faktor"] = g.get("faktor")                                                  # Public-Regel 37
             try:
                 beleg = _stake_beleg(g, mit_auswahl or g, auswahl, quote, radar)
             except Exception as exc:  # noqa: BLE001
