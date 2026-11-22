@@ -19,7 +19,7 @@ from pathlib import Path
 
 DATEI = Path(__file__).resolve().parent / ".bf" / "torprofil.json"
 FRISCH_H = 20
-JE_LAUF = 8
+JE_LAUF = 14
 N_SPIELE = 6
 JETZT = datetime.now(timezone.utc)
 
