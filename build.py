@@ -719,6 +719,40 @@ LD_MAERKTE = re.compile(r"^(Match Odds|Over/Under \d\.5 Goals|First Half Goals \
 LD_UNTER, LD_UNTER_VOR, LD_MIN_MARKT = 0.08, 0.05, 2000
 
 
+def fluss_uhr(liste, prices, bf_hist):
+    """Regel CPO1 (22.11.): je Live-Zufluss-Auswahl die Quote vor 12–20 Min (gleicher Stand, Stand schon einen Abruf
+    davor gültig — LD3) und was die Uhr allein daraus gemacht hätte (markout.uhr_erwartung). Hängt „uhr" an die
+    Fluss-Einträge: {q0, m0, m1, erwartet}. live_stats prüft damit „Quote hält gegen die Uhr"."""
+    import markout as _m
+    ms = {str(m.get("matchId")): m for m in (prices or {}).get("matches") or []}
+    for z in liste or []:
+        mid = str(z.get("id"))
+        m = ms.get(mid)
+        pts = [x for x in (bf_hist or {}).get(mid) or [] if isinstance(x, dict) and isinstance(x.get("sel"), dict) and ts(x.get("ts"))]
+        if not m or len(pts) < 3:
+            continue
+        jp = pts[-1]
+        sc = lambda x: tuple(x.get("sc") or ())  # noqa: E731
+        alt = [x for x in pts if timedelta(minutes=12) <= ts(jp["ts"]) - ts(x["ts"]) <= timedelta(minutes=20)]
+        if not alt or not sc(jp):
+            continue
+        p0 = alt[-1]
+        i0 = pts.index(p0)
+        if sc(p0) != sc(jp) or i0 == 0 or sc(pts[i0 - 1]) != sc(jp):
+            continue
+        m0, m1 = p0.get("min"), jp.get("min")
+        if not all(isinstance(x, (int, float)) for x in (m0, m1)) or m1 - m0 < 5:
+            continue
+        mo0 = {k: v[1] for k, v in ((p0.get("sel") or {}).get("Match Odds") or {}).items() if isinstance(v, list) and isinstance(v[1], (int, float)) and v[1] > 1}
+        for f in z.get("fluss") or []:
+            w0 = ((p0.get("sel") or {}).get(f.get("markt")) or {}).get(f.get("auswahl"))
+            if not (isinstance(w0, list) and isinstance(w0[1], (int, float)) and w0[1] > 1):
+                continue
+            erw = _m.uhr_erwartung(f.get("markt"), f.get("auswahl"), w0[1], m0, m1, list(sc(jp)), mo0, m.get("home"), m.get("away"))
+            f["uhr"] = {"q0": w0[1], "m0": m0, "m1": m1, "erwartet": round(erw, 3) if erw else None}
+    return liste
+
+
 def bf_uhr(prices, bf_hist):
     import markout as _m
     aus = []
@@ -3247,7 +3281,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2", "cpo"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -3941,7 +3975,7 @@ def main() -> int:
         "betfair": betfair(prices, {}, consensus),          # die Übersicht des alten Projekts gibt es nicht mehr
         "radar": (radar := betfair_radar(prices, bf_hist, bf_norm, bf_norm_state)),
         "zufluss30": zufluss_liste(radar, consensus),
-        "liveZufluss": live_zufluss(radar),
+        "liveZufluss": fluss_uhr(live_zufluss(radar), prices, bf_hist),   # 22.11. CPO1: Uhr-Erwartung je Auswahl
         "mmAngriff": mm2_angriff(radar),           # 20.11. Regel MM2
         "polyFluss": (pfl := poly_fluss()),
         "serien": serien((takt_ := takt_fortschreiben(bf_hist)), radar),

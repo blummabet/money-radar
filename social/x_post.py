@@ -34,7 +34,7 @@ RUHE_VON, RUHE_BIS = 3, 7          # Uhr Wien
 FRISCH_MIN = 20                    # ältere Kandidaten verfallen (live zählt jede Minute)
 WERBUNG_ALLE_H = 72
 TELEGRAM = "t.me/c0c0bet"
-ARTEN_AUS = {"fix", "ht", "kiTop3", "hz", "pinn", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2"}   # Fix-Verdacht nie öffentlich; HZ/Test nicht; Pinnacle nicht (10.11. Lucas: Kurs, kein Geld)
+ARTEN_AUS = {"fix", "ht", "kiTop3", "hz", "pinn", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2", "cpo"}   # Fix-Verdacht nie öffentlich; HZ/Test nicht; Pinnacle nicht (10.11. Lucas: Kurs, kein Geld)
 
 LIGA_EN = {}
 

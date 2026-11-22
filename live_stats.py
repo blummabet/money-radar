@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -423,6 +424,74 @@ def apif_pruefung(fixtures):
     return aus
 
 
+# Regel CPO1 „Cash · Pressure · Odds" (Lucas 22.11. 02:40 / 10:16: „wo Cash fließt, wo Druck da ist und wo die Quoten
+# zumindest nicht steigen — alle drei"). Vorab festgelegt:
+# * Cash: Live-Zufluss der letzten 15 Min (dieselben Schwellen wie der Live-Zufluss-Push) auf Sieg, HZ-Sieg, Über oder
+#   HZ-Über — kein Remis, kein Unter.
+# * Pressure: Druck-Index ≥ 55 des Teams, auf das das Geld geht (bei Über: Druck irgendeines Teams). Führt das Team,
+#   auf das das Geld geht, zählt es nicht (wie Druck-Regel 7 in den Top 3).
+# * Odds: die Quote der Auswahl liegt höchstens dort, wo die Uhr allein sie seit 12–20 Min hingebracht hätte (gleicher
+#   Stand). Ohne Uhr-Erwartung (z. B. HZ-Sieg): Quote nicht gestiegen.
+# * Je Spiel die stärkste Auswahl. Übersicht zeigt die besten drei; still gebucht (art „cpo") zur Quote beim Erkennen.
+#   Urteil nach 100 Fällen: trägt, wenn die Rendite über der des Druck-Radars allein liegt (bisher ≈ +4 %).
+CPO_INDEX = 55
+_CPO_M = re.compile(r"^(Match Odds|Half Time|Over/Under \d+\.5 Goals|First Half Goals \d+\.5)$")
+
+
+def cpo(d):
+    druck = {str(x.get("id")): x for x in (d.get("druck") or {}).get("spiele") or []} if isinstance(d.get("druck"), dict) else \
+        {str(x.get("id")): x for x in d.get("druck") or []}
+    out = []
+    for z in d.get("liveZufluss") or []:
+        dr = druck.get(str(z.get("id")))
+        if not dr or not dr.get("teams"):
+            continue
+        st = dr.get("stand") or (z.get("live") or {}).get("stand") or [0, 0]
+        best = None
+        for f in z.get("fluss") or []:
+            mk, aw, q = f.get("markt"), str(f.get("auswahl") or ""), f.get("quote")
+            if not _CPO_M.match(str(mk or "")) or not isinstance(q, (int, float)) or q <= 1:
+                continue
+            if aw.startswith("Under") or aw in ("The Draw", "Draw"):
+                continue
+            if aw.startswith("Over"):
+                seite = max(("heim", "gast"), key=lambda k: dr["teams"][k].get("index") or 0)
+            elif aw == z.get("heim"):
+                seite = "heim"
+            elif aw == z.get("gast"):
+                seite = "gast"
+            else:
+                continue
+            idx = dr["teams"][seite].get("index") or 0
+            if idx < CPO_INDEX:
+                continue
+            i = 0 if seite == "heim" else 1
+            if not aw.startswith("Over") and _zahl(st[i]) > _zahl(st[1 - i]):
+                continue                                   # führt schon — der Druck ist „bezahlt"
+            u = f.get("uhr") or {}
+            if u.get("erwartet"):
+                if q > u["erwartet"]:
+                    continue
+                halt = round(100 * (1 - q / u["erwartet"]), 1)     # so viel % unter der Uhr
+            elif isinstance(u.get("q0"), (int, float)):
+                if q > u["q0"]:
+                    continue
+                halt = round(100 * (1 - q / u["q0"]), 1)
+            else:
+                continue
+            kand = {"id": str(z.get("id")), "heim": z.get("heim"), "gast": z.get("gast"), "liga": z.get("liga"), "land": z.get("land"),
+                    "top5": z.get("top5"), "anpfiff": z.get("anpfiff"), "min": dr.get("min"), "stand": st, "markt": mk, "auswahl": aw, "quote": q,
+                    "q0": u.get("q0"), "erwartet": u.get("erwartet"), "unterUhr": halt, "eur": f.get("eur"), "anteil": f.get("anteil"),
+                    "index": idx, "druckSeite": seite, "xg": dr["teams"][seite].get("xg"), "dxg15": dr["teams"][seite].get("dxg15"),
+                    "dat15": dr["teams"][seite].get("dat15"), "regel": "CPO1"}
+            if best is None or (idx, f.get("eur") or 0) > (best["index"], best["eur"] or 0):
+                best = kand
+        if best:
+            out.append(best)
+    out.sort(key=lambda x: (-x["index"], -(x["eur"] or 0)))
+    return out
+
+
 def druck_radar(d, cache, live_ids, neue_ticks):
     """Für die Seite: die Live-Spiele nach Druck-Index, mit Verlauf (Grafik), Geld je 5 Min und dem Ticker."""
     spiele = {s["id"]: s for s in (d.get("radar") or {}).get("spiele") or []}
@@ -580,6 +649,10 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         print("live_stats: Ecken-Welle", exc)
     d["druck"] = druck_radar(d, cache, live_ids, neue_ticks)
+    try:
+        d["cpo"] = cpo(d)                        # 22.11. Regel CPO1
+    except Exception as exc:  # noqa: BLE001
+        print("live_stats: CPO", exc)
     DATEN.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"live_stats: {len(d['liveStats'])} Spiele mit Statistik, Kandidaten {len(kand)}, Kontingent {info}")
     print(f"live_stats: fällig {diag['faellig']} · Budget {diag['budget']} · abgerufen {diag['abgerufen']} · ohne Zuordnung "

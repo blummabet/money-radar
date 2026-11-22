@@ -1999,6 +1999,18 @@ def cm1_push(d):
                 "wallet": x["wallet"], "mitN": len(x.get("mit") or []), "gegenUsd": x.get("gegenUsd"), "live": False, "regel": "CM1"})
 
 
+def cpo_still(d):
+    """22.11. Regel CPO1 (Cash · Pressure · Odds): still ins Buch zur Quote beim Erkennen — je Spiel, Markt, Auswahl und
+    Spielstand einmal. Kein Push (Lucas: „testweise auf der Übersicht + Statistik")."""
+    for x in d.get("cpo") or []:
+        st = x.get("stand") or [None, None]
+        yield (f"cpo|{x['id']}|{x['markt']}|{x['auswahl']}|{st[0]}:{st[1]}", None, None,
+               {"art": "cpo", "id": x["id"], "heim": x.get("heim"), "gast": x.get("gast"), "liga": x.get("liga"), "land": x.get("land"),
+                "anpfiff": x.get("anpfiff"), "markt": x["markt"], "auswahl": x["auswahl"], "anzeige": x["auswahl"], "quote": x["quote"],
+                "eur": x.get("eur"), "anteil": x.get("anteil"), "live": True, "stand": st, "minute": x.get("min"),
+                "druck": x.get("index"), "unterUhr": x.get("unterUhr"), "erwartet": x.get("erwartet"), "regel": "CPO1"})
+
+
 def pk1_still(d):
     """20.11. Regel PK1: Konsens bewährter Polymarket-Wallets still ins Buch (kein Push) — je Markt + Seite einmal.
     pk1 = ≥ 2 bewährte Wale einig, ≤ $2k bewährtes Geld dagegen; pk1Streit = dieselbe Mehrheit mit Gegenseite."""
@@ -2012,7 +2024,7 @@ def pk1_still(d):
 
 
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm2_push)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm2_push, cpo_still)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────
