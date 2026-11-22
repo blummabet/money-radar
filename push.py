@@ -47,6 +47,7 @@ ZUFLUSS_MIN_EUR = SCHWELLE[False][0]
 ZUFLUSS_PAUSE_H = 6          # dasselbe Spiel + dieselbe Seite höchstens alle 6 h
 FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als verpasst und werden nicht nachgeschickt
 WAL_MIN_USD = 1000
+STAKE_BF_ANTEIL, STAKE_USD_EUR = 0.05, 0.92    # Regel S7 (22.11.): Spiel-Burst/Top 5 erst ab 5 % des Betfair-Volumens
 STAKE_TOP5_MIN_USD = 50000   # Regel S5 (12.11.)
 STAKE_ES_TIER1 = re.compile(r"\b(blast|iem|intel extreme|pgl|esl pro league|esl one|major|starladder|perfect world|"
                             r"the international|riyadh|esports world cup|ewc|worlds|world championship|msi|vct|champions tour|masters)\b", re.I)  # Regel S6
@@ -1066,6 +1067,20 @@ def stake(d):
                     return bool(sp.get("top5"))
         return str(z.get("liga") or "") in STAKE_TOP5_EINDEUTIG
 
+    import top3 as _t3
+
+    def bf_spiel(z):
+        """Betfair-Spiel zum Stake-Spiel: Namensanfang wie stake_top5, sonst Team-Schlüssel wie in den Top 3."""
+        teile = [x.strip().lower() for x in str(z.get("spiel") or "").split(" - ")]
+        if len(teile) != 2:
+            return None
+        for sp in radar:
+            h, g_ = str(sp.get("heim") or "").lower(), str(sp.get("gast") or "").lower()
+            if h[:5] and g_[:5] and h[:5] in teile[0] and g_[:5] in teile[1]:
+                return sp
+        k = _t3.schluessel(teile[0], teile[1])
+        return next((sp for sp in radar if k and _t3.schluessel(sp.get("heim"), sp.get("gast")) == k), None)
+
     benutzt = set()
     for t0, z0 in sig:
         if id(z0) in benutzt:
@@ -1101,6 +1116,24 @@ def stake(d):
             # BEIDE Seiten (am selben Tag $62k auf Falcons vor Anpfiff, $463k auf G2 live; Vitality $75k, dann MOUZ $43k).
             # Dort keine Stake-Pushes mehr — still gemessen wird weiter.
             if g.get("kat") == "E-Sport" and STAKE_ES_TIER1.search(str(g.get("liga") or "")):
+                continue
+            # REGEL S7 (Lucas 22.11. 17:45: „wenn auf Stake 100.000 auf Barcelona gespielt werden — who cares … die Top 5 sind
+            # Gambler, wie damals die großen E-Sport-Turniere"; Auswertung 93 Stake-Pushes seit 10.11.: Spiel-Burst 49, −15 %;
+            # Top-Ligen 12, 33 % bei 57 % erwartet, −39 %): Spiel-Bursts und Top-5-Spiele nur noch, wenn das Stake-Geld
+            # mindestens 5 % des Betfair-Volumens desselben Spiels ausmacht (wie Public-Regel R38). Darunter still („stakeKlein").
+            # Dazu steht bei jedem Stake-Push das Betfair-Volumen im Buch (bfEur, bfAnteil) — Nachprüfung nach einer Woche.
+            bsp = bf_spiel(g)
+            bf_eur = (bsp or {}).get("eur") if isinstance((bsp or {}).get("eur"), (int, float)) else None
+            bf_ant = round((g.get("usd") or 0) * STAKE_USD_EUR / bf_eur, 4) if bf_eur else None
+            spiel_burst = any("Spiel" in str(z.get("art") or "") for z in gruppe)
+            if bf_ant is not None and bf_ant < STAKE_BF_ANTEIL and (spiel_burst or (bsp or {}).get("top5") or stake_top5(g)):
+                try:
+                    bk = _stake_beleg(g, mit_auswahl or g, auswahl, quote, radar)
+                except Exception:  # noqa: BLE001
+                    bk = None
+                if bk:
+                    yield (f"sk|{g.get('spiel')}|{t0:%Y-%m-%dT%H:%M}", None, None,
+                           {**bk, "art": "stakeKlein", "bfEur": round(bf_eur), "bfAnteil": bf_ant, "spielBurst": spiel_burst})
                 continue
             # Lucas 31.10. (Accrington – Northampton 40' 1:0, $18k auf Accrington @ 1,40: „Macht keinen Sinn, oder?"): REGEL S2 —
             # wie beim Betfair-Zufluss seit 30.10.: Live-Geld auf das Team, das gerade führt (egal wie knapp), wird nicht gepusht,
@@ -1165,6 +1198,8 @@ def stake(d):
             except Exception as exc:  # noqa: BLE001
                 print(f"  stake-beleg: {exc}")
                 beleg = None
+            if beleg:
+                beleg.update(bfEur=round(bf_eur) if bf_eur else None, bfAnteil=bf_ant, spielBurst=spiel_burst)   # Regel S7
             regulaer = True
             yield key, text, None, beleg, pub
         if tm and not regulaer and not tm[3].get("live"):
