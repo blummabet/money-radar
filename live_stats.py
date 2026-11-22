@@ -482,7 +482,7 @@ def cpo(d):
             kand = {"id": str(z.get("id")), "heim": z.get("heim"), "gast": z.get("gast"), "liga": z.get("liga"), "land": z.get("land"),
                     "top5": z.get("top5"), "anpfiff": z.get("anpfiff"), "min": dr.get("min"), "stand": st, "markt": mk, "auswahl": aw, "quote": q,
                     "q0": u.get("q0"), "erwartet": u.get("erwartet"), "unterUhr": halt, "eur": f.get("eur"), "anteil": f.get("anteil"),
-                    "index": idx, "druckSeite": seite, "xg": dr["teams"][seite].get("xg"), "dxg15": dr["teams"][seite].get("dxg15"),
+                    "faellt": bool(isinstance(u.get("q0"), (int, float)) and q < u["q0"]), "index": idx, "druckSeite": seite, "xg": dr["teams"][seite].get("xg"), "dxg15": dr["teams"][seite].get("dxg15"),
                     "dat15": dr["teams"][seite].get("dat15"), "regel": "CPO1"}
             if best is None or (idx, f.get("eur") or 0) > (best["index"], best["eur"] or 0):
                 best = kand
