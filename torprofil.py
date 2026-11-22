@@ -37,8 +37,8 @@ def _spiele(resp, tid):
     out = []
     for fx in resp or []:
         st = ((fx.get("fixture") or {}).get("status") or {}).get("short")
-        if st not in ("FT", "AET", "PEN"):
-            continue
+        if st not in ("FT", "AET", "PEN") or "friendl" in str((fx.get("league") or {}).get("name") or "").lower():
+            continue                         # Testspiele zählen nicht (OFI hatte Rennes, Hapoel Be'er Sheva drin)
         t, g, sc = fx.get("teams") or {}, fx.get("goals") or {}, (fx.get("score") or {}).get("halftime") or {}
         heim = (t.get("home") or {}).get("id") == tid
         gh, ga = g.get("home"), g.get("away")
@@ -88,7 +88,7 @@ def lauf(d, live_fx, get, n, zuordnen):
     except Exception:  # noqa: BLE001
         tp = {}
     alt = lambda x, h: JETZT - (_ts(x) or JETZT - timedelta(days=9)) >= timedelta(hours=h)
-    teams = {k: v for k, v in (tp.get("teams") or {}).items() if not alt(v.get("ts"), 96)}
+    teams = {k: v for k, v in (tp.get("teams") or {}).items() if not alt(v.get("ts"), 96) and v.get("v") == 2}
     zuord = {k: v for k, v in (tp.get("zuord") or {}).items() if not alt(v[2], 30)}
     spiele = [s for s in (d.get("radar") or {}).get("spiele") or [] if s.get("id")]
     radar = {str(s["id"]): s for s in spiele}
@@ -126,7 +126,7 @@ def lauf(d, live_fx, get, n, zuordnen):
             r = get("/fixtures?team=%s&last=15" % tid)
             abrufe += 1
             if r is not None:
-                teams[k] = {"ts": JETZT.isoformat(), "spiele": _spiele((r or {}).get("response"), tid)}
+                teams[k] = {"v": 2, "ts": JETZT.isoformat(), "spiele": _spiele((r or {}).get("response"), tid)}
         p = profil(seite((teams.get(str(hid)) or {}).get("spiele") or [], "H"),
                    seite((teams.get(str(aid)) or {}).get("spiele") or [], "A"))
         if not p:
