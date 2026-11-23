@@ -360,7 +360,7 @@ def stake_abrechnen(buch, jetzt):
 
 
 # ── Polymarket (Lucas 20.10.: Dauerzufluss auf Polymarket ins Buch) ───────────────────────────────────────
-def _poly_ausgang(event, auswahl, key=None):
+def _poly_ausgang(event, auswahl, key=None, ko=None):
     """True/False, wenn der Markt der Auswahl entschieden ist; None = noch offen / nicht zuordenbar; 'void' = 50:50.
     Etiketten wie in poly_fluss.seiten(): Ja-Nein-Märkte → Titel / „gegen Titel", sonst „Ausgang (Titel)" oder Ausgang."""
     mks = event.get("markets") or []
@@ -385,6 +385,10 @@ def _poly_ausgang(event, auswahl, key=None):
             if (lab.get(o) != auswahl and not (haupt and o == auswahl)) or i >= len(preise):
                 continue
             if not mk.get("closed"):
+                # 23.11.: Polymarket schließt Märkte oft Tage später — klarer Preis ≥ 0,985 ab 4 h nach Anpfiff zählt
+                alt_h = (datetime.now(timezone.utc) - ko).total_seconds() / 3600 if ko else 0
+                if (alt_h >= 4 and max(preise) >= 0.985) or (alt_h >= 12 and max(preise) >= 0.93):
+                    return preise[i] == max(preise)
                 return None
             if max(preise) >= 0.99:
                 return preise[i] >= 0.99
@@ -624,11 +628,12 @@ def poly_abrechnen(buch, jetzt):
         ev = evs.get(str(b.get("id")))
         w = None
         if ev:
-            if b["art"] in ("pserie", "top3p"):
-                w = _poly_ausgang(ev, b.get("auswahl"), str(b.get("id")))
+            # 23.11.: pserieGegen trägt „gegen X" wie die Serie — lief bisher über den Sieger-Abgleich und blieb offen
+            if b["art"] in ("pserie", "top3p", "pserieGegen") or str(b.get("auswahl") or "").startswith("gegen "):
+                w = _poly_ausgang(ev, b.get("auswahl"), str(b.get("id")), _ts(b.get("anpfiff")))
             else:
                 import poly_markt
-                preise = poly_markt.aufloesung_ev(ev)
+                preise = poly_markt.aufloesung_ev(ev, _ts(b.get("anpfiff")))
                 if preise:
                     gew = poly_markt.sieger(preise)
                     w = "void" if gew is None else (gew == b.get("auswahl") if b.get("auswahl") in preise else None)

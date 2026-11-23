@@ -360,15 +360,21 @@ def _halter_parse(data, token):
     return out
 
 
+HALTER_AVG = {}
+
+
 def alle_halter(cond, token):
     alle, gesehen = [], set()
-    if not _STAT.get("probe"):                          # 23.11. Prüfung: was liefert /v2/holders?include_pnl=true je Halter?
-        _STAT["probe"] = 1
-        pr = _get(poly_v2.url("holders", condition=cond, limit=3, include_pnl="true"))
-        print(f"  poly_markt: Probe holders+pnl: {json.dumps(pr, ensure_ascii=False)[:900]}")
-    data = poly_v2.seiten(_get, "holders", HALTER_SEITEN, condition=cond, limit=200)
+    # 23.11.: include_pnl liefert je Halter avg_price/entry_cost — Einstieg für ALLE Wale ohne /positions-Abruf
+    data = poly_v2.seiten(_get, "holders", HALTER_SEITEN, condition=cond, limit=200, include_pnl="true")
     if data is None:
         return [], True
+    for g in data if isinstance(data, list) else []:
+        for h in (g.get("holders") if isinstance(g, dict) and "holders" in g else [g]) or []:
+            if isinstance(h, dict) and str(h.get("token_id") or h.get("asset") or token) == str(token):
+                w = str(h.get("proxy_wallet") or h.get("proxyWallet") or "").lower()
+                if w and isinstance(h.get("avg_price"), (int, float)) and 0 < h["avg_price"] < 1:
+                    HALTER_AVG[(w, str(token))] = round(float(h["avg_price"]), 4)
     for w, a in _halter_parse(data, token):
         if w not in gesehen:
             gesehen.add(w)
@@ -751,7 +757,11 @@ def erledigt_schreiben():
     print(f"  poly_markt: {len(_ERLEDIGT_NEU)} aufgelöste Positionen archiviert · {len(alt)} Spiele im Archiv")
 
 
-def aufloesung_ev(ev):
+AUFL_FEST_H = 4          # 23.11.: so lange nach Anpfiff gilt ein klarer Preis auch ohne „closed" als Ergebnis
+AUFL_FEST_P = 0.985
+
+
+def aufloesung_ev(ev, ko=None):
     """Aufgelöste Preise der Sieger-Ausgänge eines Ereignisses {Etikett: Preis} — None, solange nicht entschieden.
     Dieselbe Auswahl wie beim Erfassen (ausgaenge), nur dass geschlossene Märkte zählen."""
     oc = []
@@ -779,6 +789,14 @@ def aufloesung_ev(ev):
     preise = [o.get("price") for o in oc if isinstance(o.get("price"), (int, float))]
     if fertig and preise and (max(preise) >= 0.98 or max(preise) - min(preise) < 0.02):
         return {o["label"]: o.get("price") for o in oc}
+    # 23.11. (Prüfung): Polymarket schließt Märkte oft Tage später (UMA „proposed" oder gar nichts) — Kryvbas – Kudrivka
+    # vom 21.11. stand am 23.11. noch offen bei Remis 0,981. Solche Positionen fielen nach 96 h ungewertet raus.
+    # Klarer Preis (≥ 0,985) mindestens 4 h nach Anpfiff = Ergebnis.
+    # Spätestens 12 h nach Anpfiff wird niemand mehr gehandelt — dann reicht ≥ 0,93 (dünne Remis-Märkte stehen bei 0,98).
+    if not fertig and preise and ko and ((JETZT - ko >= timedelta(hours=AUFL_FEST_H) and max(preise) >= AUFL_FEST_P)
+                                         or (JETZT - ko >= timedelta(hours=12) and max(preise) >= 0.93)):
+        _STAT["auflOhneZu"] = _STAT.get("auflOhneZu", 0) + 1
+        return {o["label"]: (1.0 if o.get("price") == max(preise) else 0.0) for o in oc}
     return None                                         # geschlossen, aber noch nicht ausgezahlt → nächster Lauf
 
 
@@ -801,7 +819,7 @@ def aufloesungen(track, gesehen_keys):
         ev = _get(f"{GAMMA}?slug={urllib.parse.quote(key)}")
         if not isinstance(ev, list) or not ev:
             continue
-        preise = aufloesung_ev(ev[0])
+        preise = aufloesung_ev(ev[0], faellig.get(key))
         if preise:
             out[key] = preise
         else:                                           # 23.11. Prüfung: warum nicht entschieden? (erste 6 je Lauf ins Log)
@@ -812,7 +830,8 @@ def aufloesungen(track, gesehen_keys):
                                            f"umaResolution={[m.get('umaResolutionStatus') for m in ms][:3]}, "
                                            f"Preise={[m.get('outcomePrices') for m in ms][:3]}, Titel={[m.get('groupItemTitle') or m.get('question') for m in ms][:3]}")
     track["geprueft"] = geprueft
-    print(f"  poly_markt: Auflösung — {len(faellig)} Märkte fällig, {len(reihe)} nachgeschlagen, {len(out)} entschieden")
+    print(f"  poly_markt: Auflösung — {len(faellig)} Märkte fällig, {len(reihe)} nachgeschlagen, {len(out)} entschieden"
+          f" (davon {_STAT.get('auflOhneZu', 0)} über klaren Preis ohne Schließung)")
     for z in _STAT.get("offenWarum") or []:
         print(f"    offen: {z[:420]}")
     return out
@@ -928,7 +947,13 @@ def main() -> int:
             if (wh.get("usd") or 0) < 1000:
                 continue
             ok = f"{wh['wallet']}|{m['key']}|{wh['side']}"
-            if (alte_open.get(ok) or {}).get("entryPrice"):
+            ha = HALTER_AVG.get((wh["wallet"], str(tok.get(wh["side"]))))
+            if ha is not None and not m.get("live"):          # 23.11.: aus /v2/holders, nur vor Anpfiff (wie 21.11.)
+                wh["avgPrice"] = ha
+                _STAT["avgHalter"] = _STAT.get("avgHalter", 0) + 1
+                if wh["wallet"] in pos_cache or pos_budget[0] <= 0:
+                    continue
+            elif (alte_open.get(ok) or {}).get("entryPrice"):
                 wh["avgPrice"] = alte_open[ok]["entryPrice"]
                 continue
             if wh["wallet"] not in pos_cache:
@@ -943,7 +968,7 @@ def main() -> int:
             if ap is not None and not m.get("live"):          # 21.11.: Einstieg nur vor Anpfiff (Live-Käufe verfälschen ihn)
                 wh["avgPrice"] = ap
     print(f"  poly_markt: Halter für {sum(1 for m in maerkte.values() if m['whales'])} Märkte · "
-          f"{POS_BUDGET - pos_budget[0]} Einstiegs-Abrufe")
+          f"{POS_BUDGET - pos_budget[0]} Einstiegs-Abrufe · Einstieg aus Halter-Liste {_STAT.get('avgHalter', 0)}×")
 
     aufg = aufloesungen(track, set(maerkte))
     buch_ereignisse()
