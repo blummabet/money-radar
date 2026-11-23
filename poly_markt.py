@@ -42,6 +42,7 @@ TRACK = BASIS / "poly_wallet_track.json"
 # einem Spiel saßen, war danach weg, jede Kombinations-Idee musste wochenlang neu gemessen werden. ~250 Positionen
 # am Tag, kompakt je Spiel ≈ 1–2 MB für 60 Tage (Speicher-Regel).
 ERLEDIGT = BASIS / "poly_erledigt.json"
+GESUND = BASIS / "poly_gesund.json"
 ERLEDIGT_TAGE, ERLEDIGT_MIN_USD = 60, 1000
 _ERLEDIGT_NEU = []
 
@@ -708,6 +709,7 @@ def track_fortschreiben(track, maerkte, aufgeloest):
             _STAT["clvUnmoeglich"] = _STAT.get("clvUnmoeglich", 0) + 1
             continue
         s = scores.setdefault(e["wallet"], {"n": 0, "clvSumPP": 0.0, "wins": 0, "usd": 0})
+        _STAT["gewertet"] = _STAT.get("gewertet", 0) + 1
         s["n"] = (s.get("n") or 0) + 1
         s["clvSumPP"] = round((s.get("clvSumPP") or 0) + clv, 2)
         s["clvSqSum"] = round((s.get("clvSqSum") or 0) + clv * clv, 2)
@@ -831,6 +833,7 @@ def aufloesungen(track, gesehen_keys):
                                            f"umaResolution={[m.get('umaResolutionStatus') for m in ms][:3]}, "
                                            f"Preise={[m.get('outcomePrices') for m in ms][:3]}, Titel={[m.get('groupItemTitle') or m.get('question') for m in ms][:3]}")
     track["geprueft"] = geprueft
+    _STAT["faellig"] = len(faellig)
     print(f"  poly_markt: Auflösung — {len(faellig)} Märkte fällig, {len(reihe)} nachgeschlagen, {len(out)} entschieden"
           f" (davon {_STAT.get('auflOhneZu', 0)} über klaren Preis ohne Schließung)")
     for z in _STAT.get("offenWarum") or []:
@@ -971,6 +974,7 @@ def main() -> int:
     print(f"  poly_markt: Halter für {sum(1 for m in maerkte.values() if m['whales'])} Märkte · "
           f"{POS_BUDGET - pos_budget[0]} Einstiegs-Abrufe · Einstieg aus Halter-Liste {_STAT.get('avgHalter', 0)}×")
 
+    _STAT["halterMaerkte"] = sum(1 for m in maerkte.values() if m.get("whales"))
     aufg = aufloesungen(track, set(maerkte))
     buch_ereignisse()
     track = track_fortschreiben(track, maerkte, aufg)
@@ -1009,6 +1013,17 @@ def main() -> int:
     if _STAT.get("clvUnmoeglich"):
         print(f"  poly_markt: {_STAT['clvUnmoeglich']} Positionen mit unmöglichem CLV (> {CLV_MAX_PP} pp) nicht gewertet")
     print(f"  poly_markt: Lebensbilanz (v2 user-pnl) für {_STAT.get('pnlOk', 0)} Wallets geholt")
+    # 23.11. (Lucas: „in Zukunft Daten sammeln … Lücken sind blöd"): je Lauf eine Gesundheitszeile — der Wächter im
+    # Seitenbau schlägt Alarm, wenn ein Teil zwar läuft, aber nichts liefert (Halter 0, keine Wertung, Fehlerflut …)
+    try:
+        gz = GESUND.exists() and json.loads(GESUND.read_text(encoding="utf-8")) or []
+        gz.append({"ts": JETZT.isoformat(), "maerkte": len(maerkte), "halter": _STAT.get("halterMaerkte", 0),
+                   "ok": _STAT["ok"], "fehler": _STAT["fehler"], "faellig": _STAT.get("faellig", 0),
+                   "entschieden": len(aufg), "gewertet": _STAT.get("gewertet", 0), "verfallen": _STAT.get("verfallen", 0),
+                   "pnlOk": _STAT.get("pnlOk", 0), "offen": len(track["open"])})
+        GESUND.write_text(json.dumps(gz[-150:], separators=(",", ":")), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  poly_markt: Gesundheit: {exc}")
     if _STAT.get("verfallen"):                          # 23.11.: Positionen, die nie aufgelöst wurden, gehen der Wertung verloren
         print(f"  poly_markt: ⚠️ {_STAT['verfallen']} Positionen nach {TRACK_HALTEN_H} h ohne Auflösung verworfen: "
               + ", ".join(sorted(_STAT["verfallenKeys"])[:10]))

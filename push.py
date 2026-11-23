@@ -2116,7 +2116,60 @@ WAECHTER = {"betfair": ("Betfair (Betwatch)", 30), "pinnacle": ("Pinnacle", 30),
             "polymarket": ("Polymarket-Wale (Mac)", 40), "stakeAbruf": ("Stake-Abruf (Mac)", 30), "polyFluss": ("Polymarket-Fluss (Mac)", 40)}
 
 
+WI_NAMEN = {"pmHalter": "Polymarket-Halter", "pmFehler": "Polymarket-Abrufe", "pmAufl": "Polymarket-Auflösung",
+            "pmWertung": "Polymarket-Wallet-Wertung", "pmVerfall": "Polymarket-Positionen", "pmPnl": "Polymarket-Lebensbilanz",
+            "pmFluss": "Polymarket-Fluss", "bfLeer": "Betfair-Radar", "lsLeer": "Live-Statistik"}
+
+
+def inhalt_pruefen(d):
+    """23.11. (Lucas: „in Zukunft Daten sammeln … so Lücken sind blöd"): der Zeit-Wächter sieht nur, OB eine Quelle läuft.
+    Lücken entstanden aber, wenn sie lief und nichts lieferte (14.11. keine Wallet-Wertung, 10.–16.11. kein Geld in den
+    Tageswerten, 23.11. ein Lauf ohne Halter, Wochen ohne Lebensbilanz). → {Schlüssel: (Name, Befund)} für alles, was gerade
+    fehlt. REIN."""
+    aus = {}
+    g = [x for x in d.get("polyGesund") or [] if isinstance(x, dict) and ts(x.get("ts"))]
+    letzte = lambda h: [x for x in g if (JETZT - ts(x["ts"])).total_seconds() <= h * 3600]   # noqa: E731
+    l3 = g[-3:]
+    if len(l3) == 3 and all(x.get("maerkte", 0) >= 50 and x.get("halter", 0) == 0 for x in l3):
+        aus["pmHalter"] = ("Polymarket-Halter", "3 Läufe in Folge ohne Halter — keine Wale, keine Wal-Pushes, keine Wallet-Wertung")
+    if len(l3) == 3 and all(x.get("fehler", 0) > max(20, 0.2 * (x.get("ok", 0) + x.get("fehler", 0))) for x in l3):
+        aus["pmFehler"] = ("Polymarket-Abrufe", f"3 Läufe mit vielen Fehlern (zuletzt {l3[-1].get('fehler')} von {l3[-1].get('ok', 0) + l3[-1].get('fehler', 0)})")
+    h12 = letzte(12)
+    if len(h12) >= 30 and sum(x.get("faellig", 0) for x in h12) >= 100 and sum(x.get("entschieden", 0) for x in h12) == 0:
+        aus["pmAufl"] = ("Polymarket-Auflösung", "12 h lang kein Spiel aufgelöst, obwohl welche fällig sind — die Wallet-Wertung steht")
+    h24 = letzte(24)
+    if len(h24) >= 60 and sum(x.get("gewertet", 0) for x in h24) == 0:
+        aus["pmWertung"] = ("Polymarket-Wallet-Wertung", "24 h keine einzige Wette gewertet — die Rangliste bekommt keine Daten")
+    if g and g[-1].get("verfallen", 0) >= 50:
+        aus["pmVerfall"] = ("Polymarket-Positionen", f"{g[-1]['verfallen']} Positionen ohne Ergebnis verworfen — sie fehlen in der Wertung")
+    h3 = letzte(3)
+    if len(h3) >= 12 and sum(x.get("pnlOk", 0) for x in h3) == 0:
+        aus["pmPnl"] = ("Polymarket-Lebensbilanz", "3 h lang keine Gewinn-/Verlust-Zahl je Wallet geholt")
+    pf = d.get("polyFluss") or {}
+    if isinstance(pf.get("maerkte"), list) and not pf["maerkte"] and ts(pf.get("stand")):
+        aus["pmFluss"] = ("Polymarket-Fluss", "Lauf ohne einen einzigen Markt mit Käufen")
+    sp = (d.get("radar") or {}).get("spiele")
+    if isinstance(sp, list) and not sp:
+        aus["bfLeer"] = ("Betfair-Radar", "kein einziges Spiel im Radar")
+    live = [x for x in sp or [] if x.get("live")]
+    ls = d.get("liveStats") or {}
+    if len(live) >= 8 and sum(1 for x in live if str(x.get("id")) in ls) == 0:
+        aus["lsLeer"] = ("Live-Statistik", f"{len(live)} Live-Spiele, keines mit Statistik — Druck-Radar und CPO blind")
+    return aus
+
+
 def waechter(d, gesehen):
+    try:
+        befund = inhalt_pruefen(d)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  inhalt_pruefen: {exc}")
+        befund = None
+    if befund is not None:
+        for k, (name, was) in befund.items():
+            if f"wi|{k}" not in gesehen:
+                yield f"wi|{k}", f"⚠️ <b>Daten-Wächter</b>: {e(name)} — {e(was)}.", "setzen"
+        for key in [x for x in gesehen if x.startswith("wi|") and x[3:] not in befund]:
+            yield key, f"✅ <b>Daten-Wächter</b>: {e(WI_NAMEN.get(key[3:], key[3:]))} liefert wieder.", "loeschen"
     q = dict(d.get("quellen") or {})
     q["polyFluss"] = (d.get("polyFluss") or {}).get("stand")
     for k, (name, grenze) in WAECHTER.items():
@@ -2198,7 +2251,7 @@ def main() -> int:
     except Exception:  # noqa: BLE001
         serie_geld = {}
     grenze = (JETZT - timedelta(days=3)).isoformat()
-    gesehen = {k: v for k, v in gesehen.items() if v >= grenze or k.startswith("wa|")}      # alte Einträge vergessen
+    gesehen = {k: v for k, v in gesehen.items() if v >= grenze or k.startswith(("wa|", "wi|"))}      # alte Einträge vergessen
 
     try:
         antwort = json.loads(ANTWORT.read_text(encoding="utf-8"))
@@ -2224,7 +2277,7 @@ def main() -> int:
 
     def erkannt():
         heute = JETZT.astimezone(ZoneInfo("Europe/Vienna")).date()
-        return sum(1 for k, v in gesehen.items() if not k.startswith(("wa|", "sf|", "lf|", "tm|", "lg|", "wk|")) and ts(v)
+        return sum(1 for k, v in gesehen.items() if not k.startswith(("wa|", "wi|", "sf|", "lf|", "tm|", "lg|", "wk|")) and ts(v)
                    and ts(v).astimezone(ZoneInfo("Europe/Vienna")).date() == heute)
 
     for art in ARTEN:

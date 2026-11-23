@@ -3990,6 +3990,7 @@ def main() -> int:
     # 20.10.: Polymarket aus dem EIGENEN Mac-Lauf (poly_markt.py → .pm/), Wal-Pushes aus dem eigenen Push-Buch
     track = eigen("poly_wallet_track.json", ".pm", default={}, max_min=60)
     pm = (eigen("poly_maerkte.json", ".pm", default={}, max_min=60) or {}).get("maerkte") or {}
+    poly_gesund = eigen("poly_gesund.json", ".pm", default=[])           # 23.11.: Inhalts-Wächter (push.py)
     upcoming = {k: v for k, v in pm.items() if not v.get("live")}
     live_m = {k: v for k, v in pm.items() if v.get("live")}
     offen_m = {k: v for k, v in upcoming.items() if v.get("whales")}
@@ -4002,6 +4003,7 @@ def main() -> int:
 
     daten = {
         "generatedAt": iso(JETZT),
+        "polyGesund": (poly_gesund or [])[-80:] if isinstance(poly_gesund, list) else [],
         "quellen": {
             "betfair": stand(prices, "_meta.generatedAt"),
             "zufluss": stand(prices, "_meta.generatedAt"),   # 20.10.: Zufluss rechnet der Geldradar selbst aus dem eigenen Abruf
