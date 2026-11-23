@@ -6198,7 +6198,10 @@ function phasenBand(s, mini=false){
   const maxE = Math.max(1, ...Z.map(z=>z[2]||0)), maxT = Math.max(1, ...Z.map(z=>Math.abs(z[4]||0)));
   const op = (v, m) => (0.2 + 0.8*Math.log1p(v)/Math.log1p(m)).toFixed(2);
   const FS = {h:"var(--ph-h)", a:"var(--ph-a)", x:"var(--ph-x)"};
-  const stueck = (z, i, wert, farbe) => { const a = x(T(z)), b = i+1<Z.length ? x(T(Z[i+1])) : x(T(z)+5*M);
+  // 23.11. (Lucas, Asteras – Aris: „stimmen die Balken von der Zeit her?"): Z hat nur 5-Min-Stücke MIT Geld. Das Stück
+  // lief bis zum nächsten Eintrag — ein Aris-Stück um 10:57 zog sich so bis 13:03 und sah aus wie zwei Stunden Aris-Geld.
+  // Jetzt endet jedes Stück nach seinen 5 Minuten; Lücken bleiben leer.
+  const stueck = (z, i, wert, farbe) => { const a = x(T(z)), b = x(Math.min(i+1<Z.length ? T(Z[i+1]) : Infinity, T(z)+5*M));
     return `<i style="left:${a.toFixed(2)}%;width:${Math.max(0.5, b-a-0.3).toFixed(2)}%;background:${farbe};opacity:${wert}"></i>`; };
   const sieg = Z.map((z,i)=>z[1] ? stueck(z, i, op(z[2]||0, maxE), FS[z[1]]) : "").join("");
   const tore = mini ? "" : Z.map((z,i)=>z[4] ? stueck(z, i, op(Math.abs(z[4]), maxT), z[4]>0?"var(--up)":"var(--down)") : "").join("");
