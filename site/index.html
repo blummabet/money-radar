@@ -5348,7 +5348,7 @@ const STAT_K = {
   publicNL:["Gesperrt: Nations League (Regel 26)","Public-Kanal","color-mix(in srgb, var(--down) 30%, var(--text-3))"],
   publicPoly:["Public auf Polymarket","Polymarket-Schattenbuch","var(--poly)"],
   publicPolyNein:["Public, nicht auf Polymarket","Polymarket-Schattenbuch","var(--text-3)"]};   // Lucas 31.10.: Auswahl aus den Arten oben, deshalb nicht vorgewählt
-const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche", lage:"alle", qg:"alle", sp:"alle"};
+const ST = {daten:null, laden:false, fehler:null, zeit:"30", kat:null, wann:"alle", liga:"alle", gruppe:"woche", lage:"alle", qg:"alle", sp:"alle", qb:"alle"};
 const MONAT = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 // Lucas 02.11.: der Public-Topf (Regel 4) auf der Statistik-Seite — was liegt drin, mit wie vielen Punkten, welcher Termin kommt
 async function topfLaden(){
@@ -5465,7 +5465,7 @@ function seiteStatistik(){
   const katsDa = Object.keys(STAT_K).filter(k=>alle.some(z=>z[1]===k));
   if(!ST.kat) ST.kat = new Set(katsDa.filter(k=>!k.startsWith("public") && STAT_K[k][1]!=="Übersicht"));
   const {liste:zr, mo} = stZeitraeume(alle);
-  const basis = alle.filter(z=>stImZeitraum(z, ST.zeit, mo) && (ST.wann==="alle" || (ST.wann==="live") === !!z[8]) && (ST.liga==="alle" || (ST.liga==="top5") === !!z[7]) && (ST.lage==="alle" || z[11]===ST.lage) && (ST.qg==="alle" || stQg(z)===ST.qg) && (ST.sp==="alle" || stSp(z)===ST.sp));
+  const basis = alle.filter(z=>stImZeitraum(z, ST.zeit, mo) && (ST.wann==="alle" || (ST.wann==="live") === !!z[8]) && (ST.liga==="alle" || (ST.liga==="top5") === !!z[7]) && (ST.lage==="alle" || z[11]===ST.lage) && (ST.qg==="alle" || stQg(z)===ST.qg) && (ST.sp==="alle" || stSp(z)===ST.sp) && (ST.qb==="alle" || stQb(z)===ST.qb));
   const Z = basis.filter(z=>ST.kat.has(z[1]));
   const K = stKennz(Z);
   const seg = (feld, opts) => `<div class="seg st-seg">${opts.map(([v,n])=>`<button class="${ST[feld]===v?"an":""}" data-st="${feld}" data-v="${v}">${n}</button>`).join("")}</div>`;
@@ -5531,7 +5531,7 @@ function seiteStatistik(){
       ${bereichSchalter()}
       ${katsDa.includes("public")?`<div class="seg st-seg st-modus"><button class="${pubModus||neinModus||polyModus?"":"an"}" data-stmodus="alle">Alle Pushes</button><button class="${pubModus?"an":""}" data-stmodus="public">📣 Public-Kanal</button>${katsDa.includes("publicNein")?`<button class="${neinModus?"an":""}" data-stmodus="publicNein">Nicht gesendet</button>`:""}<button class="${polyModus?"an":""}" data-stmodus="publicPoly">Polymarket</button></div>`:""}
       ${seg("zeit", zr)}
-      <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}${seg("lage", [["alle","Jeder Stand"],["vorn","Live: Auswahl führt"],["gleich","Live: gleich"],["hinten","Live: hinten"]])}${seg("qg", [["alle","Jede Quote"],["dagegen","Quote läuft gegen das Geld"],["neutral","Quote hält"],["mit","Quote zieht mit"]])}${seg("sp", [["alle","Jeder Markt"],["eng","Enger Markt (< 3 %)"],["mittel","Spanne 3–6 %"],["duenn","Dünner Markt (≥ 6 %)"]])}</div>
+      <div class="st-reihe">${seg("wann", [["alle","Alle"],["vor","Vor Anpfiff"],["live","Live"]])}${seg("liga", [["alle","Alle Ligen"],["ohne","Ohne Top-5"],["top5","Nur Top-5"]])}${seg("lage", [["alle","Jeder Stand"],["vorn","Live: Auswahl führt"],["gleich","Live: gleich"],["hinten","Live: hinten"]])}${seg("qg", [["alle","Jede Quote"],["dagegen","Quote läuft gegen das Geld"],["neutral","Quote hält"],["mit","Quote zieht mit"]])}${seg("sp", [["alle","Jeder Markt"],["eng","Enger Markt (< 3 %)"],["mittel","Spanne 3–6 %"],["duenn","Dünner Markt (≥ 6 %)"]])}${seg("qb", [["alle","Jede Quotenhöhe"],["unter","Quote unter 1,50"],["band","Quote 1,50–3,00 (Public-Band)"],["ueber","Quote über 3,00"]])}</div>
       ${pubModus||neinModus||polyModus?"":`<div class="st-chips">${chips}<button class="st-alle" data-stalle>${alleAn?"Alle abwählen":"Alle wählen"}</button></div><div class="hint st-chiphint">Kategorie antippen = nur diese · nochmal antippen = wieder alle</div>`}
     </div>
     ${pubModus ? topfPanel() + topfRechnung(D) : ""}
@@ -5577,6 +5577,8 @@ function stMarkt(z){
 }
 // 17.11.: Spanne Back/Lay der Betfair-Börse beim Push (Odds API): eng < 3 %, mittel 3–6 %, dünn ≥ 6 %
 const stSp = z => typeof z[16]!=="number" ? null : z[16] < 3 ? "eng" : z[16] < 6 ? "mittel" : "duenn";
+// 23.11. (Lucas: Quotenfilter, damit z. B. Top 3 · Polymarket im Public-Band 1,50–3,00 sichtbar ist)
+const stQb = z => typeof z[4]!=="number" ? null : z[4] < 1.5 ? "unter" : z[4] <= 3 ? "band" : "ueber";
 const stQg = z => typeof z[15]!=="number" ? null : z[15]>=1.03 ? "dagegen" : z[15]<=1/1.03 ? "mit" : "neutral";
 function stGruppe(Z, f, reihe, zeile, tkopf, titel){
   const g = {}; for(const z of Z){ (g[f(z)] ||= []).push(z); }
