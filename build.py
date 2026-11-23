@@ -753,6 +753,47 @@ def fluss_uhr(liste, prices, bf_hist):
     return liste
 
 
+def md_uhr(radar, prices, bf_hist):
+    """23.11. (Lucas: „na klar steigt die Unter-Quote, wenn ein Tor kommt … entweder Tor oder die Zeit — inhaltlich nicht
+    stimmig"): live ist „Quote vor 1 h" sinnlos. Je Live-Spiel und Auswahl in maerkteDetail die Quote vor 12–20 Min (gleicher
+    Stand, kein Tor dazwischen — dieselbe Regel wie CPO1) und was die Uhr allein daraus gemacht hätte. Hängt „uhr" an:
+    {q0, m0, m1, erwartet}. Fiel ein Tor im Fenster: {"tor": True}. REIN bis auf das Anhängen."""
+    import markout as _m
+    ms = {str(m.get("matchId")): m for m in (prices or {}).get("matches") or []}
+    for sp in (radar or {}).get("spiele") or []:
+        if not sp.get("live") or not sp.get("maerkteDetail"):
+            continue
+        mid = str(sp.get("id"))
+        m = ms.get(mid)
+        pts = [x for x in (bf_hist or {}).get(mid) or [] if isinstance(x, dict) and isinstance(x.get("sel"), dict) and ts(x.get("ts"))]
+        if not m or len(pts) < 3:
+            continue
+        jp = pts[-1]
+        sc = lambda x: tuple(x.get("sc") or ())  # noqa: E731
+        alt = [x for x in pts if timedelta(minutes=12) <= ts(jp["ts"]) - ts(x["ts"]) <= timedelta(minutes=20)]
+        if not alt or not sc(jp):
+            continue
+        p0 = alt[-1]
+        if sc(p0) != sc(jp):
+            for md in sp["maerkteDetail"]:
+                for a in md.get("auswahl") or []:
+                    a["uhr"] = {"tor": True}
+            continue
+        m0, m1 = p0.get("min"), jp.get("min")
+        if not all(isinstance(x, (int, float)) for x in (m0, m1)) or m1 - m0 < 5:
+            continue
+        mo0 = {k: v[1] for k, v in ((p0.get("sel") or {}).get("Match Odds") or {}).items() if isinstance(v, list) and isinstance(v[1], (int, float)) and v[1] > 1}
+        for md in sp["maerkteDetail"]:
+            for a in md.get("auswahl") or []:
+                w0 = ((p0.get("sel") or {}).get(md.get("name")) or {}).get(a.get("name"))
+                if not (isinstance(w0, list) and isinstance(w0[1], (int, float)) and w0[1] > 1):
+                    continue
+                erw = _m.uhr_erwartung(md.get("name"), a.get("name"), w0[1], m0, m1, list(sc(jp)), mo0, m.get("home"), m.get("away"))
+                if erw:
+                    a["uhr"] = {"q0": w0[1], "m0": m0, "m1": m1, "erwartet": round(erw, 3)}
+    return radar
+
+
 def bf_uhr(prices, bf_hist):
     import markout as _m
     aus = []
@@ -3975,7 +4016,7 @@ def main() -> int:
         "betfair": betfair(prices, {}, consensus),          # die Übersicht des alten Projekts gibt es nicht mehr
         "radar": (radar := betfair_radar(prices, bf_hist, bf_norm, bf_norm_state)),
         "zufluss30": zufluss_liste(radar, consensus),
-        "liveZufluss": fluss_uhr(live_zufluss(radar), prices, bf_hist),   # 22.11. CPO1: Uhr-Erwartung je Auswahl
+        "liveZufluss": fluss_uhr(live_zufluss(md_uhr(radar, prices, bf_hist)), prices, bf_hist),   # 22.11. CPO1: Uhr-Erwartung je Auswahl
         "mmAngriff": mm2_angriff(radar),           # 20.11. Regel MM2
         "polyFluss": (pfl := poly_fluss()),
         "serien": serien((takt_ := takt_fortschreiben(bf_hist)), radar),

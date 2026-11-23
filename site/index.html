@@ -2192,9 +2192,21 @@ function zeileWohin(s){
   for(const m of md) if(!marktEntschieden(s, m.name)) for(const a of m.auswahl) if(a.neu>0 && !(a.quote && a.quote<1.15)) fl.push({markt:m.name, ...a});
   const ges = fl.reduce((x,a)=>x+a.neu,0); if(!ges) return `<span class="zw-leer">nichts Neues in ${s.fensterMin||30} Min</span>`;
   const t = fl.sort((x,y)=>y.neu-x.neu)[0], ant = Math.round(100*t.neu/ges), f = auswahlFarbe(s, t.markt, t.name, "var(--text-2)");
-  const q = t.quote, q0 = t.q60, pf = q && q0 && Math.abs(q-q0)/q0 >= 0.02 ? (q<q0 ? ["↓","ok"] : ["↑","geg"]) : null;
-  const tor = (s.saeulen?.tore||[]).some(x=>x.i >= (s.saeulen.w.length-6));
-  return `<span class="zw"><span class="zw-n"><i style="background:${f}"></i><b>${esc(auswahlDe(t.name))}</b></span>${t.markt && !/match odds/i.test(t.markt) && !/^(over|under)/i.test(t.name) ? ` <small>${esc(marktDe(t.markt))}</small>` : ""} <em title="Anteil am neuen Geld der letzten ${s.fensterMin||30} Min">${ant} %</em>${q?` <span class="zw-q">@ ${q2(q)}</span>`:""}${pf?` <span class="zw-p ${pf[1]}" title="Quote vor 1 h ${q2(q0)}${tor?" · dazwischen fiel ein Tor":""}">${pf[0]} von ${q2(q0)}${tor?" ⚽":""}</span>`:""}</span>`;
+  const q = t.quote;
+  let pf = "";
+  if(s.live){
+    // 23.11. (Lucas: „na klar steigt die Unter-Quote, wenn ein Tor kommt … entweder Tor oder die Zeit"): live zählt nicht
+    // „vor 1 h", sondern die Uhr — Quote vor 12–20 Min bei gleichem Stand und was die Spielzeit allein daraus gemacht hätte.
+    const u = t.uhr || {};
+    if(u.tor) pf = `<span class="zw-p" title="Tor in den letzten 15 Min — Quotenvergleich sagt nichts">⚽ Tor gerade</span>`;
+    else if(u.erwartet && q){ const r = q/u.erwartet - 1;
+      pf = r <= -0.03 ? `<span class="zw-p ok" title="vor ${Math.round(u.m1-u.m0)} Min ${q2(u.q0)} · die Uhr allein ergäbe ${q2(u.erwartet)}">↓ stärker als die Uhr (${q2(u.erwartet)})</span>`
+         : r >= 0.03 ? `<span class="zw-p geg" title="vor ${Math.round(u.m1-u.m0)} Min ${q2(u.q0)} · die Uhr allein ergäbe ${q2(u.erwartet)}">↑ gegen die Uhr (${q2(u.erwartet)})</span>`
+         : `<span class="zw-p" style="color:var(--text-3)" title="die Uhr allein ergäbe ${q2(u.erwartet)}">wie die Uhr</span>`; }
+  } else if(q && t.q60 && Math.abs(q-t.q60)/t.q60 >= 0.02){
+    pf = `<span class="zw-p ${q<t.q60?"ok":"geg"}" title="Quote vor 1 h ${q2(t.q60)}">${q<t.q60?"↓":"↑"} von ${q2(t.q60)}</span>`;
+  }
+  return `<span class="zw"><span class="zw-n"><i style="background:${f}"></i><b>${esc(auswahlDe(t.name))}</b></span>${t.markt && !/match odds/i.test(t.markt) && !/^(over|under)/i.test(t.name) ? ` <small>${esc(marktDe(t.markt))}</small>` : ""} <em title="Anteil am neuen Geld der letzten ${s.fensterMin||30} Min">${ant} %</em>${q?` <span class="zw-q">@ ${q2(q)}</span>`:""}${pf?` ${pf}`:""}</span>`;
 }
 function spielZeile(s, i){
   const dr = s.live && ((D.druck||{}).spiele||[]).find(x=>String(x.id)===String(s.id));
@@ -2820,7 +2832,7 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
 function spielTabelle(liste, id, max, mitVt=true){
   if(!liste.length) return `<div class="leer">Keine Spiele in dieser Auswahl.</div>`;
   TL[id] = liste;   // 19.10. (FC Voluntari zeigte das Detail von Al-Hilal): Klick liest genau DIESE Liste, nicht eine ungefilterte
-  return `<div class="tw"><table class="tab${mitVt?"":" ohne-vt"}" id="${id}"><thead><tr><th>Spiel</th><th class="hide-m">Anpfiff</th><th class="r">Geld</th><th class="hide-m">Neues Geld 1 h</th><th class="hide-m" title="wohin das neue Geld der letzten 15–30 Min ging, Quote jetzt und vor 1 h">Wohin · Quote</th></tr></thead>
+  return `<div class="tw"><table class="tab${mitVt?"":" ohne-vt"}" id="${id}"><thead><tr><th>Spiel</th><th class="hide-m">Anpfiff</th><th class="r">Geld</th><th class="hide-m">Neues Geld 1 h</th><th class="hide-m" title="wohin das neue Geld der letzten 15–30 Min ging · vor Anpfiff: Quote gegen vor 1 h · live: Quote gegen die Uhr (was die Spielzeit allein ergäbe)">Wohin · Quote</th></tr></thead>
     <tbody>${liste.slice(0,max).map((s,i)=>spielZeile(s,i)).join("")}</tbody></table></div>
     ${liste.length>max?`<button class="mehr" data-mehr="${id}">Alle ${liste.length} Spiele zeigen</button>`:""}`;
 }
@@ -4886,7 +4898,8 @@ function hitparade(D, n=15){
     let au = mwAuswahl(z).filter(a=>a[0]!=="Rest");
     if(au.length > 3) au = au.slice().sort((a,b)=>b[1]-a[1]).slice(0,3);
     const ges = (z.auswahl||[]).reduce((a,x)=>a+(x[1]||0),0) || 1, top = Math.max(...au.map(a=>a[1]));
-    const zellen = au.map(a=>{ const q = a[2], q0 = a[3], pf = q && q0 && Math.abs(q-q0)/q0 >= 0.02 ? (q<q0?`<i class="hq ab">↓</i>`:`<i class="hq auf">↑</i>`) : "";
+    // 23.11.: live sagt „Quote vor 1 h" nichts (Tore und Uhr bewegen sie) → Pfeil nur vor Anpfiff
+    const zellen = au.map(a=>{ const q = a[2], q0 = a[3], pf = !z.live && q && q0 && Math.abs(q-q0)/q0 >= 0.02 ? (q<q0?`<i class="hq ab">↓</i>`:`<i class="hq auf">↑</i>`) : "";
       const fa = auswahlFarbe(z, /^(1|X|2)$/.test(lab(z,a[0])) ? "Match Odds" : z.markt, lab(z,a[0])==="1"?z.heim:lab(z,a[0])==="2"?z.gast:lab(z,a[0])==="X"?"The Draw":a[0], null);
       return `<div class="hz-c${a[1]===top?" top":""}"><small>${fa?`<i class="hz-f" style="background:${fa}"></i>`:""}${esc(lab(z,a[0]))}</small><b>${eur(a[1])}</b><span>${Math.round(a[1]/ges*100)} %</span><em>${pf}${q?q2(q):"–"}</em></div>`; }).join("");
     return `<div class="hpb" style="--n:${au.length}"${bk("hp|"+z.k, z.eur, "€")} ${klickSpiel({id:z.id, heim:z.heim, gast:z.gast})}>
@@ -4896,7 +4909,7 @@ function hitparade(D, n=15){
   // Lucas 23.10. (Vienna stand auf Platz 13, also knapp unter dem Strich): die weiteren Plätze bis 30 aufklappbar
   const zeilen = zeilenAlle.slice(0, n).join("") + (zeilenAlle.length > n ? `</div>${liste(`Plätze ${n+1} bis ${zeilenAlle.length}`, "", `<div class="hpbs">${zeilenAlle.slice(n).join("")}</div>`)}<div>` : "");
   const hinweis = mc.messbar ? "" : `<div class="kk-klein" style="margin-bottom:8px">Auf- und Absteiger erscheinen, sobald eine Stunde Verlauf gesammelt ist.</div>`;
-  return hinweis + `<div class="hpbs">${zeilen}</div><div class="kk-klein" style="margin-top:8px">Pfeil = Quote gegenüber vor etwa 1 Stunde (grün ↓ = gefallen, Geld kam rein) · umrahmt = meistes Geld · Farben wie im Spielblatt</div>`;
+  return hinweis + `<div class="hpbs">${zeilen}</div><div class="kk-klein" style="margin-top:8px">Pfeil = Quote gegenüber vor etwa 1 Stunde, nur vor Anpfiff (grün ↓ = gefallen, Geld kam rein) · umrahmt = meistes Geld · Farben wie im Spielblatt</div>`;
 }
 function seiteBetfair(D){
   const alle = lf(D.radar.spiele), liste_ = BF_SETS[filterBf][1](alle);
