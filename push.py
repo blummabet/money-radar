@@ -440,9 +440,11 @@ def live(d):
         richtung = "" if drop else (f" ↓ (war {q2(qv)})" if q < qv else f" ↑ (war {q2(qv)})") if q and qv and abs(q - qv) >= 0.02 else ""
         minute = f"{lv.get('min')}'" if lv.get("min") is not None else "live"
         qg_ = _geld_quote(d, z.get("id"), fl.get("markt"), fl.get("auswahl"))
+        # 23.11. (Basaksehir – Corum „live · None:None"): direkt nach Anpfiff hat Betfair noch keinen Stand
+        st_txt = f" · <b>{st[0]}:{st[1]}</b>" if st[0] is not None and st[1] is not None else " · gerade angepfiffen"
         text = (f"🔴 <b>Live-Zufluss</b> · Betfair\n"
                 f"{flagge(z.get('land'))}<b>{e(z.get('heim'))} – {e(z.get('gast'))}</b>\n"
-                f"{e(z.get('liga'))} · {minute} · <b>{st[0]}:{st[1]}</b>\n\n"
+                f"{e(z.get('liga'))} · {minute}{st_txt}\n\n"
                 f"💶 <b>+{geld(fl.get('eur'))}</b> in 15 Min auf <b>{e(remis(_auswahl_de(fl.get('auswahl'))))}</b> @ <b>{q2(q)}</b>{richtung}\n"
                 f"<i>= {fl.get('anteil')} % von allem, was in diesem Markt neu kam</i>\n"
                 + drop
