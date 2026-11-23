@@ -72,6 +72,17 @@ main{padding:22px 28px 60px;min-width:0}
 .kpi svg{position:absolute;right:14px;bottom:14px}
 
 .tab{width:100%;border-collapse:collapse}
+.tab .zeile td{padding-top:8px;padding-bottom:8px}
+.zs{display:flex;align-items:flex-end;gap:3px;height:30px;width:96px}
+.zs i{flex:1;display:flex;flex-direction:column-reverse;border-radius:2px;overflow:hidden;background:color-mix(in srgb,var(--text-3) 30%,transparent)}
+.zs b{display:block;width:100%}
+.zw{display:inline-flex;align-items:baseline;gap:3px 5px;flex-wrap:wrap;font-size:13px;min-width:0;max-width:250px}
+.zw b{white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:bottom} .zw small{color:var(--text-3);font-size:11px}
+.zw-n{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:100%} .zw i{width:9px;height:9px;border-radius:3px;flex:none} .zw em{font-style:normal;color:var(--text-2)}
+.zw-q{color:var(--text-2);font-variant-numeric:tabular-nums} .zw-p{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.zw-p.ok{color:var(--up)} .zw-p.geg{color:var(--down)} .zw-leer{font-size:12px;color:var(--text-3)}
+.zw-m{margin-top:3px} #t-bf .spiel .n{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .zst{white-space:nowrap} .zz{margin-left:4px}
+.geld .tag, .geld .pill{margin-left:4px;vertical-align:1px;font-size:11px}
 .tab th{text-align:left;font-size:12px;font-weight:600;color:var(--text-3);padding:0 10px 10px;white-space:nowrap}
 .tab th.r,.tab td.r{text-align:right}
 .tab td{padding:11px 10px;border-top:1px solid var(--line);vertical-align:middle}
@@ -2162,15 +2173,39 @@ function statusZelle(s){
   if(s.live) return `<span class="live">${s.live.ht?"HZ":s.live.min!=null?s.live.min+"'":"live"}</span> <b>${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}</b>`;
   return `<span class="status">${wann(s.anpfiff)}</span>`;
 }
+// 23.11. (Lucas: „der ganze Bereich da unten ist noch sehr alt"): statt Summenkurve (steigt immer) und unbeschrifteter
+// Verteilung jetzt: neues Geld der letzten Stunde als 6 Säulen in Teamfarben, wohin das meiste davon ging und was die
+// Quote dabei machte. Norm nur noch als Marke, wenn auffällig.
+function zeileSaeulen(s){
+  const S = s.saeulen; if(!S || !(S.w||[]).length) return "";
+  const n = S.w.length, von = Math.max(0, n-6), idx = [...Array(n-von).keys()].map(k=>von+k);
+  const mx = Math.max(1, ...idx.map(i=>S.w[i]||0));
+  const T = (S.teile||[]).slice(0,3).map(t=>({w:t.w||[], f:auswahlFarbe(s, t.markt, t.auswahl, null), n:auswahlDe(t.auswahl)})).filter(t=>t.f);
+  const tor = new Set((S.tore||[]).map(t=>t.i));
+  return `<div class="zs" title="neues Geld je 10 Min, letzte Stunde">${idx.map(i=>{ const g = S.w[i]||0; let rest = g;
+    const st = T.map(t=>{ const v = Math.min(rest, t.w[i]||0); rest -= v; return v>0 ? `<b style="height:${(v/Math.max(g,1)*100).toFixed(0)}%;background:${t.f}"></b>` : ""; }).join("");
+    return `<i class="${tor.has(i)?"tor":""}" style="height:${g?Math.max(8, g/mx*100).toFixed(0):4}%" title="+${eur(g)}">${st}</i>`; }).join("")}</div>`;
+}
+function zeileWohin(s){
+  const md = s.maerkteDetail || [], fl = [];
+  for(const m of md) if(!marktEntschieden(s, m.name)) for(const a of m.auswahl) if(a.neu>0 && !(a.quote && a.quote<1.15)) fl.push({markt:m.name, ...a});
+  const ges = fl.reduce((x,a)=>x+a.neu,0); if(!ges) return `<span class="zw-leer">nichts Neues in ${s.fensterMin||30} Min</span>`;
+  const t = fl.sort((x,y)=>y.neu-x.neu)[0], ant = Math.round(100*t.neu/ges), f = auswahlFarbe(s, t.markt, t.name, "var(--text-2)");
+  const q = t.quote, q0 = t.q60, pf = q && q0 && Math.abs(q-q0)/q0 >= 0.02 ? (q<q0 ? ["↓","ok"] : ["↑","geg"]) : null;
+  const tor = (s.saeulen?.tore||[]).some(x=>x.i >= (s.saeulen.w.length-6));
+  return `<span class="zw"><span class="zw-n"><i style="background:${f}"></i><b>${esc(auswahlDe(t.name))}</b></span>${t.markt && !/match odds/i.test(t.markt) && !/^(over|under)/i.test(t.name) ? ` <small>${esc(marktDe(t.markt))}</small>` : ""} <em title="Anteil am neuen Geld der letzten ${s.fensterMin||30} Min">${ant} %</em>${q?` <span class="zw-q">@ ${q2(q)}</span>`:""}${pf?` <span class="zw-p ${pf[1]}" title="Quote vor 1 h ${q2(q0)}${tor?" · dazwischen fiel ein Tor":""}">${pf[0]} von ${q2(q0)}${tor?" ⚽":""}</span>`:""}</span>`;
+}
 function spielZeile(s, i){
-  const vt = s.verteilung ? s.verteilung.map(v=>({name:v.name,wert:v.eur})) : null;
+  const dr = s.live && ((D.druck||{}).spiele||[]).find(x=>String(x.id)===String(s.id));
+  const tp = (D.torprofil||{})[String(s.id)];
+  const zeichen = `${dr && dr.index>=55?`<span title="Druck ${dr.index}">🔥</span>`:""}${tp && tp.torarm?`<span title="Torprofil: torarm">🧊</span>`:""}`;
+  const norm = s.xnorm!=null && s.xnorm >= 1.5 ? ` ${normPill(s.xnorm)}` : "";
   return `<tr class="zeile" data-i="${i}" tabindex="0" aria-expanded="false">
-    <td><div class="spiel">${flagge(s.land)}<div style="min-width:0"><div class="n">${esc(s.heim)} – ${esc(s.gast)}</div><div class="l"><span class="nur-m">${s.live?`<span style="color:var(--down);font-weight:700">${s.live.ht?"HZ":s.live.min!=null?s.live.min+"'":"live"} ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}</span>`:wann(s.anpfiff)}, </span>${esc(s.liga)}</div></div></div></td>
-    <td class="hide-m">${statusZelle(s)}</td>
-    <td class="r"><div class="geld">${eur(s.eur)}</div>${s.d60>0?`<div class="plus">+${eur(s.d60)} in 1 h</div>`:""}</td>
-    <td class="r">${normPill(s.xnorm)}</td>
-    <td class="hide-m">${spark(s.kurve, "var(--bf)")}</td>
-    <td class="hide-m vt">${vt?vbar(vt):`<span style="color:var(--text-3);font-size:12px;white-space:nowrap">${s.quoten.heim?`${q2(s.quoten.heim)} / ${q2(s.quoten.remis)} / ${q2(s.quoten.gast)}`:""}</span>`}</td>
+    <td><div class="spiel">${flagge(s.land)}<div style="min-width:0"><div class="n">${esc(s.heim)} – ${esc(s.gast)}</div><div class="l"><span class="nur-m">${s.live?`<span style="color:var(--down);font-weight:700">${s.live.ht?"HZ":s.live.min!=null?s.live.min+"'":"live"} ${s.live.stand?.[0]??0}:${s.live.stand?.[1]??0}</span> · `:""}</span>${esc(s.liga)}</div><div class="nur-m zw-m">${zeileWohin(s)}</div></div></div></td>
+    <td class="hide-m zst">${statusZelle(s)}${zeichen?` <span class="zz">${zeichen}</span>`:""}</td>
+    <td class="r"><div class="geld">${eur(s.eur)}${norm}</div>${s.d60>0?`<div class="plus">+${eur(s.d60)} in 1 h</div>`:""}</td>
+    <td class="hide-m">${zeileSaeulen(s)}</td>
+    <td class="hide-m">${zeileWohin(s)}</td>
   </tr>`;
 }
 // ── Serien / Dauerzufluss (Lucas 17.10.: „wichtiger KPI in meinen Augen") ─────────────────────
@@ -2308,6 +2343,16 @@ function linien({reihen, x, hoehe=150, fmt=v=>v, lo:loF, hi:hiF, marke}){
 // Spiel-Detail: Geld und Wahrscheinlichkeit über die letzten Stunden
 // Lucas 20.10.: neues Geld als Säulen je 10 Min über 6 h statt einer Linie, die immer nur raufgeht — man sieht,
 // WANN Geld reingepumpt wurde. Vor Anpfiff gedämpft, live kräftig; Anpfiff und Tore als Marken.
+const _nk = t => String(t||"").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g,"");
+function auswahlFarbe(s, markt, auswahl, sonst){
+  const a = String(auswahl||""), m = String(markt||"");
+  if(!a) return sonst;
+  if(/^over\b/i.test(a)) return "var(--up)"; if(/^under\b/i.test(a)) return "var(--down)";
+  if(/match odds|sieg/i.test(m) && /^the draw$|^draw$|^remis$/i.test(a)) return "var(--ph-x)";
+  // Team-Auswahl in jedem Markt (Sieg, Halbzeit, Draw no Bet …) → Teamfarbe
+  if(_nk(a) && _nk(a)===_nk(s.heim)) return "var(--ph-h)"; if(_nk(a) && _nk(a)===_nk(s.gast)) return "var(--ph-a)";
+  return sonst;
+}
 function geldSaeulen(s){
   const S = s.saeulen; if(!S || !(S.w||[]).some(v=>v>0)) return "";
   const v = S.w, n = v.length, roh = Math.max(1, ...v.map(x=>x||0));
@@ -2342,12 +2387,7 @@ function geldSaeulen(s){
   const zw = zweite && summe(zweite) >= 0.1*ges ? zweite : null;
   // 23.11. (Lucas: „ja, mach so mit den Farben"): dieselben festen Farben wie im Phasenband — Heim orange, Remis grau,
   // Gast blau, Über grün, Unter rot. Andere Märkte behalten Betfair-Orange (Auswahl) bzw. Pinnacle-Blau (zweite).
-  const nk = t => String(t||"").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g,"");
-  const tf = (t, sonst) => { if(!t) return sonst; const a = String(t.auswahl||""), m = String(t.markt||"");
-    if(/^over\b/i.test(a)) return "var(--up)"; if(/^under\b/i.test(a)) return "var(--down)";
-    if(/match odds|sieg/i.test(m) || /^the draw$/i.test(a)){ if(/^the draw$|^draw$|^remis$/i.test(a)) return "var(--ph-x)";
-      if(nk(a) && nk(a)===nk(s.heim)) return "var(--ph-h)"; if(nk(a) && nk(a)===nk(s.gast)) return "var(--ph-a)"; }
-    return sonst; };
+  const tf = (t, sonst) => auswahlFarbe(s, t && t.markt, t && t.auswahl, sonst);
   const gf = tf(fokus, "var(--bf)"), gz = tf(zw, "var(--pin)");
   const bars = v.map((x,i)=>{ const f = fokus ? Math.min(x||0, fokus.w[i]||0) : 0, z2 = zw ? Math.min(Math.max(0, (x||0)-f), zw.w[i]||0) : 0;
     const unbek = fokus && x>0 && fokus.w[i]==null;      // 24.10.: für diese Säule ist die Aufteilung je Auswahl nicht gespeichert
@@ -2779,7 +2819,7 @@ function spielDetail(s, ohneVerlauf, ohneKopf){
 function spielTabelle(liste, id, max, mitVt=true){
   if(!liste.length) return `<div class="leer">Keine Spiele in dieser Auswahl.</div>`;
   TL[id] = liste;   // 19.10. (FC Voluntari zeigte das Detail von Al-Hilal): Klick liest genau DIESE Liste, nicht eine ungefilterte
-  return `<div class="tw"><table class="tab${mitVt?"":" ohne-vt"}" id="${id}"><thead><tr><th>Spiel</th><th class="hide-m">Anpfiff</th><th class="r">Geld</th><th class="r">Norm</th><th class="hide-m">Verlauf</th><th class="hide-m vt">Verteilung</th></tr></thead>
+  return `<div class="tw"><table class="tab${mitVt?"":" ohne-vt"}" id="${id}"><thead><tr><th>Spiel</th><th class="hide-m">Anpfiff</th><th class="r">Geld</th><th class="hide-m">Neues Geld 1 h</th><th class="hide-m" title="wohin das neue Geld der letzten 15–30 Min ging, Quote jetzt und vor 1 h">Wohin · Quote</th></tr></thead>
     <tbody>${liste.slice(0,max).map((s,i)=>spielZeile(s,i)).join("")}</tbody></table></div>
     ${liste.length>max?`<button class="mehr" data-mehr="${id}">Alle ${liste.length} Spiele zeigen</button>`:""}`;
 }
