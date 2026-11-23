@@ -2007,6 +2007,7 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .ph-b i{position:absolute;top:0;bottom:0;border-radius:2px}
 .ph-mk{position:absolute;top:-3px;bottom:-3px;width:0;border-left:1.5px dashed var(--text-2)}
 .ph-mk.jetzt{border-left:2px solid var(--down)}
+.ph-zk{position:absolute;top:0;bottom:0;right:0;border-radius:0 6px 6px 0;background:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--text-3) 22%,transparent) 5px 6px)}
 .ph-mk em{position:absolute;left:0;transform:translateX(-50%);font-style:normal;font-size:10px;font-weight:800;white-space:nowrap;color:var(--text)}
 .ph-a{position:relative;height:13px}
 .ph-a span{position:absolute;transform:translateX(-50%);font-size:10px;color:var(--text-3)}
@@ -6209,19 +6210,22 @@ function phasenBand(s, mini=false){
   if(ko && ko >= t0 && ko <= t1) mk.push([ko, "Anpfiff"]);
   if(nachKo && ko + 47*M <= Math.min(t1, jetzt)) mk.push([ko + 47*M, "HZ"]);
   let vor = null; for(const z of Z){ if(z[5] && vor && (z[5][0]!==vor[0] || z[5][1]!==vor[1])) mk.push([T(z) - 2*M, `⚽ ${z[5][0]}:${z[5][1]}`]); if(z[5]) vor = z[5]; }
-  if(s.live && jetzt < t1) mk.push([jetzt, "jetzt"]);
+  // 23.11. (Lucas: „passt oben und unten nicht"): vor Anpfiff reicht das Band bis zum Anpfiff, die Säulen oben enden „jetzt" —
+  // ohne Marke sah die leere Zukunft aus wie „kein Geld". Jetzt-Marke immer, und die Zeit danach schraffiert.
+  if(jetzt > t0 && jetzt < t1) mk.push([jetzt, "jetzt"]);
+  const zk = jetzt > t0 && jetzt < t1 ? `<b class="ph-zk" style="left:${x(jetzt).toFixed(2)}%" title="noch nicht passiert"></b>` : "";
   mk.sort((a,b)=>a[0]-b[0]);
   let letzteX = -99, reihe = 0;
   const marker = mk.map(([t, txt])=>{ const p = x(t); reihe = p - letzteX < 9 ? (reihe+1)%3 : 0; letzteX = p;
     const rand = p > 88 ? "transform:translateX(-100%)" : p < 8 ? "transform:none" : "";
     return `<span class="ph-mk${txt==="jetzt"?" jetzt":""}" style="left:${p.toFixed(2)}%">${mini?"":`<em style="top:${[-15,-28,-41][reihe]}px;${rand}">${esc(txt)}</em>`}</span>`; }).join("");
-  if(mini) return `<div class="phb mini" title="Wohin das neue Sieg-Geld je 5 Minuten ging"><div class="ph-b">${sieg}${marker}</div></div>`;
+  if(mini) return `<div class="phb mini" title="Wohin das neue Sieg-Geld je 5 Minuten ging"><div class="ph-b">${sieg}${zk}${marker}</div></div>`;
   const uhrzeit = t => new Date(t).toLocaleTimeString("de-AT",{timeZone:TZ,hour:"2-digit",minute:"2-digit"});
   const zeiten = P==null ? [0, 0.25, 0.5, 0.75, 1].map(f=>t0 + f*(t1-t0)) : [t0, ko, ko + 45*M, t1];
   const achse = zeiten.map(t=>{ const p = x(t); return `<span style="left:${p.toFixed(0)}%${p>=99?";transform:translateX(-100%)":p>0?";transform:translateX(-50%)":""}">${uhrzeit(t)}</span>`; }).join("");
   return `<div class="phb"><h4>Phasenband <small>je 5 Minuten: wohin das neue Geld ging · kräftig = viel</small></h4>
-    <div class="ph-z"><span class="ph-l">Sieg</span><div class="ph-b">${sieg}${marker}</div></div>
-    <div class="ph-z"><span class="ph-l">Tore</span><div class="ph-b t">${tore}</div></div>
+    <div class="ph-z"><span class="ph-l">Sieg</span><div class="ph-b">${sieg}${zk}${marker}</div></div>
+    <div class="ph-z"><span class="ph-l">Tore</span><div class="ph-b t">${tore}${zk}</div></div>
     <div class="ph-z"><span class="ph-l"></span><div class="ph-a">${achse}</div></div>
     <div class="ph-leg"><span><i style="background:var(--ph-h)"></i>${esc(s.heim)}</span><span><i style="background:var(--ph-x)"></i>Remis</span><span><i style="background:var(--ph-a)"></i>${esc(s.gast)}</span><span class="r"><i style="background:var(--up)"></i>Über <i style="background:var(--down);margin-left:6px"></i>Unter</span></div></div>`;
 }
