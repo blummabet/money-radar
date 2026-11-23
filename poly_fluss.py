@@ -34,7 +34,7 @@ JETZT = datetime.now(timezone.utc)
 FENSTER_MIN = (30, 10)
 PREIS_ENTSCHIEDEN = 0.92
 TAKT_MIN, TAKT_N = 10, 24          # Säulen für die Serien: 24 × 10 Min = 4 h (Lucas 17.10.)
-MAX_EVENTS = int(os.environ.get("POLY_FLUSS_MAX") or 60)
+MAX_EVENTS = int(os.environ.get("POLY_FLUSS_MAX") or 100)   # 23.11.: 60 → 100 (Lauf dauerte 25 s, Abdeckung 49 von 639)
 SPORTARTEN = {"Fußball", "E-Sport", "Tennis"}
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126 Safari/537.36",
       "Accept": "application/json"}
