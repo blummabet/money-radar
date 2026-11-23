@@ -59,6 +59,11 @@ WAL_MIN_FAKTOR = 0.25        # Wal-Regel 2 (06.11.): mindestens ¼ des üblichen
 MAX_JE_LAUF = 12             # Notbremse gegen Spam
 SERIE_NEU_ANTEIL, SERIE_NEU_MIN = 0.5, 5000   # Regel S6 (19.11.): weitere Stufe nur mit ≥ 50 % neuem Geld seit dem letzten Push
 SERIE_GELD = BASIS / ".push_state" / "serie_geld.json"
+# 23.11. Regel AW1 (Lucas: „Live-Zufluss und Dauerzufluss — indirekt dasselbe … ja, als Antwort in Telegram drauf"):
+# kommt binnen 15 Min der jeweils andere der beiden Pushes zum selben Spiel + Markt + Auswahl, geht keine zweite volle
+# Karte raus, sondern eine Kurzzeile als Antwort auf die erste. Gebucht wird unverändert (beide Signale einzeln).
+ANTWORT = BASIS / ".push_state" / "antwort.json"
+AW_MIN = 15
 
 
 def _serie_basis(key):
@@ -1598,6 +1603,7 @@ def serie(d):
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"],
                                 "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht, "qGeld": qg_,
+                                "n": x.get("n"), "dauerMin": x.get("dauerMin"),
                                 **({"uhrDrop": uhr_drop, "regelD": "D1"} if uhr_drop is not None else {}),
                                 **({"klar": True, "regelT": "T1"} if klar else {})}, (None if klar else pub)
         if lay_verdacht:
@@ -2130,12 +2136,18 @@ def _x_post():
     return x_post
 
 
-def senden(token, chat, text, link=True) -> bool:
-    body = urllib.parse.urlencode({"chat_id": chat, "text": text + (f'\n<a href="{SEITE}">Geldradar</a>' if link else ""),
-                                   "parse_mode": "HTML", "disable_web_page_preview": "true"}).encode()
+def senden(token, chat, text, link=True, antwort_auf=None):
+    """→ message_id (truthy) bei Erfolg, sonst False."""
+    f = {"chat_id": chat, "text": text + (f'\n<a href="{SEITE}">Geldradar</a>' if link else ""),
+         "parse_mode": "HTML", "disable_web_page_preview": "true"}
+    if antwort_auf:
+        f["reply_to_message_id"] = antwort_auf
+        f["allow_sending_without_reply"] = "true"
+    body = urllib.parse.urlencode(f).encode()
     try:
         with urllib.request.urlopen(f"https://api.telegram.org/bot{token}/sendMessage", body, timeout=20) as r:
-            return json.loads(r.read().decode()).get("ok", False)
+            j = json.loads(r.read().decode())
+            return ((j.get("result") or {}).get("message_id") or True) if j.get("ok") else False
     except urllib.error.HTTPError as exc:
         msg = f"HTTP {exc.code}: {exc.read().decode(errors='replace')[:200]}"
     except Exception as exc:  # noqa: BLE001
@@ -2144,6 +2156,22 @@ def senden(token, chat, text, link=True) -> bool:
     print(f"  ⚠️ Telegram: {msg}")
     STATUS["fehler"].append(msg)
     return False
+
+
+def _aw_schluessel(beleg):
+    """AW1: nur Live-Zufluss (art live) und Dauerzufluss live (art serie, live)."""
+    if not beleg or not beleg.get("live") or beleg.get("art") not in ("live", "serie"):
+        return None
+    return f"{beleg.get('id')}|{beleg.get('markt')}|{beleg.get('auswahl')}"
+
+
+def _aw_kurz(beleg):
+    a = e(remis(_auswahl_de(beleg.get("auswahl"))))
+    if beleg.get("art") == "serie":
+        n, mn = beleg.get("n"), beleg.get("dauerMin")
+        return (f"➕ Jetzt auch <b>Dauerzufluss</b>{f' · {n}× in Folge' if n else ''} · <b>{geld(beleg.get('eur'))}</b>"
+                f"{f' in {mn} Min' if mn else ''} auf <b>{a}</b> @ <b>{q2(beleg.get('quote'))}</b>")
+    return f"➕ Jetzt auch <b>Live-Zufluss</b> · <b>+{geld(beleg.get('eur'))}</b> in 15 Min auf <b>{a}</b> @ <b>{q2(beleg.get('quote'))}</b>"
 
 
 def main() -> int:
@@ -2167,6 +2195,11 @@ def main() -> int:
     grenze = (JETZT - timedelta(days=3)).isoformat()
     gesehen = {k: v for k, v in gesehen.items() if v >= grenze or k.startswith("wa|")}      # alte Einträge vergessen
 
+    try:
+        antwort = json.loads(ANTWORT.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        antwort = {}
+    antwort = {k: v for k, v in antwort.items() if ts(v[1]) and (JETZT - ts(v[1])).total_seconds() < 3 * AW_MIN * 60}
     gesendet = 0
     if not erster_lauf:
         for key, text, was in waechter(d, gesehen):
@@ -2241,11 +2274,19 @@ def main() -> int:
             if gesendet >= MAX_JE_LAUF:
                 print(f"  Notbremse: mehr als {MAX_JE_LAUF} Meldungen, Rest im nächsten Lauf")
                 break
+            aw_k, aw_auf = _aw_schluessel(beleg), None
+            if aw_k and aw_k in antwort:
+                mid_, t_, art_ = antwort[aw_k]
+                if art_ != beleg.get("art") and (JETZT - ts(t_)).total_seconds() <= AW_MIN * 60:
+                    aw_auf, text = mid_, _aw_kurz(beleg)
+                    beleg = {**beleg, "regelAW": "AW1"}
             if trocken:
                 print("──", key, "\n" + text)
                 ok = True
             else:
-                ok = senden(token, chat, text)
+                ok = senden(token, chat, text, link=not aw_auf, antwort_auf=aw_auf)
+            if ok and aw_k and not aw_auf and ok is not True:
+                antwort[aw_k] = [ok, JETZT.isoformat(), beleg.get("art")]
             if ok:
                 gesehen[key] = JETZT.isoformat()
                 gesendet += 1
@@ -2377,6 +2418,10 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             print(f'  serie_geld: {exc}')
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
+        try:
+            ANTWORT.write_text(json.dumps(antwort), encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  antwort: {exc}")
         try:                         # Public-Regel 13: Liga-Wertung aus dem eigenen Buch
             public.LIGA_WERT.clear(); public.LIGA_WERT.update(public.liga_werte(bilanz.laden(), ((d.get("ligaBilanz") or {}).get("ligen"))))
         except Exception as exc:  # noqa: BLE001
