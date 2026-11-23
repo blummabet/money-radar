@@ -3224,7 +3224,8 @@ function setzenKarten(liste){
         <div class="duo-s">${gg?keys.map(k=>s[k]>0?`<i class="${k===top?"an":""}" style="flex:${s[k]} 1 0"></i>`:"").join(""):`<i class="leer" style="flex:1"></i>`}</div>
         <span class="duo-b">${geldIn(qn,q.betrag)}</span></div>`; };
     const wallets = keys.flatMap(k=>(S[k]?.w||[]).sort((a,b)=>b.usd-a.usd).map(w=>`<a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" title="auf ${esc(nmK(k))} · Einstieg ${w.preis!=null?Math.round(w.preis*100)+" ¢":"–"} · ${w.n||"?"} gewertete Wetten" class="${k===lead?"":"gegen"}">${esc(String(w.wallet).slice(2,6))} ${usd(w.usd)} <em>+${dez(w.clv)} pp</em></a>`)).join("");
-    return `<div class="topf duo wd2${klar?"":" um"}">
+    // 23.11. (Lucas: „belegte Wallets öffnet nichts — sollte dieselbe Detailansicht sein wie Dauerfluss"): gleiches Polymarket-Fenster
+    return `<div class="topf duo wd2${klar?"":" um"}" ${klick(esc(heim)+" – "+esc(gast), ohneHuelle(polyFenster(g.markt)))}>
       <div class="duo-kopf"><span class="mk-liga">${sportIco(g.sport)} ${esc(ligaName(t?.liga)||g.sport||"")}</span><span class="mk-zeit">${wann(g.anpfiff)}</span></div>
       <div class="duo-teams">${name("heim")}<div class="duo-geld"><b>${usd(ges)}</b>${chip}</div>${name("gast")}</div>
       ${haupt}
