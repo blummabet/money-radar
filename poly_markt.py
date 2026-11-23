@@ -47,7 +47,10 @@ _ERLEDIGT_NEU = []
 
 GAMMA = "https://gamma-api.polymarket.com/events"
 import poly_v2      # 03.11.2026: Data API v1 (/holders, /positions) abgeschaltet → v2 (condition=, cursor, snake_case)
-PNL_API = "https://user-pnl-api.polymarket.com/user-pnl?user_address={user}&interval=all&fidelity=1d"
+# 23.11.: user-pnl-api.polymarket.com ist abgeschaltet (HTTP 410, „retired") — lieferte seit dem Umzug nie einen Wert.
+# Nachfolger laut docs.polymarket.com/api-reference/wallet/get-a-users-pnl-series: Data API v2, Antwort
+# {"data": {"points": [{"timestamp" (s), "realized_pnl", "position_pnl" (= realisiert + offen, kann null sein), …}]}}
+PNL_API = "https://data-api.polymarket.com/v2/user-pnl?user={user}&interval=all&fidelity=1d"
 
 TAGS = ("soccer", "esports", "tennis")
 # 14.11.2026 (Lucas: Romania–Poland ohne Poly): Nations League lief nie ein — kein einziger „unl-"-Slug in den Daten,
@@ -359,6 +362,10 @@ def _halter_parse(data, token):
 
 def alle_halter(cond, token):
     alle, gesehen = [], set()
+    if not _STAT.get("probe"):                          # 23.11. Prüfung: was liefert /v2/holders?include_pnl=true je Halter?
+        _STAT["probe"] = 1
+        pr = _get(poly_v2.url("holders", condition=cond, limit=3, include_pnl="true"))
+        print(f"  poly_markt: Probe holders+pnl: {json.dumps(pr, ensure_ascii=False)[:900]}")
     data = poly_v2.seiten(_get, "holders", HALTER_SEITEN, condition=cond, limit=200)
     if data is None:
         return [], True
@@ -716,6 +723,8 @@ def track_fortschreiben(track, maerkte, aufgeloest):
         ko = _ts(e.get("koTs")) or _ts(e.get("firstTs"))
         if ko and ko < grenze:
             del openp[ok]                              # nie aufgelöst gesehen → raus
+            _STAT["verfallen"] = _STAT.get("verfallen", 0) + 1
+            _STAT.setdefault("verfallenKeys", set()).add(e.get("key"))
     return {"open": openp, "scores": scores, "updatedAt": JETZT.isoformat(), "geprueft": track.get("geprueft") or {}}
 
 
@@ -795,8 +804,17 @@ def aufloesungen(track, gesehen_keys):
         preise = aufloesung_ev(ev[0])
         if preise:
             out[key] = preise
+        else:                                           # 23.11. Prüfung: warum nicht entschieden? (erste 6 je Lauf ins Log)
+            _STAT.setdefault("offenWarum", [])
+            if len(_STAT["offenWarum"]) < 6:
+                ms = ev[0].get("markets") or []
+                _STAT["offenWarum"].append(f"{key}: {sum(1 for m in ms if m.get('closed'))}/{len(ms)} zu, "
+                                           f"umaResolution={[m.get('umaResolutionStatus') for m in ms][:3]}, "
+                                           f"Preise={[m.get('outcomePrices') for m in ms][:3]}, Titel={[m.get('groupItemTitle') or m.get('question') for m in ms][:3]}")
     track["geprueft"] = geprueft
     print(f"  poly_markt: Auflösung — {len(faellig)} Märkte fällig, {len(reihe)} nachgeschlagen, {len(out)} entschieden")
+    for z in _STAT.get("offenWarum") or []:
+        print(f"    offen: {z[:420]}")
     return out
 
 
@@ -840,6 +858,20 @@ def buch_ereignisse():
 
 
 # ── Hauptlauf ────────────────────────────────────────────────────────────────────────────────────────────────
+def pnl_punkte(antwort):
+    """v2 user-pnl → [(epoch s, pnl $)] alt → neu. pnl = position_pnl (realisiert + offen), sonst realized_pnl. REIN."""
+    d = (antwort or {}).get("data") if isinstance(antwort, dict) else None
+    out = []
+    for p in (d or {}).get("points") or []:
+        if not isinstance(p, dict) or not isinstance(p.get("timestamp"), (int, float)):
+            continue
+        v = p.get("position_pnl") if isinstance(p.get("position_pnl"), (int, float)) else p.get("realized_pnl")
+        if isinstance(v, (int, float)):
+            t = p["timestamp"] / 1000 if p["timestamp"] > 1e12 else p["timestamp"]
+            out.append((t, round(float(v), 2)))
+    return sorted(out)
+
+
 def main() -> int:
     BASIS.mkdir(exist_ok=True)
     try:
@@ -931,20 +963,16 @@ def main() -> int:
     for w in kand[:PNL_BUDGET]:
         if not _zeit_ok():
             break
-        data = _get(PNL_API.format(user=w))
-        if isinstance(data, list) and data and isinstance(data[-1], dict):
-            try:
-                sc = track["scores"][w]
-                sc["pnl"] = round(float(data[-1].get("p")), 2)
-                # 22.10.: dieselbe Tagesreihe liefert auch 7 und 30 Tage (Polymarket gesamt, alle Kategorien)
-                sek = lambda x: (lambda t: t / 1000 if t > 1e12 else t)(float(x.get("t") or 0))   # Sekunden oder ms
-                jetzt_t = sek(data[-1]) or JETZT.timestamp()
-                for tg in (7, 30):
-                    vorher = [x for x in data if isinstance(x, dict) and sek(x) <= jetzt_t - tg * 86400]
-                    sc[f"pnl{tg}"] = round(sc["pnl"] - float(vorher[-1].get("p")), 2) if vorher else None
-                sc["pnlTs"] = JETZT.isoformat()
-            except (TypeError, ValueError):
-                pass
+        pts = pnl_punkte(_get(PNL_API.format(user=w)))
+        if pts:
+            sc = track["scores"][w]
+            sc["pnl"] = pts[-1][1]
+            # 22.10.: dieselbe Tagesreihe liefert auch 7 und 30 Tage (Polymarket gesamt, alle Kategorien)
+            for tg in (7, 30):
+                vorher = [p for p in pts if p[0] <= pts[-1][0] - tg * 86400]
+                sc[f"pnl{tg}"] = round(sc["pnl"] - vorher[-1][1], 2) if vorher else None
+            sc["pnlTs"] = JETZT.isoformat()
+            _STAT["pnlOk"] = _STAT.get("pnlOk", 0) + 1
 
     for p, d in ((MAERKTE, {"generatedAt": JETZT.isoformat(), "maerkte": maerkte}), (TRACK, track)):
         tmp = p.with_suffix(".tmp")
@@ -954,6 +982,10 @@ def main() -> int:
         print(f"  poly_markt: Fehler nach Ziel {_STAT.get('wo')} · erster: {_STAT.get('erster')}")
     if _STAT.get("clvUnmoeglich"):
         print(f"  poly_markt: {_STAT['clvUnmoeglich']} Positionen mit unmöglichem CLV (> {CLV_MAX_PP} pp) nicht gewertet")
+    print(f"  poly_markt: Lebensbilanz (v2 user-pnl) für {_STAT.get('pnlOk', 0)} Wallets geholt")
+    if _STAT.get("verfallen"):                          # 23.11.: Positionen, die nie aufgelöst wurden, gehen der Wertung verloren
+        print(f"  poly_markt: ⚠️ {_STAT['verfallen']} Positionen nach {TRACK_HALTEN_H} h ohne Auflösung verworfen: "
+              + ", ".join(sorted(_STAT["verfallenKeys"])[:10]))
     print(f"  poly_markt: {len(aufg)} Auflösungen gewertet · {len(track['open'])} offene Wal-Positionen · "
           f"{len(track['scores'])} Wallets · Abrufe ok {_STAT['ok']} / Fehler {_STAT['fehler']} · {time.time() - _START:.0f} s")
     return 0
