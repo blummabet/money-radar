@@ -366,15 +366,10 @@ HALTER_AVG = {}
 def alle_halter(cond, token):
     alle, gesehen = [], set()
     # 23.11.: include_pnl liefert je Halter avg_price/entry_cost — Einstieg für ALLE Wale ohne /positions-Abruf
-    # include_pnl=true geht nur mit kleinem limit (limit=200 → HTTP 400, 23.11.) → Haupt-Abruf wie bisher, Probe daneben
+    # include_pnl=true geht nur bis limit=100 (limit=200 → HTTP 400, 23.11.) — Haupt-Abruf bleibt ohne, damit die Seiten-Summen stimmen
     data = poly_v2.seiten(_get, "holders", HALTER_SEITEN, condition=cond, limit=200)
     if data is None:
         return [], True
-    if _STAT.get("probe", 0) < 1:
-        _STAT["probe"] = 1
-        for lim in (100, 50, 20):
-            pr = _get(poly_v2.url("holders", condition=cond, limit=lim, include_pnl="true"))
-            print(f"  poly_markt: Probe holders include_pnl limit={lim}: {'ok' if pr is not None else 'Fehler'}")
     for g in data if isinstance(data, list) else []:
         for h in (g.get("holders") if isinstance(g, dict) and "holders" in g else [g]) or []:
             if isinstance(h, dict) and str(h.get("token_id") or h.get("asset") or token) == str(token):
