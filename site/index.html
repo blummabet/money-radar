@@ -3469,7 +3469,7 @@ function preisBalken(m){
 const pmGegen = (l, titel, sport) => { const m = String(l||"").match(/^gegen (.+)$/); if(!m || /^(Draw|Remis|Both)/i.test(m[1])) return null;
   const teams = pmTitel(titel).split(/\s+vs\.?\s+/i).map(x=>x.trim()); const ander = teams.find(x=>x && x!==m[1] && !x.includes(m[1]) && !m[1].includes(x));
   if((sport||"Fußball")!=="Fußball" && ander) return ander;
-  return `${m[1]} gewinnt nicht` + (ander ? ` (${ander} oder Remis)` : ""); };
+  return `gegen ${m[1]}` + (ander ? ` (${ander} oder Remis)` : ""); };   // 23.11.: Nein-Kauf = Geld gegen das Team
 const pmLabel = (l, titel, sport) => { let t = String(l||""); const g = titel ? pmGegen(t, titel, sport) : null; if(g) return g;
   let m = t.match(/^(Over|Under) \(O\/U (\d+)\.5\)$/); if(m) return `${m[1]==="Over"?"Über":"Unter"} ${m[2]},5`;
   m = t.match(/^(.+?) \((.+?) \((-?\d+(?:\.\d+)?)\)\)$/);                    // Handicap: „Charlotte FC (Philadelphia Union (-1.5))"
@@ -3499,7 +3499,9 @@ function polyFenster(key){
   const kopf = `<div class="dk"><div class="dk-1">${sportIco(sport)}<span>${esc(ligaName(liga)||sport||"")}</span>${live?`<span class="dk-live">● live</span>`:anpfiff?`<span class="mk-zeit">${wann(anpfiff)}</span>`:""}</div>
     <div class="dk-2"><b>${usd(vol)}</b> Volumen auf Polymarket</div></div>`;
   // Preise je Ausgang + neues Geld netto (Ja minus Nein) je Ausgang
-  const pr = Object.entries(mk?.preise || f?.preise || {});
+  // 23.11. (Brøndby – Midtjylland: 6 Kacheln „Brø… Re… gegen… gegen Dr… FC… gegen F…", Favorit „gegen Draw"): die
+  // Nein-Seiten sind keine eigenen Ausgänge — nur 1/X/2 zeigen, das Nein-Geld steckt im Netto (Ja minus Nein).
+  const pr = Object.entries(mk?.preise || f?.preise || {}).filter(([k])=>!/^gegen /.test(k));
   const s30 = w30.seiten||{}, netto = {}; for(const [k] of pr) netto[k] = (s30[k]||0) - (s30["gegen "+k]||0);
   const remis = pr.find(([k])=>/^draw/i.test(k)), teams = pr.filter(x=>x!==remis), reihe = [teams[0], remis, teams[1], ...teams.slice(2)].filter(Boolean);
   const lead = pr.reduce((a,x)=>x[1]>(a?.[1]??-1)?x:a, null)?.[0];

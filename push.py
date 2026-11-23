@@ -1627,8 +1627,10 @@ def serie(d):
         if mg and not _re.match(r"^(Draw|Remis|Both)", mg.group(1), _re.I):
             teams = [t.strip() for t in _re.split(r"\s+vs\.?\s+", str(x.get("titel") or ""), flags=_re.I)]
             ander = next((t for t in teams if t and t != mg.group(1) and mg.group(1) not in t and t not in mg.group(1)), None)
+            # 23.11. (Lucas, Brøndby – Midtjylland: „gespielt wird Midtjylland gewinnt nicht, aber der Balken ist bei
+            # Midtjylland — das versteht keiner"): ein Nein-Kauf ist Geld GEGEN das Team → so schreiben.
             lab = (ander if (x.get("sport") or "Fußball") != "Fußball" and ander
-                   else f"{mg.group(1)} gewinnt nicht" + (f" ({ander} oder Remis)" if ander else ""))
+                   else f"gegen {mg.group(1)}" + (f" ({ander} oder Remis)" if ander else ""))
         # Lucas 26.10. (Nemiga – Aurora: erst $37k auf Nemiga vor Anpfiff, 40 Min später live $117k auf Aurora — „passt
         # das?"): kam auf denselben Markt in den letzten 3 h schon ein Dauerzufluss auf die ANDERE Seite, steht das dabei.
         gegen = _poly_gegenrichtung(x)
@@ -1636,13 +1638,16 @@ def serie(d):
                 f"{SPORT.get(x.get('sport'), '')} <b>{e(x.get('titel'))}</b>\n{'🔴 live' if x.get('live') else '⏰ ' + anpfiff(x.get('anpfiff'))}\n"
                 + (f"↔️ <b>Gegenrichtung</b>: vor {gegen['vorMin']} Min kam der Dauerzufluss auf <b>{e(gegen['anzeige'])}</b>"
                    f" @ {gegen['preis']} ¢ — jetzt kippt das Geld\n" if gegen else "") + "\n"
-                f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min auf <b>{e(lab)}</b>"
-                f" @ {round(x['preis'] * 100)} ¢ = Quote <b>{q2(x['quote'])}</b>\n"
+                + (f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min <b>{e(lab.split(' (')[0])}</b>"
+                   + (f" — gekauft „{e(mg.group(1))} gewinnt nicht“ = <b>{e(lab.split(' (', 1)[1].rstrip(')'))}</b>" if ' (' in lab else "")
+                   if lab.startswith("gegen ") else f"💵 <b>{geld(x['usd'], '$')}</b> in {x['dauerMin']} Min auf <b>{e(lab)}</b>")
+                + f" @ {round(x['preis'] * 100)} ¢ = Quote <b>{q2(x['quote'])}</b>\n"
                 # Lucas 26.10. („erst 92 %, dann 97 % auf die andere Seite — wie geht das?"): der Anteil gilt nur für DIESES
                 # Zeitfenster, nicht für den ganzen Markt — steht jetzt dabei, samt Summe aller Käufe darin
                 + f"<i>= {round(x.get('anteil') or 0)} % aller Käufe in diesen {x['dauerMin']} Min "
                   f"({geld(round(x['usd'] * 100 / max(1, x.get('anteil') or 100)), '$')}, nicht nur Wale)</i>\n\n"
-                + _poly_geld_block(d, x, lab)
+                + (lambda blk: (f"<i>Die Liste zeigt, wer auf Sieg hält — das neue Geld läuft gegen {e(mg.group(1))}.</i>\n"
+                                if blk and lab.startswith("gegen ") else "") + blk)(_poly_geld_block(d, x, lab))
                 + f"<code>{_balken(x['saeulen'])}</code> <i>letzte 4 h, je Säule 10 Min</i>\n"
                 f'<a href="https://polymarket.com/event/{urllib.parse.quote(str(x["id"]))}">Markt öffnen</a>\n')
         # Public-Regel 10 (Lucas 07.11.): Polymarket-Dauerzufluss darf in den Kanal, Regeln wie Betfair-Dauerzufluss
