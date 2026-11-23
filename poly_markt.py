@@ -994,6 +994,7 @@ def main() -> int:
         if not _zeit_ok():
             break
         pts = pnl_punkte(_get(PNL_API.format(user=w)))
+        track["scores"][w]["pnlTs"] = JETZT.isoformat()    # auch bei Fehler (Vertrags-Adressen → 400): nach hinten reihen
         if pts:
             sc = track["scores"][w]
             sc["pnl"] = pts[-1][1]
