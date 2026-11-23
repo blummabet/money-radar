@@ -1395,6 +1395,9 @@ def _ebene(w):
         return None
 
 
+UNBEKANNT = {}
+
+
 def kleine_liga(wetten, norm=None, ebene_median=None, now=None, min_faktor=None,
                 min_quote=None, max_alter_min=None) -> list:
     """Grosse Einzelwetten in kleinen Fussball-Ligen (vor Anpfiff UND live), je Auswahl gebuendelt. REIN.
@@ -1429,6 +1432,12 @@ def kleine_liga(wetten, norm=None, ebene_median=None, now=None, min_faktor=None,
         if w.get("phase") == "vor" and ko is not None and ko <= now:
             continue                      # „vor"-Wette, Spiel laeuft schon: Preis ist weg
         eb = _ebene(w)
+        if eb in (None, "None") and float(w.get("einsatzUsd") or 0) >= 1000:
+            # 23.11.: Ligen, die nicht in der Tabelle stehen, fielen hier STILL raus (Delhi Senior Division). Der
+            # Wachhund dafür lief im alten Projekt; hier wird jede solche Liga je Lauf gemeldet (Log + Datei).
+            u = UNBEKANNT.setdefault(str(w.get("ligaSlug")), {"n": 0, "usd": 0.0, "liga": w.get("liga"), "spiel": w.get("event")})
+            u["n"] += 1
+            u["usd"] += float(w.get("einsatzUsd") or 0)
         if eb not in KLEIN_EBENEN or not w.get("auswahlId"):
             continue
         gruppen.setdefault(w["auswahlId"], []).append((w, eb))
@@ -1723,6 +1732,18 @@ def main() -> int:
 
     # ── Die dritte Einheit: kleine Ligen (30.09.2026, Lucas) ─────────────────────────────
     kl_alle = kleine_liga(wetten, norm=liga_norm(), ebene_median=ebenen_median(), now=now)
+    if UNBEKANNT:
+        print("⚠️ Liga ohne Spielklasse (Kleine Liga übersprungen): " + " · ".join(
+            f"{k} ({v['liga']}, {v['n']}× ${v['usd']:.0f})" for k, v in sorted(UNBEKANNT.items(), key=lambda kv: -kv[1]["usd"])[:12]))
+        try:
+            pf = BASE / "stake_unbekannte_ligen.json"
+            alt = json.loads(pf.read_text()) if pf.exists() else {}
+            for k, v in UNBEKANNT.items():
+                # je Lauf sieht kleine_liga dieselben Wetten bis 30 Min lang wieder → nur der letzte Stand, nicht summiert
+                alt[k] = {"n": v["n"], "usd": round(v["usd"]), "liga": v["liga"], "spiel": v["spiel"], "zuletzt": now.isoformat()[:16]}
+            pf.write_text(json.dumps(dict(sorted(alt.items(), key=lambda kv: -kv[1]["usd"])[:300]), ensure_ascii=False))
+        except Exception as exc:  # noqa: BLE001
+            print("unbekannte Ligen:", exc)
     kl_neu = [b for b in kl_alle if klein_key(b) not in seen and klein_key(b) not in schon]
     kl_senden = [b for b in kl_neu if not stumm_grund(b)][:KLEIN_MAX_PUSH] if (KLEIN_AN and PUSH_AN) else []
     print("🔎 Kleine Liga: %d Treffer, %d neu (Fussball Ebene %s, vor Anpfiff + live, >=%.1fx Norm, "

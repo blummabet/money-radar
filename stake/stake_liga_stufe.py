@@ -150,6 +150,17 @@ EBENE = {
     # Die Skala endet bei 3; eine vierte Ebene fuer „noch kleiner" gibt es (noch) nicht, und
     # eine einzufuehren, waere eine Entscheidung ueber alle 50 Ebene-3-Ligen, nicht ueber diese.
     "mumbai-super-league": 3,
+    # 23.11.2026 (Lucas schickte einen Fremd-Post: Garhwal Heroes – The Dream Team, Over 2.5 $6.613 @ 1,60 — bei uns kein
+    # Signal): die Delhi Senior Division ist die STADTliga der Delhi Soccer Association, dieselbe Familie wie Mumbai.
+    # Der Slug war nicht in der Tabelle → stufe() None → „Kleine Liga" übersprang das Spiel still. Beide Schreibweisen,
+    # weil Stake die indischen Ligen mal mit, mal ohne „india-" führt (Karnataka mit, Mumbai/Mizoram ohne).
+    "delhi-senior-division": 3, "india-delhi-senior-division": 3,
+    # Die übrigen indischen Staats-/Stadtligen derselben Familie, bevor der nächste Fremd-Post kommt:
+    "calcutta-premier-division": 3, "india-calcutta-premier-division": 3, "kerala-premier-league": 3,
+    "india-kerala-premier-league": 3, "goa-professional-league": 3, "india-goa-professional-league": 3,
+    "bangalore-super-division": 3, "india-bangalore-super-division": 3, "shillong-premier-league": 3,
+    "india-shillong-premier-league": 3, "india-mizoram-premier-league": 3, "india-mumbai-super-league": 3,
+    "i-league-2": 3, "india-i-league-2": 3, "i-league-3": 3, "india-i-league-3": 3,
     # 23.09.2026 (CI-Wachhund): „professional-league" — die Nigeria Professional Football
     # League, oberste Klasse Nigerias (Ledger-Paarung „Shooting Stars - Katsina United FC").
     # Wie die South African Premier Division („premier-division": 1) eine nationale Eliteserie,
