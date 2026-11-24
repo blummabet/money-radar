@@ -331,6 +331,10 @@ def uhr_erwartung(markt, auswahl, q0, m0, m1, stand, sieg_q0=None, heim=None, ga
             return None
         roh = [1 / sieg_q0[heim], 1 / sieg_q0[remis], 1 / sieg_q0[gast]]
         s = sum(roh)
+        # 24.11. (Al-Raed 1:0, 45': Erwartung 1,70 statt ~1,41): in dünnen Märkten sind die gezeigten Quoten oft alte
+        # Kurse — Remis 2,0 / Auswärts 6 neben 1,47 ergibt ein „Buch" mit 38 % Marge. Nur ein plausibles Buch rechnen.
+        if not 0.97 <= s <= 1.10:
+            return None
         ziel = [x / s for x in roh]
         d = stand[0] - stand[1]
         best = None

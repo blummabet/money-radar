@@ -845,6 +845,10 @@ def bf_uhr(prices, bf_hist):
                 if not all(isinstance(x, (int, float)) and x > 1 for x in (q1, q0, qv)) or not 1.40 <= q1 <= 6 or q1 >= q0:
                     continue
                 st_ = list(sc(jetzt_p))
+                # LD5 (24.11., Lucas zu Al-Raed 1:0: „sowas doch wertlos, wenn 1:0"): das führende Team im Sieg-Markt fällt mit
+                # der Zeit von selbst — nie ein Fall „gegen die Uhr", egal was das Modell sagt
+                if mk == "Match Odds" and st_[0] != st_[1] and n == (m.get("home") if st_[0] > st_[1] else m.get("away")):
+                    continue
                 erw = _m.uhr_erwartung(mk, n, q0, m0, mn, st_, mo0, m.get("home"), m.get("away"))
                 erw_v = _m.uhr_erwartung(mk, n, q0, m0, mv, st_, mo0, m.get("home"), m.get("away"))
                 if not erw or not erw_v:

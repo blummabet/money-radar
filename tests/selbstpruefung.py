@@ -184,6 +184,17 @@ def _():
     gleich(len({x["id"] for x in pruefungen.REGISTER}), len(pruefungen.REGISTER), "doppelte Prüfungs-Ids")
 
 
+@pruefe("Uhr-Modell: Führender fällt mit der Zeit, unplausibles Buch → keine Erwartung")
+def _():
+    import markout as m
+    q = {"A": 1.47, "B": 12.0, "The Draw": 4.2}
+    e = m.uhr_erwartung("Match Odds", "A", 1.47, 35, 45, [1, 0], q, "A", "B")
+    assert e is not None and e < 1.47, f"Führender 1:0 sollte kürzer werden, bekommen {e}"
+    gleich(m.uhr_erwartung("Match Odds", "A", 1.47, 35, 45, [1, 0], {"A": 1.47, "B": 6.0, "The Draw": 2.0}, "A", "B"), None, "Buch mit 38 % Marge")
+    e2 = m.uhr_erwartung("Over/Under 2.5 Goals", "Over 2.5 Goals", 1.8, 50, 60, [1, 0])
+    assert e2 is not None and e2 > 1.8, "Über steigt ohne Tor mit der Zeit"
+
+
 # ── 4. Liga-Bilanz (build.py, Regel LW3) ─────────────────────────────────────────────────────────────────────────
 @pruefe("Liga-Bilanz LW3: Quote vor Anpfiff (qs), Märkte je Spiel gebündelt")
 def _():
