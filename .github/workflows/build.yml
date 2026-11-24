@@ -42,7 +42,7 @@ jobs:
     timeout-minutes: 25   # 04.11.: Platz für die Anstoß-Versuche bei GitHub-Störungen
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy1.outputs.page_url || steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       # 16.11.: auf dem Mac die GNU-Werkzeuge (timeout, date -d, head -n -14, tar --skip-old-files, xargs -r) und ein
@@ -333,7 +333,16 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+      # 24.11.: seit der Nacht scheiterte jeder zweite Lauf hier mit „No artifacts named github-pages" — das Artefakt
+      # war 1 s vorher hochgeladen, GitHub kannte es nur noch nicht. Erster Versuch darf scheitern, nach 20 s ein zweiter.
+      - id: deploy1
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - name: kurz warten (Pages-Artefakt noch nicht sichtbar)
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 20
       - id: deploy
+        if: steps.deploy1.outcome == 'failure'
         uses: actions/deploy-pages@v4
       # 17.10.2026: GitHub hat in den ersten Stunden KEINEN einzigen geplanten Lauf gestartet (bekanntes
       # Verhalten bei neuen Repos, und auch später oft verzögert). Deshalb hält sich der Takt selbst:
