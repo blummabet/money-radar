@@ -1020,6 +1020,8 @@ def main() -> int:
         print(f"  poly_markt: Sport-Profis — Bestenliste {_STAT.get('profiBoard', '–')} · {_STAT.get('profiGeprueft', 0)} geprüft "
               f"({ab} Abrufe) · {_STAT.get('profiBekannt', 0)} gewertet · {_STAT.get('profiBelegt', 0)} belegt"
               + (f" · Felder {_STAT['profiProbe']}" if _STAT.get("profiProbe") else ""))
+        for b in _STAT.get("profiBeispiele") or []:
+            print(f"  poly_markt: Profi unplausibel: {json.dumps(b, ensure_ascii=False)}")
     except Exception as exc:  # noqa: BLE001
         print(f"  poly_markt: Sport-Profis: {exc}")
     # 23.11. (Lucas: „in Zukunft Daten sammeln … Lücken sind blöd"): je Lauf eine Gesundheitszeile — der Wächter im

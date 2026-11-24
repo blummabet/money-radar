@@ -111,6 +111,10 @@ def wertung(zeilen, fuss, ab_ts):
             continue
         if g < -1.02 * kosten:                    # mehr Verlust als Einsatz ist unmöglich → Datenfehler zählen
             out["unplausibel"] += 1
+            if len(out.setdefault("beispiele", [])) < 2:   # Rohfelder für die Diagnose (Log + Datei)
+                out["beispiele"].append({k: z.get(k) for k in ("status", "event_slug", "outcome", "total_size", "current_size",
+                                         "avg_price", "current_price", "entry_cost_usdc", "total_cost_usdc", "realized_pnl",
+                                         "unrealized_pnl", "total_pnl", "current_value", "redeemable", "totalBought", "initialValue")})
         g = max(-kosten, g)
         u = max(-1.0, min(20.0, g / kosten))
         out["n"] += 1
@@ -234,6 +238,8 @@ def lauf(get, maerkte, stat, zeit_ok=lambda: True):
         if not ok:
             bel = False
             stat["profiUnplausibel"] = stat.get("profiUnplausibel", 0) + 1
+        if wt.get("beispiele") and len(stat.setdefault("profiBeispiele", [])) < 4:
+            stat["profiBeispiele"].append(wt["beispiele"][0])
         for pf, c in wt["unbekannt"].items():
             stat.setdefault("profiUnbekannt", {})[pf] = stat.get("profiUnbekannt", {}).get(pf, 0) + c
         wallets[w] = {**wt, "v": VERSION, "ts": JETZT.isoformat(), "rendite": ren, "renditeUg": ug, "belegt": bel,
