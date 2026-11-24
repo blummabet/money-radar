@@ -43,6 +43,8 @@ REGISTER = [
      "arten": ["publicGegenwind"], "ab": "2026-11-14T00:00", "ziel": 30, "vergleich": ["public"]},
     {"id": "P28", "frage": "Quote läuft gegen das Geld: laufen die gesperrten schlechter als die gesendeten Public-Picks?",
      "arten": ["publicQuote"], "ab": "2026-11-15T00:00", "ziel": 30, "vergleich": ["public"]},
+    {"id": "S8", "frage": "Live-Dauerzufluss ab 5× (serieWdh, live) weiter im Plus? Sonst Public zurück auf 3×.",
+     "arten": ["serieWdh"], "ab": "2026-11-24T12:40", "ziel": 150, "vergleich": ["serie"]},
     {"id": "S7", "frage": "Stake unter 5 % des Betfair-Volumens: ist 5 % die richtige Grenze?",
      "arten": ["stake", "stakeKlein"], "ab": "2026-11-22T17:00", "datum": "2026-11-29"},
     {"id": "D4", "frage": "Druck-Team in Überzahl: neu prüfen bei 40 Fällen (Seitendaten pushBilanz.druck.gruppen).",
