@@ -902,6 +902,11 @@ MIN_FENSTER = 15    # Aufloesungen im Messfenster, ab denen eine Untergrenze etw
 # 10.11. (Lucas: „Messlatte höher, dass Glückstreffer weg sind"): bei ~200 geprüften Wallets wirkten mit 90 % (z 1,645)
 # rund 10 nur durch Zufall „bewährt" — jetzt 99 % (z 2,33). Stand 10.11.: 32 → 17 bewährte.
 BEWAEHRT_Z = 2.33
+# Regel W2 (24.11., Lucas: „das erste Wallet ist komplett rot … die Rangliste ist so wertlos"): belegt hieß bisher nur
+# „CLV-Untergrenze > 0" ab 15 Wetten. So stand oben ein Wallet mit 16 Wetten und −$196k Polymarket-Bilanz, und 9 der
+# 17 „belegten" lagen in der eigenen Wett-Bilanz oder bei Polymarket im Minus. Jetzt müssen ALLE vier passen:
+W2_MIN_N = 40            # gewertete Wetten im Fenster
+W2_MIN_GELD = 20         # davon mit Geldbetrag für die eigene Bilanz
 LIVE_ZEIGEN_N, LIVE_MIN_N, LIVE_Z = 10, 30, 1.645    # Regel WL1 (21.11.)
 
 
@@ -964,10 +969,24 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
         var = max(0.0, (fq - fn * fm * fm) / (fn - 1))
         ug = fm - BEWAEHRT_Z * math.sqrt(var / fn)
         offen_jetzt = sorted(pos_je.get(w) or [], key=lambda p: -float(p.get("usd") or 0))
+        eig = zeitraum_bilanz(s, 3650) or {}
+        warum = []
+        if fn < W2_MIN_N:
+            warum.append(f"erst {fn} Wetten")
+        if ug <= 0:
+            warum.append("schlägt den Schlusskurs nicht sicher")
+        if (eig.get("nGeld") or 0) < W2_MIN_GELD:
+            warum.append("zu wenig abgerechnete Wetten")
+        elif (eig.get("roi") or 0) < 0:
+            warum.append(f"eigene Bilanz {eig.get('roi')} %")
+        if isinstance(s.get("pnl"), (int, float)) and s["pnl"] < 0:
+            warum.append("Polymarket-Bilanz im Minus")
         wallets.append({
             "wallet": w, "n": n, "clv": round(float(s.get("clvSumPP") or 0) / n, 2),
             "fensterN": fn, "fensterClv": round(fm, 2), "clvUg": round(ug, 2),
-            "pnl": s.get("pnl"), "schnittUsd": round(float(s["usd"]) / n), "zuletzt": s.get("lastTs"),
+            "pnl": s.get("pnl"), "pnl30": s.get("pnl30"), "schnittUsd": round(float(s["usd"]) / n), "zuletzt": s.get("lastTs"),
+            "roi": eig.get("roi"), "nGeld": eig.get("nGeld"), "gewinn": eig.get("gewinn"), "treffer": eig.get("treffer"),
+            "warum": warum, "w2": not warum,
             "sport": haupt,
             "offen": [{"markt": p.get("key"), "seite": p.get("side"), "usd": p.get("usd"),
                        "preis": p.get("lastPrice") or p.get("firstPrice"), "anpfiff": p.get("koTs"),
@@ -1025,9 +1044,10 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
         pf = sc.get("portfolio")
         w["anteil"] = round(100 * w["schnittUsd"] / pf, 1) if pf else None
     # Sortiert nach der UNTERGRENZE: wer oben steht, ist nicht nur im Schnitt gut, sondern belegt.
-    wallets.sort(key=lambda r: -r["clvUg"])
-    wallets = wallets[:20]
-    bewiesen = {w["wallet"] for w in wallets if w["clvUg"] > 0}
+    # W2: erst die, die alle vier Prüfungen bestehen, dann der Rest nach Untergrenze (zum Beobachten)
+    wallets.sort(key=lambda r: (not r["w2"], -r["clvUg"]))
+    wallets = wallets[:25]
+    bewiesen = {w["wallet"] for w in wallets if w["w2"]}
 
     # Aktuelle Grosshalter je Markt (nah am Anpfiff, mit Geld-Split): poly_money_broad_offen.
     # Daraus „setzt gerade auf" fuer die Rangliste — der Track allein kennt nur, was er schon
