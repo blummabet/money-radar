@@ -50,6 +50,10 @@ FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als v
 # Wal-Einstieg ab $5k (Top-5 $10k) — oder ab der Hälfte davon, wenn es mindestens 3× sein üblicher Einsatz ist.
 WAL_MIN_USD = 5000
 WAL_STARK_FAKTOR = 3.0
+# Regel W9 (24.11., Lucas zu „JabJabich · Sport-Profi Nr. 101 von 130": „macht es echt Sinn, über 100 Wallets zu
+# posten? Sollten wir da nicht strenger sein?"): Wal-Pushes von Sport-Profis nur noch von Top-Profis — Untergrenze der
+# Rendite ≥ 3 % und ≥ 100 Wetten (24.11.: 48 von 130). Die übrigen still als „walProfiB".
+W9_MIN_UG, W9_MIN_N = 3.0, 100
 STAKE_BF_ANTEIL, STAKE_USD_EUR = 0.05, 0.92    # Regel S7 (22.11.): Spiel-Burst/Top 5 erst ab 5 % des Betfair-Volumens
 STAKE_TOP5_MIN_USD = 50000   # Regel ST5 (12.11.)
 STAKE_ES_TIER1 = re.compile(r"\b(blast|iem|intel extreme|pgl|esl pro league|esl one|major|starladder|perfect world|"
@@ -926,6 +930,11 @@ def wale(d):
         if schnitt and usd and usd / float(schnitt) < WAL_MIN_FAKTOR:
             if beleg:
                 yield f"wk|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}", None, None, {**beleg, "art": "walKlein"}
+            continue
+        # W9: Sport-Profi unterhalb der Top-Grenze → kein Push, still
+        if o.get("profi") and not ((o.get("renditeUg") or 0) >= W9_MIN_UG and (o.get("n") or 0) >= W9_MIN_N):
+            if beleg:
+                yield f"wb|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}", None, None, {**beleg, "art": "walProfiB", "regelW": "W9"}
             continue
         # W8: Streit → keine eigene Karte; main() antwortet auf einen früheren Wal-Push zum Markt oder bucht still
         yield key, "\n".join(zeilen) + "\n", None, beleg, (None if w8_streit else pub)
