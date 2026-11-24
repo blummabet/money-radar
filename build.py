@@ -2809,6 +2809,7 @@ def cm1(belegt, maerkte, wallets):
             out.append({"key": key, "titel": m.get("titel"), "liga": m.get("league"), "sport": m.get("sport"), "anpfiff": m.get("koTs"),
                         "seite": x["seite"], "preis": p, "quote": round(1 / p, 3), "usd": x["usd"], "faktor": round(x["usd"] / su, 2),
                         "schnittUsd": su, "wallet": x["wallet"], "clv": w.get("fensterClv"), "clvUg": w.get("clvUg"), "n": w.get("fensterN"),
+                        "roi": w.get("roi"), "nGeld": w.get("nGeld"),
                         "rang": next((i + 1 for i, v in enumerate(wallets or []) if v["wallet"] == x["wallet"]), None),
                         "pnl": w.get("pnl"), "mit": [{"w": y["wallet"][-4:], "usd": y["usd"]} for y in mit],
                         "gegenUsd": sum(y["usd"] for y in gegen), "marktUsd": m.get("totalUsd"),

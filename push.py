@@ -2030,6 +2030,9 @@ def cm1_push(d):
              "<b>Warum</b>",
              f"✅ Bewährte Wallet {e(str(x['wallet'])[2:6])}" + (f" (Nr. {x['rang']})" if x.get("rang") else "")
              + f": schlägt den Schlusskurs um Ø {q2(x.get('clv'))} pp, sicher ≥ {q2(x.get('clvUg'))} pp, {x.get('n')} Wetten",
+             # 24.11. Regel W2: was sie bei uns und bei Polymarket insgesamt verdient hat
+             f"✅ Ihre Wetten bei uns: <b>{'+' if (x.get('roi') or 0) > 0 else ''}{q2(x.get('roi'))} %</b> Rendite ({x.get('nGeld')} abgerechnet)"
+             + (f" · Polymarket gesamt <b>{geld(x['pnl'], '$')}</b>" if isinstance(x.get("pnl"), (int, float)) else ""),
              f"✅ Sie hält <b>{geld(x['usd'], '$')}</b> = <b>{q2(x['faktor'])}×</b> ihren üblichen Einsatz ({geld(x['schnittUsd'], '$')})",
              "✅ Kein bewährtes Geld dagegen" if not x.get("gegenUsd") else f"✅ Bewährtes Geld dagegen nur {geld(x['gegenUsd'], '$')}"]
         if x.get("mit"):
