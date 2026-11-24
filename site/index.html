@@ -5760,6 +5760,9 @@ function seiteStake(D){
   const st = D.stake, bil = st.bilanz||{}, gr = lf(st.gruppen||[]);
   const offen = gr.filter(x=>stakeStatus(x)==="pending").sort((a,b)=>(b.phase==="live")-(a.phase==="live") || new Date(b.zeit)-new Date(a.zeit));
   const erl = gr.filter(x=>stakeStatus(x)!=="pending");
+  // 24.11. (Lucas: „ja, Burst anzeigen"): vorne nur Wetten mit einer belegten Art (heute: Burst), der Rest eingeklappt
+  const belegt = a => { const b = bil[a]; return b && b.ug!=null && b.ug>0; };
+  const offenGut = offen.filter(x=>(x.arten||[]).some(belegt)), offenRest = offen.filter(x=>!(x.arten||[]).some(belegt));
   const ser = serienKarten(D,8,"stake"), serLeer = ser.startsWith('<div class="leer">');
   const zs = (D.verlauf||[]).filter(x=>x[1]==="stake").slice(-160);
   const top = [...gr].sort((a,b)=>(b.faktor||0)-(a.faktor||0))[0];
@@ -5776,8 +5779,9 @@ function seiteStake(D){
       bilanzKachel(D, "stake", "Stake-Meldungen 30 T")])}</div>
     ${artReihe?`<div class="panel c12"><div class="ph"><h3>Welche Stake-Signale tragen</h3><span class="hint">alle abgerechneten Meldungen · belegt = die Untergrenze liegt über null</span></div><div class="sk-bil">${artReihe}</div></div>`:""}
     ${serLeer?"":`<div class="panel c12"><div class="ph"><h3>🔁 Dauerzufluss</h3><span class="hint">Einzelwetten ab $1000, 3 Abschnitte à 10 Min in Folge dieselbe Auswahl</span></div>${ser}</div>`}
-    <div class="panel c12"><div class="ph"><h3>Große Wetten, offen</h3><span class="hint">live zuerst · Balken = wie weit über der üblichen Einsatzhöhe</span></div>
-      ${offen.length?`<div class="sk-grid">${offen.map(x=>stakeKarte(x, max, bil)).join("")}</div>`:`<div class="leer">Gerade keine offene große Wette${ligaModus==="ohne"?" (ohne Top-5)":ligaModus==="nur"?" (nur Top-5)":""}.</div>`}</div>
+    <div class="panel c12"><div class="ph"><h3>Große Wetten, offen</h3><span class="hint">oben nur Arten, die nachweislich tragen (✓) · Balken = wie weit über der üblichen Einsatzhöhe</span></div>
+      ${offenGut.length?`<div class="sk-grid">${offenGut.map(x=>stakeKarte(x, max, bil)).join("")}</div>`:`<div class="leer">Gerade keine offene Wette einer belegten Art${offen.length?"":ligaModus==="ohne"?" (ohne Top-5)":ligaModus==="nur"?" (nur Top-5)":""}.</div>`}
+      ${offenRest.length?liste(`Weitere ${offenRest.length} ohne belegte Art`, "", `<div class="sk-grid" style="margin-top:10px">${offenRest.map(x=>stakeKarte(x, max, bil)).join("")}</div>`):""}</div>
     ${erl.length?`<div class="panel c12"><div class="ph"><h3>Abgerechnet, letzte 24 Stunden</h3><span class="hint">${erlG} gewonnen · ${erlV} verloren</span></div>${stakeErledigt(erl.slice(0,10))}${erl.length>10?liste(`Weitere ${erl.length-10}`, "", stakeErledigt(erl.slice(10))):""}</div>`:""}
     ${zs.length?auswertung(`<div class="panel c12"><div class="ph"><h3>Verlauf</h3><span class="hint">die letzten ${zs.length} abgerechneten Meldungen</span></div>
       <div class="strich" style="height:30px">${zs.map(x=>`<i class="${x[3]===1?"w":x[3]===0?"l":"o"}"></i>`).join("")}</div><div class="strich-leg"><span><i class="w"></i>gewonnen</span><span><i class="l"></i>verloren</span></div></div>`, "Verlauf der Meldungen"):""}
