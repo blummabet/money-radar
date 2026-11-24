@@ -7,11 +7,22 @@ seit Ende Oktober. Hier der Weg von der anderen Seite:
      nach Gewinn) — alle 12 h, je bis 500 Plätze.
   2. Je Kandidat die abgeschlossenen Positionen der letzten 90 Tage (/v2/positions, CLOSED + REDEEMABLE +
      REDEEMABLE_LOST — sonst fehlen nicht eingelöste Verluste und die Rendite sähe zu gut aus), nur unsere Sportarten
-     (Fußball, E-Sport, Tennis ohne ATP/WTA). Je Lauf höchstens PROFI_JE_LAUF Wallets, jede alle 3 Tage neu.
+     (Fußball, E-Sport, Tennis ohne ATP/WTA). Je Lauf höchstens PROFI_JE_LAUF Wallets (eigener Zeitdeckel), jede alle 3 Tage neu.
   3. Belegt (W4): mindestens 50 Positionen in unseren Sportarten, Rendite (Gewinn ÷ Einsatz) über null UND die
      Untergrenze der Rendite je Wette (z = 1,645) über null.
 Die Sportart einer Position kommt aus dem Slug-Präfix: E-Sport/Tennis fest, Fußball-Präfixe lernt die Datei aus den
 Märkten, die poly_markt sieht (z. B. „den-", „tur-", „ukr1-"). Unbekannte Präfixe zählen nicht.
+
+Regel W5 (24.11., Lucas: „ja, können wir gewichten … keine Fehler mehr … auch wenn ein neues Wallet auftaucht, muss das
+erfasst werden"):
+  · Untergrenze nach EINSATZ gewichtet (Verhältnis-Schätzer Gewinn ÷ Einsatz, z = 1,645) statt je Wette gleich —
+    so, wie Rendite gerechnet wird. Große Einzeleinsätze machen das Band breit, das ist gewollt.
+  · Kandidaten auch aus UNSEREN Märkten: jede Wallet, die poly_markt als Wal (ab WAL_USD) sieht, kommt sofort in die
+    Prüfung, VOR der Bestenliste. Bleibt 30 Tage nach der letzten Sichtung Kandidat.
+  · Sportart je Präfix lernt die Datei aus allen Märkten (sport-Feld), nicht nur Fußball. Unbekannte Präfixe werden
+    gezählt (unbekannt) — so sieht man, was der Wertung fehlt.
+  · Plausibilität je Wallet: Verlust über Einsatz, fehlende Felder, abgeschnittene Seiten werden gezählt. Über 10 %
+    unplausible Zeilen → kein Urteil („pruefen"), der Daten-Wächter meldet es.
 """
 from __future__ import annotations
 
@@ -28,10 +39,14 @@ DATEI = Path(__file__).resolve().parent / ".pm" / "poly_profis.json"
 JETZT = datetime.now(timezone.utc)
 BOARD_H = 12
 NEU_TAGE = 3
-PROFI_JE_LAUF = 10
+PROFI_JE_LAUF = 40       # 24.11.: Lauf braucht ~45 s von 240 s — 40 Wallets ≈ 120 Abrufe, eigener Zeitdeckel PROFI_S
+PROFI_S = 90
 FENSTER_TAGE = 90
 MIN_N = 50
-VERSION = 2        # 24.11.: Einsatz aus Stück × Ø Preis statt total_cost_usdc
+VERSION = 3        # 2: Einsatz aus Stück × Ø Preis statt total_cost_usdc · 3: W5 (gewichtet, Plausibilität)
+WAL_USD = 500
+SICHT_TAGE = 30
+SEITEN, LIMIT = 3, 1000
 Z = 1.645
 ESPORT = ("cs2", "csgo", "lol", "dota2", "dota", "val", "valorant", "ow", "r6", "rl", "cod", "mlbb", "hok")
 TENNIS = ("itf", "chall", "wtt")
@@ -44,7 +59,11 @@ def praefix(slug):
     return m.group(1) if m else None
 
 
+UNSERE = ("Fußball", "E-Sport", "Tennis")
+
+
 def sportart(slug, fuss):
+    """fuss = gelernte Präfixe: dict {präfix: Sport} oder (alt) Menge von Fußball-Präfixen."""
     p = praefix(slug)
     if not p or p in RAUS:
         return None
@@ -52,12 +71,16 @@ def sportart(slug, fuss):
         return "E-Sport"
     if p in TENNIS:
         return "Tennis"
+    if isinstance(fuss, dict):
+        return fuss.get(p) if fuss.get(p) in UNSERE else None
     return "Fußball" if p in fuss else None
 
 
 def wertung(zeilen, fuss, ab_ts):
     """Positionen → {n, einsatz, gewinn, wins, uSum, uSq, bySport}. Je Bedingung (condition_id+outcome) einmal. REIN."""
-    gesehen, out = set(), {"n": 0, "einsatz": 0.0, "gewinn": 0.0, "wins": 0, "uSum": 0.0, "uSq": 0.0, "bySport": {}}
+    gesehen = set()
+    out = {"n": 0, "einsatz": 0.0, "gewinn": 0.0, "wins": 0, "uSum": 0.0, "uSq": 0.0, "gSq": 0.0, "gc": 0.0, "cSq": 0.0,
+           "bySport": {}, "unplausibel": 0, "ohneFeld": 0, "unbekannt": {}}
     for z in zeilen or []:
         if not isinstance(z, dict):
             continue
@@ -68,8 +91,12 @@ def wertung(zeilen, fuss, ab_ts):
         t = z.get("last_event_at") or z.get("first_entry_at")
         if isinstance(t, (int, float)) and t < ab_ts:
             continue
-        sp = sportart(z.get("event_slug") or z.get("eventSlug") or z.get("slug"), fuss)
+        slug = z.get("event_slug") or z.get("eventSlug") or z.get("slug")
+        sp = sportart(slug, fuss)
         if not sp:
+            pf = praefix(slug)
+            if pf and pf not in RAUS and not (isinstance(fuss, dict) and pf in fuss):
+                out["unbekannt"][pf] = out["unbekannt"].get(pf, 0) + 1
             continue
         # Einsatz = gekaufte Stück (gesamt) × Ø Einstieg. total_cost_usdc schrumpft bei Teilverkäufen (Rest-Basis) —
         # damit kam −537 % Rendite heraus, mehr Verlust als Einsatz geht nicht.
@@ -77,8 +104,13 @@ def wertung(zeilen, fuss, ab_ts):
         kosten = ts_ * ap if isinstance(ts_, (int, float)) and isinstance(ap, (int, float)) and ts_ * ap > 0 \
             else z.get("total_cost_usdc", z.get("entry_cost_usdc"))
         g = z.get("total_pnl", z.get("realized_pnl"))
-        if not isinstance(kosten, (int, float)) or not isinstance(g, (int, float)) or kosten < 5:
+        if not isinstance(kosten, (int, float)) or not isinstance(g, (int, float)):
+            out["ohneFeld"] += 1
             continue
+        if kosten < 5:
+            continue
+        if g < -1.02 * kosten:                    # mehr Verlust als Einsatz ist unmöglich → Datenfehler zählen
+            out["unplausibel"] += 1
         g = max(-kosten, g)
         u = max(-1.0, min(20.0, g / kosten))
         out["n"] += 1
@@ -87,25 +119,40 @@ def wertung(zeilen, fuss, ab_ts):
         out["wins"] += g > 0
         out["uSum"] += u
         out["uSq"] += u * u
+        out["gSq"] += g * g
+        out["gc"] += g * kosten
+        out["cSq"] += kosten * kosten
         b = out["bySport"].setdefault(sp, [0, 0.0, 0.0])
         b[0] += 1
         b[1] += kosten
         b[2] += g
-    for k in ("einsatz", "gewinn", "uSum", "uSq"):
+    for k in ("einsatz", "gewinn", "uSum", "uSq", "gSq", "gc", "cSq"):
         out[k] = round(out[k], 3)
+    out["unbekannt"] = dict(sorted(out["unbekannt"].items(), key=lambda kv: -kv[1])[:15])
     return out
 
 
 def urteil(w):
-    """→ (belegt, rendite %, untergrenze %) für eine Wertung. REIN."""
+    """W5 → (belegt, rendite %, untergrenze %) für eine Wertung. Untergrenze nach Einsatz gewichtet:
+    R = ΣG/ΣC, SE = √(n/(n−1)·Σ(G−R·C)²)/ΣC, Σ(G−R·C)² = ΣG² − 2R·ΣGC + R²·ΣC². REIN."""
     n = w.get("n") or 0
-    if n < 2 or not w.get("einsatz"):
+    C = w.get("einsatz") or 0
+    if n < 2 or not C:
         return False, None, None
-    rendite = 100 * w["gewinn"] / w["einsatz"]
-    m = w["uSum"] / n
-    v = max(0.0, (w["uSq"] - n * m * m) / (n - 1))
-    ug = 100 * (m - Z * math.sqrt(v / n))
-    return bool(n >= MIN_N and rendite > 0 and ug > 0), round(rendite, 1), round(ug, 1)
+    R = w["gewinn"] / C
+    rest = max(0.0, (w.get("gSq") or 0) - 2 * R * (w.get("gc") or 0) + R * R * (w.get("cSq") or 0))
+    se = math.sqrt(n / (n - 1) * rest) / C
+    ug = 100 * (R - Z * se)
+    return bool(n >= MIN_N and R > 0 and ug > 0), round(100 * R, 1), round(ug, 1)
+
+
+def plausibel(w, abgeschnitten=False):
+    """→ (ok, grund). Über 10 % unplausible oder feldlose Zeilen → kein Urteil. REIN."""
+    n = (w.get("n") or 0) + (w.get("ohneFeld") or 0)
+    schlecht = (w.get("unplausibel") or 0) + (w.get("ohneFeld") or 0)
+    if n and schlecht > max(2, 0.1 * n):
+        return False, f"{schlecht} von {n} Zeilen unplausibel/ohne Feld"
+    return True, ("Seiten abgeschnitten — nur die jüngsten Positionen" if abgeschnitten else None)
 
 
 def lauf(get, maerkte, stat, zeit_ok=lambda: True):
@@ -114,11 +161,21 @@ def lauf(get, maerkte, stat, zeit_ok=lambda: True):
         d = json.loads(DATEI.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         d = {}
-    fuss = set(d.get("fussPraefixe") or [])
-    for k, m in (maerkte or {}).items():          # Fußball-Präfixe lernen
-        if (m or {}).get("sport") == "Fußball" and praefix(k):
-            fuss.add(praefix(k))
-    abrufe = 0
+    fuss = dict(d.get("praefixe") or {})
+    for p in d.get("fussPraefixe") or []:         # alte Datei (nur Fußball)
+        fuss.setdefault(p, "Fußball")
+    jetzt_iso = JETZT.isoformat()
+    sicht = dict(d.get("gesichtet") or {})        # W5: Wale aus unseren Märkten {wallet: letzte Sichtung}
+    for k, m in (maerkte or {}).items():          # Präfix → Sport lernen, Wale merken
+        m = m or {}
+        if m.get("sport") and praefix(k):
+            fuss[praefix(k)] = m["sport"]
+        for wh in m.get("whales") or []:
+            w = str(wh.get("wallet") or "").lower()
+            if w.startswith("0x") and float(wh.get("usd") or 0) >= WAL_USD:
+                sicht[w] = jetzt_iso
+    sicht = {w: t for w, t in sicht.items() if JETZT - datetime.fromisoformat(t) <= timedelta(days=SICHT_TAGE)}
+    abrufe, t0 = 0, time.time()
     board = d.get("board") or {}
     alt = lambda t, h: not t or JETZT - datetime.fromisoformat(t) > timedelta(hours=h)   # noqa: E731
     if alt(board.get("ts"), BOARD_H):
@@ -136,41 +193,70 @@ def lauf(get, maerkte, stat, zeit_ok=lambda: True):
         if kand:
             board = {"ts": JETZT.isoformat(), "kandidaten": kand}
         stat["profiBoard"] = len(kand)
-    kand = board.get("kandidaten") or {}
+    kand = dict(board.get("kandidaten") or {})
+    for w in sicht:
+        kand.setdefault(w, {})
     wallets = d.get("wallets") or {}
-    reihe = sorted(kand, key=lambda w: ((wallets.get(w) or {}).get("v") == VERSION, (wallets.get(w) or {}).get("ts") or ""))
+    # Reihenfolge: gesichtete Wale ohne aktuelle Wertung → Bestenliste ohne aktuelle Wertung → älteste Wertung zuerst
+    frisch_fehler = lambda w: not alt((wallets.get(w) or {}).get("fehlerTs"), 6)   # noqa: E731  (400er nicht jeden Lauf)
+    reihe = sorted(kand, key=lambda w: (frisch_fehler(w), (wallets.get(w) or {}).get("v") == VERSION, w not in sicht,
+                                        (wallets.get(w) or {}).get("ts") or ""))
     ab_ts = (JETZT - timedelta(days=FENSTER_TAGE)).timestamp()
     gemacht = 0
     for w in reihe:
-        if gemacht >= PROFI_JE_LAUF or not zeit_ok():
+        if gemacht >= PROFI_JE_LAUF or not zeit_ok() or time.time() - t0 > PROFI_S:
             break
         if (wallets.get(w) or {}).get("v") == VERSION and not alt((wallets.get(w) or {}).get("ts"), NEU_TAGE * 24):
             continue
-        zeilen, fehler = [], False
+        if frisch_fehler(w):
+            continue
+        zeilen, fehler, abgeschnitten = [], False, False
         for st in ("CLOSED", "REDEEMABLE", "REDEEMABLE_LOST"):
-            r = poly_v2.seiten(get, "positions", 3, user=w, status=st, sort_by="TIMESTAMP", limit=500,
+            r = poly_v2.seiten(get, "positions", SEITEN, user=w, status=st, sort_by="TIMESTAMP", limit=LIMIT,
                                start=int(ab_ts))
             abrufe += 1
             if r is None:
                 fehler = True
                 break
+            abgeschnitten = abgeschnitten or len(r) >= SEITEN * LIMIT
             zeilen += r
         if fehler:
+            stat["profiFehler"] = stat.get("profiFehler", 0) + 1
+            alt_e = wallets.get(w) or {}
+            alt_e["fehlerTs"] = jetzt_iso
+            wallets[w] = alt_e
             continue
         if not stat.get("profiProbe") and zeilen:
             stat["profiProbe"] = sorted(zeilen[0].keys())[:40]
         wt = wertung(zeilen, fuss, ab_ts)
         bel, ren, ug = urteil(wt)
+        ok, grund = plausibel(wt, abgeschnitten)
+        if not ok:
+            bel = False
+            stat["profiUnplausibel"] = stat.get("profiUnplausibel", 0) + 1
+        for pf, c in wt["unbekannt"].items():
+            stat.setdefault("profiUnbekannt", {})[pf] = stat.get("profiUnbekannt", {}).get(pf, 0) + c
         wallets[w] = {**wt, "v": VERSION, "ts": JETZT.isoformat(), "rendite": ren, "renditeUg": ug, "belegt": bel,
-                      "name": (kand.get(w) or {}).get("name"), "board": {k: v for k, v in (kand.get(w) or {}).items() if k != "name"},
-                      "roh": len(zeilen)}
+                      "pruefen": None if ok else grund, "hinweis": grund if ok else None, "gesichtet": sicht.get(w),
+                      "name": (kand.get(w) or {}).get("name") or next((z.get("name") for z in zeilen if isinstance(z, dict) and z.get("name")), None), "board": {k: v for k, v in (kand.get(w) or {}).items() if k != "name"},
+                      "roh": len(zeilen), "abgeschnitten": abgeschnitten}
         gemacht += 1
     # Wallets, die aus der Bestenliste fallen, nach 30 Tagen vergessen
     wallets = {w: v for w, v in wallets.items() if w in kand or not alt(v.get("ts"), 30 * 24)}
-    d = {"board": board, "wallets": wallets, "fussPraefixe": sorted(fuss)[:2000], "ts": JETZT.isoformat()}
+    for w, v in wallets.items():                 # Sichtung nachtragen (auch ohne neue Wertung)
+        if w in sicht:
+            v["gesichtet"] = sicht[w]
+    offen_sicht = sum(1 for w in sicht if (wallets.get(w) or {}).get("v") != VERSION)
+    lauf_info = {"ts": jetzt_iso, "geprueft": gemacht, "fehler": stat.get("profiFehler", 0),
+                 "unplausibel": stat.get("profiUnplausibel", 0), "offenGesichtet": offen_sicht,
+                 "kandidaten": len(kand), "aktuell": sum(1 for v in wallets.values() if v.get("v") == VERSION)}
+    d = {"board": board, "wallets": wallets, "praefixe": dict(sorted(fuss.items())[:3000]), "gesichtet": sicht,
+         "unbekannt": stat.get("profiUnbekannt") or d.get("unbekannt") or {}, "lauf": lauf_info,
+         "laeufe": ((d.get("laeufe") or []) + [lauf_info])[-60:], "ts": jetzt_iso}
     DATEI.parent.mkdir(exist_ok=True)
     DATEI.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     stat["profiGeprueft"] = gemacht
     stat["profiBelegt"] = sum(1 for v in wallets.values() if v.get("belegt") and v.get("v") == VERSION)
     stat["profiBekannt"] = len(wallets)
+    stat["profiOffenGesichtet"] = offen_sicht
     return abrufe

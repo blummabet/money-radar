@@ -1029,7 +1029,11 @@ def main() -> int:
         gz.append({"ts": JETZT.isoformat(), "maerkte": len(maerkte), "halter": _STAT.get("halterMaerkte", 0),
                    "ok": _STAT["ok"], "fehler": _STAT["fehler"], "faellig": _STAT.get("faellig", 0),
                    "entschieden": len(aufg), "gewertet": _STAT.get("gewertet", 0), "verfallen": _STAT.get("verfallen", 0),
-                   "pnlOk": _STAT.get("pnlOk", 0), "offen": len(track["open"])})
+                   "pnlOk": _STAT.get("pnlOk", 0), "offen": len(track["open"]),
+                   # 24.11. W5: Profi-Prüfung (geprüft, Abruf-Fehler, unplausible Wallets, gesichtete Wale noch ohne Wertung)
+                   "profiGeprueft": _STAT.get("profiGeprueft", 0), "profiFehler": _STAT.get("profiFehler", 0),
+                   "profiUnplausibel": _STAT.get("profiUnplausibel", 0), "profiOffenGesichtet": _STAT.get("profiOffenGesichtet", 0),
+                   "profiLaeuft": "profiGeprueft" in _STAT})
         GESUND.write_text(json.dumps(gz[-150:], separators=(",", ":")), encoding="utf-8")
     except Exception as exc:  # noqa: BLE001
         print(f"  poly_markt: Gesundheit: {exc}")

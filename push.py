@@ -2121,7 +2121,9 @@ WAECHTER = {"betfair": ("Betfair (Betwatch)", 30), "pinnacle": ("Pinnacle", 30),
 
 WI_NAMEN = {"pmHalter": "Polymarket-Halter", "pmFehler": "Polymarket-Abrufe", "pmAufl": "Polymarket-Auflösung",
             "pmWertung": "Polymarket-Wallet-Wertung", "pmVerfall": "Polymarket-Positionen", "pmPnl": "Polymarket-Lebensbilanz",
-            "pmFluss": "Polymarket-Fluss", "bfLeer": "Betfair-Radar", "lsLeer": "Live-Statistik"}
+            "pmFluss": "Polymarket-Fluss", "bfLeer": "Betfair-Radar", "lsLeer": "Live-Statistik",
+            "pmProfi": "Polymarket-Profi-Prüfung", "pmProfiFehler": "Polymarket-Profi-Prüfung", "pmProfiDaten": "Polymarket-Profi-Daten",
+            "pmProfiStau": "Polymarket-Profi-Prüfung"}
 
 
 def inhalt_pruefen(d):
@@ -2148,6 +2150,16 @@ def inhalt_pruefen(d):
     h3 = letzte(3)
     if len(h3) >= 12 and sum(x.get("pnlOk", 0) for x in h3) == 0:
         aus["pmPnl"] = ("Polymarket-Lebensbilanz", "3 h lang keine Gewinn-/Verlust-Zahl je Wallet geholt")
+    # 24.11. W5 (Lucas: „keine Fehler mehr … neues Wallet muss erfasst werden"): die Profi-Prüfung wird mitbewacht
+    gp = [x for x in g if x.get("profiLaeuft")]
+    if len(gp) >= 12 and all(x.get("profiGeprueft", 0) == 0 for x in gp[-12:]) and gp[-1].get("profiOffenGesichtet", 0) > 0:
+        aus["pmProfi"] = ("Polymarket-Profi-Prüfung", f"12 Läufe ohne geprüfte Wallet, {gp[-1]['profiOffenGesichtet']} gesichtete Wale warten")
+    if len(gp) >= 3 and all(x.get("profiFehler", 0) >= 5 for x in gp[-3:]):
+        aus["pmProfiFehler"] = ("Polymarket-Profi-Prüfung", f"3 Läufe mit je ≥ 5 Abruf-Fehlern (zuletzt {gp[-1]['profiFehler']})")
+    if gp and sum(x.get("profiUnplausibel", 0) for x in gp[-12:]) >= 3:
+        aus["pmProfiDaten"] = ("Polymarket-Profi-Daten", f"{sum(x.get('profiUnplausibel', 0) for x in gp[-12:])} Wallets mit unplausiblen Positionen (Verlust über Einsatz / fehlende Felder) — Felder der API prüfen")
+    if len(gp) >= 6 and gp[-1].get("profiOffenGesichtet", 0) >= 60 and gp[-6].get("profiOffenGesichtet", 0) <= gp[-1]["profiOffenGesichtet"]:
+        aus["pmProfiStau"] = ("Polymarket-Profi-Prüfung", f"{gp[-1]['profiOffenGesichtet']} gesichtete Wale ohne Wertung, Stau wird nicht kleiner")
     pf = d.get("polyFluss") or {}
     if isinstance(pf.get("maerkte"), list) and not pf["maerkte"] and ts(pf.get("stand")):
         aus["pmFluss"] = ("Polymarket-Fluss", "Lauf ohne einen einzigen Markt mit Käufen")
