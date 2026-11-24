@@ -3618,12 +3618,14 @@ def speicher_check():
     (steht oben auf der Seite und im Wochencheck), lange bevor die Tagessicherung (25 MB je Datei) oder der Cache kippt."""
     aus, gross = {}, []
     gesamt = 0
+    alle_f = []
     for d in (".bf", ".pin", ".push_state", ".pm", ".pf", ".st", ".rp"):
         n = 0
         for f in (BASIS / d).rglob("*") if (BASIS / d).exists() else []:
             if f.is_file():
                 g = f.stat().st_size
                 n += g
+                alle_f.append((g, f"{d}/{f.relative_to(BASIS / d)}"))
                 if g > SPEICHER_GRENZEN["datei"] and f.name not in SPEICHER_OHNE:
                     gross.append(f"{d}/{f.name} {g / 1e6:.0f} MB")
         aus[d] = round(n / 1e6, 1)
@@ -3631,6 +3633,8 @@ def speicher_check():
     st = BASIS / "site" / "statistik.json"
     aus["statistikMB"] = round(st.stat().st_size / 1e6, 2) if st.exists() else None
     aus["gesamtMB"] = round(gesamt / 1e6, 1)
+    aus["top"] = [[p, round(g / 1e6, 2)] for g, p in sorted(alle_f, reverse=True)[:25]]   # 24.11.: was wie groß ist
+    aus["dateien"] = len(alle_f)
     if gross:
         FEHLER.append("Speicher: große Datei(en) — " + ", ".join(gross) + " (Tagessicherung nimmt nur < 25 MB)")
     if gesamt > SPEICHER_GRENZEN["gedaechtnis"]:
