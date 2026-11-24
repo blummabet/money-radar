@@ -159,6 +159,10 @@ def _():
     gleich(_arten(_wal_daten([schwach])), [("walProfiB", False)], "schwacher Profi")
     gleich(_arten(_wal_daten([stark])), [("wal", True)], "Top-Profi")
     gleich(_arten(_wal_daten([{**stark, "flachUg": 1.0}])), [("walProfiB", False)], "W10: je Wette unter 3 %")
+    w11 = _setzen(2000, schnitt=500, profi=True, renditeUg=13.4, n=3964, rendite=20.9, gewinn=142000, flach=9.0, flachUg=4.1)
+    gleich(_arten(_wal_daten([w11])), [("wal", True)], "W11: Top-Profi 4× Schnitt, $2k")
+    gleich(_arten(_wal_daten([{**w11, "usd": 900, "schnittUsd": 200}])), [("walUnter", False)], "W11: unter $1.000")
+    gleich(_arten(_wal_daten([{**w11, "usd": 2000, "schnittUsd": 1000}])), [("walUnter", False)], "W11: nur 2× Schnitt")
 
 
 @pruefe("W10: Rendite je Wette — Riesen-Glückstreffer (Artemiion) fällt durch")

@@ -54,6 +54,7 @@ WAL_STARK_FAKTOR = 3.0
 # posten? Sollten wir da nicht strenger sein?"): Wal-Pushes von Sport-Profis nur noch von Top-Profis — Untergrenze der
 # Rendite ≥ 3 % und ≥ 100 Wetten (24.11.: 48 von 130). Die übrigen still als „walProfiB".
 W9_MIN_UG, W9_MIN_N = 3.0, 100
+W11_MIN_USD = 1000           # W11: Top-Profi ab 3× eigenem Schnitt, aber nie unter $1.000
 STAKE_BF_ANTEIL, STAKE_USD_EUR = 0.05, 0.92    # Regel S7 (22.11.): Spiel-Burst/Top 5 erst ab 5 % des Betfair-Volumens
 STAKE_TOP5_MIN_USD = 50000   # Regel ST5 (12.11.)
 STAKE_ES_TIER1 = re.compile(r"\b(blast|iem|intel extreme|pgl|esl pro league|esl one|major|starladder|perfect world|"
@@ -755,6 +756,13 @@ def wale(d):
         grenze = WAL_MIN_USD_TOP5 if top5 else WAL_MIN_USD
         u0, sch0 = float(o.get("usd") or 0), float(o.get("schnittUsd") or 0)
         unter_w7 = u0 < grenze and not (u0 >= grenze / 2 and sch0 > 0 and u0 >= WAL_STARK_FAKTOR * sch0)
+        # W11 (24.11., Lucas: „spielt immer 500, dann mit 2000 drin — das sagt schon was aus"): Top-Profi (W9 + W10)
+        # mit ≥ 3× seinem Schnitt und ≥ $1.000 → Push auch unter der Dollar-Schwelle
+        top_profi = bool(o.get("profi")) and (o.get("n") or 0) >= W9_MIN_N and min(
+            o.get("renditeUg") or 0, o.get("flachUg") if o.get("flachUg") is not None else 0) >= W9_MIN_UG
+        w11 = bool(unter_w7 and top_profi and u0 >= W11_MIN_USD and sch0 > 0 and u0 >= WAL_STARK_FAKTOR * sch0)
+        if w11:
+            unter_w7 = False
         key = f"wal|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}"
         w = wallets.get(o.get("wallet")) or {}
         g = _poly_topf(d, o.get("markt"))
@@ -932,6 +940,8 @@ def wale(d):
             if beleg:
                 yield f"wk|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}", None, None, {**beleg, "art": "walKlein"}
             continue
+        if w11 and beleg:
+            beleg = {**beleg, "w11": True}
         # W9: Sport-Profi unterhalb der Top-Grenze → kein Push, still
         # W10: die Untergrenze muss in beiden Rechnungen (aufs Geld und je Wette) halten → die kleinere zählt
         if o.get("profi") and not (min(o.get("renditeUg") or 0, o.get("flachUg") if o.get("flachUg") is not None else 0) >= W9_MIN_UG
