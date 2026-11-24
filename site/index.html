@@ -2124,6 +2124,41 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .pf-zwei{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--panel-2)}.pf-zwei>div{display:flex;align-items:baseline;gap:10px}.pf-zwei b{font-size:20px;font-weight:800;white-space:nowrap}.pf-zwei span{font-size:12px;color:var(--text-2)}
 @media (max-width:1180px){.pf-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:700px){.pf-grid{grid-template-columns:minmax(0,1fr)}.pf-kzs{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-sort{display:flex;overflow-x:auto}.pf-sort button{white-space:nowrap}}
+/* 24.11. Polymarket-Terminal: Signal-Board */
+.sb-leg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--text-3);margin:-6px 0 12px}
+.sb-liste{display:flex;flex-direction:column;gap:8px}
+.sb-z{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,1.45fr);gap:18px;align-items:center;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2);cursor:pointer;position:relative}
+.sb-z:hover{border-color:color-mix(in srgb,var(--poly) 45%,transparent)}
+.sb-z.einig{box-shadow:inset 3px 0 0 var(--up)}
+.sb-z.uneinig{box-shadow:inset 3px 0 0 var(--bf)}
+.sb-a{min-width:0;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.sb-k{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--text-3);min-width:0;white-space:nowrap}
+.sb-k>span:nth-child(2){overflow:hidden;text-overflow:ellipsis}
+.sb-live{color:var(--down);font-weight:800}
+.sb-t{font-size:15.5px;font-weight:800;line-height:1.25}
+.sb-bad{font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;margin-top:2px}
+.sb-bad.ok{color:var(--up);background:color-mix(in srgb,var(--up) 13%,transparent)}
+.sb-bad.nein{color:var(--bf);background:color-mix(in srgb,var(--bf) 15%,transparent)}
+.sb-seiten{display:flex;gap:6px;min-width:0}
+.sb-s{flex:1 1 0;min-width:0;border-radius:10px;padding:7px 9px 6px;background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;gap:1px}
+.sb-s.an{border-color:color-mix(in srgb,var(--poly) 55%,transparent);background:color-mix(in srgb,var(--poly) 10%,var(--panel))}
+.sb-sn{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-s b{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.1}.sb-s b small{font-size:11px;margin-left:1px;color:var(--text-3)}
+.sb-s.an b{color:var(--poly)}
+.sb-m{font-size:12px;line-height:1;min-height:13px;display:flex;gap:2px}.sb-m i{font-style:normal}
+.sb-sig{display:flex;flex-direction:column;gap:7px;min-width:0}
+.sb-l{display:flex;gap:9px;align-items:flex-start;min-width:0}
+.sb-l>div{min-width:0}
+.sb-i{flex:none;width:22px;text-align:center;font-size:14px;line-height:1.35}
+.sb-lt{font-size:13px;line-height:1.4;color:var(--text);flex:1;min-width:0}
+.sb-gr{color:var(--text-3);font-size:12px}
+.sb-ws{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:4px}
+.sb-w{font-size:11.5px;color:var(--text-2);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.sb-w b{color:var(--text)}.sb-w em{font-style:normal;color:var(--poly);font-weight:700}
+@media (max-width:700px){.pf-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;margin:0 -16px;padding:2px 16px 8px;scrollbar-width:none}.pf-grid::-webkit-scrollbar{display:none}.pf-k{flex:0 0 84%;scroll-snap-align:start}}
+.sb-spark{flex:none;display:flex;align-items:flex-end;gap:1.5px;height:22px;width:80px;margin-top:1px}.sb-spark i{flex:1;border-radius:1px;min-height:1px}
+@media (max-width:1180px){.sb-z{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.sb-sig{grid-column:1/-1}}
+@media (max-width:700px){.sb-z{grid-template-columns:minmax(0,1fr);gap:11px;padding:13px}.sb-leg{gap:4px 12px}}
 </style>
 </head>
 <body>
@@ -5404,9 +5439,10 @@ function polyKennzahlen(D){
   const spark = kum.length>2 ? (()=>{ const lo=Math.min(0,...kum), hi=Math.max(0,...kum), sp=(hi-lo)||1; return `<svg class="kz-sp" viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${kum.map((y,i)=>`${i?"L":"M"}${(i/(kum.length-1)*100).toFixed(1)},${(30-(y-lo)/sp*30).toFixed(1)}`).join("")}" style="stroke:${roi>=0?"var(--up)":"var(--down)"}"/></svg>`; })() : "";
   const k = (n, w, u, extra="") => `<div class="kz"><span class="kz-n">${n}</span><span class="kz-w">${w}</span><span class="kz-u">${u}</span>${extra}</div>`;
   return `<div class="kz-reihe">
-    ${k("Volumen 30 h", usd(vol), `${M.length} Märkte`)}
-    ${k("Nach Sport", proSport.map(([sp,n])=>`<span class="kz-sport">${SPORT_ICO[sp]} ${n}</span>`).join(""), proSport.map(x=>x[0]).join(" · "))}
-    ${k("Belegte Wale setzen", bel.length ? usd(belUsd) : "–", `${bel.length} Einsätze offen`)}
+    ${k("Geld im Markt", usd(vol), `${M.length} Spiele, nächste 30 h`)}
+    ${k("Kluges Geld drin", bel.length ? usd(belUsd) : "–", bel.length ? `${new Set(bel.map(x=>x.markt)).size} Spiele · ${new Set(bel.filter(x=>x.profi).map(x=>x.wallet)).size} Profis, ${new Set(bel.filter(x=>!x.profi).map(x=>x.wallet)).size} Wale` : "gerade keine offene Position")}
+    ${(()=>{ const fl = (D.polyFluss?.maerkte||[]).filter(top5Ok), neu = fl.reduce((a,m)=>a+(m.fenster?.["30"]?.neu||0),0);
+      return k("Neues Geld, 30 Min", usd(neu), `${fl.filter(m=>(m.fenster?.["30"]?.neu||0)>=500).length} Spiele mit Käufen`); })()}
     ${k("Wal-Pushes 30 T", roi==null?"–":`<span style="color:${roi>=0?"var(--up)":"var(--down)"}">${roi>0?"+":""}${dez(roi)} %</span>`, `${v.length} Tipps · ${v.length?Math.round(100*v.filter(x=>x[3]===1).length/v.length):0} % Treffer`, spark)}
   </div>`;
 }
@@ -5425,17 +5461,96 @@ function walStrich(D){
   return `<div class="strich" style="height:30px;margin-top:14px">${z.map(x=>`<i class="${x[3]===1?"w":x[3]===0?"l":"o"}"></i>`).join("")}</div>
     <div class="strich-leg"><span><i class="w"></i>gewonnen</span><span><i class="l"></i>verloren</span><span><i class="o"></i>offen</span><span class="r">letzte ${z.length} Wal-Pushes, neueste rechts</span></div>`;
 }
+// ══ 24.11. Polymarket-Terminal (Lucas: „das stylische Polymarket-Terminal … man alles super lesen kann und versteht") ══
+// EINE Zeile je Spiel, alle Geld-Signale zusammen: belegte Wallets (🎯 Profis / 🐋 Wale), neues Geld der letzten 30 Min
+// (netto) und Dauerzufluss. Die Seiten-Kacheln zeigen, wo die Signale stehen — und ob sie sich einig sind.
+// Ersetzt die drei getrennten Blöcke „Belegte Wale setzen gerade", „Wohin das Geld fließt" und „Dauerzufluss".
+let boardAlle = false;
+const sbSeite = s => /^draw/i.test(String(s||"")) ? "draw" : String(s||"").trim().toLowerCase();
+function signalSpiele(D){
+  const P = D.poly||{}, F = {}, M = {};
+  for(const m of D.polyFluss?.maerkte||[]) F[m.key] = m;
+  for(const m of P.maerkte||[]) M[m.key] = m;
+  const S = {};
+  const spiel = (key, vorlage) => S[key] ||= {key, titel: pmTitel(F[key]?.titel || M[key]?.spiel || vorlage.titel || "").replace(/\s+vs\.?\s+/i, " – "), sport: F[key]?.sport || M[key]?.sport || vorlage.sport,
+    liga: F[key]?.liga || M[key]?.liga || vorlage.liga, anpfiff: F[key]?.anpfiff || M[key]?.anpfiff || vorlage.anpfiff, live: !!(F[key]?.live || vorlage.live),
+    top5: !!(M[key]?.top5 ?? F[key]?.top5 ?? vorlage.top5 ?? /^(epl|bun|lal|sea|fl1|lig1|ucl|unl)-/.test(key)), wallets: [], fluss: null, serie: null};
+  for(const o of P.setzen||[]){ if(!o.markt || Math.max(o.jetzt||0, o.preis||0) >= 0.90) continue;   /* ab 90 ¢ entschieden (wie Wal-Pushes) */ spiel(o.markt, {titel:o.spiel, sport:o.sport, anpfiff:o.anpfiff}).wallets.push(o); }
+  for(const m of D.polyFluss?.maerkte||[]){ if(!pmFlussOk(m)) continue;
+    const f = m.fenster["30"], net = pmNetto(f.seiten, m.key);
+    const auf = net ? net[0].team : f.auf, betrag = net ? net[0].netto : f.usd;
+    if(betrag <= 0 || ((m.jetzt||{})[auf] ?? 0) >= 0.95) continue;
+    spiel(m.key, m).fluss = {auf, usd: betrag, takt: (m.takt||{})[auf] || m.taktSumme || [], gross: (m.gross||[])[0]}; }
+  for(const x of D.polySerien||[]){ const g = spiel(x.id, x); if(!g.serie || x.n > g.serie.n) g.serie = {auf:x.auswahl, n:x.n, usd:x.usd, saeulen:x.saeulen}; }
+  return Object.values(S).filter(top5Ok).map(g=>{
+    const preise = Object.entries(M[g.key]?.preise || F[g.key]?.jetzt || {}).filter(([k])=>!/^gegen /.test(k));
+    const seiten = {};   // sbSeite → {name, preis, belegt, wallets, fluss, serie}
+    const add = (name) => seiten[sbSeite(name)] ||= {name, preis:null, belegt:0, wallets:[], fluss:0, serie:0};
+    for(const [k,v] of preise) add(k).preis = v;
+    for(const o of g.wallets){ const s = add(o.seite); s.belegt += o.usd||0; s.wallets.push(o); if(s.preis==null) s.preis = o.jetzt ?? o.preis; }
+    if(g.fluss) add(g.fluss.auf).fluss = g.fluss.usd;
+    if(g.serie) add(g.serie.auf).serie = g.serie.n;
+    const mit = Object.values(seiten).filter(s=>s.belegt>0||s.fluss>0||s.serie>0);
+    const arten = (g.wallets.length?1:0) + (g.fluss?1:0) + (g.serie?1:0);
+    const einig = arten>=2 && mit.length===1, uneinig = mit.length>1;
+    const score = Math.sqrt(g.wallets.reduce((a,o)=>a+(o.usd||0),0)/2000) + Math.sqrt((g.fluss?.usd||0)/5000) + (g.serie?.n||0)*0.8
+      + (g.wallets.some(o=>o.profi)?1:0) + (einig?3:0) - (uneinig?1.5:0);
+    return {...g, seiten, mit, arten, einig, uneinig, score};
+  }).sort((a,b)=>b.score-a.score);
+}
+function sbSpark(werte, farbe="var(--poly)"){
+  const v = (werte||[]).slice(-24); if(v.length<3 || !v.some(x=>x>0)) return "";
+  const hi = Math.sqrt(Math.max(...v));   // Wurzel: kleine Käufe bleiben sichtbar neben dem großen
+  return `<span class="sb-spark" title="Käufe je 5 Min, letzte 2 Stunden" aria-hidden="true">${v.map(x=>`<i style="height:${Math.max(8, Math.sqrt(x)/hi*100).toFixed(0)}%;background:${x>0?farbe:"var(--line)"}"></i>`).join("")}</span>`;
+}
+function sbWer(o){
+  const r = o.profi ? `${o.rendite>0?"+":""}${dez(o.rendite)} %` : o.clv!=null ? `${o.clv>0?"+":""}${dez(o.clv)} pp` : "";
+  return `<span class="sb-w" title="${o.profi?`Sport-Profi: ${o.n} Wetten, Rendite ${r} in 90 Tagen`:`schlägt den Schlusskurs im Schnitt um ${r}`}">${o.profi?"🎯":"🐋"} ${esc(o.profi&&o.name?String(o.name).slice(0,20):"Wallet "+String(o.wallet).slice(2,6))} <b>${usd(o.usd)}</b>${r?` <em>${r}</em>`:""}</span>`;
+}
+function signalZeile(g){
+  const lab = n => esc(pmLabel(n, g.titel, g.sport));
+  const sv = Object.values(g.seiten).sort((a,b)=>{ const o = x => /^draw$/.test(sbSeite(x.name)) ? 1 : 0;   // Remis in die Mitte
+    return (g.sport==="Fußball" ? o(a)-o(b) : 0); });
+  const reihe = sv.length===3 && g.sport==="Fußball" ? [sv[0], sv.find(s=>sbSeite(s.name)==="draw")||sv[1], sv.filter(s=>sbSeite(s.name)!=="draw").at(-1)].filter((x,i,a)=>a.indexOf(x)===i) : sv.slice(0,3);
+  const kachel = s => { const an = s.belegt>0||s.fluss>0||s.serie>0;
+    const marken = [s.belegt>0&&`<i title="belegte Wallets ${usd(s.belegt)}">${s.wallets.some(o=>o.profi)?"🎯":"🐋"}</i>`, s.fluss>0&&`<i title="neues Geld ${usd(s.fluss)} in 30 Min">💸</i>`, s.serie>0&&`<i title="${s.serie}× Dauerzufluss">🔁</i>`].filter(Boolean).join("");
+    return `<div class="sb-s${an?" an":""}"><span class="sb-sn">${lab(s.name)}</span><b>${s.preis!=null?Math.round(s.preis*100):"–"}<small>¢</small></b><span class="sb-m">${marken||"&nbsp;"}</span></div>`; };
+  const status = g.einig ? `<span class="sb-bad ok" title="Mehrere Signale zeigen auf dieselbe Seite">✓ Signale einig</span>` : g.uneinig ? `<span class="sb-bad nein" title="Die Signale zeigen auf verschiedene Seiten">⚔ Signale uneinig</span>` : "";
+  const wl = [...g.wallets].sort((a,b)=>(b.profi-a.profi)||(b.usd-a.usd));
+  const belegt = wl.reduce((a,o)=>a+(o.usd||0),0);
+  const seiteB = Object.values(g.seiten).filter(s=>s.belegt>0).sort((a,b)=>b.belegt-a.belegt);
+  const zeilen = [
+    wl.length && `<div class="sb-l"><span class="sb-i">${wl.some(o=>o.profi)?"🎯":"🐋"}</span><div><div class="sb-lt">${seiteB.map(s=>`<b>${usd(s.belegt)}</b> auf <b>${lab(s.name)}</b>`).join(" · ")} ${wl.length>1?`<span class="sb-gr">von ${wl.length} belegten Wallets</span>`:""}</div>
+      <div class="sb-ws">${wl.slice(0,3).map(sbWer).join("")}${wl.length>3?`<span class="sb-gr">+${wl.length-3}</span>`:""}</div></div></div>`,
+    g.fluss && `<div class="sb-l"><span class="sb-i">💸</span><div class="sb-lt"><b>+${usd(g.fluss.usd)}</b> neues Geld auf <b>${lab(g.fluss.auf)}</b> <span class="sb-gr">in 30 Min</span></div>${sbSpark(g.fluss.takt)}</div>`,
+    g.serie && `<div class="sb-l"><span class="sb-i">🔁</span><div class="sb-lt"><b>${g.serie.n}× in Folge</b> mehr Geld auf <b>${lab(g.serie.auf)}</b> <span class="sb-gr">Dauerzufluss, je 10 Min</span></div></div>`,
+  ].filter(Boolean).join("");
+  const zeit = g.live ? `<span class="sb-live">● live</span>` : `<span>${wann(g.anpfiff)}</span>`;
+  return `<article class="sb-z${g.einig?" einig":g.uneinig?" uneinig":""}" ${klick(esc(g.titel), ohneHuelle(polyFenster(g.key)))}>
+    <div class="sb-a"><div class="sb-k">${sportIco(g.sport)} <span>${esc(ligaName(g.liga)||g.sport||"")}</span> ${zeit}</div>
+      <div class="sb-t">${esc(g.titel)}</div>${status}</div>
+    <div class="sb-seiten">${reihe.map(kachel).join("")}</div>
+    <div class="sb-sig">${zeilen}</div>
+  </article>`;
+}
+function signalBoard(D){
+  const alle = signalSpiele(D);
+  if(!alle.length) return `<div class="panel c12"><div class="ph"><h3>Wo das Geld steht</h3></div><div class="leer">Gerade kein Spiel mit belegtem Geld, starkem Zufluss oder Dauerzufluss${ligaModus==="ohne"?" (ohne Top-5)":""}.</div></div>`;
+  const zeigen = boardAlle ? alle : alle.slice(0, 8), nE = alle.filter(g=>g.einig).length, nU = alle.filter(g=>g.uneinig).length;
+  return `<div class="panel c12 sb-panel"><div class="ph"><h3>Wo das Geld steht</h3><span class="hint">${alle.length} Spiele mit Signal${nE?` · ${nE}× mehrere Signale auf derselben Seite`:""}${nU?` · ${nU}× Signale auf verschiedenen Seiten`:""}</span></div>
+    <div class="sb-leg"><span>🎯 Sport-Profi setzt</span><span>🐋 belegter Wal setzt</span><span>💸 neues Geld, letzte 30 Min</span><span>🔁 Dauerzufluss</span><span>¢ = Preis = Wahrscheinlichkeit</span></div>
+    <div class="sb-liste">${zeigen.map(signalZeile).join("")}</div>
+    ${alle.length>8?`<button class="pf-mehr" data-sballe>${boardAlle?"Weniger zeigen":`Alle ${alle.length} Spiele zeigen`}</button>`:""}
+  </div>`;
+}
 function seitePoly(D){
   const p = D.poly, sports = ["alle","Fußball","E-Sport","Tennis"];
   const sortiert = lf(p.maerkte).sort((a,b)=>(b.nBelegt-a.nBelegt)||(b.usd-a.usd));
   const auswahl = filterSport==="alle" ? sortiert : sortiert.filter(m=>(m.sport||"Fußball")===filterSport);
-  const teile = [["Dauerzufluss", serienKarten(D,8,"poly")], ["Wohin das Geld fließt", polyFlussKarten(D,12)]];
-  const leer = teile.filter(t=>t[1].startsWith('<div class="leer">')), voll = teile.filter(t=>!t[1].startsWith('<div class="leer">'));
   return `<div class="grid">
     <div class="panel c12 kz-panel">${polyKennzahlen(D)}</div>
+    ${signalBoard(D)}
     ${profiBuehne(D)}
-    ${(p.setzen||[]).length?`<div class="panel c12"><div class="ph"><h3>Belegte Wale setzen gerade</h3><span class="hint">schlagen nachweislich den Schlusskurs</span></div>${setzenKarten(p.setzen)}</div>`:""}
-    ${voll.map(([t,html])=>`<div class="panel c12"><div class="ph"><h3>${t==="Dauerzufluss"?"🔁 ":""}${t}</h3><span class="hint">${t==="Dauerzufluss"?"3 Abschnitte à 10 Min in Folge dieselbe Seite vorn":"Käufe der letzten 30 Min je Seite"}</span></div>${html}</div>`).join("")}
     <div class="panel c12"><div class="ph"><h3>Märkte, nächste 30 Stunden</h3><span class="hint">Preis in Cent = Wahrscheinlichkeit · darunter neues Geld der letzten 30 Min</span>
       <div class="chips rechts">${sports.map(s=>`<button class="chip${s===filterSport?" an":""}" data-sport="${s}">${s==="alle"?"Alle":SPORT_ICO[s]+" "+s} <span style="opacity:.6">${s==="alle"?lf(p.maerkte).length:lf(p.maerkte).filter(m=>(m.sport||"Fußball")===s).length}</span></button>`).join("")}</div></div>
       ${(()=>{ const lebt = auswahl.filter(m=>(pmBewegung(m)?.neu||0)>=500).sort((a,b)=>pmBewegung(b).neu-pmBewegung(a).neu).slice(0,12);
@@ -6709,6 +6824,7 @@ document.addEventListener("click", e=>{
   const g = e.target.closest("[data-geh]"); if(g){ burger(false); gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
   if(e.target.closest("#s-cards") && cardsKlick(e)) return;
   if(e.target.closest("#s-statistik") && statKlick(e)){ $("#s-statistik").innerHTML = seiteStatistik(); return; }
+  if(e.target.closest("[data-sballe]")){ boardAlle = !boardAlle; neuBauen("#s-poly", seitePoly(D)); return; }
   const pfs = e.target.closest("[data-pfsp],[data-pfso],[data-pfalle]"); if(pfs){ if(pfs.dataset.pfsp) profiSport = pfs.dataset.pfsp;
     if(pfs.dataset.pfso) profiSort = pfs.dataset.pfso; if(pfs.hasAttribute("data-pfalle")) profiAlle = !profiAlle; neuBauen("#s-poly", seitePoly(D)); return; }
   const rg = e.target.closest("[data-rang]"); if(rg){ filterRang = rg.dataset.rang; neuBauen("#s-poly", seitePoly(D)); return; }
