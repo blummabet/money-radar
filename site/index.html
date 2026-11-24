@@ -2159,11 +2159,11 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .sb-spark{flex:none;display:flex;align-items:flex-end;gap:1.5px;height:22px;width:80px;margin-top:1px}.sb-spark i{flex:1;border-radius:1px;min-height:1px}
 @media (max-width:1180px){.sb-z{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.sb-sig{grid-column:1/-1}}
 @media (max-width:700px){.sb-z{grid-template-columns:minmax(0,1fr);gap:11px;padding:13px}.sb-leg{gap:4px 12px}}
-/* 24.11. Übersicht: Läuft gerade + Pinnacle */
+/* 24.11. Übersicht: Läuft gerade + Pinnacle (Klasse .lvk — .lv ist die Live-Minute im Druck-Radar) */
 .lv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.lv{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--panel-2);padding:13px 14px 12px;cursor:pointer;display:flex;flex-direction:column;gap:8px;min-width:0}
-.lv:hover{border-color:color-mix(in srgb,var(--down) 40%,transparent)}
-.lv.gegen{box-shadow:inset 3px 0 0 var(--bf)}
+.lvk{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--panel-2);padding:13px 14px 12px;cursor:pointer;display:flex;flex-direction:column;gap:8px;min-width:0}
+.lvk:hover{border-color:color-mix(in srgb,var(--down) 40%,transparent)}
+.lvk.gegen{box-shadow:inset 3px 0 0 var(--bf)}
 .lv-uhr{position:absolute;top:0;left:0;height:3px;background:var(--down);opacity:.7}
 .lv-kopf{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3);min-width:0}
 .lv-liga{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -4133,7 +4133,7 @@ function liveKarte(t){
   const seite = k => `<div class="lv-s${k===top?" an":""}"><span class="lv-sn">${nm(k)}</span>
       <b>${neu[k]>0?"+"+eur(neu[k]):"–"}</b><small>${qu[k]?`@ ${q2(qu[k])}`:"&nbsp;"}</small></div>`;
   const takt = min!=null ? Math.min(100, min/(t.sport==="Fußball"?90:100)*100) : null;
-  return `<article class="lv${gegenLauf?" gegen":""}" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
+  return `<article class="lvk${gegenLauf?" gegen":""}" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
     ${takt!=null?`<span class="lv-uhr" style="width:${takt.toFixed(0)}%"></span>`:""}
     <div class="lv-kopf"><span class="lv-ico">${t.land?flagge(t.land):sportIco(t.sport)}</span><span class="lv-liga">${esc(ligaName(t.liga)||t.sport||"")}</span>
       <span class="lv-min">● ${min!=null?min+"'":t.live?.ht?"HZ":"live"}</span></div>
