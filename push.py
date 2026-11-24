@@ -1486,7 +1486,6 @@ def _balken(werte):
     return "".join(zeichen[0 if not v else max(1, round(v / mx * 8))] for v in werte) if mx > 0 else ""
 
 
-SERIE_PUBLIC_LIVE_MIN = 5     # Regel S8 (24.11.)
 SERIE_PUSH_MIN_QUOTE = 1.40   # Lucas 17.10. (Bayern 1,30): viel Geld auf den klaren Favoriten ist der Normalfall — anzeigen ja, pushen nein
 
 
@@ -1647,10 +1646,7 @@ def serie(d):
                    gruende=[f"{_pbalken(x.get('anteil'))} {x.get('anteil')} % des Geldes",
                             f"⏱ {x['n']}× in Folge · +{geld(x['eur'])} in {_dauer(x.get('dauerMin'))}"])
         pub["layVerdacht"] = lay_verdacht           # Public-Regel 8
-        # Regel S8 (24.11., Lucas „ja"): live erst ab der Stufe 5× ein Public-Kandidat — der erste Push (3–4×) bleibt im
-        # Money-Kanal. Seit 18.10. live: erster Push −0,4 % ±3,0 (871), weitere Stufen +9,2 % ±5,2 (345), beide Hälften;
-        # Public live 3–4× seit 02.11. −9,6 % (75), ab 5× +10,2 % (14).
-        s8_raus = bool(x.get("live")) and (x.get("n") or 0) < SERIE_PUBLIC_LIVE_MIN
+        # Regel S8 → in main(): live erst die zweite (oder spätere) Push-Stufe derselben Serie ist ein Public-Kandidat
         _mit(pub, x.get("eur"), x.get("n"))
         pub["x"] = {"n": x["n"], "min": x.get("dauerMin"), "anteil": x.get("anteil"), "q0": q0, "saeulen": (x.get("saeulen") or [])[-24:]}
         if klar and not (isinstance(q, (int, float)) and q >= TOR_KLAR_MIN_QUOTE):
@@ -1661,7 +1657,7 @@ def serie(d):
                                 "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht, "qGeld": qg_,
                                 "n": x.get("n"), "dauerMin": x.get("dauerMin"),
                                 **({"uhrDrop": uhr_drop, "regelD": "D1"} if uhr_drop is not None else {}),
-                                **({"klar": True, "regelT": "T1"} if klar else {})}, (None if (klar or s8_raus) else pub)
+                                **({"klar": True, "regelT": "T1"} if klar else {})}, (None if klar else pub)
         if lay_verdacht:
             # 06.11. (Lucas „Ja bitte" — Anregung „Reverse Line Movement nicht nur filtern, sondern invertieren"): still die
             # Gegenseite buchen = Lay der Auswahl zur Rück-Quote, auf 1 Einheit Risiko umgerechnet (gewinnt 1/(q−1), wenn die
@@ -2442,6 +2438,12 @@ def main() -> int:
                 if fremd and isinstance(vorher, (int, float)) and isinstance(betrag, (int, float)) \
                         and betrag - vorher < max(SERIE_NEU_MIN, SERIE_NEU_ANTEIL * vorher):
                     continue
+                # Regel S8 (24.11., Lucas „ja"; geschärft 13:45 nach Shanghai Port — erster Push gleich bei 8×): live ist erst
+                # die ZWEITE oder spätere Push-Stufe derselben Serie ein Public-Kandidat. Gemessen ist genau das: seit 18.10.
+                # live erster Push −0,4 % ±3,0 (871), weitere Stufen +9,2 % ±5,2 (345), beide Hälften; Public live, als erster
+                # Push gesendet, −9,6 % (75). Der erste Push bleibt im Money-Kanal.
+                if key.startswith("se|") and (beleg or {}).get("live") and not fremd:
+                    pub = None
             if erster_lauf:
                 gesehen[key] = JETZT.isoformat()
                 continue
