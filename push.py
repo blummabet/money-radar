@@ -46,7 +46,10 @@ SCHWELLE = {                  # (vor Anpfiff in 30 Min, live in 15 Min)
 ZUFLUSS_MIN_EUR = SCHWELLE[False][0]
 ZUFLUSS_PAUSE_H = 6          # dasselbe Spiel + dieselbe Seite höchstens alle 6 h
 FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als verpasst und werden nicht nachgeschickt
-WAL_MIN_USD = 1000
+# Regel W7 (24.11., Lucas zu „$1,5k auf Team Yandex": „solche Beträge sind halt wirklich nichts Besonderes"):
+# Wal-Einstieg ab $5k (Top-5 $10k) — oder ab der Hälfte davon, wenn es mindestens 3× sein üblicher Einsatz ist.
+WAL_MIN_USD = 5000
+WAL_STARK_FAKTOR = 3.0
 STAKE_BF_ANTEIL, STAKE_USD_EUR = 0.05, 0.92    # Regel S7 (22.11.): Spiel-Burst/Top 5 erst ab 5 % des Betfair-Volumens
 STAKE_TOP5_MIN_USD = 50000   # Regel S5 (12.11.)
 STAKE_ES_TIER1 = re.compile(r"\b(blast|iem|intel extreme|pgl|esl pro league|esl one|major|starladder|perfect world|"
@@ -54,7 +57,7 @@ STAKE_ES_TIER1 = re.compile(r"\b(blast|iem|intel extreme|pgl|esl pro league|esl 
 # 16.11. (Regel-Durchsicht): „worlds" griff nicht, Stake nennt die LoL-WM „World Championship" — Gen.G – Bilibili (14.11.)
 # und T1 (09.11.) kamen deshalb durch. Gemeint war sie von Anfang an.
 STAKE_TOP5_EINDEUTIG = {"UEFA Champions League", "UEFA Nations League", "LaLiga", "Ligue 1"}
-WAL_MIN_USD_TOP5 = 3000      # in den Top-5 sind $1000 Alltag
+WAL_MIN_USD_TOP5 = 10000     # W7 (24.11.): vorher 3000 — in den Top-5 sind ein paar Tausend Alltag
 WAL_MIN_FAKTOR = 0.25        # Wal-Regel 2 (06.11.): mindestens ¼ des üblichen Einsatzes
 MAX_JE_LAUF = 12             # Notbremse gegen Spam
 SERIE_NEU_ANTEIL, SERIE_NEU_MIN = 0.5, 5000   # Regel S6 (19.11.): weitere Stufe nur mit ≥ 50 % neuem Geld seit dem letzten Push
@@ -738,7 +741,9 @@ def wale(d):
     wallets = {w.get("wallet"): w for w in (d.get("poly") or {}).get("wallets") or []}
     for o in (d.get("poly") or {}).get("setzen") or []:
         top5 = str(o.get("markt") or "").split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1", "ucl", "unl"}
-        if (o.get("usd") or 0) < (WAL_MIN_USD_TOP5 if top5 else WAL_MIN_USD):
+        grenze = WAL_MIN_USD_TOP5 if top5 else WAL_MIN_USD
+        u0, sch0 = float(o.get("usd") or 0), float(o.get("schnittUsd") or 0)
+        if u0 < grenze and not (u0 >= grenze / 2 and sch0 > 0 and u0 >= WAL_STARK_FAKTOR * sch0):
             continue
         key = f"wal|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}"
         w = wallets.get(o.get("wallet")) or {}
@@ -808,15 +813,28 @@ def wale(d):
         # Wer setzt
         n, pnl, schnitt = o.get("n") or w.get("fensterN"), o.get("pnl") or w.get("pnl"), o.get("schnittUsd") or w.get("schnittUsd")
         wer = f"🧠 <b>Wallet {e(str(o.get('wallet'))[2:6])}</b>"
-        if o.get("rang") and o.get("rangVon"):
+        if o.get("profi"):                      # W4–W6: Sport-Profi — gewertet über seine Polymarket-Positionen, kein CLV
+            if o.get("name"):
+                wer = f"🧠 <b>{e(str(o['name'])[:24])}</b>"
+            wer += " · Sport-Profi" + (f" Nr. {o['rang']} von {o['rangVon']}" if o.get("rang") and o.get("rangVon") else "")
+        elif o.get("rang") and o.get("rangVon"):
             wer += f" · Nr. {o['rang']} von {o['rangVon']} belegten"
         zeilen.append(wer)
         bil = []
-        if n:
-            bil.append(f"{n} Wetten")
-        if pnl is not None:
-            bil.append(("+" if pnl >= 0 else "−") + geld(abs(pnl), "$"))
-        bil.append(f"schlägt den Schlusskurs um Ø {q2(o.get('clv'))} pp (sicher ≥ {q2(o.get('clvUg'))})")
+        if o.get("profi"):
+            if n:
+                bil.append(f"{n} Wetten in 90 Tagen")
+            if o.get("rendite") is not None:
+                p1 = lambda x: ("+" if x >= 0 else "−") + f"{abs(x):.1f}".replace(".", ",")   # noqa: E731
+                bil.append(f"Rendite {p1(o['rendite'])} %" + (f" (sicher ≥ {p1(o['renditeUg'])} %)" if o.get("renditeUg") is not None else ""))
+            if o.get("gewinn") is not None:
+                bil.append(("+" if o["gewinn"] >= 0 else "−") + geld(abs(o["gewinn"]), "$"))
+        else:
+            if n:
+                bil.append(f"{n} Wetten")
+            if pnl is not None:
+                bil.append(("+" if pnl >= 0 else "−") + geld(abs(pnl), "$"))
+            bil.append(f"schlägt den Schlusskurs um Ø {q2(o.get('clv'))} pp (sicher ≥ {q2(o.get('clvUg'))})")
         zeilen.append("   " + " · ".join(bil))
         if schnitt and usd:
             f = usd / float(schnitt)

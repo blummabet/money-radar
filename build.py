@@ -1073,6 +1073,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
             belegt_liste.append({"wallet": r["wallet"], "bewiesen": True, "profi": True, "name": r.get("name"),
                                  "fensterClv": None, "clvUg": None, "fensterN": r["n"], "n": r["n"],
                                  "schnittUsd": round(r["einsatz"] / r["n"]) if r["n"] else None, "roi": r["rendite"], "nGeld": r["n"],
+                                 "rendite": r["rendite"], "renditeUg": r["renditeUg"], "gewinn": r["gewinn"],
                                  "pnl": None, "sport": r["sport"],
                                  "offen": [{"markt": p.get("key"), "seite": p.get("side"), "usd": p.get("usd"),
                                             "preis": p.get("lastPrice") or p.get("firstPrice"), "anpfiff": p.get("koTs"),
@@ -1172,7 +1173,11 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                 continue
             setzen.append({**o, "wallet": w["wallet"], "clv": w["fensterClv"], "clvUg": w["clvUg"],
                            "n": w["fensterN"], "pnl": w.get("pnl"), "schnittUsd": w.get("schnittUsd"),
-                           "rang": belegt_liste.index(w) + 1, "rangVon": len(belegt_liste), "profi": w.get("profi"),
+                           # 24.11.: Rang innerhalb der eigenen Liste (W3-Wallets bzw. Sport-Profis), nicht gemischt
+                           "rang": [x for x in belegt_liste if bool(x.get("profi")) == bool(w.get("profi"))].index(w) + 1,
+                           "rangVon": sum(1 for x in belegt_liste if bool(x.get("profi")) == bool(w.get("profi"))),
+                           "profi": w.get("profi"), "name": w.get("name"),
+                           "rendite": w.get("rendite"), "renditeUg": w.get("renditeUg"), "gewinn": w.get("gewinn"),
                            "spiel": name_fuer(o["markt"]), "jetzt": ((quelle.get(o["markt"]) or {}).get("prices") or {}).get(o.get("seite"))})
     setzen.sort(key=lambda x: -float(x.get("usd") or 0))
 
