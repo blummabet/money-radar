@@ -795,7 +795,10 @@ def wale(d):
             titel = f"{e(g.get('heim'))} – {e(g.get('gast'))}"
         liga = str((g or {}).get("liga") or "")
         liga = "" if liga.isupper() else e(liga)          # „ESPORTS"/„SOCCER" aus Polymarket sagt nichts
-        zeilen = [f"🐋 <b>Wal-Einstieg · {geld(usd, '$')} auf {e(seite)}</b>",
+        # W12 (24.11., Lucas: „ein Wal kann ein Profi sein, aber ein Profi muss kein Wal sein"): drei Push-Arten
+        typ = "profiEin" if w11 else "profiWal" if top_profi else "wal"
+        kopf = {"wal": "🐋 <b>Wal-Einstieg", "profiWal": "🐋🎯 <b>Profi-Wal", "profiEin": "🎯 <b>Profi-Einstieg"}[typ]
+        zeilen = [f"{kopf} · {geld(usd, '$')} auf {e(seite)}</b>",
                   f"{SPORT.get(o.get('sport'), '')} <b>{titel}</b>" + (f"\n<i>{flagge((g or {}).get('land'))}{liga}</i>" if liga else ""),
                   f"🕒 {anpfiff(o.get('anpfiff'))}", ""]
 
@@ -942,6 +945,10 @@ def wale(d):
             continue
         if w11 and beleg:
             beleg = {**beleg, "w11": True}
+        if typ != "wal" and beleg:
+            beleg = {**beleg, "typ": typ}         # Statistik zählt sie eigens (build.statistik)
+        if typ == "profiEin":
+            pub = None                            # W12: Profi-Einstieg erst nur im Money-Channel, bis die Bilanz steht
         # W9: Sport-Profi unterhalb der Top-Grenze → kein Push, still
         # W10: die Untergrenze muss in beiden Rechnungen (aufs Geld und je Wette) halten → die kleinere zählt
         if o.get("profi") and not (min(o.get("renditeUg") or 0, o.get("flachUg") if o.get("flachUg") is not None else 0) >= W9_MIN_UG

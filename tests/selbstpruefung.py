@@ -163,6 +163,13 @@ def _():
     gleich(_arten(_wal_daten([w11])), [("wal", True)], "W11: Top-Profi 4× Schnitt, $2k")
     gleich(_arten(_wal_daten([{**w11, "usd": 900, "schnittUsd": 200}])), [("walUnter", False)], "W11: unter $1.000")
     gleich(_arten(_wal_daten([{**w11, "usd": 2000, "schnittUsd": 1000}])), [("walUnter", False)], "W11: nur 2× Schnitt")
+    import push
+    def typ(o):
+        x = list(push.wale(_wal_daten([o])))[0]
+        return (x[3] or {}).get("typ"), x[1].split("·")[0].strip(), x[4] is not None
+    gleich(typ(w11), ("profiEin", "🎯 <b>Profi-Einstieg", False), "W12: Profi-Einstieg, kein Public")
+    gleich(typ(stark), ("profiWal", "🐋🎯 <b>Profi-Wal", True), "W12: Profi-Wal")
+    gleich(typ(_setzen(9000))[:2], (None, "🐋 <b>Wal-Einstieg"), "W12: normaler Wal")
 
 
 @pruefe("W10: Rendite je Wette — Riesen-Glückstreffer (Artemiion) fällt durch")
