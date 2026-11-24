@@ -1023,6 +1023,17 @@ def zeitraum_bilanz(s, tage):
             "seit": min([str(k) for k in t] + [str(k) for k in (tn or {})]) if (t or tn) else None}
 
 
+def _flach(v):
+    """Rendite bei gleichem Einsatz je Wette: Mittel der Einzel-Renditen u (in poly_profis auf −100 … +2000 % gekappt),
+    Untergrenze = Mittel − 1,645 · SD/√n. → {flach, flachUg} in %."""
+    n, s, q = v.get("n") or 0, v.get("uSum"), v.get("uSq")
+    if n < 2 or s is None or q is None:
+        return {}
+    m = s / n
+    sd = math.sqrt(max(0.0, (q - n * m * m) / (n - 1)))
+    return {"flach": round(100 * m, 1), "flachUg": round(100 * (m - 1.645 * sd / math.sqrt(n)), 1)}
+
+
 def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, trades_record=None):
     scores = (track or {}).get("scores") or {}
     offen = (track or {}).get("open") or {}
@@ -1147,6 +1158,9 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                        "pruefen": v.get("pruefen"), "hinweis": v.get("hinweis"), "gesichtet": v.get("gesichtet"),
                        # 24.11. Wallet-Seite: Steckbrief aus poly_profis.steckbrief (erst nach Neu-Wertung vorhanden)
                        "einsatzSport": {k: [round(x[1]), round(x[2])] for k, x in bs.items()},
+                       # 24.11. (Lucas: „viele Trades, positiver ROI — die Einsatzgröße ist nicht das Wichtige"): Rendite je
+                       # Wette mit gleichem Einsatz (so wie wir nachspielen) + Untergrenze. Vorerst nur Anzeige/Vergleich.
+                       **_flach(v),
                        **{k: v.get(k) for k in ("kurve", "letzte", "preis", "preisBand", "top5", "neff", "groesste") if v.get(k)},
                        "jetzt": [{"markt": p.get("key"), "seite": p.get("side"), "usd": round(float(p.get("usd") or 0)),
                                   "einstieg": p.get("entryPrice") or p.get("firstPrice"), "preis": p.get("lastPrice") or p.get("firstPrice"),
@@ -1177,7 +1191,14 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                    "belegt": sum(1 for r in profis if r["belegt"]), "seit": profi_d.get("ts"),
                    "gesichtet": len(profi_d.get("gesichtet") or {}), "offenGesichtet": lf.get("offenGesichtet"),
                    "pruefen": sum(1 for r in profis if r.get("pruefen")),
-                   "unbekannt": dict(list((profi_d.get("unbekannt") or {}).items())[:8])}
+                   "unbekannt": dict(list((profi_d.get("unbekannt") or {}).items())[:8]),
+                   # 24.11. Vergleich für die W10-Entscheidung (gleicher Einsatz je Wette statt nach Einsatz gewichtet)
+                   "vergleich": {"flachBelegt": sum(1 for r in profis if (r.get("n") or 0) >= 50 and (r.get("flach") or 0) >= 2 and (r.get("flachUg") or -1) > 0),
+                                 "beide": sum(1 for r in profis if r["belegt"] and (r.get("flach") or 0) >= 2 and (r.get("flachUg") or -1) > 0),
+                                 "nurGewichtet": [[r.get("name") or r["wallet"][:8], r["n"], r["rendite"], r.get("flach"), r.get("flachUg")]
+                                                  for r in profis if r["belegt"] and not ((r.get("flach") or 0) >= 2 and (r.get("flachUg") or -1) > 0)][:40],
+                                 "nurFlach": [[r.get("name") or r["wallet"][:8], r["n"], r["rendite"], r.get("flach"), r.get("flachUg")]
+                                              for r in profis if not r["belegt"] and (r.get("n") or 0) >= 50 and (r.get("flach") or 0) >= 2 and (r.get("flachUg") or -1) > 0][:40]}}
 
     # Aktuelle Grosshalter je Markt (nah am Anpfiff, mit Geld-Split): poly_money_broad_offen.
     # Daraus „setzt gerade auf" fuer die Rangliste — der Track allein kennt nur, was er schon
