@@ -2011,6 +2011,7 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .svz-t{font-size:13px} .svz-t b.ok{color:var(--up)} .svz-t b.nein{color:var(--down)}
 /* 10.11. Phasenband */
 :root{--ph-h:#e08600;--ph-a:#2f6fe0;--ph-x:#9aa1ad}
+.profz .l{white-space:normal}
 .phb{display:grid;gap:5px}
 .ph-z{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:8px}
 .phb > h4 + .ph-z{margin-top:40px}
@@ -3679,10 +3680,10 @@ function profiRangliste(ws, st){
   const gut = ws.filter(w=>w.belegt), rest = ws.filter(w=>!w.belegt).slice(0, 10);
   const zeile = (w,i) => { const f = w.rendite>=0 ? "var(--up)" : "var(--down)";
     const sp = Object.entries(w.bySport||{}).sort((a,b)=>b[1][0]-a[1][0]).map(([k,v])=>`${k} ${v[0]}`).join(" · ");
-    return `<a class="nz w2z" href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" style="text-decoration:none">
-      <div class="nz-l"><span class="rang">${w.belegt?i+1:"·"}</span>${sportIco(w.sport)}<div style="min-width:0"><div class="n">${esc(w.name||("Wallet "+w.wallet.slice(2,6)))}${w.belegt?` <span style="color:var(--poly);font-weight:800">✓ belegt</span>`:""}${w.gesichtet?` <span style="color:var(--text-3)" title="zuletzt in unseren Märkten als Wal gesehen">· bei uns gesichtet</span>`:""}</div>
+    return `<a class="nz w2z profz" href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" style="text-decoration:none">
+      <div class="nz-l"><span class="rang">${w.belegt?i+1:"·"}</span>${sportIco(w.sport)}<div style="min-width:0"><div class="n">${esc(w.name||("Wallet "+w.wallet.slice(2,6)))}${w.gesichtet?` <span style="color:var(--text-3)" title="zuletzt in unseren Märkten als Wal gesehen">· bei uns gesichtet</span>`:""}</div>
         <div class="l">${w.n} Positionen · ${w.treffer!=null?w.treffer+" % Treffer · ":""}Ø ${usd((w.einsatz||0)/Math.max(1,w.n))}${w.offen?` · <span style="color:var(--poly)">${w.offen} offen bei uns</span>`:""}</div>
-        <div class="l">${esc(sp)}${w.renditeUg!=null?` · Untergrenze ${w.renditeUg>0?"+":""}${dez(w.renditeUg)} %`:""}</div>
+        <div class="l">${esc(sp)}${w.renditeUg!=null?` · mind. ${w.renditeUg>0?"+":""}${dez(w.renditeUg)} %`:""}</div>
         ${w.pruefen?`<div class="l" style="color:var(--down);white-space:normal">Kein Urteil: ${esc(w.pruefen)}</div>`:""}</div></div>
       <div class="nz-r"><b style="color:${f}">${w.rendite==null?"–":(w.rendite>0?"+":"")+dez(w.rendite)+" %"}</b><small>Rendite 90 T</small></div>
       <div class="nz-r"><b style="color:${(w.gewinn||0)>=0?"var(--up)":"var(--down)"}">${(w.gewinn||0)>=0?"+":"−"}${usd(Math.abs(w.gewinn||0))}</b><small>Gewinn</small></div>
