@@ -39,8 +39,8 @@ DATEI = Path(__file__).resolve().parent / ".pm" / "poly_profis.json"
 JETZT = datetime.now(timezone.utc)
 BOARD_H = 12
 NEU_TAGE = 3
-PROFI_JE_LAUF = 40       # 24.11.: Lauf braucht ~45 s von 240 s — 40 Wallets ≈ 120 Abrufe, eigener Zeitdeckel PROFI_S
-PROFI_S = 90
+PROFI_JE_LAUF = 60       # 24.11.: Lauf braucht ~45 s von 240 s — 40 Wallets ≈ 120 Abrufe, eigener Zeitdeckel PROFI_S
+PROFI_S = 120
 FENSTER_TAGE = 90
 MIN_N = 50
 VERSION = 5        # 2: Einsatz aus Stück × Ø Preis statt total_cost_usdc · 3: W5 (gewichtet, Plausibilität) · 4: + Gebühr · 5: Fußball-Präfixe fest + Archiv, Einsatz ≥ Verlust
@@ -57,8 +57,9 @@ FUSS_FEST = ("epl", "lal", "sea", "bun", "fl1", "ucl", "uel", "uecl", "unl", "ml
              "sau", "efl", "elc", "fac", "cdr", "dfb", "itc", "lib", "sud", "wcq", "fif", "euro", "cop", "col", "per",
              "uru", "par", "ecu", "chl", "isr", "cyp", "hrv", "srb", "bul", "hun", "svk", "svn", "ire", "wal", "ind",
              "tha", "vie", "idn", "mys", "qat", "uae", "egy", "mar", "rsa", "can", "usl", "bun2", "lal2", "sea2", "fl2",
-             "efl1", "efl2", "argpn", "ukr1", "dfb", "coppa", "afc", "caf", "concacaf", "conmebol", "kor1", "jpn1")
-RAUS = ("esoccer", "fifa25", "efootball", "atp", "wta", "nba", "nfl", "mlb", "nhl", "ncaa", "cbb", "cfb", "wnba", "ufc", "mma", "f1", "nascar", "pga", "golf")
+             "efl1", "efl2", "argpn", "ukr1", "dfb", "coppa", "afc", "caf", "concacaf", "conmebol", "kor1", "jpn1",
+             "afcq", "conl", "uwcl", "wcl", "uefq", "cafq", "conq", "nwsl", "wsl", "ligamx", "uecq")
+RAUS = ("esoccer", "fifa25", "efootball", "btc", "eth", "sol", "xrp", "doge", "bnb", "crypto", "hype", "atp", "wta", "nba", "nfl", "mlb", "nhl", "ncaa", "cbb", "cfb", "wnba", "ufc", "mma", "f1", "nascar", "pga", "golf")
 _PRAEFIX = re.compile(r"^([a-z0-9]+)-")
 
 

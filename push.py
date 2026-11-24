@@ -2161,7 +2161,8 @@ def inhalt_pruefen(d):
     up, gpr = sum(x.get("profiUnplausibel", 0) for x in gp[-12:]), sum(x.get("profiGeprueft", 0) for x in gp[-12:])
     if gpr >= 20 and up > 0.25 * gpr:
         aus["pmProfiDaten"] = ("Polymarket-Profi-Daten", f"{up} von {gpr} geprüften Wallets mit unplausiblen Positionen (Verlust über Einsatz / fehlende Felder) — Felder der API prüfen")
-    if len(gp) >= 6 and gp[-1].get("profiOffenGesichtet", 0) >= 60 and gp[-6].get("profiOffenGesichtet", 0) <= gp[-1]["profiOffenGesichtet"]:
+    # 12 Läufe (1 h): nach einer Neuwertung (VERSION) stehen kurz alle gesichteten Wale wieder an — das ist kein Stau
+    if len(gp) >= 12 and gp[-1].get("profiOffenGesichtet", 0) >= 60 and gp[-12].get("profiOffenGesichtet", 0) <= gp[-1]["profiOffenGesichtet"]:
         aus["pmProfiStau"] = ("Polymarket-Profi-Prüfung", f"{gp[-1]['profiOffenGesichtet']} gesichtete Wale ohne Wertung, Stau wird nicht kleiner")
     # Lernlücke: Slug-Präfixe, die keiner Sportart zugeordnet sind, aber viele Positionen haben (z. B. eine neue Liga)
     unb = {}
