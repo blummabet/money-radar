@@ -774,7 +774,8 @@ def zusammenfassen(buch):
         wale.append({"zeit": t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), "r": b.get("r") if ab else None,
                      "w": (1 if b.get("win") else 0) if ab else None, "sport": b.get("sport"), "key": b.get("id"),
                      "seite": b.get("auswahl"), "anzeige": b.get("anzeige"), "titel": b.get("titel"), "preis": b.get("preis"),
-                     "usd": b.get("usd"), "wallet": b.get("wallet"), "status": "won" if ab and b.get("win") else "lost" if ab else "pending"})
+                     "usd": b.get("usd"), "wallet": b.get("wallet"), "typ": b.get("typ"),   # W12: profiWal/profiEin
+                     "status": "won" if ab and b.get("win") else "lost" if ab else "pending"})
     return {"messung": messung(buch), "top3": top3_messung(buch), "druck": druck_messung(buch), "norm": norm_messung(buch), "walVerlauf": wale, "arten": aus, "teile": aus_teile, "letzte": letzte, "seit": buch[0]["ts"] if buch else None, "verlauf": verlauf}
 
 

@@ -2159,6 +2159,43 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .sb-spark{flex:none;display:flex;align-items:flex-end;gap:1.5px;height:22px;width:80px;margin-top:1px}.sb-spark i{flex:1;border-radius:1px;min-height:1px}
 @media (max-width:1180px){.sb-z{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.sb-sig{grid-column:1/-1}}
 @media (max-width:700px){.sb-z{grid-template-columns:minmax(0,1fr);gap:11px;padding:13px}.sb-leg{gap:4px 12px}}
+/* 24.11. Übersicht: Läuft gerade + Pinnacle */
+.lv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.lv{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--panel-2);padding:13px 14px 12px;cursor:pointer;display:flex;flex-direction:column;gap:8px;min-width:0}
+.lv:hover{border-color:color-mix(in srgb,var(--down) 40%,transparent)}
+.lv.gegen{box-shadow:inset 3px 0 0 var(--bf)}
+.lv-uhr{position:absolute;top:0;left:0;height:3px;background:var(--down);opacity:.7}
+.lv-kopf{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3);min-width:0}
+.lv-liga{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lv-min{margin-left:auto;flex:none;color:var(--down);font-weight:800}
+.lv-spiel{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px}
+.lv-spiel b{font-size:14.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lv-spiel b.r{text-align:right}
+.lv-stand{font-size:22px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;padding:2px 10px;border-radius:8px;background:var(--panel)}
+.lv-lab{font-size:11.5px;color:var(--text-3)}
+.lv-seiten{display:flex;gap:6px}
+.lv-s{flex:1 1 0;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 9px;display:flex;flex-direction:column}
+.lv-s.an{border-color:color-mix(in srgb,var(--bf) 60%,transparent);background:color-mix(in srgb,var(--bf) 10%,var(--panel))}
+.lv-sn{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv-s b{font-size:16px;font-weight:800}.lv-s.an b{color:var(--bf)}
+.lv-s small{font-size:11px;color:var(--text-3)}
+.lv-fuss,.pn-fuss{display:flex;flex-wrap:wrap;gap:5px}
+.lv-tag{font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 9px;background:var(--panel);border:1px solid var(--line);color:var(--text-2);white-space:nowrap}
+.lv-tag.warn{color:var(--bf);border-color:color-mix(in srgb,var(--bf) 40%,transparent)}
+.lv-tag.ok{color:var(--up);border-color:color-mix(in srgb,var(--up) 40%,transparent)}
+.lv-tag.leise{color:var(--text-3)}
+.pn-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.pn{border:1px solid var(--line);border-radius:14px;background:var(--panel-2);padding:12px 13px;display:flex;flex-direction:column;gap:3px;min-width:0;cursor:pointer}
+.pn:hover{border-color:color-mix(in srgb,var(--pin) 45%,transparent)}
+.pn-kopf{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-3);min-width:0}
+.pn-liga{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pn-zeit{margin-left:auto;flex:none}
+.pn-auf{font-size:12.5px;color:var(--text-2);margin-top:4px}.pn-auf b{color:var(--text);font-size:15px;font-weight:800}
+.pn-spiel{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pn-q{display:flex;align-items:baseline;gap:6px;margin-top:6px}
+.pn-q s{color:var(--text-3);font-weight:600;font-size:14px}.pn-q span{color:var(--text-3)}
+.pn-q b{font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--pin)}.pn-q em{font-style:normal;margin-left:auto;font-size:12px;font-weight:700;color:var(--up)}
+.pn-k{width:100%;height:34px;margin:2px 0 6px}
+@media (max-width:1180px){.pn-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.lv-grid{grid-template-columns:minmax(0,1fr)}.pn-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:0 16px 6px;scrollbar-width:none}.pn{flex:0 0 72%;scroll-snap-align:start}}
 </style>
 </head>
 <body>
@@ -3016,9 +3053,9 @@ function feedEreignisse(D){
   if(!Array.isArray(D.ticker)) for(const x of lf(D.bfUhr||[])){ const sp = (D.radar?.spiele||[]).find(s=>String(s.id)===String(x.id));
     E.push({heim:x.heim, gast:x.gast, liga:ligaName(x.liga), land:x.land, live:{min:x.min, stand:x.stand}, anpfiff:x.anpfiff, sp, q:"betfair", k:"uhr",
       aus:auswahlDe(x.auswahl), quote:x.quote, markt:marktDe(x.markt), unter:x.unter, drop:[x.q0, x.quote], wert:x.neu>0?x.neu:0, b:x.neu>0?"+"+eur(x.neu):"", zeit:bfZeit, gewicht:(x.unter||0)*1500}); }
-  for(const p of lf(D.bfPushes.liste||[])) E.push({heim:p.heim, gast:p.gast, liga:ligaName(p.liga), q:"betfair", k:"push", bil:PUSH_ART[p.art], pushArt:p.art, aus:auswahlDe(p.auf), quote:p.quote, markt:marktDe(p.markt||""), wert:p.eur, b:eur(p.eur), zeit:p.zeit, status:p.status, gewicht:p.eur||0});
+  for(const p of lf(D.bfPushes.liste||[])) E.push({heim:p.heim, gast:p.gast, liga:ligaName(p.liga), q:p.quelle||"betfair", k:"push", bil:PUSH_ART[p.art], pushArt:p.art, aus:auswahlDe(p.auf), quote:p.quote, markt:marktDe(p.markt||""), wert:p.eur, b:eur(p.eur), zeit:p.zeit, status:p.status, gewicht:p.eur||0});
   for(const w of D.poly.tradesPushes||[]){ const mk = (D.poly.maerkte||[]).find(m=>m.key===w.markt); if(!top5Ok({top5:POLY_TOP5_JS(w.markt)})) continue; const [h,g] = feedTeams(mk?.spiel || (D.polyFluss?.maerkte||[]).find(m=>m.key===w.markt)?.titel || w.spiel);
-    E.push({heim:h, gast:g, liga:mk?ligaName(mk.liga):"", sport:w.sport, q:"poly", k:"wal", bil:"wal", aus:nm(/^draw/i.test(w.seite)?"Draw":w.seite), preis:w.preis, wallet:w.wallet, wert:w.usd, b:usd(w.usd), zeit:w.zeit, status:w.status, gewicht:w.usd}); }
+    E.push({heim:h, gast:g, liga:mk?ligaName(mk.liga):"", sport:w.sport, q:"poly", k:"wal", bil:"wal", typ:w.typ, aus:nm(/^draw/i.test(w.seite)?"Draw":w.seite), preis:w.preis, wallet:w.wallet, wert:w.usd, b:usd(w.usd), zeit:w.zeit, status:w.status, gewicht:w.usd}); }
   for(const h of lf(D.hz.heute||[])){ const [a,b] = h.heim ? [h.heim,h.gast] : feedTeams(h.spiel);
     E.push({heim:a, gast:b, liga:h.liga, land:h.land, anpfiff:h.anpfiff, q:"hz", k:"hz", aus:"Tor in der 2. Halbzeit", quote:h.quoten?.over05, markt:"zur Pause 0:0", b:"0:0", wert:0, zeit:h.zeit, status:Array.isArray(h.ft)?(h.ft[0]+h.ft[1]>0?"won":"lost"):null, gewicht:500}); }
   const pdF = D.pinnDrops||{vor:[],live:[]};
@@ -3096,7 +3133,7 @@ function fxZeile(D, e){
   const st = e.status==="won" ? `<span class="fx-st ok">✓</span>` : e.status==="lost" ? `<span class="fx-st nein">✗</span>` : e.status==="paket" ? paketTag(e.rendite) : "";
   const drop = e.drop && e.k!=="pinnacle" ? `<span class="fx-drop" title="Quote gedrückt">🔻 ${q2(e.drop[0])}</span>` : "";
   const markt = /Über\/Unter|Sieg-Markt|Match Odds/.test(e.markt||"") ? "" : e.markt;
-  const meta = [e.k==="push"&&e.pushArt?e.pushArt:FX_NAME[e.k], markt].filter(Boolean).join(" · ");
+  const meta = [e.k==="push"&&e.pushArt?e.pushArt:e.k==="wal"&&e.typ?({profiWal:"🐋🎯 Profi-Wal", profiEin:"🎯 Profi-Einstieg"}[e.typ]||FX_NAME.wal):FX_NAME[e.k], markt].filter(Boolean).join(" · ");
   // Idee 1: wo steht die Quote jetzt? grün = weiter in Richtung des Geldes, rot = zurück
   const sd = fxSeit(e);
   const seit = sd ? `<span class="fx-seit ${sd.c}" title="Quote bei der Meldung ${q2(e.quote)}, jetzt ${q2(e.jetzt)}">→ ${q2(e.jetzt)}${sd.c==="gut"?" ✓":sd.c==="schlecht"?" ✗":""}</span>` : "";
@@ -3165,7 +3202,7 @@ function seiteFeed(D){
   const passt = {alle:()=>true, live:g=>!!g.live, vor:g=>!g.live && g.anpfiff && new Date(g.anpfiff)>Date.now(), serie:g=>g.ev.some(e=>e.k==="serie"), mehr:g=>g.quellen.length>1, push:g=>g.ev.some(e=>e.k==="push"||e.k==="wal"||e.k==="hz")};
   const liste = alle.filter(passt[filterFeed]||passt.alle);
   const abschnitte = [["Gerade", g=>g.alterMin<=15], ["Letzte Stunde", g=>g.alterMin>15&&g.alterMin<=60], ["Früher", g=>g.alterMin>60&&g.alterMin<=1440]];
-  const teile = abschnitte.map(([t,f])=>{ const z = liste.filter(f).sort((a,b)=>FEED_SORT==="staerke"||t==="Gerade"?b.score-a.score:new Date(b.zeit)-new Date(a.zeit)).slice(0,30);
+  const teile = abschnitte.map(([t,f])=>{ const z = liste.filter(f).sort((a,b)=>FEED_SORT==="staerke"?b.score-a.score:new Date(b.zeit)-new Date(a.zeit)).slice(0,30);
     return z.length ? `<div class="fx-abschnitt"><div class="fx-zeit">${t==="Gerade"?`<span class="puls"></span>`:""}${t} <span>${z.length}</span></div><div class="fxl">${z.map(g=>fxKarte(D,g,t==="Gerade"?4:3)).join("")}</div></div>` : ""; }).join("");
   return `<div class="grid"><div class="panel c12">
     <div class="chips feedchips">${FEED_ARTEN.map(([k,n])=>{ const c = alle.filter(passt[k]).length; return c||k==="alle" ? `<button class="chip${k===filterFeed?" an":""}" data-feed="${k}">${n} <span style="opacity:.6">${c}</span></button>` : ""; }).join("")}</div>
@@ -4074,14 +4111,77 @@ function topfZeile(t){
     ${balken||urt||wal?`<div class="tz-2">${balken}${urt}${wal}</div>`:""}</div>`;
 }
 const k2n = (t,k) => k==="remis" ? "Remis" : seitenName(t,k);
+// ══ 24.11. Übersicht (Lucas: „läuft gerade und Pinnacle bewegt sich ist etwas lieblos") ════════════════════════
+// Läuft gerade: je Spiel Minute + Stand, WOHIN DAS GELD SEIT ANPFIFF geht (Seiten-Geld jetzt minus zum Anpfiff,
+// Betfair + Polymarket), Live-Quoten und — falls vorhanden — Druck-Radar/xG. Markiert, wenn das Live-Geld auf
+// die Seite geht, die gerade zurückliegt.
+const liveNeu = t => Object.values(t.splitAnpfiff||{}).some(v=>v>0) ? Object.keys(t.seiten||{}).reduce((a,k)=>a+Math.max(0,(t.seiten[k]||0)-((t.splitAnpfiff||{})[k]||0)),0) : 0;
+function liveKarte(t){
+  const keys = t.sport==="Fußball" ? ["heim","remis","gast"] : ["heim","gast"];
+  const sa = t.splitAnpfiff||{}, sj = t.seiten||{};
+  const hatSa = keys.some(k=>sa[k]>0);   // ohne Aufteilung zum Anpfiff lässt sich „seit Anpfiff" nicht rechnen
+  const neu = {}; for(const k of keys) neu[k] = Math.max(0, (sj[k]||0) - (hatSa ? (sa[k]||0) : 0));
+  const neuGes = keys.reduce((a,k)=>a+neu[k],0);
+  const top = neuGes>0 ? keys.reduce((a,k)=>neu[k]>neu[a]?k:a, keys[0]) : null;
+  const st = t.live?.stand, min = t.live?.min;
+  const vorn = st && st[0]!==st[1] ? (st[0]>st[1]?"heim":"gast") : (st ? "gleich" : null);
+  const gegenLauf = hatSa && top && top!=="remis" && vorn && vorn!=="gleich" && top!==vorn;
+  const qu = t.q?.betfair?.quoten || {};
+  const dr = (D.druck?.spiele||[]).find(x=>String(x.id)===String(t.id));
+  const nm = k => k==="remis" ? "Remis" : esc(seitenName(t,k));
+  const anpfTop = (()=>{ const g = keys.reduce((a,k)=>a+(sa[k]||0),0); if(!g) return null; const k = keys.reduce((a,k)=>(sa[k]||0)>(sa[a]||0)?k:a, keys[0]); return {k, p: Math.round(100*(sa[k]||0)/g)}; })();
+  const seite = k => `<div class="lv-s${k===top?" an":""}"><span class="lv-sn">${nm(k)}</span>
+      <b>${neu[k]>0?"+"+eur(neu[k]):"–"}</b><small>${qu[k]?`@ ${q2(qu[k])}`:"&nbsp;"}</small></div>`;
+  const takt = min!=null ? Math.min(100, min/(t.sport==="Fußball"?90:100)*100) : null;
+  return `<article class="lv${gegenLauf?" gegen":""}" ${klick(esc(t.heim)+" – "+esc(t.gast), ohneHuelle(topfDetail(t)))}>
+    ${takt!=null?`<span class="lv-uhr" style="width:${takt.toFixed(0)}%"></span>`:""}
+    <div class="lv-kopf"><span class="lv-ico">${t.land?flagge(t.land):sportIco(t.sport)}</span><span class="lv-liga">${esc(ligaName(t.liga)||t.sport||"")}</span>
+      <span class="lv-min">● ${min!=null?min+"'":t.live?.ht?"HZ":"live"}</span></div>
+    <div class="lv-spiel"><b>${esc(t.heim)}</b>${st?`<span class="lv-stand">${st[0]}:${st[1]}</span>`:`<span></span>`}<b class="r">${esc(t.gast)}</b></div>
+    ${neuGes>0?`<div class="lv-lab">${hatSa?"Geld seit Anpfiff":"Geld auf den Seiten"} · ${eur(neuGes)}</div><div class="lv-seiten">${keys.map(seite).join("")}</div>`
+      :`<div class="lv-lab">Seit Anpfiff noch kein neues Geld erfasst · im Markt ${eur(t.gesamt)}</div>`}
+    <div class="lv-fuss">
+      ${gegenLauf?`<span class="lv-tag warn" title="Das meiste Live-Geld geht auf die Seite, die gerade zurückliegt">↩ Geld auf ${nm(top)}, obwohl hinten</span>`:""}
+      ${dr&&dr.index>=55?`<span class="lv-tag" title="Druck-Radar: Angriffsdruck der letzten 15 Min (0–100)">🔥 Druck ${esc(nm(dr.seite))} ${dr.index}</span>`:""}
+      ${dr?.teams?.heim?.xg!=null?`<span class="lv-tag">xG ${dez(dr.teams.heim.xg,2)} – ${dez(dr.teams.gast.xg,2)}</span>`:""}
+      ${anpfTop?`<span class="lv-tag leise">zum Anpfiff ${nm(anpfTop.k)} ${anpfTop.p} %</span>`:""}
+    </div>
+  </article>`;
+}
+// Pinnacle bewegt sich: je Bewegung die Quote groß (vorher → jetzt), die Wahrscheinlichkeits-Kurve seit dem Start,
+// und ob Betfair mitzieht.
+function pinKarte(x){
+  const v = (x.verlauf||[]).filter(n=>typeof n==="number");
+  let kurve = "";
+  if(v.length>2){ const lo = Math.min(...v), hi = Math.max(...v), sp = (hi-lo)||1;
+    const pts = v.map((y,i)=>`${(i/(v.length-1)*100).toFixed(1)},${(28-(y-lo)/sp*24).toFixed(1)}`).join(" ");
+    kurve = `<svg class="pn-k" viewBox="0 0 100 30" preserveAspectRatio="none" aria-label="Wahrscheinlichkeit von ${dez(x.vonPct)} auf ${dez(x.nachPct)} %"><polyline points="${pts}" fill="none" stroke="var(--pin)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`; }
+  const bf = x.bf, mit = bf && bf.pp >= 3, gegen = bf && bf.pp <= -3;
+  return `<article class="pn" ${x.bfId?klickSpiel({id:x.bfId,heim:x.heim,gast:x.gast}):""}>
+    <div class="pn-kopf"><span>${x.land?flagge(x.land):"⚽"}</span><span class="pn-liga">${esc(ligaName(x.liga)||"")}</span>
+      <span class="pn-zeit">${x.istLive?`<span class="live">● ${x.min!=null?x.min+"'":"live"}</span>`:wann(x.anpfiff)}</span></div>
+    <div class="pn-auf">auf <b>${esc(x.auf)}</b></div>
+    <div class="pn-spiel">${esc(x.heim)} – ${esc(x.gast)}</div>
+    <div class="pn-q"><s>${q2(x.vonQuote)}</s><span>→</span><b>${q2(x.quote)}</b><em>+${dez(x.pp)} pp</em></div>
+    ${kurve}
+    <div class="pn-fuss">${mit?`<span class="lv-tag ok">Betfair zieht mit · ${q2(bf.von)} → ${q2(bf.jetzt)}</span>`:gegen?`<span class="lv-tag warn">Betfair geht dagegen</span>`:`<span class="lv-tag leise">Betfair noch ruhig</span>`}
+      ${x.frisch&&x.pp60?`<span class="lv-tag">+${dez(x.pp60)} pp in 60 Min</span>`:""}</div>
+  </article>`;
+}
+function kompaktPinnacle(D, n){
+  const pd = D.pinnDrops||{vor:[],live:[]};
+  const z = [...lf(pd.live).map(x=>({...x,istLive:true})), ...lf(pd.vor).filter(x=>x.frisch), ...lf(pd.vor).filter(x=>!x.frisch)].slice(0,n);
+  if(!z.length) return `<div class="leer">Gerade bewegt sich keine Pinnacle-Quote deutlich.</div>`;
+  return `<div class="pn-grid">${z.map(pinKarte).join("")}</div>`;
+}
 function toepfeListe(D, n, nLauf=8){
   const alle = lf(D.toepfe||[]).filter(top5Ok);
   if(!alle.length) return `<div class="leer">Gerade keine Spiele mit nennenswertem Geld${ligaModus==="ohne"?" außerhalb der Top-5":""}.</div>`;
   const hatSeiten = t => Object.values(t.seiten||{}).some(v=>v>0);
-  const vor = alle.filter(t=>!t.laeuft && hatSeiten(t)), ohne = alle.filter(t=>!t.laeuft && !hatSeiten(t)), lauf = alle.filter(t=>t.laeuft);
+  const vor = alle.filter(t=>!t.laeuft && hatSeiten(t)), ohne = alle.filter(t=>!t.laeuft && !hatSeiten(t)), lauf = alle.filter(t=>t.laeuft).sort((a,b)=>liveNeu(b)-liveNeu(a));
   const max = Math.max(1, ...alle.map(t=>t.gesamt));
-  const laufBlock = lauf.length ? `<div class="tz-kopf lauf"><span class="puls"></span>Läuft gerade <span>${lauf.length}</span></div><div class="tz-liste">${lauf.slice(0,nLauf).map(topfZeile).join("")}</div>
-    ${lauf.length>nLauf?liste(`Weitere ${lauf.length-nLauf} laufende Spiele`, "", `<div class="tz-liste" style="margin-top:10px">${lauf.slice(nLauf).map(topfZeile).join("")}</div>`):""}` : "";
+  const laufBlock = lauf.length ? `<div class="tz-kopf lauf"><span class="puls"></span>Läuft gerade <span>${lauf.length}</span></div><div class="lv-grid">${lauf.slice(0,nLauf).map(liveKarte).join("")}</div>
+    ${lauf.length>nLauf?liste(`Weitere ${lauf.length-nLauf} laufende Spiele`, "", `<div class="lv-grid" style="margin-top:10px">${lauf.slice(nLauf).map(liveKarte).join("")}</div>`):""}` : "";
   const ohneBlock = ohne.length ? `<div class="tz-kopf">Nur Volumen bekannt, keine Seitenaufteilung <span>${ohne.length}</span></div><div class="tz-liste">${ohne.slice(0,3).map(topfZeile).join("")}</div>
     ${ohne.length>3?liste(`Weitere ${ohne.length-3}`, "", `<div class="tz-liste" style="margin-top:10px">${ohne.slice(3).map(topfZeile).join("")}</div>`):""}` : "";
   return `<div class="toepfe duos">${vor.slice(0,n).map((t,i)=>topfKarte(t,i,max)).join("")}</div>
@@ -4092,12 +4192,6 @@ function kompaktZufluss(D, n){
   const z = lf(D.zufluss30||[]).slice(0,n);
   if(!z.length) return `<div class="leer">In den letzten 30 Minuten floss vor Anpfiff kein Geld einseitig auf eine Auswahl.</div>`;
   return `<div class="feed">${z.map(x=>{ const fl=(x.fluss||[])[0]||{}; return `<div class="fe" ${klickSpiel(x)}>${icon("betfair")}<div style="min-width:0"><div class="t">${esc(auswahlDe(fl.auswahl||""))} @ ${q2(fl.quote)} ${serieTag(serieVon(D,x.id))}</div><div class="s">${esc(x.heim)} – ${esc(x.gast)}, ${wann(x.anpfiff)}, ${esc(marktDe(fl.markt||""))}</div></div><div class="b" style="color:var(--up)">+${eur(fl.eur)}<small>${fl.anteil} % des neuen Geldes</small></div></div>`; }).join("")}</div>`;
-}
-function kompaktPinnacle(D, n){
-  const pd = D.pinnDrops||{vor:[],live:[]};
-  const z = [...lf(pd.live).map(x=>({...x,istLive:true})), ...lf(pd.vor).filter(x=>x.frisch), ...lf(pd.vor).filter(x=>!x.frisch)].slice(0,n);
-  if(!z.length) return `<div class="leer">Gerade bewegt sich keine Pinnacle-Quote deutlich.</div>`;
-  return `<div class="feed">${z.map(x=>`<div class="fe" ${x.bfId?klickSpiel({id:x.bfId,heim:x.heim,gast:x.gast}):""}>${icon("pinnacle")}<div style="min-width:0"><div class="t">${esc(x.auf)} ${x.istLive?`<span class="live">${x.min!=null?x.min+"'":"live"} ${x.stand[0]}:${x.stand[1]}</span>`:x.frisch?`<span class="tag t-lost">frisch</span>`:""}</div><div class="s">${esc(x.heim)} – ${esc(x.gast)}, ${x.istLive?`+${dez(x.pp)} pp in ${x.fensterMin} Min`:wann(x.anpfiff)}</div></div><div class="b"><span style="color:var(--text-3);font-weight:600;text-decoration:line-through">${q2(x.vonQuote)}</span> <span style="color:var(--up)">${q2(x.quote)}</span><small>+${dez(x.pp)} pp</small></div></div>`).join("")}</div>`;
 }
 
 // ── Graphen (Lucas 19.10., Vorbilder „Skypulse"/„Tendra") ─────────────────────────────────────────────────────
@@ -4892,7 +4986,7 @@ function seiteStart(D){
     <div class="panel c12"><div class="ph"><h3>Geld-Wand</h3><span class="hint">Fläche = Geld im Markt · kräftig = gerade neues Geld</span><button class="chip rechts" data-geh="betfair">Betfair</button></div>${geldWand(D)}</div>
     <div class="panel c12 toepfe-panel"><div class="ph"><h3>Wo am meisten liegt <details class="ov-i"><summary aria-label="Erklärung">ⓘ</summary><div>@ Quote · ▲▼ = so viele Prozentpunkte mehr/weniger Geld, als die Quote erwarten lässt · dünne Linie = Verteilung laut Quote · Quellen unter 10 % des größten Betrags sind ausgeblendet</div></details></h3>${quellenLegende()}</div>${toepfeListe(D,4,4)}</div>
     ${serienDa?"":serienPanel}
-    <div class="panel c12"><div class="ph"><h3>Pinnacle bewegt sich</h3><span class="hint">faire Quote vorher und jetzt</span><button class="chip rechts" data-geh="pinnacle">Alle</button></div>${kompaktPinnacle(D,4)}</div>
+    <div class="panel c12"><div class="ph"><h3>Pinnacle bewegt sich</h3><span class="hint">die scharfe Quote fällt · Linie = Wahrscheinlichkeit seit Beginn der Bewegung</span><button class="chip rechts" data-geh="pinnacle">Alle</button></div>${kompaktPinnacle(D,4)}</div>
   </div>`;
 }
 // Lucas 19.10.: „Bilanz nach Liga wäre ein Traum" — trägt hohes Geld in dieser Liga? (90 Tage, Tracking des alten Projekts)

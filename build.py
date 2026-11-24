@@ -1300,7 +1300,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
         if not t or t < JETZT - timedelta(hours=36) or not sport_ok(z.get("cat")) or not poly_key_ok(z.get("key")):
             continue
         tp.append({"wallet": z.get("wallet"), "markt": z.get("key"), "spiel": z.get("titel") or name_fuer(z.get("key")), "seite": z.get("side"),
-                   "usd": z.get("usd"), "preis": z.get("pushPrice"), "sport": z.get("cat"), "zeit": z.get("sentAt"),
+                   "usd": z.get("usd"), "preis": z.get("pushPrice"), "sport": z.get("cat"), "zeit": z.get("sentAt"), "typ": z.get("typ"),
                    "status": {"win": "won", "loss": "lost"}.get(z.get("result"), "pending" if z.get("status") == "pending" else None)})
     tp.sort(key=lambda x: x["zeit"] or "", reverse=True)
     rec = (trades_record or {}).get("byCat") or {}
@@ -3487,12 +3487,13 @@ def betfair_pushes(buch):
     out = []
     for e in buch.get("letzte") or []:
         t = ts(e.get("ts"))
-        if e.get("art") in ("pserie", "wal", "cm1") or not t or t < JETZT - timedelta(hours=36):   # Polymarket-Pushes stehen unter „Wale"/Poly
-            continue
+        if e.get("art") in ("pserie", "wal") or not t or t < JETZT - timedelta(hours=36):   # Polymarket-Pushes stehen unter „Wale"/Poly
+            continue                          # 24.11.: CM1/PK1-Pushes (Polymarket) kommen in den Ticker, als Polymarket markiert
         out.append({"zeit": e.get("ts"), "art": ((buch.get("arten") or {}).get(e.get("art")) or {}).get("name"),
                     "markt": e.get("markt"), "liga": e.get("liga"), "heim": e.get("heim"), "gast": e.get("gast"),
                     "auf": e.get("auswahl"), "quote": e.get("quote"), "eur": round(e.get("eur") or 0), "anteil": None,
-                    "status": ("won" if e.get("win") else "lost") if e.get("status") == "abgerechnet" else status.get(e.get("status"))})
+                    "status": ("won" if e.get("win") else "lost") if e.get("status") == "abgerechnet" else status.get(e.get("status")),
+                    "quelle": "poly" if e.get("art") in ("cm1", "pk1") else "betfair"})
     v = [z for z in buch.get("verlauf") or [] if isinstance(z, list) and len(z) == 3 and z[1] is not None]
     n = len(v)
     bil = {"n": n, "treffer": round(100 * sum(1 for z in v if z[2]) / n, 1) if n else None,
@@ -3506,7 +3507,7 @@ def eigene_wal_pushes(buch):
     for z in (buch or {}).get("walVerlauf") or []:
         led.append({"sentAt": z.get("zeit") + "+00:00" if len(str(z.get("zeit") or "")) == 16 else z.get("zeit"),
                     "key": z.get("key"), "side": z.get("seite"), "usd": z.get("usd"), "pushPrice": z.get("preis"),
-                    "cat": z.get("sport"), "wallet": z.get("wallet"), "titel": z.get("titel"),
+                    "cat": z.get("sport"), "wallet": z.get("wallet"), "titel": z.get("titel"), "typ": z.get("typ"),
                     "result": {"won": "win", "lost": "loss"}.get(z.get("status")), "status": z.get("status")})
     je = {}
     for z in led:
