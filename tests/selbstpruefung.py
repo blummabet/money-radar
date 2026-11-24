@@ -195,6 +195,22 @@ def _():
     assert e2 is not None and e2 > 1.8, "Über steigt ohne Tor mit der Zeit"
 
 
+@pruefe("LD7: nachhaltiger Drop erkannt, ein Ausreißer nach oben bricht die Reihe")
+def _():
+    import build
+    J = build.JETZT
+    ko = J - timedelta(minutes=40)
+    def pt(vor, qa, qh, qd, mi):
+        return {"ts": (J - timedelta(minutes=vor)).isoformat(), "sc": [0, 0], "min": mi,
+                "sel": {"Match Odds": {"H": [30000, qh], "A": [15000, qa], "The Draw": [8000, qd]}}}
+    pr = {"matches": [{"matchId": "1", "kickoff": ko.isoformat(), "home": "H", "away": "A", "league": "X", "liveInfo": {"time": 38}}]}
+    gut = [pt(30, 5.4, 1.6, 3.9, 10), pt(22, 5.2, 1.6, 3.9, 18), pt(17, 4.6, 1.7, 3.8, 23), pt(12, 4.2, 1.8, 3.7, 28), pt(7, 3.8, 1.9, 3.6, 33), pt(2, 3.4, 2.05, 3.5, 38)]
+    gleich(len(build.bf_nachhaltig(pr, {"1": gut})), 1, "Drop 4,6 → 3,4")
+    zack = list(gut)
+    zack[3] = pt(12, 5.0, 1.8, 3.7, 28)
+    gleich(len(build.bf_nachhaltig(pr, {"1": zack})), 0, "Ausreißer nach oben")
+
+
 # ── 4. Liga-Bilanz (build.py, Regel LW3) ─────────────────────────────────────────────────────────────────────────
 @pruefe("Liga-Bilanz LW3: Quote vor Anpfiff (qs), Märkte je Spiel gebündelt")
 def _():

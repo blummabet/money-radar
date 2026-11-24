@@ -2019,6 +2019,26 @@ def bf_uhr_still(d):
                 "stand": st, "minute": x.get("min"), "rot": x.get("rot"), "eur": x.get("neu"), "regel": "LD1"})
 
 
+def ld7_still(d):
+    """24.11. Regel LD7: nachhaltiger Quoten-Drop live (build.bf_nachhaltig) still ins Buch, mit Druck-Index des Teams
+    (bei Über: der höhere Index beider Teams) — je Spiel + Markt + Auswahl + Stand einmal."""
+    druck = {str(x.get("id")): x for x in ((d.get("druck") or {}).get("spiele") or [])} if isinstance(d.get("druck"), dict) else {}
+    for x in d.get("bfNachhaltig") or []:
+        st = x.get("stand") or [0, 0]
+        dr = druck.get(str(x["id"])) or {}
+        if x["markt"] == "Match Odds":
+            seite = "heim" if x["auswahl"] == x.get("heim") else "gast"
+            idx = (dr.get("index") or 0) if dr.get("seite") == seite else 0
+        else:
+            idx = dr.get("index") or 0
+        yield (f"l7|{x['id']}|{x['markt']}|{x['auswahl']}|{st[0]}:{st[1]}", None, None,
+               {"art": "dropDruck" if idx >= 55 else "dropNachh", "id": x["id"], "heim": x["heim"], "gast": x["gast"],
+                "liga": x.get("liga"), "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": True, "markt": x["markt"],
+                "auswahl": x["auswahl"], "quote": x["quote"], "quoteStart": x.get("q0"), "erwartet": x.get("erwartet"),
+                "unter": x.get("unter"), "fall": x.get("fall"), "abrufe": x.get("abrufe"), "druckIndex": idx, "stand": st,
+                "minute": x.get("min"), "regel": "LD7"})
+
+
 # Regel MM2 „Angriffs-Bild" (Lucas 20.11. 23:49, ersetzt MM1 von 22:27): Team Sieg FT/HZ, HZ Über 0,5/1,5, Über 1,5/2,5/3,5
 # und Lay-Geld gegen Unter auf diesen Linien — ab 3 gleichzeitig ein Test-Push in den Money-Channel. Erkennung und
 # Schwellen in build.mm2_angriff. Gebucht wird das Bein mit dem meisten Geld („mmA"; ein Lay gegen Unter als die
@@ -2189,7 +2209,7 @@ def profi_still(d):
 
 
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm2_push, cpo_still, tp_still, profi_still)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm2_push, cpo_still, tp_still, profi_still, ld7_still)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────

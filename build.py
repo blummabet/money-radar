@@ -878,6 +878,84 @@ def bf_uhr(prices, bf_hist):
     return aus[:30]
 
 
+# Regel LD7 (24.11., Lucas: „über mindestens 2 Checks, 10–15 Minuten schauen, ob die Quote kontinuierlich runterdroppt …
+# bei signifikanten Märkten — es bringt mir nichts, wenn Über 5,5 von 8,5 auf 7,9 droppt … die Statistik hat das
+# untermauert"). Vorab festgelegt, still gemessen (kein Push):
+# * Märkte: Team-Sieg (nicht das führende Team) und die Haupt-Torlinie (Über mit Quote 1,60–2,60, die nächste an 2,0).
+# * Markt ≥ €10k gematcht. Gleicher Stand seit dem Abruf vor dem Start (wie LD3), Start 15–25 Min zurück, ≥ 3 Abrufe.
+# * Quote fällt nachhaltig: jeder Abruf höchstens +1 % über dem vorigen, zusammen ≥ 10 % gefallen, und ≥ 8 % unter dem,
+#   was die Uhr allein erwarten ließe. Quote jetzt 1,40–8.
+# Gebucht zur Quote jetzt, je Spiel + Markt + Auswahl + Stand einmal; push.py hängt den Druck-Index an (Vergleich mit/ohne
+# Druck ≥ 55 des Teams bzw. bei Über irgendeines Teams). Urteil nach 100 Fällen: trägt, wenn die Rendite über null liegt
+# und „mit Druck" besser ist als „ohne".
+LD7_MIN_MARKT, LD7_FALL, LD7_UHR = 10000, 0.10, 0.08
+
+
+def bf_nachhaltig(prices, bf_hist):
+    import markout as _m
+    aus = []
+    for m in (prices or {}).get("matches") or []:
+        mid, ko, li = str(m.get("matchId")), ts(m.get("kickoff")), m.get("liveInfo") or {}
+        if not ko or ko > JETZT or li.get("finished"):
+            continue
+        pts = [x for x in (bf_hist or {}).get(mid) or [] if isinstance(x, dict) and isinstance(x.get("sel"), dict) and ts(x.get("ts"))]
+        if len(pts) < 5 or JETZT - ts(pts[-1]["ts"]) > timedelta(minutes=12):
+            continue
+        jetzt_p = pts[-1]
+        start = [x for x in pts if timedelta(minutes=15) <= ts(jetzt_p["ts"]) - ts(x["ts"]) <= timedelta(minutes=25)]
+        if not start:
+            continue
+        i0 = pts.index(start[-1])
+        reihe = pts[i0:]
+        sc = lambda x: tuple(x.get("sc") or ())  # noqa: E731
+        if i0 == 0 or len(reihe) < 3 or not sc(jetzt_p) or ts(reihe[0]["ts"]) < ko \
+                or any(sc(x) != sc(jetzt_p) for x in [pts[i0 - 1]] + reihe):
+            continue
+        st_ = list(sc(jetzt_p))
+        m0, mn = reihe[0].get("min"), jetzt_p.get("min")
+        if not all(isinstance(x, (int, float)) for x in (m0, mn)) or mn - m0 < 8 or mn > 85:
+            continue
+        mo0 = {k: v[1] for k, v in ((reihe[0].get("sel") or {}).get("Match Odds") or {}).items()
+               if isinstance(v, list) and isinstance(v[1], (int, float)) and v[1] > 1}
+        kand = []
+        mo = (jetzt_p["sel"].get("Match Odds") or {})
+        if sum((v[0] or 0) for v in mo.values() if isinstance(v, list)) >= LD7_MIN_MARKT:
+            fuehrt = None if st_[0] == st_[1] else (m.get("home") if st_[0] > st_[1] else m.get("away"))
+            kand += [("Match Odds", n) for n in (m.get("home"), m.get("away")) if n and n != fuehrt and n in mo]
+        linien = []
+        for mk, sel in jetzt_p["sel"].items():
+            lm = re.match(r"^Over/Under (\d+)\.5 Goals$", mk)
+            if not lm or _linie_durch(mk, st_) or sum((v[0] or 0) for v in sel.values() if isinstance(v, list)) < LD7_MIN_MARKT:
+                continue
+            o = sel.get(f"Over {lm.group(1)}.5 Goals")
+            if isinstance(o, list) and isinstance(o[1], (int, float)) and 1.60 <= o[1] <= 2.60:
+                linien.append((abs(o[1] - 2.0), mk, f"Over {lm.group(1)}.5 Goals"))
+        if linien:
+            _, mk, n = min(linien)
+            kand.append((mk, n))
+        best = None
+        for mk, n in kand:
+            qs = [(((x.get("sel") or {}).get(mk) or {}).get(n) or [None, None])[1] for x in reihe]
+            if not all(isinstance(q, (int, float)) and q > 1 for q in qs):
+                continue
+            q0, q1 = qs[0], qs[-1]
+            if not 1.40 <= q1 <= 8 or q1 > q0 * (1 - LD7_FALL) or any(b > a * 1.01 for a, b in zip(qs, qs[1:])):
+                continue
+            erw = _m.uhr_erwartung(mk, n, q0, m0, mn, st_, mo0, m.get("home"), m.get("away"))
+            if not erw or q1 > erw * (1 - LD7_UHR):
+                continue
+            fall = 1 - q1 / q0
+            if best is None or fall > best["fall"]:
+                best = {"id": mid, "heim": m.get("home"), "gast": m.get("away"), "liga": m.get("league"), "land": m.get("country"),
+                        "anpfiff": m.get("kickoff"), "top5": bool(TOP5_RX.search(str(m.get("league") or ""))), "min": mn, "stand": st_,
+                        "markt": mk, "auswahl": n, "q0": q0, "quote": q1, "erwartet": round(erw, 2), "fall": round(fall, 3),
+                        "unter": round(100 * (1 - q1 / erw), 1), "abrufe": len(qs), "spielMin": [m0, mn], "seit": reihe[0]["ts"]}
+        if best:
+            aus.append(best)
+    print(f"  ld7: {len(aus)} nachhaltige Quoten-Drops live")
+    return aus
+
+
 def bf_spanne(prices):
     try:
         roh = json.loads((BASIS / ".pin" / "pinnacle_alle.json").read_text(encoding="utf-8"))
@@ -3425,7 +3503,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "top3Aus", "top3pAus", "serieLang", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "top3Aus", "top3pAus", "serieLang", "dropNachh", "dropDruck", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -4153,6 +4231,7 @@ def main() -> int:
         "bfDrops": bf_drops(prices, bf_hist),   # 17.11. Regel BD1
         "fruehBewegt": _frueh_bewegt(),          # 18.11. Regel FB1 (Beobachtung)
         "bfUhr": bf_uhr(prices, bf_hist),        # 18.11. Regel LD1 (Beobachtung)
+        "bfNachhaltig": bf_nachhaltig(prices, bf_hist),   # 24.11. Regel LD7 (Beobachtung)
         "speicher": speicher_check(),           # 17.11. (Lucas: Speicher/Performance immer im Hinterkopf)
         "t3Dyn": eigen("t3_gewichte.json", ".push_state", default=None),   # 17.11. Top-3-Regel 7
         "topfDyn": eigen("topf_gewichte.json", ".push_state", default=None),   # 17.11. Topf-Regel R31
