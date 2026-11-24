@@ -1014,6 +1014,14 @@ def main() -> int:
     if _STAT.get("clvUnmoeglich"):
         print(f"  poly_markt: {_STAT['clvUnmoeglich']} Positionen mit unmöglichem CLV (> {CLV_MAX_PP} pp) nicht gewertet")
     print(f"  poly_markt: Lebensbilanz (v2 user-pnl) für {_STAT.get('pnlOk', 0)} Wallets geholt")
+    try:                                                  # 24.11. Regel W3: Sport-Profis aus der Polymarket-Bestenliste
+        import poly_profis
+        ab = poly_profis.lauf(_get, maerkte, _STAT, _zeit_ok)
+        print(f"  poly_markt: Sport-Profis — Bestenliste {_STAT.get('profiBoard', '–')} · {_STAT.get('profiGeprueft', 0)} geprüft "
+              f"({ab} Abrufe) · {_STAT.get('profiBekannt', 0)} gewertet · {_STAT.get('profiBelegt', 0)} belegt"
+              + (f" · Felder {_STAT['profiProbe']}" if _STAT.get("profiProbe") else ""))
+    except Exception as exc:  # noqa: BLE001
+        print(f"  poly_markt: Sport-Profis: {exc}")
     # 23.11. (Lucas: „in Zukunft Daten sammeln … Lücken sind blöd"): je Lauf eine Gesundheitszeile — der Wächter im
     # Seitenbau schlägt Alarm, wenn ein Teil zwar läuft, aber nichts liefert (Halter 0, keine Wertung, Fehlerflut …)
     try:
