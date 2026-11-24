@@ -67,6 +67,13 @@ SERIE_GELD = BASIS / ".push_state" / "serie_geld.json"
 # Karte raus, sondern eine Kurzzeile als Antwort auf die erste. Gebucht wird unverändert (beide Signale einzeln).
 ANTWORT = BASIS / ".push_state" / "antwort.json"
 AW_MIN = 15
+# 24.11. Regel W8 „Wal-Streit" (Lucas zu FaZe – GOSH: zwei Wal-Pushes, entgegengesetzt — „die Info bringt mir zum Wetten
+# wenig, außer dass ich nichts mache"): hält belegtes Geld auf den anderen Seiten mindestens die Hälfte des Einsatzes,
+# kein Wal-Push (still „walStreit"). Kommt ein Gegen-Wal, nachdem schon ein Wal-Push zu dem Markt raus ist, geht keine
+# zweite Karte raus, sondern eine Kurzzeile als Antwort auf den ersten Push. Rückblick 20.11. (E-Sport): mit Gegen-Wal
+# 149 von 278 Wal-Pushes, ±0 % ROI.
+WAL_MIDS = BASIS / ".push_state" / "wal_mids.json"
+W8_ANTEIL = 0.5
 
 
 def _serie_basis(key):
@@ -763,6 +770,13 @@ def wale(d):
         if max(float(preis or 0), float(ein or 0)) >= 0.90:
             continue
 
+        # W8: belegtes Geld auf den anderen Seiten desselben Spiels
+        w8_gegen = []
+        if g and k:
+            w8_gegen = [x for x in g.get("wale") or [] if x.get("wallet") != o.get("wallet") and x.get("k") and x["k"] != k]
+        w8_usd = sum(float(x.get("usd") or 0) for x in w8_gegen)
+        w8_streit = usd > 0 and w8_usd >= W8_ANTEIL * usd
+
         # Kopf
         titel = e(o.get("spiel"))
         if g and not nebenmarkt:
@@ -899,6 +913,11 @@ def wale(d):
                         "faktor": round(usd / float(schnitt), 2) if schnitt and usd else None, "slug": o.get("markt")}
         # Wal-Regel 2 (Lucas 06.11. 13:50, Dynamo Dresden: $1,1k bei einem Wallet, das sonst Ø $17k setzt): unter ¼ des
         # üblichen Einsatzes kein Push — still als „walKlein" mitbuchen (bis 06.11.: unter ¼ n=13, −39 %)
+        if beleg:
+            wer_k = e(str(o.get("name") or "")[:24]) if o.get("profi") and o.get("name") else f"Wallet {e(str(o.get('wallet'))[2:6])}"
+            beleg = {**beleg, "w8": {"markt": o.get("markt"), "seite": k or o.get("seite"), "streit": w8_streit, "gegenUsd": round(w8_usd),
+                                     "kurz": f"⚠️ <b>Gegen-Wal</b> · {geld(usd, '$')} auf <b>{e(seite)}</b> ({wer_k}"
+                                             + (", Sport-Profi" if o.get("profi") else "") + ") — beide Seiten belegt, <b>Signal neutral</b>"}}
         # W7: unter der Schwelle kein Push — still als „walUnter" gebucht, damit sich die neue Grenze prüfen lässt
         if unter_w7:
             if beleg:
@@ -908,7 +927,8 @@ def wale(d):
             if beleg:
                 yield f"wk|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}", None, None, {**beleg, "art": "walKlein"}
             continue
-        yield key, "\n".join(zeilen) + "\n", None, beleg, pub
+        # W8: Streit → keine eigene Karte; main() antwortet auf einen früheren Wal-Push zum Markt oder bucht still
+        yield key, "\n".join(zeilen) + "\n", None, beleg, (None if w8_streit else pub)
 
 
 def _stake_fuehrt(g, auswahl, markt, radar):
@@ -2333,6 +2353,11 @@ def main() -> int:
     except Exception:  # noqa: BLE001
         antwort = {}
     antwort = {k: v for k, v in antwort.items() if ts(v[1]) and (JETZT - ts(v[1])).total_seconds() < 3 * AW_MIN * 60}
+    try:
+        wal_mids = json.loads(WAL_MIDS.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        wal_mids = {}
+    wal_mids = {m: [x for x in v if ts(x[1]) and (JETZT - ts(x[1])).total_seconds() < 48 * 3600] for m, v in wal_mids.items()}
     gesendet = 0
     if not erster_lauf:
         for key, text, was in waechter(d, gesehen):
@@ -2408,6 +2433,17 @@ def main() -> int:
                 print(f"  Notbremse: mehr als {MAX_JE_LAUF} Meldungen, Rest im nächsten Lauf")
                 break
             aw_k, aw_auf = _aw_schluessel(beleg), None
+            w8 = (beleg or {}).get("w8") if (beleg or {}).get("art") == "wal" else None
+            if w8:
+                frueher = [x for x in wal_mids.get(str(w8["markt"])) or [] if x[2] != w8["seite"]]
+                if frueher:                    # W8: Antwort auf den früheren Wal-Push statt zweiter Karte
+                    aw_auf, text, pub = frueher[-1][0], w8["kurz"], None
+                    beleg = {**beleg, "art": "walStreit", "regelW": "W8"}
+                elif w8.get("streit"):         # W8: Geld dagegen schon da → kein Push, still
+                    if not trocken:
+                        bilanz.eintragen(buch, {**beleg, "art": "walStreit", "regelW": "W8"}, JETZT)
+                    gesehen[key] = JETZT.isoformat()
+                    continue
             if aw_k and aw_k in antwort:
                 mid_, t_, art_ = antwort[aw_k]
                 if art_ != beleg.get("art") and (JETZT - ts(t_)).total_seconds() <= AW_MIN * 60:
@@ -2420,6 +2456,8 @@ def main() -> int:
                 ok = senden(token, chat, text, link=not aw_auf, antwort_auf=aw_auf)
             if ok and aw_k and not aw_auf and ok is not True:
                 antwort[aw_k] = [ok, JETZT.isoformat(), beleg.get("art")]
+            if ok and w8 and not aw_auf and ok is not True:      # W8: Wal-Push merken (Markt, Seite)
+                wal_mids.setdefault(str(w8["markt"]), []).append([ok, JETZT.isoformat(), w8["seite"]])
             if ok:
                 gesehen[key] = JETZT.isoformat()
                 gesendet += 1
@@ -2551,6 +2589,10 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             print(f'  serie_geld: {exc}')
         STAND.write_text(json.dumps(gesehen, ensure_ascii=False), encoding="utf-8")
+        try:
+            WAL_MIDS.write_text(json.dumps({m: v for m, v in wal_mids.items() if v}), encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  wal_mids: {exc}")
         try:
             ANTWORT.write_text(json.dumps(antwort), encoding="utf-8")
         except Exception as exc:  # noqa: BLE001
