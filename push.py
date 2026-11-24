@@ -2156,8 +2156,11 @@ def inhalt_pruefen(d):
         aus["pmProfi"] = ("Polymarket-Profi-Prüfung", f"12 Läufe ohne geprüfte Wallet, {gp[-1]['profiOffenGesichtet']} gesichtete Wale warten")
     if len(gp) >= 3 and all(x.get("profiFehler", 0) >= 5 for x in gp[-3:]):
         aus["pmProfiFehler"] = ("Polymarket-Profi-Prüfung", f"3 Läufe mit je ≥ 5 Abruf-Fehlern (zuletzt {gp[-1]['profiFehler']})")
-    if gp and sum(x.get("profiUnplausibel", 0) for x in gp[-12:]) >= 3:
-        aus["pmProfiDaten"] = ("Polymarket-Profi-Daten", f"{sum(x.get('profiUnplausibel', 0) for x in gp[-12:])} Wallets mit unplausiblen Positionen (Verlust über Einsatz / fehlende Felder) — Felder der API prüfen")
+    # Einzelne Market-Maker (Split/Merge) sind immer unplausibel und bekommen kein Urteil — Alarm erst, wenn es VIELE
+    # sind (Feld der API geändert / Rechnung falsch): über 25 % der geprüften Wallets in 12 Läufen.
+    up, gpr = sum(x.get("profiUnplausibel", 0) for x in gp[-12:]), sum(x.get("profiGeprueft", 0) for x in gp[-12:])
+    if gpr >= 20 and up > 0.25 * gpr:
+        aus["pmProfiDaten"] = ("Polymarket-Profi-Daten", f"{up} von {gpr} geprüften Wallets mit unplausiblen Positionen (Verlust über Einsatz / fehlende Felder) — Felder der API prüfen")
     if len(gp) >= 6 and gp[-1].get("profiOffenGesichtet", 0) >= 60 and gp[-6].get("profiOffenGesichtet", 0) <= gp[-1]["profiOffenGesichtet"]:
         aus["pmProfiStau"] = ("Polymarket-Profi-Prüfung", f"{gp[-1]['profiOffenGesichtet']} gesichtete Wale ohne Wertung, Stau wird nicht kleiner")
     pf = d.get("polyFluss") or {}

@@ -43,7 +43,7 @@ PROFI_JE_LAUF = 40       # 24.11.: Lauf braucht ~45 s von 240 s — 40 Wallets �
 PROFI_S = 90
 FENSTER_TAGE = 90
 MIN_N = 50
-VERSION = 3        # 2: Einsatz aus Stück × Ø Preis statt total_cost_usdc · 3: W5 (gewichtet, Plausibilität)
+VERSION = 4        # 2: Einsatz aus Stück × Ø Preis statt total_cost_usdc · 3: W5 (gewichtet, Plausibilität) · 4: + Gebühr
 WAL_USD = 500
 SICHT_TAGE = 30
 SEITEN, LIMIT = 3, 1000
@@ -101,7 +101,10 @@ def wertung(zeilen, fuss, ab_ts):
         # Einsatz = gekaufte Stück (gesamt) × Ø Einstieg. total_cost_usdc schrumpft bei Teilverkäufen (Rest-Basis) —
         # damit kam −537 % Rendite heraus, mehr Verlust als Einsatz geht nicht.
         ts_, ap = z.get("total_size", z.get("totalSize")), z.get("avg_price", z.get("avgPrice"))
-        kosten = ts_ * ap if isinstance(ts_, (int, float)) and isinstance(ap, (int, float)) and ts_ * ap > 0 \
+        # 24.11. (Log): + Gebühr. 641 Stück × 0,56 = $359, Verlust $367 — die $8 sind entry_fees_usdc.
+        gebuehr = z.get("entry_fees_usdc", z.get("entryFeesUsdc"))
+        gebuehr = gebuehr if isinstance(gebuehr, (int, float)) and gebuehr > 0 else 0.0
+        kosten = ts_ * ap + gebuehr if isinstance(ts_, (int, float)) and isinstance(ap, (int, float)) and ts_ * ap > 0 \
             else z.get("total_cost_usdc", z.get("entry_cost_usdc"))
         g = z.get("total_pnl", z.get("realized_pnl"))
         if not isinstance(kosten, (int, float)) or not isinstance(g, (int, float)):
@@ -109,7 +112,7 @@ def wertung(zeilen, fuss, ab_ts):
             continue
         if kosten < 5:
             continue
-        if g < -1.02 * kosten:                    # mehr Verlust als Einsatz ist unmöglich → Datenfehler zählen
+        if g < -1.05 * kosten:                    # mehr Verlust als Einsatz ist unmöglich → Datenfehler zählen
             out["unplausibel"] += 1
             if len(out.setdefault("beispiele", [])) < 2:   # Rohfelder für die Diagnose (Log + Datei)
                 out["beispiele"].append({k: z.get(k) for k in ("status", "event_slug", "outcome", "total_size", "current_size",
