@@ -2012,6 +2012,7 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 /* 10.11. Phasenband */
 :root{--ph-h:#e08600;--ph-a:#2f6fe0;--ph-x:#9aa1ad}
 .profz .l{white-space:normal}
+.pll-st{font-size:13px;color:var(--text)} .pll-d{color:var(--text-3)} .pll-d.an{color:var(--up);font-weight:700}
 .phb{display:grid;gap:5px}
 .ph-z{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:8px}
 .phb > h4 + .ph-z{margin-top:40px}
@@ -4961,7 +4962,8 @@ function seiteBetfair(D){
   const teile = [["🔁 Dauerzufluss", "Abruf für Abruf dieselbe Auswahl vorn", serienKarten(D,8,"betfair")],
     ["Frischer Zufluss", "vor Anpfiff, 30 Min · Balkenlänge = neues Geld · grün: Quote fällt mit dem Geld · rot: läuft dagegen · grau: hält", zuflussKarten(D,8)],
     ["Live: Geld fließt rein", "15 Min, entschiedene Spiele raus · Balkenlänge = neues Geld · kräftiger = mehr vom neuen Geld auf diese Seite", liveKarten(D,8)],
-    ["⏱ Live gegen die Uhr", "Quote fällt, obwohl die Spielzeit sie steigen ließe · ~15 Min ohne Tor · ≥ 8 % unter der Erwartung · auch ohne Geldschwelle · Regel LD1, still gemessen, kein Push", uhrListe(lf(D.bfUhr||[]))]];
+    // 24.11. (Lucas: „zeigs mir auf der Betfair-Seite an, da gab's ja den Bereich fürs alte"): LD7 ersetzt die alte Liste LD1
+    ["📉 Live: Quote fällt nachhaltig", "Team-Sieg oder Haupt-Torlinie · ≥ €10k im Markt · 15–25 Min stetig gefallen, gleicher Stand · gegen die Uhr · mit Druck-Index · Regel LD7, still gemessen, kein Push", nachhaltigListe(D, lf(D.bfNachhaltig||[]))]];
   // Lucas 20.10.: leere Abschnitte und „Neues Geld je halbe Stunde" raus — wenig Mehrwert, die Seite wird schlanker
   const voll = teile.filter(t=>!t[2].startsWith('<div class="leer">'));
   return `<div class="grid">
@@ -5085,6 +5087,23 @@ function bdMarke(x){
   return `<span class="pll-m${x.frisch?" f":""}" style="--c:${bdFarbe(x.markt)}"><small>${esc(mk)}</small>▼ ${esc(auswahlDe(x.auf))}<em>${q2(x.vonQuote)} → ${q2(x.quote)} · +${dez(x.pp)}pp${x.frisch?" · frisch":""}</em></span>`;
 }
 // 18.11. Regel LD1: kompakte Zeilen wie die Betfair-Drops, aufgeklappt mit Erwartung und Knopf zum Spiel
+function nachhaltigListe(D, liste){
+  if(!liste.length) return `<div class="leer">Gerade fällt live keine Quote nachhaltig gegen die Uhr.</div>`;
+  const dr = {}; for(const x of (D.druck||{}).spiele||[]) dr[String(x.id)] = x;
+  return `<div class="pll">${liste.map(x=>{
+    const sp = spielInfo({id:x.id}), mk = x.markt==="Match Odds" ? "Sieg" : "Tore", d = dr[String(x.id)];
+    const seite = x.markt==="Match Odds" ? (x.auswahl===x.heim ? "heim" : "gast") : null;
+    const idx = d ? (seite ? (d.seite===seite ? d.index : null) : d.index) : null;
+    const druck = idx!=null ? `<span class="pll-d${idx>=55?" an":""}">📊 Druck ${idx}</span>` : `<span class="pll-d">📊 kein Druck</span>`;
+    return `<details class="pll-z"><summary>
+        <span class="pll-zt"><span class="mk-live">● ${x.min!=null?x.min+"'":"live"}</span><br><b class="pll-st">${(x.stand||[]).join(":")}</b></span>
+        <span class="pll-sp"><b>${esc(x.heim)} – ${esc(x.gast)}</b><small>${flagge(x.land)} ${esc(ligaName(x.liga)||x.liga||"")} · ${druck}</small></span>
+        <span class="pll-ms"><span class="pll-m f" style="--c:${bdFarbe(x.markt)}"><small>${mk}</small>▼ ${esc(auswahlDe(x.auswahl))}<em>${q2(x.q0)} → ${q2(x.quote)} · −${dez(100*x.fall)} %</em></span></span>
+      </summary><div class="pll-auf"><div class="fb-t">
+        <span>${x.spielMin?`${x.spielMin[0]}' ${q2(x.q0)} → ${x.spielMin[1]}' ${q2(x.quote)}`:""} · ${x.abrufe} Checks, jeder gleich oder tiefer</span>
+        <span>nur mit der Uhr wären ~${q2(x.erwartet)} zu erwarten — ${dez(x.unter)} % darunter</span></div>
+        ${sp?`<button class="chip" ${klickSpiel({id:x.id, heim:x.heim, gast:x.gast})}>Spiel öffnen</button>`:""}</div></details>`; }).join("")}</div>`;
+}
 function uhrListe(liste){
   if(!liste.length) return `<div class="leer">Gerade fällt live keine Quote gegen die Uhr.</div>`;
   return `<div class="pll">${liste.map(x=>{
