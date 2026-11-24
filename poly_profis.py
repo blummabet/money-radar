@@ -39,7 +39,7 @@ DATEI = Path(__file__).resolve().parent / ".pm" / "poly_profis.json"
 JETZT = datetime.now(timezone.utc)
 BOARD_H = 12
 NEU_TAGE = 3
-PROFI_JE_LAUF = 60       # 24.11.: Lauf braucht ~45 s von 240 s — 40 Wallets ≈ 120 Abrufe, eigener Zeitdeckel PROFI_S
+PROFI_JE_LAUF = 40       # 24.11.: Lauf braucht ~45 s von 240 s — 40 Wallets ≈ 120 Abrufe, eigener Zeitdeckel PROFI_S
 PROFI_S = 90      # 24.11.: Poly-Lauf blieb sonst knapp unter dem 5-Min-Takt (bis 264 s)
 FENSTER_TAGE = 90
 MIN_N = 50
@@ -274,7 +274,10 @@ def lauf(get, maerkte, stat, zeit_ok=lambda: True, lern=None):
     # Reihenfolge: gesichtete Wale ohne aktuelle Wertung → Bestenliste ohne aktuelle Wertung → älteste Wertung zuerst
     frisch_fehler = lambda w: not alt((wallets.get(w) or {}).get("fehlerTs"), 6)   # noqa: E731  (400er nicht jeden Lauf)
     # 24.11.: Wertungen ohne Steckbrief (Kurve, letzte Wetten) gelten als veraltet — belegte zuerst nachholen
-    aktuell = lambda w: (wallets.get(w) or {}).get("v") == VERSION and "kurve" in (wallets.get(w) or {})   # noqa: E731
+    # 24.11. 18:00: nur Wallets mit ≥ MIN_N Wetten brauchen den Steckbrief — der volle Nachhol-Stau (2.000 Wallets)
+    # lief in die Polymarket-Drosselung (HTTP 429)
+    aktuell = lambda w: (wallets.get(w) or {}).get("v") == VERSION and (   # noqa: E731
+        "kurve" in (wallets.get(w) or {}) or ((wallets.get(w) or {}).get("n") or 0) < MIN_N)
     reihe = sorted(kand, key=lambda w: (frisch_fehler(w), aktuell(w), not (wallets.get(w) or {}).get("belegt"),
                                         w not in sicht, (wallets.get(w) or {}).get("ts") or ""))
     ab_ts = (JETZT - timedelta(days=FENSTER_TAGE)).timestamp()

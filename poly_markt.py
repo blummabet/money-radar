@@ -1021,7 +1021,11 @@ def main() -> int:
             lern.update({k: v.get("sport") for k, v in json.loads(ERLEDIGT.read_text(encoding="utf-8")).items() if isinstance(v, dict)})
         except Exception:  # noqa: BLE001
             pass
-        ab = poly_profis.lauf(_get, maerkte, _STAT, _zeit_ok, lern=lern)
+        # 24.11.: drosselt Polymarket schon (viele 429/503 in diesem Lauf), keine Profi-Abrufe obendrauf
+        gedrosselt = _STAT.get("fehler", 0) > max(20, 0.2 * (_STAT.get("ok", 0) + _STAT.get("fehler", 0)))
+        ab = 0 if gedrosselt else poly_profis.lauf(_get, maerkte, _STAT, _zeit_ok, lern=lern)
+        if gedrosselt:
+            print(f"  poly_markt: Sport-Profis ausgesetzt — Polymarket drosselt ({_STAT.get('fehler')} Fehler)")
         print(f"  poly_markt: Sport-Profis — Bestenliste {_STAT.get('profiBoard', '–')} · {_STAT.get('profiGeprueft', 0)} geprüft "
               f"({ab} Abrufe) · {_STAT.get('profiBekannt', 0)} gewertet · {_STAT.get('profiBelegt', 0)} belegt"
               + (f" · Felder {_STAT['profiProbe']}" if _STAT.get("profiProbe") else ""))
