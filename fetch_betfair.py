@@ -389,6 +389,13 @@ def prune_history(hist, now=None, keep_h=HIST_KEEP_H):
         except (ValueError, TypeError, AttributeError):
             last = None
         if last is None or last >= cutoff:
+            # 24.11. (Speicher 157 MB, davon diese Datei 78 MB): die Auswahl-Volumina „sel" (alle Märkte × Auswahlen)
+            # wurden nur beim Anhängen neuer Punkte gekürzt — ein beendetes Spiel bekam keine mehr und trug seine
+            # letzten 6 h „sel" noch 72 h mit. Gebraucht werden sie nur für laufende/kommende Spiele (Zufluss, Drops,
+            # Uhr); Ergebnisse, HZ-Finder und Liga-Norm lesen Stand, Sieg-Quoten und Gesamtvolumen. Darum: 6 h 15 Min
+            # nach dem letzten Punkt fallen sie weg.
+            if last is not None and now - last > timedelta(hours=6, minutes=15):
+                arr = [{k: v for k, v in p.items() if k not in ("sel", "mkv")} if isinstance(p, dict) else p for p in arr]
             out[mid] = arr
     return out
 
