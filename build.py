@@ -1052,7 +1052,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
     profi_d = eigen("poly_profis.json", ".pm", default={}) or {}
     profis = []
     for pw, v in (profi_d.get("wallets") or {}).items():
-        if not isinstance(v, dict) or (v.get("n") or 0) < 20:
+        if not isinstance(v, dict) or (v.get("n") or 0) < 20 or v.get("v") != 2:   # v2 = Einsatz aus Stück × Ø Preis
             continue
         bs = v.get("bySport") or {}
         haupt = max(bs.items(), key=lambda kv: kv[1][0])[0] if bs else None

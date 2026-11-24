@@ -31,6 +31,7 @@ NEU_TAGE = 3
 PROFI_JE_LAUF = 10
 FENSTER_TAGE = 90
 MIN_N = 50
+VERSION = 2        # 24.11.: Einsatz aus Stück × Ø Preis statt total_cost_usdc
 Z = 1.645
 ESPORT = ("cs2", "csgo", "lol", "dota2", "dota", "val", "valorant", "ow", "r6", "rl", "cod", "mlbb", "hok")
 TENNIS = ("itf", "chall", "wtt")
@@ -70,10 +71,15 @@ def wertung(zeilen, fuss, ab_ts):
         sp = sportart(z.get("event_slug") or z.get("eventSlug") or z.get("slug"), fuss)
         if not sp:
             continue
-        kosten = z.get("total_cost_usdc", z.get("entry_cost_usdc"))
+        # Einsatz = gekaufte Stück (gesamt) × Ø Einstieg. total_cost_usdc schrumpft bei Teilverkäufen (Rest-Basis) —
+        # damit kam −537 % Rendite heraus, mehr Verlust als Einsatz geht nicht.
+        ts_, ap = z.get("total_size", z.get("totalSize")), z.get("avg_price", z.get("avgPrice"))
+        kosten = ts_ * ap if isinstance(ts_, (int, float)) and isinstance(ap, (int, float)) and ts_ * ap > 0 \
+            else z.get("total_cost_usdc", z.get("entry_cost_usdc"))
         g = z.get("total_pnl", z.get("realized_pnl"))
         if not isinstance(kosten, (int, float)) or not isinstance(g, (int, float)) or kosten < 5:
             continue
+        g = max(-kosten, g)
         u = max(-1.0, min(20.0, g / kosten))
         out["n"] += 1
         out["einsatz"] += kosten
@@ -132,13 +138,13 @@ def lauf(get, maerkte, stat, zeit_ok=lambda: True):
         stat["profiBoard"] = len(kand)
     kand = board.get("kandidaten") or {}
     wallets = d.get("wallets") or {}
-    reihe = sorted(kand, key=lambda w: (wallets.get(w) or {}).get("ts") or "")
+    reihe = sorted(kand, key=lambda w: ((wallets.get(w) or {}).get("v") == VERSION, (wallets.get(w) or {}).get("ts") or ""))
     ab_ts = (JETZT - timedelta(days=FENSTER_TAGE)).timestamp()
     gemacht = 0
     for w in reihe:
         if gemacht >= PROFI_JE_LAUF or not zeit_ok():
             break
-        if not alt((wallets.get(w) or {}).get("ts"), NEU_TAGE * 24):
+        if (wallets.get(w) or {}).get("v") == VERSION and not alt((wallets.get(w) or {}).get("ts"), NEU_TAGE * 24):
             continue
         zeilen, fehler = [], False
         for st in ("CLOSED", "REDEEMABLE", "REDEEMABLE_LOST"):
@@ -155,7 +161,7 @@ def lauf(get, maerkte, stat, zeit_ok=lambda: True):
             stat["profiProbe"] = sorted(zeilen[0].keys())[:40]
         wt = wertung(zeilen, fuss, ab_ts)
         bel, ren, ug = urteil(wt)
-        wallets[w] = {**wt, "ts": JETZT.isoformat(), "rendite": ren, "renditeUg": ug, "belegt": bel,
+        wallets[w] = {**wt, "v": VERSION, "ts": JETZT.isoformat(), "rendite": ren, "renditeUg": ug, "belegt": bel,
                       "name": (kand.get(w) or {}).get("name"), "board": {k: v for k, v in (kand.get(w) or {}).items() if k != "name"},
                       "roh": len(zeilen)}
         gemacht += 1
@@ -165,6 +171,6 @@ def lauf(get, maerkte, stat, zeit_ok=lambda: True):
     DATEI.parent.mkdir(exist_ok=True)
     DATEI.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     stat["profiGeprueft"] = gemacht
-    stat["profiBelegt"] = sum(1 for v in wallets.values() if v.get("belegt"))
+    stat["profiBelegt"] = sum(1 for v in wallets.values() if v.get("belegt") and v.get("v") == VERSION)
     stat["profiBekannt"] = len(wallets)
     return abrufe
