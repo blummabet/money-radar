@@ -1154,7 +1154,12 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                        "gewinn": round(v.get("gewinn") or 0), "einsatz": round(v.get("einsatz") or 0), "treffer": round(100 * (v.get("wins") or 0) / v["n"]),
                        "sport": haupt, "bySport": {k: [x[0], round(100 * x[2] / x[1], 1) if x[1] else None] for k, x in bs.items()},
                        # Regel W6: unter 2 % Rendite kein Profi (Auflösungs-Käufer mit 99 % Treffer und +0,1 %)
-                       "belegt": bool(v.get("belegt")) and (v.get("rendite") or 0) >= 2, "board": v.get("board"), "ts": v.get("ts"), "offen": len(pos_je.get(pw) or []),
+                       # Regel W10 (24.11., Lucas: „viele Trades, positiver ROI — nicht die Einsatzgröße"): zusätzlich pro Wette
+                       # (gleicher Einsatz, so wie wir nachspielen) ≥ 2 % und Untergrenze > 0. Beides muss halten: gewichtet
+                       # fängt die Kleinticket-Lotterie (pnhkyb +174 % je Wette, +1 % aufs Geld), je Wette die Riesen-Glückstreffer
+                       # (Artemiion +108 % aufs Geld, −11 % je Wette).
+                       "belegt": bool(v.get("belegt")) and (v.get("rendite") or 0) >= 2
+                                 and (_flach(v).get("flach") or 0) >= 2 and (_flach(v).get("flachUg") or -1) > 0, "board": v.get("board"), "ts": v.get("ts"), "offen": len(pos_je.get(pw) or []),
                        "pruefen": v.get("pruefen"), "hinweis": v.get("hinweis"), "gesichtet": v.get("gesichtet"),
                        # 24.11. Wallet-Seite: Steckbrief aus poly_profis.steckbrief (erst nach Neu-Wertung vorhanden)
                        "einsatzSport": {k: [round(x[1]), round(x[2])] for k, x in bs.items()},
@@ -1180,6 +1185,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                                  "fensterClv": None, "clvUg": None, "fensterN": r["n"], "n": r["n"],
                                  "schnittUsd": round(r["einsatz"] / r["n"]) if r["n"] else None, "roi": r["rendite"], "nGeld": r["n"],
                                  "rendite": r["rendite"], "renditeUg": r["renditeUg"], "gewinn": r["gewinn"],
+                                 "flach": r.get("flach"), "flachUg": r.get("flachUg"),
                                  "pnl": None, "sport": r["sport"],
                                  "offen": [{"markt": p.get("key"), "seite": p.get("side"), "usd": p.get("usd"),
                                             "preis": p.get("lastPrice") or p.get("firstPrice"), "anpfiff": p.get("koTs"),
@@ -1191,14 +1197,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                    "belegt": sum(1 for r in profis if r["belegt"]), "seit": profi_d.get("ts"),
                    "gesichtet": len(profi_d.get("gesichtet") or {}), "offenGesichtet": lf.get("offenGesichtet"),
                    "pruefen": sum(1 for r in profis if r.get("pruefen")),
-                   "unbekannt": dict(list((profi_d.get("unbekannt") or {}).items())[:8]),
-                   # 24.11. Vergleich für die W10-Entscheidung (gleicher Einsatz je Wette statt nach Einsatz gewichtet)
-                   "vergleich": {"flachBelegt": sum(1 for r in profis if (r.get("n") or 0) >= 50 and (r.get("flach") or 0) >= 2 and (r.get("flachUg") or -1) > 0),
-                                 "beide": sum(1 for r in profis if r["belegt"] and (r.get("flach") or 0) >= 2 and (r.get("flachUg") or -1) > 0),
-                                 "nurGewichtet": [[r.get("name") or r["wallet"][:8], r["n"], r["rendite"], r.get("flach"), r.get("flachUg")]
-                                                  for r in profis if r["belegt"] and not ((r.get("flach") or 0) >= 2 and (r.get("flachUg") or -1) > 0)][:40],
-                                 "nurFlach": [[r.get("name") or r["wallet"][:8], r["n"], r["rendite"], r.get("flach"), r.get("flachUg")]
-                                              for r in profis if not r["belegt"] and (r.get("n") or 0) >= 50 and (r.get("flach") or 0) >= 2 and (r.get("flachUg") or -1) > 0][:40]}}
+                   "unbekannt": dict(list((profi_d.get("unbekannt") or {}).items())[:8])}
 
     # Aktuelle Grosshalter je Markt (nah am Anpfiff, mit Geld-Split): poly_money_broad_offen.
     # Daraus „setzt gerade auf" fuer die Rangliste — der Track allein kennt nur, was er schon
@@ -1290,7 +1289,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                            "rang": [x for x in belegt_liste if bool(x.get("profi")) == bool(w.get("profi"))].index(w) + 1,
                            "rangVon": sum(1 for x in belegt_liste if bool(x.get("profi")) == bool(w.get("profi"))),
                            "profi": w.get("profi"), "name": w.get("name"),
-                           "rendite": w.get("rendite"), "renditeUg": w.get("renditeUg"), "gewinn": w.get("gewinn"),
+                           "rendite": w.get("rendite"), "renditeUg": w.get("renditeUg"), "flach": w.get("flach"), "flachUg": w.get("flachUg"), "gewinn": w.get("gewinn"),
                            "spiel": name_fuer(o["markt"]), "jetzt": ((quelle.get(o["markt"]) or {}).get("prices") or {}).get(o.get("seite"))})
     setzen.sort(key=lambda x: -float(x.get("usd") or 0))
 
@@ -2876,7 +2875,7 @@ def belegte_positionen(wallets, track, *quellen):
         w = bew[wallet]
         liste.append({"wallet": wallet, "seite": seite, "usd": round(float(usd)), "preis": preis,
                       "clv": w.get("fensterClv"), "clvUg": w.get("clvUg"), "n": w.get("fensterN"),
-                      "profi": w.get("profi"), "rendite": w.get("rendite"), "renditeUg": w.get("renditeUg")})
+                      "profi": w.get("profi"), "rendite": w.get("rendite"), "renditeUg": w.get("renditeUg"), "flach": w.get("flach"), "flachUg": w.get("flachUg")})
 
     for p in ((track or {}).get("open") or {}).values():
         if isinstance(p, dict) and zukunft(p.get("koTs"), nach_h=2.2, bis_h=72):
@@ -2977,7 +2976,7 @@ def cm1(belegt, maerkte, wallets):
                         "seite": x["seite"], "preis": p, "quote": round(1 / p, 3), "usd": x["usd"], "faktor": round(x["usd"] / su, 2),
                         "schnittUsd": su, "wallet": x["wallet"], "clv": w.get("fensterClv"), "clvUg": w.get("clvUg"), "n": w.get("fensterN"),
                         "roi": w.get("roi"), "nGeld": w.get("nGeld"), "profi": w.get("profi"), "name": w.get("name"),
-                        "rendite": w.get("rendite"), "renditeUg": w.get("renditeUg"), "gewinn": w.get("gewinn"),
+                        "rendite": w.get("rendite"), "renditeUg": w.get("renditeUg"), "flach": w.get("flach"), "flachUg": w.get("flachUg"), "gewinn": w.get("gewinn"),
                         "rang": next((i + 1 for i, v in enumerate(wallets or []) if v["wallet"] == x["wallet"]), None),
                         "pnl": w.get("pnl"), "mit": [{"w": y["wallet"][-4:], "usd": y["usd"]} for y in mit],
                         "gegenUsd": sum(y["usd"] for y in gegen), "marktUsd": m.get("totalUsd"),

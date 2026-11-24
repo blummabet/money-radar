@@ -155,9 +155,22 @@ def _():
 @pruefe("Wal-Push W9: Sport-Profi nur ab Untergrenze ≥ 3 % und ≥ 100 Wetten")
 def _():
     schwach = _setzen(9000, profi=True, renditeUg=1.0, n=773, rendite=8.5, gewinn=116000, name="JabJabich")
-    stark = _setzen(9000, profi=True, renditeUg=13.4, n=3964, rendite=20.9, gewinn=142000, name="testyeagles")
+    stark = _setzen(9000, profi=True, renditeUg=13.4, n=3964, rendite=20.9, gewinn=142000, name="testyeagles", flach=9.0, flachUg=4.1)
     gleich(_arten(_wal_daten([schwach])), [("walProfiB", False)], "schwacher Profi")
     gleich(_arten(_wal_daten([stark])), [("wal", True)], "Top-Profi")
+    gleich(_arten(_wal_daten([{**stark, "flachUg": 1.0}])), [("walProfiB", False)], "W10: je Wette unter 3 %")
+
+
+@pruefe("W10: Rendite je Wette — Riesen-Glückstreffer (Artemiion) fällt durch")
+def _():
+    import build
+    # 50 Kleinwetten à $50 mit −20 %, 2 Riesenwetten à $10k mit +150 % → aufs Geld stark, je Wette negativ
+    u = [-0.2] * 50 + [1.5] * 2
+    f = build._flach({"n": len(u), "uSum": sum(u), "uSq": sum(x * x for x in u)})
+    assert f["flach"] < 2 and f["flachUg"] < 0, f
+    u = [0.9, -1.0] * 200   # 400 Wetten, im Schnitt −5 % je Wette
+    f = build._flach({"n": len(u), "uSum": sum(u), "uSq": sum(x * x for x in u)})
+    nah(f["flach"], -5.0, 0.01)
 
 
 @pruefe("Top 3 T10: Bestätigung nötig, nicht kurz vor Anpfiff, live kein Sieg bei Gleichstand")

@@ -843,7 +843,8 @@ def wale(d):
                 bil.append(f"{n} Wetten in 90 Tagen")
             if o.get("rendite") is not None:
                 p1 = lambda x: ("+" if x >= 0 else "−") + f"{abs(x):.1f}".replace(".", ",")   # noqa: E731
-                bil.append(f"Rendite {p1(o['rendite'])} %" + (f" (sicher ≥ {p1(o['renditeUg'])} %)" if o.get("renditeUg") is not None else ""))
+                bil.append(f"Rendite {p1(o['rendite'])} %" + (f" (sicher ≥ {p1(o['renditeUg'])} %)" if o.get("renditeUg") is not None else "")
+                           + (f" · je Wette {p1(o['flach'])} %" if o.get("flach") is not None else ""))
             if o.get("gewinn") is not None:
                 bil.append(("+" if o["gewinn"] >= 0 else "−") + geld(abs(o["gewinn"]), "$"))
         else:
@@ -932,7 +933,9 @@ def wale(d):
                 yield f"wk|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}", None, None, {**beleg, "art": "walKlein"}
             continue
         # W9: Sport-Profi unterhalb der Top-Grenze → kein Push, still
-        if o.get("profi") and not ((o.get("renditeUg") or 0) >= W9_MIN_UG and (o.get("n") or 0) >= W9_MIN_N):
+        # W10: die Untergrenze muss in beiden Rechnungen (aufs Geld und je Wette) halten → die kleinere zählt
+        if o.get("profi") and not (min(o.get("renditeUg") or 0, o.get("flachUg") if o.get("flachUg") is not None else 0) >= W9_MIN_UG
+                                   and (o.get("n") or 0) >= W9_MIN_N):
             if beleg:
                 yield f"wb|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}", None, None, {**beleg, "art": "walProfiB", "regelW": "W9"}
             continue
