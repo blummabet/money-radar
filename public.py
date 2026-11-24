@@ -786,7 +786,8 @@ def buchen(s, m, nr_f, jetzt, punkte=None, grund=None):
                        "live": bool(m.get("live")), "regel": REGEL, "faktor": m.get("faktor"),
                        "gesendet": True, "punkte": punkte, "grund": grund, "qInfo": m.get("qInfo"),
                        "stake": m.get("_stake"), "stakeRegel": STAKING_REGEL if m.get("_stake") else None,
-                       "p": m.get("_teile"), "still": m.get("_still"), "vt": m.get("_vt")})
+                       "p": m.get("_teile"), "still": m.get("_still"), "vt": m.get("_vt"),
+                       "gegenWal": m.get("gegenWal")})   # R39 (24.11.): Public-Pick mit bewährtem Geld dagegen
 
 
 def _wann(iso, jetzt):

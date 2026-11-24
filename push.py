@@ -1683,9 +1683,14 @@ def serie(d):
         # Public-Regel 18 (Lucas 09.11. FOKUS – Alliance: „solang sich die Seiten nicht einig sind, ist es ein Coinflip"):
         # hält ein bewährtes Wallet (Rangliste, CLV-Untergrenze > 0) ≥ $5k auf der Gegenseite, oder kam in den letzten 6 h
         # ein Wal-Push auf die Gegenseite, geht die Serie nicht in den Public-Kanal — still gemessen als „pserieGegen".
+        # 24.11. Regel R39 (Lucas: „ok mach so — aber in der Push kein Hinweis, verunsichert Leute sonst"): P18 aufgehoben.
+        # Gesperrt seit 09.11.: 69 Fälle +18 % ±12 gegen gesendet live +16 % ±6 — die Sperre kostete gute Picks.
+        # Die Serie darf jetzt trotz Geld dagegen in den Public, OHNE Hinweis im Text. Weiter still als „pserieGegen"
+        # gebucht (Vergleich über id + Auswahl mit den Public-Picks); nach 30 weiteren Public-Picks mit Geld dagegen:
+        # liegen sie im Minus, wird wieder gesperrt.
         gw = _poly_gegenwal(d, x)
         if gw and pub:
-            pub = None
+            pub["gegenWal"] = True
             yield (f"pg|{x['id']}|{x['auswahl']}", None, None,
                    {"art": "pserieGegen", "id": x["id"], "titel": x.get("titel"), "heim": None, "gast": None,
                     "liga": x.get("liga"), "sport": x.get("sport") or "Fußball", "anpfiff": x.get("anpfiff"),
