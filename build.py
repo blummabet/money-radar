@@ -902,7 +902,7 @@ MIN_FENSTER = 15    # Aufloesungen im Messfenster, ab denen eine Untergrenze etw
 # 10.11. (Lucas: „Messlatte höher, dass Glückstreffer weg sind"): bei ~200 geprüften Wallets wirkten mit 90 % (z 1,645)
 # rund 10 nur durch Zufall „bewährt" — jetzt 99 % (z 2,33). Stand 10.11.: 32 → 17 bewährte.
 BEWAEHRT_Z = 2.33
-# Regel W2 (24.11., Lucas: „das erste Wallet ist komplett rot … die Rangliste ist so wertlos"): belegt hieß bisher nur
+# Regel W3 (24.11., Lucas: „das erste Wallet ist komplett rot … die Rangliste ist so wertlos"): belegt hieß bisher nur
 # „CLV-Untergrenze > 0" ab 15 Wetten. So stand oben ein Wallet mit 16 Wetten und −$196k Polymarket-Bilanz, und 9 der
 # 17 „belegten" lagen in der eigenen Wett-Bilanz oder bei Polymarket im Minus. Jetzt müssen ALLE vier passen:
 W2_MIN_N = 40            # gewertete Wetten im Fenster
@@ -1044,10 +1044,40 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
         pf = sc.get("portfolio")
         w["anteil"] = round(100 * w["schnittUsd"] / pf, 1) if pf else None
     # Sortiert nach der UNTERGRENZE: wer oben steht, ist nicht nur im Schnitt gut, sondern belegt.
-    # W2: erst die, die alle vier Prüfungen bestehen, dann der Rest nach Untergrenze (zum Beobachten)
+    # W3: erst die, die alle vier Prüfungen bestehen, dann der Rest nach Untergrenze (zum Beobachten)
     wallets.sort(key=lambda r: (not r["w2"], -r["clvUg"]))
     wallets = wallets[:25]
     bewiesen = {w["wallet"] for w in wallets if w["w2"]}
+    # 24.11. Regel W4: Sport-Profis aus der Polymarket-Bestenliste (poly_profis.py) zählen ebenfalls als belegt
+    profi_d = eigen("poly_profis.json", ".pm", default={}) or {}
+    profis = []
+    for pw, v in (profi_d.get("wallets") or {}).items():
+        if not isinstance(v, dict) or (v.get("n") or 0) < 20:
+            continue
+        bs = v.get("bySport") or {}
+        haupt = max(bs.items(), key=lambda kv: kv[1][0])[0] if bs else None
+        profis.append({"wallet": pw, "name": v.get("name"), "n": v.get("n"), "rendite": v.get("rendite"), "renditeUg": v.get("renditeUg"),
+                       "gewinn": round(v.get("gewinn") or 0), "einsatz": round(v.get("einsatz") or 0), "treffer": round(100 * (v.get("wins") or 0) / v["n"]),
+                       "sport": haupt, "bySport": {k: [x[0], round(100 * x[2] / x[1], 1) if x[1] else None] for k, x in bs.items()},
+                       "belegt": bool(v.get("belegt")), "board": v.get("board"), "ts": v.get("ts"), "offen": len(pos_je.get(pw) or [])})
+    profis.sort(key=lambda r: (not r["belegt"], -(r["renditeUg"] if r["renditeUg"] is not None else -999)))
+    bewiesen |= {r["wallet"] for r in profis if r["belegt"]}
+    # Für Markierungen, PK1, CM1, „Belegte Wale setzen gerade": eine Liste aus W3-Wallets und W4-Profis
+    belegt_liste = [w for w in wallets if w["wallet"] in bewiesen]
+    in_w = {w["wallet"] for w in belegt_liste}
+    for r in profis:
+        if r["belegt"] and r["wallet"] not in in_w:
+            oj = sorted(pos_je.get(r["wallet"]) or [], key=lambda p: -float(p.get("usd") or 0))
+            belegt_liste.append({"wallet": r["wallet"], "bewiesen": True, "profi": True, "name": r.get("name"),
+                                 "fensterClv": None, "clvUg": None, "fensterN": r["n"], "n": r["n"],
+                                 "schnittUsd": round(r["einsatz"] / r["n"]) if r["n"] else None, "roi": r["rendite"], "nGeld": r["n"],
+                                 "pnl": None, "sport": r["sport"],
+                                 "offen": [{"markt": p.get("key"), "seite": p.get("side"), "usd": p.get("usd"),
+                                            "preis": p.get("lastPrice") or p.get("firstPrice"), "anpfiff": p.get("koTs"),
+                                            "einstieg": p.get("entryPrice") or p.get("firstPrice"), "einTs": p.get("firstTs"),
+                                            "marktUsd": p.get("marktUsd"), "sport": p.get("sport")} for p in oj[:5]]})
+    profi_stand = {"kandidaten": len((profi_d.get("board") or {}).get("kandidaten") or {}), "geprueft": len(profi_d.get("wallets") or {}),
+                   "belegt": sum(1 for r in profis if r["belegt"]), "seit": profi_d.get("ts")}
 
     # Aktuelle Grosshalter je Markt (nah am Anpfiff, mit Geld-Split): poly_money_broad_offen.
     # Daraus „setzt gerade auf" fuer die Rangliste — der Track allein kennt nur, was er schon
@@ -1127,15 +1157,15 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
 
     # Was die belegten Wallets JETZT halten — das Kernstück: gutes Timing, nachgewiesen, mit Geld drin.
     setzen = []
-    for w in wallets:
-        if not w["bewiesen"]:
+    for w in belegt_liste:
+        if not w.get("bewiesen"):
             continue
         for o in w["offen"]:
             if float(o.get("usd") or 0) < 500 or not poly_key_ok(o.get("markt")) or not zukunft(o.get("anpfiff"), nach_h=0, bis_h=72) or not sport_ok(o.get("sport")):
                 continue
             setzen.append({**o, "wallet": w["wallet"], "clv": w["fensterClv"], "clvUg": w["clvUg"],
                            "n": w["fensterN"], "pnl": w.get("pnl"), "schnittUsd": w.get("schnittUsd"),
-                           "rang": wallets.index(w) + 1, "rangVon": sum(1 for x in wallets if x["bewiesen"]),
+                           "rang": belegt_liste.index(w) + 1, "rangVon": len(belegt_liste), "profi": w.get("profi"),
                            "spiel": name_fuer(o["markt"]), "jetzt": ((quelle.get(o["markt"]) or {}).get("prices") or {}).get(o.get("seite"))})
     setzen.sort(key=lambda x: -float(x.get("usd") or 0))
 
@@ -1164,7 +1194,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                      "usd": z.get("usd"), "preis": z.get("whaleEntry"), "anteilSeite": z.get("seitenAnteil"),
                      "liga": z.get("league"), "zeit": z.get("sentAt"), "status": z.get("status")})
     wale.sort(key=lambda r: r["zeit"] or "", reverse=True)
-    return {"wallets": wallets, "liveWallets": live_wallets, "gewinnListen": gewinn_listen, "maerkte": auswahl, "walPushes": wale[:20], "setzen": setzen[:20],
+    return {"wallets": wallets, "belegtListe": belegt_liste, "profis": profis[:40], "profiStand": profi_stand, "liveWallets": live_wallets, "gewinnListen": gewinn_listen, "maerkte": auswahl, "walPushes": wale[:20], "setzen": setzen[:20],
             "tradesPushes": tp[:40], "tradesBilanz": bil, "tradesSeit": (trades_record or {}).get("startAb"),
             "regel": {"minN": MIN_N, "minSchnittUsd": MIN_SCHNITT_USD, "minFenster": MIN_FENSTER}}
 
@@ -4070,9 +4100,9 @@ def main() -> int:
         "topfDyn": eigen("topf_gewichte.json", ".push_state", default=None),   # 17.11. Topf-Regel R31
         "bfSpanne": bf_spanne(prices),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
-        "polyBelegt": (pbel := belegte_positionen(pmd.get("wallets"), track, upcoming, live_m, offen_m)),
+        "polyBelegt": (pbel := belegte_positionen(pmd.get("belegtListe"), track, upcoming, live_m, offen_m)),
         "pk1": pk1(pbel, upcoming),             # 20.11. Regel PK1 (Beobachtung)
-        "cm1": cm1(pbel, upcoming, pmd.get("wallets")),   # 20.11. Regel CM1 (Claude-Master, Test-Push)
+        "cm1": cm1(pbel, upcoming, pmd.get("belegtListe")),   # 20.11. Regel CM1 (Claude-Master, Test-Push)
         "marktCharts": markt_charts(radar),
         "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(live_m or {})}, hr, pfl, pbel),
         "auchWoanders": dict(AUCH_WOANDERS),

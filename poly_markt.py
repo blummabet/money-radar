@@ -1014,7 +1014,7 @@ def main() -> int:
     if _STAT.get("clvUnmoeglich"):
         print(f"  poly_markt: {_STAT['clvUnmoeglich']} Positionen mit unmöglichem CLV (> {CLV_MAX_PP} pp) nicht gewertet")
     print(f"  poly_markt: Lebensbilanz (v2 user-pnl) für {_STAT.get('pnlOk', 0)} Wallets geholt")
-    try:                                                  # 24.11. Regel W3: Sport-Profis aus der Polymarket-Bestenliste
+    try:                                                  # 24.11. Regel W4: Sport-Profis aus der Polymarket-Bestenliste
         import poly_profis
         ab = poly_profis.lauf(_get, maerkte, _STAT, _zeit_ok)
         print(f"  poly_markt: Sport-Profis — Bestenliste {_STAT.get('profiBoard', '–')} · {_STAT.get('profiGeprueft', 0)} geprüft "

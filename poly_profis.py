@@ -1,14 +1,14 @@
-"""Regel W3 „Sport-Profis" (24.11., Lucas: „du kannst mir nicht erzählen, dass wir auf einem der größten Prediction-
+"""Regel W4 „Sport-Profis" (24.11., Lucas: „du kannst mir nicht erzählen, dass wir auf einem der größten Prediction-
 Märkte der Welt nur 5 Wallets finden, die nachweislich im Plus sind").
 
-Die W2-Liste kennt nur Wallets, die wir selbst als große Halter in unseren Märkten gesehen haben, und nur deren Wetten
+Die W3-Liste kennt nur Wallets, die wir selbst als große Halter in unseren Märkten gesehen haben, und nur deren Wetten
 seit Ende Oktober. Hier der Weg von der anderen Seite:
   1. Kandidaten: Polymarket-Bestenliste /v2/leaderboard (Kategorie sports und esports, Zeitraum Monat und gesamt,
      nach Gewinn) — alle 12 h, je bis 500 Plätze.
   2. Je Kandidat die abgeschlossenen Positionen der letzten 90 Tage (/v2/positions, CLOSED + REDEEMABLE +
      REDEEMABLE_LOST — sonst fehlen nicht eingelöste Verluste und die Rendite sähe zu gut aus), nur unsere Sportarten
      (Fußball, E-Sport, Tennis ohne ATP/WTA). Je Lauf höchstens PROFI_JE_LAUF Wallets, jede alle 3 Tage neu.
-  3. Belegt (W3): mindestens 50 Positionen in unseren Sportarten, Rendite (Gewinn ÷ Einsatz) über null UND die
+  3. Belegt (W4): mindestens 50 Positionen in unseren Sportarten, Rendite (Gewinn ÷ Einsatz) über null UND die
      Untergrenze der Rendite je Wette (z = 1,645) über null.
 Die Sportart einer Position kommt aus dem Slug-Präfix: E-Sport/Tennis fest, Fußball-Präfixe lernt die Datei aus den
 Märkten, die poly_markt sieht (z. B. „den-", „tur-", „ukr1-"). Unbekannte Präfixe zählen nicht.
