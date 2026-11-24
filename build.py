@@ -1065,7 +1065,9 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
     profis.sort(key=lambda r: (not r["belegt"], -(r["renditeUg"] if r["renditeUg"] is not None else -999)))
     bewiesen |= {r["wallet"] for r in profis if r["belegt"]}
     # Für Markierungen, PK1, CM1, „Belegte Wale setzen gerade": eine Liste aus W3-Wallets und W4-Profis
-    belegt_liste = [w for w in wallets if w["wallet"] in bewiesen]
+    # 24.11. (Push „Wallet e015 · Nr. 6 von 6 belegten · 29 Wetten · sicher ≥ −0,02"): e015 besteht W3 NICHT, ist aber
+    # belegter Sport-Profi — stand mit seinen W3-Zahlen in der Liste. Solche Wallets gelten jetzt als Profi (Profi-Zahlen).
+    belegt_liste = [w for w in wallets if w["wallet"] in bewiesen and w["w2"]]
     in_w = {w["wallet"] for w in belegt_liste}
     for r in profis:
         if r["belegt"] and r["wallet"] not in in_w:
