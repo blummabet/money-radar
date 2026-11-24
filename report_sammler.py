@@ -138,7 +138,7 @@ def betfair(alt):
             t["moV"] += v
             t["moN"] += 1
             t["ligen"][z.get("l") or "?"] = t["ligen"].get(z.get("l") or "?", 0) + v
-            t["spiele"][mid] = (v, z.get("l"), z.get("q"), bool(z.get("w")), z.get("a"))
+            t["spiele"][mid] = (v, z.get("l"), z.get("qs") or z.get("q"), bool(z.get("w")), z.get("a"))
             # „Hatte das große Geld recht?" — nur wo es klar war (≥ 60 % des Volumens auf einer Seite)
             if (z.get("a") or 0) >= 60:
                 t["favN"] += 1
