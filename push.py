@@ -2123,7 +2123,7 @@ WI_NAMEN = {"pmHalter": "Polymarket-Halter", "pmFehler": "Polymarket-Abrufe", "p
             "pmWertung": "Polymarket-Wallet-Wertung", "pmVerfall": "Polymarket-Positionen", "pmPnl": "Polymarket-Lebensbilanz",
             "pmFluss": "Polymarket-Fluss", "bfLeer": "Betfair-Radar", "lsLeer": "Live-Statistik",
             "pmProfi": "Polymarket-Profi-Prüfung", "pmProfiFehler": "Polymarket-Profi-Prüfung", "pmProfiDaten": "Polymarket-Profi-Daten",
-            "pmProfiStau": "Polymarket-Profi-Prüfung"}
+            "pmProfiStau": "Polymarket-Profi-Prüfung", "pmProfiLuecke": "Polymarket-Sportart-Zuordnung"}
 
 
 def inhalt_pruefen(d):
@@ -2163,6 +2163,15 @@ def inhalt_pruefen(d):
         aus["pmProfiDaten"] = ("Polymarket-Profi-Daten", f"{up} von {gpr} geprüften Wallets mit unplausiblen Positionen (Verlust über Einsatz / fehlende Felder) — Felder der API prüfen")
     if len(gp) >= 6 and gp[-1].get("profiOffenGesichtet", 0) >= 60 and gp[-6].get("profiOffenGesichtet", 0) <= gp[-1]["profiOffenGesichtet"]:
         aus["pmProfiStau"] = ("Polymarket-Profi-Prüfung", f"{gp[-1]['profiOffenGesichtet']} gesichtete Wale ohne Wertung, Stau wird nicht kleiner")
+    # Lernlücke: Slug-Präfixe, die keiner Sportart zugeordnet sind, aber viele Positionen haben (z. B. eine neue Liga)
+    unb = {}
+    for x in gp[-12:]:
+        for k, v in (x.get("profiUnbekannt") or {}).items():
+            unb[k] = unb.get(k, 0) + v
+    gross = sorted(((k, v) for k, v in unb.items() if v >= 300), key=lambda kv: -kv[1])
+    if gross:
+        aus["pmProfiLuecke"] = ("Polymarket-Sportart-Zuordnung", "unbekannte Slug-Präfixe mit vielen Positionen: "
+                                + ", ".join(f"{k} ({v})" for k, v in gross[:6]) + " — Sportart nachtragen, sonst fehlen sie in der Wertung")
     pf = d.get("polyFluss") or {}
     if isinstance(pf.get("maerkte"), list) and not pf["maerkte"] and ts(pf.get("stand")):
         aus["pmFluss"] = ("Polymarket-Fluss", "Lauf ohne einen einzigen Markt mit Käufen")

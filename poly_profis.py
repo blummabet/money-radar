@@ -43,14 +43,22 @@ PROFI_JE_LAUF = 40       # 24.11.: Lauf braucht ~45 s von 240 s — 40 Wallets �
 PROFI_S = 90
 FENSTER_TAGE = 90
 MIN_N = 50
-VERSION = 4        # 2: Einsatz aus Stück × Ø Preis statt total_cost_usdc · 3: W5 (gewichtet, Plausibilität) · 4: + Gebühr
+VERSION = 5        # 2: Einsatz aus Stück × Ø Preis statt total_cost_usdc · 3: W5 (gewichtet, Plausibilität) · 4: + Gebühr · 5: Fußball-Präfixe fest + Archiv, Einsatz ≥ Verlust
 WAL_USD = 500
 SICHT_TAGE = 30
 SEITEN, LIMIT = 3, 1000
 Z = 1.645
 ESPORT = ("cs2", "csgo", "lol", "dota2", "dota", "val", "valorant", "ow", "r6", "rl", "cod", "mlbb", "hok")
 TENNIS = ("itf", "chall", "wtt")
-RAUS = ("atp", "wta", "nba", "nfl", "mlb", "nhl", "ncaa", "cbb", "cfb", "wnba", "ufc", "mma", "f1", "nascar", "pga", "golf")
+# 24.11. (Log „unbekannt": epl 2886, lal 2764, sea 2137, unl 1963 …): nur aus den GERADE offenen Märkten gelernt, fehlten
+# die großen Ligen, wenn an dem Tag keins ihrer Spiele lief. Feste Fußball-Präfixe + Lernen aus dem 60-Tage-Archiv.
+FUSS_FEST = ("epl", "lal", "sea", "bun", "fl1", "ucl", "uel", "uecl", "unl", "mls", "ere", "por", "tur", "bra", "arg", "mex",
+             "jpn", "kor", "chi", "aus", "sco", "bel", "den", "nor", "swe", "sui", "aut", "gre", "pol", "cze", "rou", "ukr",
+             "sau", "efl", "elc", "fac", "cdr", "dfb", "itc", "lib", "sud", "wcq", "fif", "euro", "cop", "col", "per",
+             "uru", "par", "ecu", "chl", "isr", "cyp", "hrv", "srb", "bul", "hun", "svk", "svn", "ire", "wal", "ind",
+             "tha", "vie", "idn", "mys", "qat", "uae", "egy", "mar", "rsa", "can", "usl", "bun2", "lal2", "sea2", "fl2",
+             "efl1", "efl2", "argpn", "ukr1", "dfb", "coppa", "afc", "caf", "concacaf", "conmebol", "kor1", "jpn1")
+RAUS = ("esoccer", "fifa25", "efootball", "atp", "wta", "nba", "nfl", "mlb", "nhl", "ncaa", "cbb", "cfb", "wnba", "ufc", "mma", "f1", "nascar", "pga", "golf")
 _PRAEFIX = re.compile(r"^([a-z0-9]+)-")
 
 
@@ -112,13 +120,15 @@ def wertung(zeilen, fuss, ab_ts):
             continue
         if kosten < 5:
             continue
-        if g < -1.05 * kosten:                    # mehr Verlust als Einsatz ist unmöglich → Datenfehler zählen
+        if g < -1.05 * kosten:
+            # 24.11.: geschlossene Positionen mit mehr Verlust als Stück × Ø Preis (Split/Merge, Umtausch) — der Verlust
+            # laut Polymarket ist echt, also war der Einsatz mindestens so hoch: Einsatz = Verlust (vorsichtig).                    # mehr Verlust als Einsatz ist unmöglich → Datenfehler zählen
             out["unplausibel"] += 1
             if len(out.setdefault("beispiele", [])) < 2:   # Rohfelder für die Diagnose (Log + Datei)
                 out["beispiele"].append({k: z.get(k) for k in ("status", "event_slug", "outcome", "total_size", "current_size",
                                          "avg_price", "current_price", "entry_cost_usdc", "total_cost_usdc", "realized_pnl",
                                          "unrealized_pnl", "total_pnl", "current_value", "redeemable", "totalBought", "initialValue")})
-        g = max(-kosten, g)
+        kosten = max(kosten, -g)
         u = max(-1.0, min(20.0, g / kosten))
         out["n"] += 1
         out["einsatz"] += kosten
@@ -162,17 +172,21 @@ def plausibel(w, abgeschnitten=False):
     return True, ("Seiten abgeschnitten — nur die jüngsten Positionen" if abgeschnitten else None)
 
 
-def lauf(get, maerkte, stat, zeit_ok=lambda: True):
+def lauf(get, maerkte, stat, zeit_ok=lambda: True, lern=None):
     """Ein Schritt je poly_markt-Lauf. get = poly_markt._get. → Zahl der Abrufe."""
     try:
         d = json.loads(DATEI.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         d = {}
-    fuss = dict(d.get("praefixe") or {})
+    fuss = {p: "Fußball" for p in FUSS_FEST}
+    fuss.update(d.get("praefixe") or {})
     for p in d.get("fussPraefixe") or []:         # alte Datei (nur Fußball)
         fuss.setdefault(p, "Fußball")
     jetzt_iso = JETZT.isoformat()
     sicht = dict(d.get("gesichtet") or {})        # W5: Wale aus unseren Märkten {wallet: letzte Sichtung}
+    for k, sp in (lern or {}).items():            # Archiv/offene Wal-Positionen: nur Präfix → Sport
+        if sp and praefix(k):
+            fuss[praefix(k)] = sp
     for k, m in (maerkte or {}).items():          # Präfix → Sport lernen, Wale merken
         m = m or {}
         if m.get("sport") and praefix(k):

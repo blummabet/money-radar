@@ -1016,7 +1016,12 @@ def main() -> int:
     print(f"  poly_markt: Lebensbilanz (v2 user-pnl) für {_STAT.get('pnlOk', 0)} Wallets geholt")
     try:                                                  # 24.11. Regel W4: Sport-Profis aus der Polymarket-Bestenliste
         import poly_profis
-        ab = poly_profis.lauf(_get, maerkte, _STAT, _zeit_ok)
+        lern = {v.get("key"): v.get("sport") for v in (track.get("open") or {}).values() if isinstance(v, dict) and v.get("key")}
+        try:
+            lern.update({k: v.get("sport") for k, v in json.loads(ERLEDIGT.read_text(encoding="utf-8")).items() if isinstance(v, dict)})
+        except Exception:  # noqa: BLE001
+            pass
+        ab = poly_profis.lauf(_get, maerkte, _STAT, _zeit_ok, lern=lern)
         print(f"  poly_markt: Sport-Profis — Bestenliste {_STAT.get('profiBoard', '–')} · {_STAT.get('profiGeprueft', 0)} geprüft "
               f"({ab} Abrufe) · {_STAT.get('profiBekannt', 0)} gewertet · {_STAT.get('profiBelegt', 0)} belegt"
               + (f" · Felder {_STAT['profiProbe']}" if _STAT.get("profiProbe") else ""))
@@ -1035,7 +1040,8 @@ def main() -> int:
                    # 24.11. W5: Profi-Prüfung (geprüft, Abruf-Fehler, unplausible Wallets, gesichtete Wale noch ohne Wertung)
                    "profiGeprueft": _STAT.get("profiGeprueft", 0), "profiFehler": _STAT.get("profiFehler", 0),
                    "profiUnplausibel": _STAT.get("profiUnplausibel", 0), "profiOffenGesichtet": _STAT.get("profiOffenGesichtet", 0),
-                   "profiLaeuft": "profiGeprueft" in _STAT})
+                   "profiLaeuft": "profiGeprueft" in _STAT,
+                   "profiUnbekannt": dict(sorted((_STAT.get("profiUnbekannt") or {}).items(), key=lambda kv: -kv[1])[:5])})
         GESUND.write_text(json.dumps(gz[-150:], separators=(",", ":")), encoding="utf-8")
     except Exception as exc:  # noqa: BLE001
         print(f"  poly_markt: Gesundheit: {exc}")

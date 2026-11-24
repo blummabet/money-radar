@@ -1052,7 +1052,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
     profi_d = eigen("poly_profis.json", ".pm", default={}) or {}
     profis = []
     for pw, v in (profi_d.get("wallets") or {}).items():
-        if not isinstance(v, dict) or (v.get("n") or 0) < 20 or (v.get("v") or 0) < 4:   # v4 = W5 + Gebühr im Einsatz
+        if not isinstance(v, dict) or (v.get("n") or 0) < 20 or (v.get("v") or 0) < 5:   # v5 = W5 + Gebühr + Fußball-Präfixe
             continue
         bs = v.get("bySport") or {}
         haupt = max(bs.items(), key=lambda kv: kv[1][0])[0] if bs else None
@@ -1079,7 +1079,7 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                                             "marktUsd": p.get("marktUsd"), "sport": p.get("sport")} for p in oj[:5]]})
     lf = profi_d.get("lauf") or {}
     profi_stand = {"kandidaten": lf.get("kandidaten") or len((profi_d.get("board") or {}).get("kandidaten") or {}),
-                   "geprueft": lf.get("aktuell", sum(1 for v in (profi_d.get("wallets") or {}).values() if (v.get("v") or 0) >= 4)),
+                   "geprueft": lf.get("aktuell", sum(1 for v in (profi_d.get("wallets") or {}).values() if (v.get("v") or 0) >= 5)),
                    "belegt": sum(1 for r in profis if r["belegt"]), "seit": profi_d.get("ts"),
                    "gesichtet": len(profi_d.get("gesichtet") or {}), "offenGesichtet": lf.get("offenGesichtet"),
                    "pruefen": sum(1 for r in profis if r.get("pruefen")),
