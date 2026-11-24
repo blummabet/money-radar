@@ -3133,18 +3133,34 @@ LIGA_HOCH_ANTEIL = 65            # „Geld liegt klar auf einer Seite"
 LIGA_MIN_N = 25
 
 
+def _lq(r):
+    """Regel LW3 (24.11.): Quote vor Anpfiff (qs), wenn vorhanden — sonst die ältere erste Quote (q)."""
+    q = r.get("qs") if isinstance(r.get("qs"), (int, float)) and r["qs"] > 1 else r.get("q")
+    return q if isinstance(q, (int, float)) and q > 1 else None
+
+
 def _liga_stat(rr):
-    rr = [r for r in rr if isinstance(r.get("q"), (int, float)) and r["q"] > 1 and r.get("w") is not None]
+    rr = [r for r in rr if _lq(r) and r.get("w") is not None]
     n = len(rr)
     if not n:
         return None
-    gew = [((r["q"] - 1) * 0.98 if r["w"] else -1.0) for r in rr]
+    gew = [((_lq(r) - 1) * 0.98 if r["w"] else -1.0) for r in rr]
     m = sum(gew) / n
-    sd = (sum((g - m) ** 2 for g in gew) / (n - 1)) ** 0.5 if n > 1 else 0
-    return {"n": n, "treffer": round(100 * sum(1 for r in rr if r["w"]) / n), "erwartet": round(100 * sum(1 / r["q"] for r in rr) / n),
+    # Regel LW3 (24.11.): bis zu 7 Märkte desselben Spiels (Sieg, HZ, Über 2,5/3,5, BTTS, HZ-Tore) hängen zusammen —
+    # als unabhängig gezählt war die Unsicherheit je Liga zu klein. Jetzt je Spiel gebündelt (Cluster-Standardfehler).
+    je = {}
+    for r, g in zip(rr, gew):
+        je.setdefault(r.get("_mid") or id(r), []).append(g - m)
+    k = len(je)
+    if k > 1:
+        se = (sum(sum(x) ** 2 for x in je.values()) * k / (k - 1)) ** 0.5 / n
+    else:
+        se = 0.0
+    return {"n": n, "spiele": k, "treffer": round(100 * sum(1 for r in rr if r["w"]) / n), "erwartet": round(100 * sum(1 / _lq(r) for r in rr) / n),
             # z = 2,33 statt 1,645: es werden ~140 Ligen gleichzeitig geprüft — bei 90 % wären allein durch Zufall
             # ~7 Ligen „trägt"; bei 99 % ist es gut eine.
-            "roi": round(100 * m, 1), "ug": round(100 * (m - 2.33 * sd / n ** 0.5), 1), "og": round(100 * (m + 2.33 * sd / n ** 0.5), 1)}
+            "roi": round(100 * m, 1), "ug": round(100 * (m - 2.33 * se), 1), "og": round(100 * (m + 2.33 * se), 1),
+            "anteilQs": round(100 * sum(1 for r in rr if isinstance(r.get("qs"), (int, float))) / n)}
 
 
 def liga_bilanz():
@@ -3161,8 +3177,8 @@ def liga_bilanz():
     except Exception:  # noqa: BLE001
         pass
     je = {}
-    for v in buch.values():
-        je.setdefault(v["l"], []).append(v)
+    for k_, v in buch.items():
+        je.setdefault(v["l"], []).append({**v, "_mid": str(k_).split("|")[0]})
     out = {}
     for liga, rr in je.items():
         vols = sorted(r.get("v") or 0 for r in rr)
@@ -3197,7 +3213,7 @@ def liga_bilanz():
 #   ab der Grenze der Liga, ≥ 65 % einseitig). Urteil nach 6 Wochen: trägt, wenn „gut" in ≥ 4 Wochen besser lief als
 #   „schwach" UND über alle Wochen zusammen. Sonst zurück auf das alte 99 %-Urteil.
 LW2_STUFE_PP = 3.0
-LW2_DATEI = BASIS / ".push_state" / "lw2.json"
+LW2_DATEI = BASIS / ".push_state" / "lw3.json"    # 24.11. LW3: neue Prüfung (lw2.json bleibt als Archiv liegen)
 LW2_WOCHEN = 6
 
 
@@ -3217,6 +3233,10 @@ def _lw2_gewichte(ligen):
     q = sum(w[l] * (st[l][0] - m) ** 2 for l in st)
     c = sw - sum(x * x for x in w.values()) / sw
     tau2 = max(0.0, (q - (len(st) - 1)) / c)
+    # LW3 (24.11.): Mittelpunkt der Schrumpfung ist der Ø mit Zufalls-Gewichten 1/(SE² + τ²) — vorher der
+    # Fest-Gewichte-Ø (1/SE²), den die großen Ligen fast allein bestimmten.
+    wr = {l: 1 / (s_ ** 2 + tau2) for l, (_, s_) in st.items()}
+    m = sum(wr[l] * st[l][0] for l in st) / sum(wr.values())
     gut = schwach = 0
     for l, (roi, se) in st.items():
         g = m + tau2 / (tau2 + se * se) * (roi - m)
@@ -3225,7 +3245,7 @@ def _lw2_gewichte(ligen):
         ligen[l].update(gewicht=round(g, 1), lw2Diff=round(d, 1), stufe=stufe)
         gut += stufe == 1
         schwach += stufe == -1
-    return {"mittel": round(m, 1), "tau": round(math.sqrt(tau2), 1), "ligen": len(st), "gut": gut, "schwach": schwach,
+    return {"regel": "LW3", "mittel": round(m, 1), "tau": round(math.sqrt(tau2), 1), "ligen": len(st), "gut": gut, "schwach": schwach,
             "streuungZufall": round(sorted(s for _, s in st.values())[len(st) // 2], 1)}
 
 
@@ -3255,8 +3275,8 @@ def _lw2_pruefung(ligen, buch):
             x = s["stufen"].get(r.get("l"))
             if not x or not (s["ab"] <= t < bis) or (r.get("v") or 0) < x[1] or (r.get("a") or 0) < LIGA_HOCH_ANTEIL:
                 continue
-            if isinstance(r.get("q"), (int, float)) and r["q"] > 1 and r.get("w") is not None:
-                je[x[0]].append((r["q"] - 1) * 0.98 if r["w"] else -1.0)
+            if _lq(r) and r.get("w") is not None:
+                je[x[0]].append((_lq(r) - 1) * 0.98 if r["w"] else -1.0)
         s["ergebnis"] = {str(k): [len(v), round(100 * sum(v) / len(v), 1) if v else None] for k, v in je.items()}
     LW2_DATEI.parent.mkdir(parents=True, exist_ok=True)
     LW2_DATEI.write_text(json.dumps(p, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

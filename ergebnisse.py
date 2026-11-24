@@ -167,7 +167,9 @@ def liga_fortschreiben(jetzt, erg):
         fertig.append(k)
         if w is None or not z.get("l"):
             continue
-        buch[k] = {"l": z["l"], "t": jetzt.strftime("%Y-%m-%d"), "q": z.get("q"), "w": bool(w),
+        # 24.11. (Regel LW3): qs = Quote beim letzten Abruf vor Anpfiff — erst dann stehen Anteil (a) und Volumen (v)
+        # fest, nach denen die Liga-Bilanz auswählt. q (erstes Sehen) liegt davor und kennt die Auswahl noch nicht.
+        buch[k] = {"l": z["l"], "t": jetzt.strftime("%Y-%m-%d"), "q": z.get("q"), "qs": z.get("qs"), "w": bool(w),
                    "v": z.get("v") or 0, "a": z.get("a") or 0, "m": z["m"]}
     for k in fertig:
         offen.pop(k, None)
