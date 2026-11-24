@@ -716,7 +716,8 @@ def bf_drops(prices, bf_hist):
 # * Rote Karte im Spiel wird markiert, nicht ausgeschlossen (Lucas: „deine Risiken sind in Wahrheit top Indikatoren").
 # * Je Spiel die stärkste Auswahl. Still ins Buch (art „bfUhr"), Markout 10 Min minus Grunddrift wie der Live-CLV. Kein Push.
 LD_MAERKTE = re.compile(r"^(Match Odds|Over/Under \d\.5 Goals|First Half Goals \d\.5)$")
-LD_UNTER, LD_UNTER_VOR, LD_MIN_MARKT = 0.08, 0.05, 2000
+LD_UNTER, LD_UNTER_VOR, LD_MIN_MARKT = 0.08, 0.05, 10000   # LD6 (24.11.): Markt ab €10k (vorher €2k)
+LD_UNTER_MAX = 0.30      # LD6: mehr als 30 % unter der Uhr ist fast immer ein alter Kurs im dünnen Markt (5 Min später +17 %)
 
 
 def fluss_uhr(liste, prices, bf_hist):
@@ -859,7 +860,7 @@ def bf_uhr(prices, bf_hist):
                 if erw <= q0 * 1.03:
                     continue
                 unter = 1 - q1 / erw
-                if unter < LD_UNTER or qv > erw_v * (1 - LD_UNTER_VOR):
+                if unter < LD_UNTER or unter > LD_UNTER_MAX or qv > erw_v * (1 - LD_UNTER_VOR):
                     continue
                 if best is None or unter > best["unter"]:
                     best = {"id": mid, "heim": m.get("home"), "gast": m.get("away"), "liga": m.get("league"), "land": m.get("country"),

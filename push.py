@@ -1977,6 +1977,7 @@ def bf_drops_still(d):
                 "quote": x["quote"], "pp": x.get("pp"), "frisch": x.get("frisch"), "eur": x.get("eur"), "regel": x.get("regel") or "BD1"})
 
 
+LD2_AN = False           # LD6 (24.11.): Test-Push abgeschaltet
 LD_PUSH_UNTER = 15.0     # Regel LD2: Test-Push ab 15 % unter der Uhr (Anzeige/Messung ab 8 %)
 
 
@@ -2006,7 +2007,9 @@ def bf_uhr_still(d):
     for x in d.get("bfUhr") or []:
         if not isinstance(x.get("quote"), (int, float)) or x["quote"] <= 1:
             continue
-        if (x.get("unter") or 0) >= LD_PUSH_UNTER and str(x["id"]) not in tot_s:
+        # LD6 (24.11., Lucas „wertlos hoch 100"): Test-Push LD2 aus — seit 18.11. 439 Fälle −15,3 %, selbst die echten
+        # (≤ 15 % unter der Uhr) nur ±0. Anzeige und stille Messung (lu|) bleiben.
+        if LD2_AN and (x.get("unter") or 0) >= LD_PUSH_UNTER and str(x["id"]) not in tot_s:
             yield (f"lp|{x['id']}|{x['markt']}|{x['auswahl']}", _uhr_text(d, x), None, None)
         st = x.get("stand") or [0, 0]
         yield (f"lu|{x['id']}|{x['markt']}|{x['auswahl']}|{st[0]}:{st[1]}", None, None,
