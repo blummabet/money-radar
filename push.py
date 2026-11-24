@@ -1807,7 +1807,7 @@ def ki_top3(d):
         return
     try:
         import top3 as _t3
-        oben = _t3.rangliste(d, JETZT)[:3]
+        oben = _t3.rangliste_t10(d, JETZT)[0][:3]   # T10: dieselben drei wie auf der Seite
     except Exception as exc:  # noqa: BLE001
         print(f"  ki_top3: {exc}")
         return

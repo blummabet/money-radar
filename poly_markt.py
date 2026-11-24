@@ -860,7 +860,7 @@ def buch_ereignisse():
     keys = {}
     for b in buch:
         ko = _ts(b.get("anpfiff"))
-        if b.get("art") in ("pserie", "wal", "top3p", "publicErg", "pserieGegen", "walKlein", "pk1", "pk1Streit", "cm1", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB") and b.get("status") == "offen" and b.get("id") and ko \
+        if b.get("art") in ("pserie", "wal", "top3p", "publicErg", "pserieGegen", "walKlein", "pk1", "pk1Streit", "cm1", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "top3pAus") and b.get("status") == "offen" and b.get("id") and ko \
                 and JETZT - ko > timedelta(hours=2):
             keys[b["id"]] = ko
     neu = {}

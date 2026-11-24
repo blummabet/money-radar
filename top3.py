@@ -121,6 +121,21 @@ def mehrere_maerkte(s, fA, fM):
     return [] if gegen or len(fam) < 2 else sorted(fam)
 
 
+T10_BESTAETIGUNG = ("serie", "druck", "stake", "poly")
+
+
+def t10_gruende(p, live, ko, jetzt, markt=None, lage=None):
+    """Top-3-Regel 10 → Liste der Gründe, warum ein Kandidat NICHT in die Top 3 darf ([] = darf). REIN."""
+    g = []
+    if not any(k in p for k in T10_BESTAETIGUNG):
+        g.append("nur Geld, keine Bestätigung")
+    if not live and ko and timedelta(0) <= ko - jetzt < timedelta(hours=1):
+        g.append("letzte Stunde vor Anpfiff")
+    if live and markt in ("Match Odds", "Half Time") and lage in ("gleich", "hinten"):
+        g.append("live Sieg bei " + ("Gleichstand" if lage == "gleich" else "Rückstand"))
+    return g
+
+
 def faktoren():
     """Top-3-Regel 7 (17.11.): Gewichte je Signal aus t3_dynamik — nur wenn dort „aktiv" (Walk-Forward bestanden),
     sonst alle 1,0. Die Seite liest dieselbe Datei (D.t3Dyn)."""
@@ -233,7 +248,16 @@ def rangliste(d, jetzt):
         if _st == 1:
             still["liga"] = 1
         summe = _summe(p, F) - (1 if _st == -1 else 0)
-        aus.append({"art": "top3", "id": str(s.get("id")), "heim": s.get("heim"), "gast": s.get("gast"), "liga": s.get("liga"),
+        # Top-3-Regel 10 (24.11., Lucas „ja"): drei Filter, nachgerechnet auf 908 Einträgen seit Regel 6 (beide Hälften +):
+        # (1) neben dem Geld eine Bestätigung — Dauerzufluss, Druck, Stake oder belegter Wal (ohne −7,7 % (572), mit +2,1 % (336));
+        # (2) nicht in der letzten Stunde vor Anpfiff (−13,5 %, 149); (3) live keine Sieg-Wette bei Gleichstand/Rückstand
+        # (−7,0 % (182) / −35 % (17)). Zusammen 261 Fälle +6,7 % ±5,4, was rausfiel 647 −8,5 %. Rausgefiltert → still „top3Aus".
+        _lage = (None if not lv or fk not in ("heim", "gast") else
+                 "vorn" if (stand[0 if fk == "heim" else 1] or 0) > (stand[1 if fk == "heim" else 0] or 0) else
+                 "hinten" if (stand[0 if fk == "heim" else 1] or 0) < (stand[1 if fk == "heim" else 0] or 0) else "gleich")
+        _ko = _ts(s.get("anpfiff"))
+        t10 = t10_gruende(p, live=bool(lv), ko=_ko, jetzt=jetzt, markt=(fM or {}).get("name"), lage=_lage)
+        aus.append({"art": "top3", "t10": t10, "id": str(s.get("id")), "heim": s.get("heim"), "gast": s.get("gast"), "liga": s.get("liga"),
                     "anpfiff": s.get("anpfiff"), "live": bool(lv), "top5": bool(s.get("top5")), "normEur": s.get("normEur"), "ligaEur": s.get("ligaEur"), "markt": (fM or {}).get("name"),
                     "auswahl": fA.get("name"), "quote": q, "eur": s.get("eur"), "punkte": round(summe, 2),
                     "signale": sorted(p), "n": len(p), "familien": mm, "normStill": norm_still,
@@ -286,7 +310,7 @@ def rangliste(d, jetzt):
         if any(_burst(g, jetzt) and schluessel(*(str(g.get("spiel") or "").split(" - ", 1) + [""])[:2]) == sk
                and team(g.get("auswahl")) == team(fokus) for g in gruppen):
             p["stake"] = 3   # Regel 6
-        aus.append({"art": "top3p", "id": m.get("key"), "heim": heim, "gast": gast, "titel": m.get("titel"), "liga": m.get("liga"),
+        aus.append({"art": "top3p", "t10": t10_gruende(p, live=bool(m.get("live")), ko=ko, jetzt=jetzt), "id": m.get("key"), "heim": heim, "gast": gast, "titel": m.get("titel"), "liga": m.get("liga"),
                     "sport": m.get("sport") or "Fußball", "anpfiff": m.get("anpfiff"), "live": bool(m.get("live")),
                     "top5": bool(m.get("top5")), "markt": "Sieger", "auswahl": fokus, "quote": round(quote, 4),
                     "preis": round(1 / quote, 4), "usd": m.get("usd"), "punkte": round(_summe(p, F), 2), "signale": sorted(p), "n": len(p),
@@ -296,11 +320,26 @@ def rangliste(d, jetzt):
     return aus
 
 
+def rangliste_t10(d, jetzt):
+    """→ (Top-3-fähige Kandidaten, herausgefilterte) nach Regel 10."""
+    alle = rangliste(d, jetzt)
+    return [x for x in alle if not x.get("t10")], [x for x in alle if x.get("t10")]
+
+
 def eintragen(d, buch, jetzt):
     """Neue Einzüge in die Top 3 ins Buch; bestehende bekommen nur ihren besten Platz nachgezogen."""
     neu = 0
     offen = {(b.get("id"), b.get("markt"), b.get("auswahl")): b for b in buch if b.get("art") in ("top3", "top3p")}
-    for rang, x in enumerate(rangliste(d, jetzt)[:3], 1):
+    gut, raus = rangliste_t10(d, jetzt)
+    # T10: die drei besten Herausgefilterten still als „top3Aus" — derselbe erste Einzug je Spiel + Markt + Auswahl
+    schon_aus = {(b.get("id"), b.get("markt"), b.get("auswahl")) for b in buch if b.get("art") in ("top3Aus", "top3pAus")}
+    for x in raus[:3]:
+        k = (x["id"], x["markt"], x["auswahl"])
+        if k in schon_aus or k in offen:
+            continue
+        buch.append({**x, "art": "top3Aus" if x["art"] == "top3" else "top3pAus", "artT3": x["art"], "ts": jetzt.isoformat(), "status": "offen", "regel": 10})
+        schon_aus.add(k)
+    for rang, x in enumerate(gut[:3], 1):
         k = (x["id"], x["markt"], x["auswahl"])
         if k in offen:
             b = offen[k]
@@ -308,7 +347,7 @@ def eintragen(d, buch, jetzt):
             b["bestPunkte"] = max(b.get("bestPunkte") or 0, x["punkte"])
             continue
         b = {**x, "rang": rang, "bestRang": rang, "bestPunkte": x["punkte"], "ts": jetzt.isoformat(), "status": "offen",
-             "regel": 9}   # Regel 9 ab 24.11. ~13 Uhr: Mehrere Märkte und Liga gut ohne Punkte (still) · Regel 6 ab 17.11. ~14 Uhr: Liga-Norm keine Punkte, Stake 3/2 statt 2/1; Regel 5 ab 10.11. ~9:30: Polymarket-/Stake-Punkt (1) nur bei Geld auf dieselbe Seite; Regel 4 ab 05.11.: + „pinnMit" (still); Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
+             "regel": 10}   # Regel 10 ab 24.11. ~13:20: nur mit Bestätigung, nicht in der letzten Stunde vor Anpfiff, live kein Sieg bei Gleichstand/Rückstand · Regel 9 ab 24.11. ~13 Uhr: Mehrere Märkte und Liga gut ohne Punkte (still) · Regel 6 ab 17.11. ~14 Uhr: Liga-Norm keine Punkte, Stake 3/2 statt 2/1; Regel 5 ab 10.11. ~9:30: Polymarket-/Stake-Punkt (1) nur bei Geld auf dieselbe Seite; Regel 4 ab 05.11.: + „pinnMit" (still); Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
         buch.append(b)
         offen[k] = b
         neu += 1

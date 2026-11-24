@@ -33,7 +33,7 @@ ERGEBNISSE = BASIS / ".bf" / "ergebnisse.json"
 KOMMISSION = 0.02
 VERFALL_TAGE = 4          # nach 4 Tagen ohne Ergebnis: „unaufgelöst"
 BEHALTEN = 6000           # 23.10.: Top-3-Messung kommt dazu
-POLY_ARTEN = ("pserie", "wal", "top3p", "walKlein", "publicErg", "pserieGegen", "pk1", "pk1Streit", "cm1", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB")   # publicErg: 09.11. Public-Signal über Polymarket abrechnen
+POLY_ARTEN = ("pserie", "wal", "top3p", "walKlein", "publicErg", "pserieGegen", "pk1", "pk1Streit", "cm1", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "top3pAus")   # publicErg: 09.11. Public-Signal über Polymarket abrechnen
 ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "Wal-Einstieg Polymarket", "zufluss": "Zufluss vor Anpfiff", "live": "Live-Zufluss", "ht": "Halbzeit-Geld", "fix": "Fix-Verdacht", "pinn": "Pinnacle + Geld",
          "serieFuehrt": "Live-Dauerzufluss auf den Führenden (nicht gepusht, ab 30.10.)",
          "serieRuhig": "Dauerzufluss, der abgeebbt ist (Regel S4, nicht gepusht, ab 07.11.)",
@@ -61,6 +61,8 @@ ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "W
          "cm1": "Claude-Master: bewährte Wallet setzt ≥ 1× ihren Schnitt, keine Gegenwehr (Regel CM1, Test-Push, ab 20.11.)",
          "pk1": "Konsens: ≥ 2 bewährte Wallets einig, keine dagegen (Regel PK1, nicht gepusht, ab 20.11.)",
          "pk1Streit": "Konsens bewährter Wallets mit bewährtem Geld dagegen (Vergleich zu PK1, nicht gepusht, ab 20.11.)",
+         "top3Aus": "Top-3-Kandidat, von Regel T10 herausgefiltert (Betfair) — nicht gezeigt, ab 24.11.",
+         "top3pAus": "Top-3-Kandidat, von Regel T10 herausgefiltert (Polymarket) — nicht gezeigt, ab 24.11.",
          "walProfiB": "Wal-Einstieg eines Sport-Profis unter der Top-Grenze (Untergrenze < 3 % oder < 100 Wetten) — nicht gepusht (Regel W9, ab 24.11.)",
          "walStreit": "Wal-Einstieg mit belegtem Geld dagegen (≥ halber Einsatz) — kein eigener Push (Regel W8, ab 24.11.)",
          "walUnter": "Wal-Einstieg unter der W7-Schwelle ($5k, Top-5 $10k) — nicht gepusht, ab 24.11.",
@@ -635,7 +637,7 @@ def poly_abrechnen(buch, jetzt):
         w = None
         if ev:
             # 23.11.: pserieGegen trägt „gegen X" wie die Serie — lief bisher über den Sieger-Abgleich und blieb offen
-            if b["art"] in ("pserie", "top3p", "pserieGegen") or str(b.get("auswahl") or "").startswith("gegen "):
+            if b["art"] in ("pserie", "top3p", "pserieGegen", "top3pAus") or str(b.get("auswahl") or "").startswith("gegen "):
                 w = _poly_ausgang(ev, b.get("auswahl"), str(b.get("id")), _ts(b.get("anpfiff")))
             else:
                 import poly_markt
@@ -746,14 +748,14 @@ def zusammenfassen(buch):
                  "wal": teile([b for b in buch if b.get("art") == "wal"])}
     letzte = [{k: b.get(k) for k in ("art", "heim", "gast", "titel", "anzeige", "eur", "liga", "markt", "auswahl", "quote", "schluss", "ts",
                                     "status", "win", "ft", "live", "top5")}
-              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "mm1Bein", "mm2", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell", "kiTop3")][:40]
+              for b in reversed(buch) if b.get("status") in ("abgerechnet", "offen") and b.get("art") in ARTEN and b.get("art") not in ("serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "top3Aus", "top3pAus", "mm1Bein", "mm2", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell", "kiTop3")][:40]
     # Lucas 20.10. („Übersichtskurve auf die neuen Betfair-Pushes, weil das zählt"): jeder Push als
     # [Zeit UTC, Rendite je Einheit, 1/0] — offen mit None. build.py baut daraus die Bilanz-Kurve.
     grenze = datetime.now(timezone.utc) - timedelta(days=60)
     verlauf = []
     for b in buch:
         t = _ts(b.get("ts"))
-        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "druckVorn", "norm", "normMeist", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "mm1Bein", "mm2", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell", "kiTop3"):
+        if not t or t < grenze or b.get("status") not in ("abgerechnet", "offen") or b.get("art") in ("pserie", "wal", "top3", "top3p", "druck", "druckVorn", "norm", "normMeist", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "top3Aus", "top3pAus", "mm1Bein", "mm2", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis", "ueberQuote", "ueberQuoteTop3", "stake", "ki", "kiModell", "kiTop3"):
             continue
         ab = b.get("status") == "abgerechnet"
         verlauf.append([t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M"), b.get("r") if ab else None,

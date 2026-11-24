@@ -160,6 +160,17 @@ def _():
     gleich(_arten(_wal_daten([stark])), [("wal", True)], "Top-Profi")
 
 
+@pruefe("Top 3 T10: Bestätigung nötig, nicht kurz vor Anpfiff, live kein Sieg bei Gleichstand")
+def _():
+    import top3
+    j = datetime(2026, 11, 24, 12, tzinfo=timezone.utc)
+    gleich(top3.t10_gruende({"neu": 3, "quote": 1}, False, j + timedelta(hours=5), j), ["nur Geld, keine Bestätigung"])
+    gleich(top3.t10_gruende({"neu": 3, "serie": 3}, False, j + timedelta(minutes=30), j), ["letzte Stunde vor Anpfiff"])
+    gleich(top3.t10_gruende({"neu": 3, "druck": 2}, True, None, j, "Match Odds", "gleich"), ["live Sieg bei Gleichstand"])
+    gleich(top3.t10_gruende({"neu": 3, "druck": 2}, True, None, j, "Over/Under 2.5 Goals", "gleich"), [])
+    gleich(top3.t10_gruende({"neu": 3, "stake": 3}, False, j + timedelta(hours=3), j), [])
+
+
 # ── 4. Liga-Bilanz (build.py, Regel LW3) ─────────────────────────────────────────────────────────────────────────
 @pruefe("Liga-Bilanz LW3: Quote vor Anpfiff (qs), Märkte je Spiel gebündelt")
 def _():

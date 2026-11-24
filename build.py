@@ -3420,7 +3420,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "top3Aus", "top3pAus", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
