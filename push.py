@@ -2355,7 +2355,7 @@ def main() -> int:
     except Exception:  # noqa: BLE001
         serie_geld = {}
     grenze = (JETZT - timedelta(days=3)).isoformat()
-    gesehen = {k: v for k, v in gesehen.items() if v >= grenze or k.startswith(("wa|", "wi|"))}      # alte Einträge vergessen
+    gesehen = {k: v for k, v in gesehen.items() if v >= grenze or k.startswith(("wa|", "wi|", "pf|"))}      # alte Einträge vergessen
 
     try:
         antwort = json.loads(ANTWORT.read_text(encoding="utf-8"))
@@ -2369,6 +2369,22 @@ def main() -> int:
     wal_mids = {m: [x for x in v if ts(x[1]) and (JETZT - ts(x[1])).total_seconds() < 48 * 3600] for m, v in wal_mids.items()}
     gesendet = 0
     if not erster_lauf:
+        # 24.11. (Lucas: „vergiss das alles nicht auszuwerten"): reife Prüfungen aus pruefungen.py einmal melden
+        try:
+            import pruefungen
+            st_ = json.loads((BASIS / "site" / "statistik.json").read_text(encoding="utf-8")).get("zeilen") or []
+            for x in pruefungen.stand(st_, JETZT):
+                k_ = f"pf|{x['id']}"
+                if x["reif"] and k_ not in gesehen:
+                    t_ = (f"🧪 <b>Prüfung reif: {e(x['id'])}</b>"
+                          + (f" — {x['n']} von {x['ziel']} Fällen" if x.get("ziel") else f" — Termin {x['datum']}") + "\n"
+                          + f"{e(x['frage'])}\n<i>Ausgewertet wird im nächsten Montags-Check (oder sofort, wenn du fragst).</i>")
+                    if trocken:
+                        print("──", k_, "\n" + t_)
+                    elif senden(token, chat, t_, link=False):
+                        gesehen[k_] = JETZT.isoformat()
+        except Exception as exc:  # noqa: BLE001
+            print(f"  prüfungen: {exc}")
         for key, text, was in waechter(d, gesehen):
             ok = True if trocken else senden(token, chat, text)
             if trocken:

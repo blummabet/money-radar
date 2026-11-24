@@ -171,6 +171,19 @@ def _():
     gleich(top3.t10_gruende({"neu": 3, "stake": 3}, False, j + timedelta(hours=3), j), [])
 
 
+@pruefe("Prüfungs-Register: zählt abgerechnete Fälle ab Start, Datum macht reif")
+def _():
+    import pruefungen
+    j = datetime(2026, 12, 1, tzinfo=timezone.utc)
+    z = [["2026-11-25T10:00", "top3", 0.5, 1, 1.8]] * 100 + [["2026-11-20T10:00", "top3", 0.5, 1, 1.8], ["2026-11-25T10:00", "top3", None, None, 1.8]]
+    s = {x["id"]: x for x in pruefungen.stand(z, j)}
+    gleich(s["T10"]["n"], 100)
+    gleich(s["T10"]["reif"], True)
+    gleich(s["W7"]["reif"], False)
+    gleich(s["S7"]["reif"], True, "Datum 29.11. vorbei")
+    gleich(len({x["id"] for x in pruefungen.REGISTER}), len(pruefungen.REGISTER), "doppelte Prüfungs-Ids")
+
+
 # ── 4. Liga-Bilanz (build.py, Regel LW3) ─────────────────────────────────────────────────────────────────────────
 @pruefe("Liga-Bilanz LW3: Quote vor Anpfiff (qs), Märkte je Spiel gebündelt")
 def _():
