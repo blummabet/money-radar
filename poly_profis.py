@@ -62,7 +62,7 @@ FUSS_FEST = ("epl", "lal", "sea", "bun", "fl1", "ucl", "uel", "uecl", "unl", "ml
              "uslc", "afcq", "conl", "uwcl", "wcl", "uefq", "cafq", "conq", "nwsl", "wsl", "ligamx", "uecq")
 # 24.11.: Frage-Märkte (Langzeit/Spezial: „will-arsenal-win-the-premier-league", „what-…", „how-many-…") sind keine
 # Spiele — raus, sonst meldet der Wächter sie als unbekannte Liga
-RAUS = ("will", "what", "how", "who", "which", "when", "where", "does", "is", "can", "top", "most", "us", "2026", "2027",
+RAUS = ("will", "highest", "lowest", "temperature", "weather", "what", "how", "who", "which", "when", "where", "does", "is", "can", "top", "most", "us", "2026", "2027",
         "esoccer", "fifa25", "efootball", "btc", "eth", "sol", "xrp", "doge", "bnb", "crypto", "hype", "elon", "ballon", "crint", "cric", "ipl", "atp", "wta", "nba", "nfl", "mlb", "nhl", "ncaa", "cbb", "cfb", "wnba", "ufc", "mma", "f1", "nascar", "pga", "golf")
 _PRAEFIX = re.compile(r"^([a-z0-9]+)-")
 
