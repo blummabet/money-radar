@@ -2120,6 +2120,7 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .pf-wt small{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pf-wg{font-size:13px;font-weight:800;text-align:right}
 .pf-hinweis{margin-top:18px}
+.duo-gl{display:block;font-size:11px;color:var(--text-3);margin:-2px 0 4px}
 .pf-zwei{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--panel-2)}.pf-zwei>div{display:flex;align-items:baseline;gap:10px}.pf-zwei b{font-size:20px;font-weight:800;white-space:nowrap}.pf-zwei span{font-size:12px;color:var(--text-2)}
 @media (max-width:1180px){.pf-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:700px){.pf-grid{grid-template-columns:minmax(0,1fr)}.pf-kzs{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-sort{display:flex;overflow-x:auto}.pf-sort button{white-space:nowrap}}
@@ -3321,6 +3322,8 @@ function setzenKarten(liste){
   // „Wo am meisten liegt": große Prozent je Seite (Anteil am belegten Wal-Geld), Hauptbalken = Wal-Geld, darunter die
   // Quellen-Spuren des Marktes (PM/BF/ST) und die Wallets. Eindeutig = ≥ 75 % auf einer Seite und auf der Gegenseite
   // kein belegter Wal ≥ $5k (wie Public-Regel 18).
+  // 24.11. (Lucas: „überall 100 % — das verwirrt"): je Seite jetzt das Wal-Geld in $, der Anteil nur noch, wenn auf
+  // beiden Seiten belegtes Geld liegt; Profis mit Namen und Rendite statt „+– pp".
   const toepfe = D.toepfe||[];
   const G = {};
   for(const o of liste){ const g = G[o.markt] ||= {markt:o.markt, spiel:o.spiel, anpfiff:o.anpfiff, sport:o.sport, w:[]}; g.w.push(o); }
@@ -3341,7 +3344,7 @@ function setzenKarten(liste){
   return `<div class="toepfe duos">${karten.map(({g,t,heim,gast,keys,S,ges,lead,anteil,gegenMax,klar})=>{
     const pct = k => Math.round(100*(S[k]?.usd||0)/ges);
     const nmK = k => k==="heim" ? heim : k==="gast" ? gast : "Remis";
-    const name = k => `<div class="duo-n${k===lead?" lead":""}${k==="gast"?" r":""}"><b>${esc(nmK(k))}</b><span>${pct(k)}<small>%</small></span>${S[k]?.jetzt!=null?`<em class="duo-q2">${Math.round(S[k].jetzt*100)} ¢</em>`:""}</div>`;
+    const name = k => `<div class="duo-n${k===lead?" lead":""}${k==="gast"?" r":""}"><b>${esc(nmK(k))}</b><span class="duo-wg">${S[k]?.usd>0?usd(S[k].usd):"–"}</span>${S[k]?.jetzt!=null?`<em class="duo-q2">${Math.round(S[k].jetzt*100)} ¢</em>`:""}</div>`;
     const chip = klar && g.w.length===1 ? `<span class="duo-u ok" title="nur ein belegter Wal in diesem Markt">1 Wal</span>`
       : klar ? `<span class="duo-u ok">✓ eindeutig · ${g.w.length} Wale</span>`
       : `<span class="duo-u nein" title="${gegenMax>=5000?`belegter Wal mit ${usd(gegenMax)} auf der Gegenseite`:`nur ${Math.round(100*anteil)} % auf einer Seite`}">⚔ umstritten</span>`;
@@ -3352,11 +3355,11 @@ function setzenKarten(liste){
       return `<div class="duo-q${top && top!==lead?" quer":""}" style="--f:${QUELLE[qn].f}"><span class="duo-k">${QUELLE[qn].k}</span>
         <div class="duo-s">${gg?keys.map(k=>s[k]>0?`<i class="${k===top?"an":""}" style="flex:${s[k]} 1 0"></i>`:"").join(""):`<i class="leer" style="flex:1"></i>`}</div>
         <span class="duo-b">${geldIn(qn,q.betrag)}</span></div>`; };
-    const wallets = keys.flatMap(k=>(S[k]?.w||[]).sort((a,b)=>b.usd-a.usd).map(w=>`<a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" title="auf ${esc(nmK(k))} · Einstieg ${w.preis!=null?Math.round(w.preis*100)+" ¢":"–"} · ${w.n||"?"} gewertete Wetten" class="${k===lead?"":"gegen"}">${esc(String(w.wallet).slice(2,6))} ${usd(w.usd)} <em>+${dez(w.clv)} pp</em></a>`)).join("");
+    const wallets = keys.flatMap(k=>(S[k]?.w||[]).sort((a,b)=>b.usd-a.usd).map(w=>`<a href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" title="auf ${esc(nmK(k))} · Einstieg ${w.preis!=null?Math.round(w.preis*100)+" ¢":"–"} · ${w.n||"?"} gewertete Wetten" class="${k===lead?"":"gegen"}">${w.profi&&w.name?esc(String(w.name).slice(0,18)):esc(String(w.wallet).slice(2,6))} ${usd(w.usd)} ${w.profi?`<em>🎯 Profi ${w.rendite>0?"+":""}${dez(w.rendite)} %</em>`:w.clv!=null?`<em>${w.clv>0?"+":""}${dez(w.clv)} pp</em>`:""}</a>`)).join("");
     // 23.11. (Lucas: „belegte Wallets öffnet nichts — sollte dieselbe Detailansicht sein wie Dauerfluss"): gleiches Polymarket-Fenster
     return `<div class="topf duo wd2${klar?"":" um"}" ${klick(esc(heim)+" – "+esc(gast), ohneHuelle(polyFenster(g.markt)))}>
       <div class="duo-kopf"><span class="mk-liga">${sportIco(g.sport)} ${esc(ligaName(t?.liga)||g.sport||"")}</span><span class="mk-zeit">${wann(g.anpfiff)}</span></div>
-      <div class="duo-teams">${name("heim")}<div class="duo-geld"><b>${usd(ges)}</b>${chip}</div>${name("gast")}</div>
+      <div class="duo-teams">${name("heim")}<div class="duo-geld">${keys.filter(k=>S[k]?.usd>0).length>1?`<b>${pct(lead)} %</b><small class="duo-gl">des Wal-Gelds</small>`:""}${chip}</div>${name("gast")}</div>
       ${haupt}
       <div class="duo-qs">${qs.map(spur).join("")}</div>
       <div class="wd-w">${wallets}</div>
