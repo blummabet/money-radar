@@ -187,8 +187,12 @@ def rangliste(d, jetzt):
         if not fA:
             continue
         mm = mehrere_maerkte(s, fA, fM)
+        # Top-3-Regel 9 (24.11., Lucas „T9 kannst"): „mehrere Märkte gleichgerichtet" und „Liga gut" bringen keine Punkte
+        # mehr — beide zogen in beiden Hälften seit 17.11. nach unten (mit Märkten −10,1 % (411) / ohne +0,5 % (500);
+        # Liga gut −13,3 % (190) / sonst −1,9 % (721)). Still mitgeschrieben in „still".
+        still = {}
         if mm:
-            p["maerkte"] = min(2, 1 + 0.5 * (len(mm) - 2))
+            still["maerkte"] = min(2, 1 + 0.5 * (len(mm) - 2))
         stand = (lv or {}).get("stand") or [0, 0]
         tore = (stand[0] or 0) + (stand[1] or 0) if lv else 0
         fk = seite_von(s.get("heim"), s.get("gast"), fA.get("name"))
@@ -227,13 +231,13 @@ def rangliste(d, jetzt):
         # Liga-Regel LW2 (18.11.): Stufe aus dem geschrumpften Liga-Gewicht statt nur dem 99 %-Urteil
         _st = lb.get("stufe", 1 if lb.get("urteil") == "trägt" else -1 if lb.get("urteil") == "trägt nicht" else 0)
         if _st == 1:
-            p["liga"] = 1
+            still["liga"] = 1
         summe = _summe(p, F) - (1 if _st == -1 else 0)
         aus.append({"art": "top3", "id": str(s.get("id")), "heim": s.get("heim"), "gast": s.get("gast"), "liga": s.get("liga"),
                     "anpfiff": s.get("anpfiff"), "live": bool(lv), "top5": bool(s.get("top5")), "normEur": s.get("normEur"), "ligaEur": s.get("ligaEur"), "markt": (fM or {}).get("name"),
                     "auswahl": fA.get("name"), "quote": q, "eur": s.get("eur"), "punkte": round(summe, 2),
                     "signale": sorted(p), "n": len(p), "familien": mm, "normStill": norm_still,
-                    "p": {k: round(v, 2) for k, v in p.items()},
+                    "p": {k: round(v, 2) for k, v in p.items()}, "still": still,
                     "pinnMit": (str(s.get("id")), fk) in pinn_mit if fk in ("heim", "remis", "gast") and (fM or {}).get("name") == "Match Odds" else None,
                     # 30.10. (Volendam 37' 1:0, Geld auf den Führenden): Stand beim Einzug + Lage der Auswahl-Seite mitschreiben
                     "stand": stand if lv else None,
@@ -304,7 +308,7 @@ def eintragen(d, buch, jetzt):
             b["bestPunkte"] = max(b.get("bestPunkte") or 0, x["punkte"])
             continue
         b = {**x, "rang": rang, "bestRang": rang, "bestPunkte": x["punkte"], "ts": jetzt.isoformat(), "status": "offen",
-             "regel": 6}   # Regel 6 ab 17.11. ~14 Uhr: Liga-Norm keine Punkte, Stake 3/2 statt 2/1; Regel 5 ab 10.11. ~9:30: Polymarket-/Stake-Punkt (1) nur bei Geld auf dieselbe Seite; Regel 4 ab 05.11.: + „pinnMit" (still); Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
+             "regel": 9}   # Regel 9 ab 24.11. ~13 Uhr: Mehrere Märkte und Liga gut ohne Punkte (still) · Regel 6 ab 17.11. ~14 Uhr: Liga-Norm keine Punkte, Stake 3/2 statt 2/1; Regel 5 ab 10.11. ~9:30: Polymarket-/Stake-Punkt (1) nur bei Geld auf dieselbe Seite; Regel 4 ab 05.11.: + „pinnMit" (still); Regel 2 ab 25.10.: + „mehrere Märkte gleichgerichtet"; Regel 3 ab 25.10. 15 Uhr: + „Druck stützt"
         buch.append(b)
         offen[k] = b
         neu += 1

@@ -541,6 +541,7 @@ def top3_messung(buch):
     r6 = [b for b in z if (b.get("regel") or 1) >= 6]
     gruppen = [("Alle", z),
                ("Ab Regel 6 (17.11.: Liga-Norm ohne Punkte, Stake zählt mehr)", r6),
+               ("Ab Regel 9 (24.11.: Mehrere Märkte und Liga gut ohne Punkte)", [b for b in z if (b.get("regel") or 1) >= 9]),
                ("🎰 Stake auf derselben Seite", [b for b in z if "stake" in (b.get("signale") or [])]),
                ("× über der Liga-Norm (vor Regel 6 mit Punkten, danach still)",
                 [b for b in z if "norm" in (b.get("signale") or []) or b.get("normStill")]),
