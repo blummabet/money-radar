@@ -51,9 +51,9 @@ FRISCH_MIN = 45              # HZ/Stake-Meldungen, die älter sind, gelten als v
 WAL_MIN_USD = 5000
 WAL_STARK_FAKTOR = 3.0
 STAKE_BF_ANTEIL, STAKE_USD_EUR = 0.05, 0.92    # Regel S7 (22.11.): Spiel-Burst/Top 5 erst ab 5 % des Betfair-Volumens
-STAKE_TOP5_MIN_USD = 50000   # Regel S5 (12.11.)
+STAKE_TOP5_MIN_USD = 50000   # Regel ST5 (12.11.)
 STAKE_ES_TIER1 = re.compile(r"\b(blast|iem|intel extreme|pgl|esl pro league|esl one|major|starladder|perfect world|"
-                            r"the international|riyadh|esports world cup|ewc|worlds|world championship|msi|vct|champions tour|masters)\b", re.I)  # Regel S6
+                            r"the international|riyadh|esports world cup|ewc|worlds|world championship|msi|vct|champions tour|masters)\b", re.I)  # Regel ST6
 # 16.11. (Regel-Durchsicht): „worlds" griff nicht, Stake nennt die LoL-WM „World Championship" — Gen.G – Bilibili (14.11.)
 # und T1 (09.11.) kamen deshalb durch. Gemeint war sie von Anfang an.
 STAKE_TOP5_EINDEUTIG = {"UEFA Champions League", "UEFA Nations League", "LaLiga", "Ligue 1"}
@@ -743,8 +743,7 @@ def wale(d):
         top5 = str(o.get("markt") or "").split("-")[0] in {"epl", "bun", "lal", "sea", "fl1", "lig1", "ucl", "unl"}
         grenze = WAL_MIN_USD_TOP5 if top5 else WAL_MIN_USD
         u0, sch0 = float(o.get("usd") or 0), float(o.get("schnittUsd") or 0)
-        if u0 < grenze and not (u0 >= grenze / 2 and sch0 > 0 and u0 >= WAL_STARK_FAKTOR * sch0):
-            continue
+        unter_w7 = u0 < grenze and not (u0 >= grenze / 2 and sch0 > 0 and u0 >= WAL_STARK_FAKTOR * sch0)
         key = f"wal|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}"
         w = wallets.get(o.get("wallet")) or {}
         g = _poly_topf(d, o.get("markt"))
@@ -900,6 +899,11 @@ def wale(d):
                         "faktor": round(usd / float(schnitt), 2) if schnitt and usd else None, "slug": o.get("markt")}
         # Wal-Regel 2 (Lucas 06.11. 13:50, Dynamo Dresden: $1,1k bei einem Wallet, das sonst Ø $17k setzt): unter ¼ des
         # üblichen Einsatzes kein Push — still als „walKlein" mitbuchen (bis 06.11.: unter ¼ n=13, −39 %)
+        # W7: unter der Schwelle kein Push — still als „walUnter" gebucht, damit sich die neue Grenze prüfen lässt
+        if unter_w7:
+            if beleg:
+                yield f"wu|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}", None, None, {**beleg, "art": "walUnter"}
+            continue
         if schnitt and usd and usd / float(schnitt) < WAL_MIN_FAKTOR:
             if beleg:
                 yield f"wk|{o.get('wallet')}|{o.get('markt')}|{o.get('seite')}", None, None, {**beleg, "art": "walKlein"}
@@ -2130,8 +2134,23 @@ def pk1_still(d):
                 "gegenUsd": x["gegenUsd"], "marktUsd": x.get("marktUsd"), "wale": x.get("wale"), "live": False, "regel": "PK1"})
 
 
+def profi_still(d):
+    """24.11. (Regel-Durchsicht): PK1/CM1-Lagen, die es nur durch Sport-Profis (W4–W6) gibt — still gebucht, damit PK1 und
+    CM1 auf der vorab festgelegten Wallet-Menge (CLV-bewährt) bleiben und die Profis trotzdem gemessen werden."""
+    for art, liste in (("pk1Profi", d.get("pk1Profi")), ("cm1Profi", d.get("cm1Profi"))):
+        for x in liste or []:
+            if art == "pk1Profi" and x.get("streit"):
+                continue
+            yield (f"{art}|{x['key']}|{x['seite']}", None, None,
+                   {"art": art, "id": x["key"], "titel": x.get("titel"), "heim": None, "gast": None, "liga": x.get("liga"),
+                    "sport": x.get("sport") or "Fußball", "anpfiff": x.get("anpfiff"), "markt": "Polymarket", "auswahl": x["seite"],
+                    "anzeige": x["seite"], "quote": x["quote"], "preis": x["preis"], "usd": x["usd"], "live": False,
+                    "wallet": x.get("wallet"), "gegenUsd": x.get("gegenUsd"), "marktUsd": x.get("marktUsd"),
+                    "regel": "PK1/CM1 mit Profis"})
+
+
 # 16.11. (Lucas: AI-Picks abdrehen, wenn kein Potenzial): ki_top3 aus, der AI-Pick mit Geld ist beendet (A4)
-ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm2_push, cpo_still, tp_still)
+ARTEN = (serie, zufluss, live, bf_halbzeit, halbzeit, pinnacle, wale, stake, pinn_linien_still, bf_drops_still, bf_uhr_still, pk1_still, cm1_push, mm2_push, cpo_still, tp_still, profi_still)
 
 
 # ── Wächter: meldet, wenn eine Datenquelle hängt (einmal), und wenn sie wieder da ist ─────────

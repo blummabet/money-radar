@@ -905,7 +905,7 @@ BEWAEHRT_Z = 2.33
 # Regel W3 (24.11., Lucas: „das erste Wallet ist komplett rot … die Rangliste ist so wertlos"): belegt hieß bisher nur
 # „CLV-Untergrenze > 0" ab 15 Wetten. So stand oben ein Wallet mit 16 Wetten und −$196k Polymarket-Bilanz, und 9 der
 # 17 „belegten" lagen in der eigenen Wett-Bilanz oder bei Polymarket im Minus. Jetzt müssen ALLE vier passen:
-W2_MIN_N = 40            # gewertete Wetten im Fenster
+W2_MIN_N = 40            # Regel W3 (Name aus dem ersten Entwurf): gewertete Wetten im Fenster
 W2_MIN_GELD = 20         # davon mit Geldbetrag für die eigene Bilanz
 LIVE_ZEIGEN_N, LIVE_MIN_N, LIVE_Z = 10, 30, 1.645    # Regel WL1 (21.11.)
 
@@ -2790,6 +2790,17 @@ def belegte_positionen(wallets, track, *quellen):
 PK1_MIN_WALE, PK1_MIN_USD, PK1_MAX_GEGEN = 2, 5000, 2000
 
 
+def _nur_w3(belegt):
+    """polyBelegt ohne Sport-Profis (W4–W6): für die vorab auf CLV-Wallets festgelegten Regeln PK1/CM1."""
+    return {k: [x for x in v if not x.get("profi")] for k, v in (belegt or {}).items()}
+
+
+def _nur_neu(alle, ohne):
+    """Fälle aus „alle", die es ohne Profis nicht gäbe (Schlüssel Markt + Seite)."""
+    da = {(x["key"], x["seite"]) for x in ohne or []}
+    return [x for x in alle or [] if (x["key"], x["seite"]) not in da]
+
+
 def pk1(belegt, maerkte):
     out = []
     for key, liste in (belegt or {}).items():
@@ -3387,7 +3398,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -4115,8 +4126,12 @@ def main() -> int:
         "bfSpanne": bf_spanne(prices),
         "poly": (pmd := poly(track, upcoming, wale, offen_m, tr_led, tr_rec)),
         "polyBelegt": (pbel := belegte_positionen(pmd.get("belegtListe"), track, upcoming, live_m, offen_m)),
-        "pk1": pk1(pbel, upcoming),             # 20.11. Regel PK1 (Beobachtung)
-        "cm1": cm1(pbel, upcoming, pmd.get("belegtListe")),   # 20.11. Regel CM1 (Claude-Master, Test-Push)
+        # 24.11. (Regel-Durchsicht): PK1 und CM1 sind vorab auf CLV-bewährte Wallets festgelegt. Die Sport-Profis
+        # (W4–W6) zählen dort NICHT mit — Fälle, die erst durch Profis entstehen, laufen getrennt (pk1Profi, cm1Profi).
+        "pk1": pk1(_nur_w3(pbel), upcoming),             # 20.11. Regel PK1 (Beobachtung)
+        "cm1": cm1(_nur_w3(pbel), upcoming, [w for w in pmd.get("belegtListe") or [] if not w.get("profi")]),   # 20.11. Regel CM1
+        "pk1Profi": _nur_neu(pk1(pbel, upcoming), pk1(_nur_w3(pbel), upcoming)),
+        "cm1Profi": _nur_neu(cm1(pbel, upcoming, pmd.get("belegtListe")), cm1(_nur_w3(pbel), upcoming, [w for w in pmd.get("belegtListe") or [] if not w.get("profi")])),
         "marktCharts": markt_charts(radar),
         "toepfe": geld_toepfe(radar, {**(upcoming or {}), **(live_m or {})}, hr, pfl, pbel),
         "auchWoanders": dict(AUCH_WOANDERS),
