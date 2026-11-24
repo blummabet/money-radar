@@ -2061,6 +2061,67 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 
 .bd-auf .pdk{max-width:420px;margin-bottom:8px}
 .pll-hinweis{font-size:11.5px;color:var(--text-3)}
+/* 24.11. Sport-Profis (Poly-Seite) */
+.pf-sort{display:inline-flex;gap:2px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;margin:-4px 0 14px}
+.pf-sort button{background:none;border:0;border-radius:8px;padding:5px 11px;font-size:12.5px;font-weight:600;color:var(--text-2)}
+.pf-sort button.an{background:var(--panel);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.pf-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.pf-k{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:14px 14px 12px;cursor:pointer;display:flex;flex-direction:column;gap:10px;min-width:0;transition:border-color .15s}
+.pf-k:hover{border-color:color-mix(in srgb,var(--poly) 45%,transparent)}
+.pf-k.setzt{box-shadow:inset 3px 0 0 var(--poly)}
+.pf-kk{display:flex;align-items:center;gap:10px;min-width:0}
+.pf-rang{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-weight:800;font-size:12px;background:color-mix(in srgb,var(--poly) 16%,transparent);color:var(--poly)}
+.pf-nm{min-width:0;display:flex;flex-direction:column}
+.pf-nm b{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-nm small{color:var(--text-3);font-size:12px}
+.pf-jetzt{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--poly);background:color-mix(in srgb,var(--poly) 13%,transparent);border-radius:999px;padding:3px 9px}
+.pf-jetzt i{width:7px;height:7px;border-radius:50%;background:var(--poly)}
+.pf-zahl{display:flex;align-items:flex-end;gap:12px}
+.pf-zahl b{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1;white-space:nowrap}
+.pf-zahl span{font-size:11.5px;color:var(--text-3);line-height:1.3}
+.pf-kurve{width:100%;height:64px;display:block}
+.pf-det .pf-kurve{height:150px;margin:6px 0 4px}
+.pf-null{stroke:var(--text-3);stroke-width:1;stroke-dasharray:3 4;opacity:.5;vector-effect:non-scaling-stroke}
+.pf-axr{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--text-3);margin-bottom:6px}
+.pf-leerk{height:64px;display:grid;place-items:center;font-size:12px;color:var(--text-3);border:1px dashed var(--line);border-radius:10px}
+.pf-fuss{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--text-2);flex-wrap:wrap}
+.pf-stil{display:flex;flex-direction:column;gap:5px}
+.pf-sb{display:flex;height:6px;border-radius:999px;overflow:hidden;gap:2px;background:var(--panel-3)}
+.pf-sl{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--text-3)}.pf-sl span:last-child{white-space:nowrap}
+.pf-stil.gross .pf-sb{height:10px}
+.pf-sleg{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--text-2)}
+.pf-sleg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.pf-warn{font-size:12px;font-weight:600;color:var(--bf)}
+.pf-warn.gross{background:color-mix(in srgb,var(--bf) 12%,transparent);border-radius:10px;padding:10px 12px;margin:12px 0;font-weight:500;color:var(--text)}
+.pf-jl{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-2);border-top:1px solid var(--line);padding-top:8px}
+.pf-jl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-mehr{display:block;margin:14px auto 0;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:7px 16px;font-weight:700;font-size:13px}
+.pf-dk{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.pf-dk>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pf-dk span{font-size:12.5px;color:var(--text-2)}
+.pf-gross{font-size:40px;font-weight:800;letter-spacing:-.025em;line-height:1}
+.pf-link{flex:none;font-size:12.5px;font-weight:700;text-decoration:none;color:var(--poly);border:1px solid color-mix(in srgb,var(--poly) 40%,transparent);border-radius:999px;padding:6px 12px}
+.pf-kzs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:4px}
+.pf-kz{background:var(--panel-2);border-radius:10px;padding:9px 10px;display:flex;flex-direction:column;min-width:0}
+.pf-kz span{font-size:11.5px;color:var(--text-3)}
+.pf-kz b{font-size:17px;font-weight:800}
+.pf-kz small{font-size:11px;color:var(--text-3)}
+.pf-h{margin:20px 0 8px;font-size:13.5px;font-weight:800}
+.pf-sp{display:flex;flex-direction:column;gap:8px}
+.pf-spz{display:grid;grid-template-columns:minmax(0,1fr) 120px 62px;grid-template-areas:"n t r" "m t g";column-gap:10px;align-items:center}
+.pf-spn{grid-area:n;font-weight:700;font-size:13px}.pf-spm{grid-area:m;font-size:11.5px;color:var(--text-3)}
+.pf-spz .wb-t{grid-area:t}.pf-spz>b{grid-area:r;text-align:right;font-size:13.5px}.pf-spz>small{grid-area:g;text-align:right;font-size:11.5px}
+.pf-ws{display:flex;flex-direction:column}
+.pf-w{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.pf-w[data-dr]{cursor:pointer}
+.pf-wd{font-size:11.5px;color:var(--text-3)}
+.pf-wt{min-width:0;display:flex;flex-direction:column}
+.pf-wt b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-wt small{font-size:11.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-wg{font-size:13px;font-weight:800;text-align:right}
+.pf-hinweis{margin-top:18px}
+@media (max-width:1180px){.pf-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.pf-grid{grid-template-columns:minmax(0,1fr)}.pf-kzs{grid-template-columns:repeat(2,minmax(0,1fr))}.pf-sort{display:flex;overflow-x:auto}.pf-sort button{white-space:nowrap}}
 </style>
 </head>
 <body>
@@ -3674,6 +3735,97 @@ function rangliste(ws){
 }
 // Regel W4 (24.11., Lucas: „nur 5 Wallets, die nachweislich im Plus sind — das kann ich mir nicht vorstellen"):
 // Kandidaten aus der Polymarket-Bestenliste Sport/E-Sport, gewertet über ihre abgeschlossenen Positionen der letzten 90 Tage.
+// ══ 24.11. Sport-Profis vorne (Lucas: „wen könnte ich da kopieren oder was macht der … schönere Graphen") ══════
+// Karten mit 90-Tage-Gewinnkurve, Stil und „setzt gerade"; Klick öffnet den Steckbrief in der Seitenleiste.
+let profiSport = "alle", profiSort = "sicher", profiAlle = false;
+const PROFI_SORT = [["sicher","Am sichersten"],["rendite","Rendite"],["gewinn","Gewinn"],["jetzt","Setzt gerade"]];
+const geldPM = v => v==null ? "–" : (v>=0?"+":"−")+usd(Math.abs(v));
+function profiKurve(werte, {w=320, h=72, achse=false}={}){
+  if(!werte || werte.length < 2) return `<div class="pf-leerk">Kurve kommt mit der nächsten Prüfung</div>`;
+  const lo = Math.min(0, ...werte), hi = Math.max(0, ...werte), sp = (hi-lo)||1, oben = 4, unten = 4;
+  const y = v => oben + (hi - v)/sp*(h-oben-unten), x = i => i/(werte.length-1)*w;
+  const f = werte.at(-1) >= 0 ? "var(--up)" : "var(--down)", id = "pk"+Math.random().toString(36).slice(2,8);
+  const linie = werte.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join(" ");
+  const null0 = y(0).toFixed(1);
+  // Beschriftung als HTML darunter (Text im gestreckten SVG wird am Handy verzerrt)
+  const marken = achse ? `<div class="pf-axr"><span>vor 90 Tagen</span><span>Höchststand ${geldPM(hi)}${lo<0?` · Tiefststand ${geldPM(lo)}`:""}</span><span>heute</span></div>` : "";
+  return `<svg class="pf-kurve" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Gewinn über 90 Tage: ${geldPM(werte.at(-1))}">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${f}" stop-opacity=".28"/><stop offset="1" stop-color="${f}" stop-opacity="0"/></linearGradient></defs>
+    <line x1="0" x2="${w}" y1="${null0}" y2="${null0}" class="pf-null"/>
+    <path d="${linie} L${w} ${null0} L0 ${null0} Z" fill="url(#${id})"/>
+    <path d="${linie}" fill="none" stroke="${f}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+    </svg>${marken}`;
+}
+function profiStil(w, gross=false){
+  const b = w.preisBand; if(!b) return "";
+  const t = ["Außenseiter","Mitte","Favorit"], c = ["var(--bf)","var(--text-3)","var(--pin)"];
+  const art = b[2]>=55 ? "setzt meist auf Favoriten" : b[0]>=45 ? "setzt meist auf Außenseiter" : b[1]>=55 ? "setzt meist auf offene Spiele" : "setzt gemischt";
+  return `<div class="pf-stil${gross?" gross":""}"><div class="pf-sb">${b.map((v,i)=>v>0?`<i style="flex:${v} 1 0;background:${c[i]}" title="${t[i]} ${v} % des Einsatzes"></i>`:"").join("")}</div>
+    <div class="pf-sl"><span>${art}</span>${w.preis!=null?`<span>Ø Einstieg ${Math.round(w.preis*100)} ¢</span>`:""}</div>
+    ${gross?`<div class="pf-sleg">${b.map((v,i)=>`<span><i style="background:${c[i]}"></i>${t[i]} <b>${v} %</b></span>`).join("")}</div><div class="kk-klein">Anteil am Einsatz nach Einstiegspreis: Außenseiter unter 35 ¢, Favorit über 65 ¢.</div>`:""}</div>`;
+}
+const profiWenige = w => w.top5!=null && (w.gewinn||0)>0 && w.top5 >= w.gewinn;
+function profiName(w){ return esc(w.name || ("Wallet "+String(w.wallet).slice(2,6))); }
+function profiMarkt(key){ const m = (D.poly.maerkte||[]).find(x=>x.key===key) || (D.polyFluss?.maerkte||[]).find(x=>x.key===key);
+  return m?.spiel || m?.titel || String(key||"").replace(/-\d{4}-\d{2}-\d{2}$/,"").replace(/-/g," "); }
+function profiKarte(w, rang){
+  const f = (w.rendite||0)>=0 ? "var(--up)" : "var(--down)", j = w.jetzt||[];
+  const sp = Object.entries(w.einsatzSport||{}).sort((a,b)=>b[1][0]-a[1][0]).map(([k])=>SPORT_ICO[k]||"").join("");
+  return `<article class="pf-k${j.length?" setzt":""}" ${klick(profiName(w), profiDetail(w))}>
+    <header class="pf-kk"><span class="pf-rang">${rang}</span><div class="pf-nm"><b>${profiName(w)}</b><small>${sp} ${w.n} Wetten · ${w.treffer} % Treffer</small></div></header>
+    <div class="pf-zahl"><b style="color:${f}">${w.rendite>0?"+":""}${dez(w.rendite)} %</b><span>Rendite 90 Tage<br>sicher ≥ ${w.renditeUg>0?"+":""}${dez(w.renditeUg)} %</span></div>
+    ${profiKurve(w.kurve)}
+    <div class="pf-fuss"><span><b style="color:${(w.gewinn||0)>=0?"var(--up)":"var(--down)"}">${geldPM(w.gewinn)}</b> Gewinn</span><span>Ø ${usd((w.einsatz||0)/Math.max(1,w.n))} je Wette</span></div>
+    ${profiStil(w)}
+    ${profiWenige(w)?`<div class="pf-warn" title="Die 5 besten Wetten brachten ${usd(w.top5)} — mehr als der ganze Gewinn">⚠ Gewinn hängt an wenigen Wetten</div>`:""}
+    ${j.length?`<div class="pf-jl"><span class="pf-jetzt" title="hält gerade eine Position in einem unserer Märkte"><i></i>setzt gerade</span>${j.slice(0,2).map(o=>`<span>${SPORT_ICO[o.sport]||"⚽"} ${esc(profiMarkt(o.markt))} · <b>${esc(o.seite||"")}</b> ${usd(o.usd)}</span>`).join("")}</div>`:""}
+  </article>`;
+}
+function profiDetail(w){
+  const f = (w.rendite||0)>=0 ? "var(--up)" : "var(--down)", j = w.jetzt||[], L = w.letzte||[];
+  const w3 = (D.poly.wallets||[]).find(x=>x.wallet===w.wallet);
+  const kz = (n, v, u, farbe) => `<div class="pf-kz"><span>${n}</span><b${farbe?` style="color:${farbe}"`:""}>${v}</b>${u?`<small>${u}</small>`:""}</div>`;
+  const es = Object.entries(w.einsatzSport||{}).sort((a,b)=>b[1][0]-a[1][0]), maxR = Math.max(5, ...es.map(([,x])=>x[0]?Math.abs(100*x[1]/x[0]):0));
+  const nSp = k => (w.bySport||{})[k]?.[0];
+  const sportZ = ([k,[c,g]]) => { const r = c ? 100*g/c : 0, rf = r>=0?"var(--up)":"var(--down)";
+    return `<div class="pf-spz"><span class="pf-spn">${SPORT_ICO[k]||""} ${esc(k)}</span><span class="pf-spm">${nSp(k)||"?"} Wetten · ${usd(c)} gesetzt</span>
+      <div class="wb-t"><span class="wb-0"></span><i style="${r>=0?`left:50%;width:${Math.min(50,r/maxR*50).toFixed(1)}%`:`right:50%;width:${Math.min(50,-r/maxR*50).toFixed(1)}%`};background:${rf}"></i></div>
+      <b style="color:${rf}">${r>0?"+":""}${dez(r)} %</b><small style="color:${rf}">${geldPM(g)}</small></div>`; };
+  const datum = t => new Date(t*1000).toLocaleDateString("de-AT",{day:"numeric",month:"numeric"});
+  const wette = x => `<div class="pf-w"><span class="pf-wd">${datum(x.t)}</span><div class="pf-wt"><b>${esc(x.ti)}</b><small>${SPORT_ICO[x.sp]||""} ${esc(x.o||"")}${x.p!=null?` · Einstieg ${Math.round(x.p*100)} ¢`:""} · ${usd(x.c)}</small></div>
+    <b class="pf-wg" style="color:${x.g>=0?"var(--up)":"var(--down)"}">${geldPM(x.g)}</b></div>`;
+  const offen = o => `<div class="pf-w" ${klick(esc(profiMarkt(o.markt)), ohneHuelle(polyFenster(o.markt)))}><span class="pf-wd">${o.anpfiff?wann(o.anpfiff):""}</span>
+    <div class="pf-wt"><b>${esc(profiMarkt(o.markt))}</b><small>auf ${esc(o.seite||"–")}${o.einstieg!=null?` · Einstieg ${Math.round(o.einstieg*100)} ¢`:""}${o.preis!=null&&o.preis!==o.einstieg?` · jetzt ${Math.round(o.preis*100)} ¢`:""}</small></div><b class="pf-wg">${usd(o.usd)}</b></div>`;
+  return `<div class="pf-det">
+    <div class="pf-dk"><div><b class="pf-gross" style="color:${f}">${w.rendite>0?"+":""}${dez(w.rendite)} %</b><span>Rendite auf den Einsatz, letzte 90 Tage · sicher mindestens ${w.renditeUg>0?"+":""}${dez(w.renditeUg)} %</span></div>
+      <a class="pf-link" href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener">Profil auf Polymarket</a></div>
+    ${profiKurve(w.kurve, {w:520, h:150, achse:true})}
+    <div class="pf-kzs">${kz("Gewinn", geldPM(w.gewinn), "", (w.gewinn||0)>=0?"var(--up)":"var(--down)")}${kz("Gesetzt", usd(w.einsatz), `${w.n} Wetten`)}${kz("Treffer", w.treffer+" %", "")}${kz("Ø je Wette", usd((w.einsatz||0)/Math.max(1,w.n)), w.groesste?`größte ${usd(w.groesste)}`:"")}</div>
+    ${profiWenige(w)?`<div class="pf-warn gross">⚠ Die 5 besten Wetten brachten ${usd(w.top5)} — mehr als der ganze Gewinn von ${usd(w.gewinn)}. Ohne sie stünde die Wallet im Minus. Vorsicht beim Nachmachen.</div>`:""}
+    ${es.length?`<h4 class="pf-h">Wo die Wallet gewinnt</h4><div class="pf-sp">${es.map(sportZ).join("")}</div>`:""}
+    ${w.preisBand?`<h4 class="pf-h">Wie sie setzt</h4>${profiStil(w, true)}`:""}
+    <h4 class="pf-h">Setzt gerade bei uns</h4>
+    ${j.length?`<div class="pf-ws">${j.map(offen).join("")}</div>`:`<div class="kk-klein">Gerade keine Position in den Märkten, die wir beobachten. Sobald sie setzt, kommt ein Wal-Push (ab $5k).</div>`}
+    ${L.length?`<h4 class="pf-h">Letzte abgerechnete Wetten</h4><div class="pf-ws">${L.map(wette).join("")}</div>`:""}
+    ${w3?`<h4 class="pf-h">Was wir selbst gesehen haben</h4><div class="kk-klein">${w3.fensterN||w3.n} Wetten in unseren Märkten · schlägt den Schlusskurs um Ø ${w3.fensterClv!=null?dez(w3.fensterClv)+" pp":"–"}${w3.folgeN?` · ${w3.folgeN} nachgespielt mit ${w3.folgeRendite>0?"+":""}${dez(w3.folgeRendite)} %`:""}</div>`:""}
+    <div class="kk-klein pf-hinweis">Die Rendite gilt zu ihren Einstiegspreisen. Wer später zu einem schlechteren Preis nachzieht, bekommt weniger. Gezählt: Fußball, E-Sport, Tennis (ohne ATP/WTA), alle abgeschlossenen Positionen inklusive Verluste. Geprüft ${w.ts?wann(w.ts):"–"}.</div>
+  </div>`;
+}
+function profiBuehne(D){
+  const alle = (D.poly.profis||[]).filter(w=>w.belegt), st = D.poly.profiStand||{};
+  if(!alle.length) return "";
+  const sports = ["alle", ...["Fußball","E-Sport","Tennis"].filter(s=>alle.some(w=>w.sport===s))];
+  let ws = profiSport==="alle" ? alle : alle.filter(w=>w.sport===profiSport);
+  const key = {sicher:w=>w.renditeUg, rendite:w=>w.rendite, gewinn:w=>w.gewinn, jetzt:w=>(w.jetzt||[]).length*1e6+(w.renditeUg||0)}[profiSort];
+  ws = [...ws].sort((a,b)=>(key(b)||0)-(key(a)||0));
+  const zeigen = profiAlle ? ws : ws.slice(0, 6);
+  return `<div class="panel c12 pf-panel"><div class="ph"><h3>Sport-Profis</h3><span class="hint">${st.belegt||alle.length} Wallets verdienen über 90 Tage nachweislich Geld · geprüft ${st.geprueft||"–"} von ${st.kandidaten||"–"}</span>
+      <div class="chips rechts">${sports.map(s=>`<button class="chip${s===profiSport?" an":""}" data-pfsp="${s}">${s==="alle"?"Alle":SPORT_ICO[s]+" "+s}</button>`).join("")}</div></div>
+    <div class="pf-sort" role="group" aria-label="Sortieren">${PROFI_SORT.map(([k,n])=>`<button class="${k===profiSort?"an":""}" data-pfso="${k}">${n}</button>`).join("")}</div>
+    <div class="pf-grid">${zeigen.map((w,i)=>profiKarte(w, i+1)).join("") || `<div class="leer">Keine Profis in ${esc(profiSport)}.</div>`}</div>
+    ${ws.length>6?`<button class="pf-mehr" data-pfalle>${profiAlle?"Weniger zeigen":`Alle ${ws.length} zeigen`}</button>`:""}
+  </div>`;
+}
 function profiRangliste(ws, st){
   st = st || {};
   const kopf = `<div class="kk-klein" style="margin-bottom:8px">Kandidaten aus der Polymarket-Bestenliste (Sport, E-Sport), gewertet über alle abgeschlossenen Positionen der letzten 90 Tage in Fußball, E-Sport und Tennis (ohne ATP/WTA), Verluste ohne Einlösung eingerechnet. Dazu jede Wallet, die wir in unseren Märkten als Wal sehen — die kommt zuerst dran. Belegt (Regeln W4–W6) = ab 50 Positionen, Rendite mindestens 2 % und Untergrenze der Rendite über null, nach Einsatz gewichtet.${st.kandidaten?` Geprüft ${st.geprueft||0} von ${st.kandidaten}${st.gesichtet?` (davon ${st.gesichtet} bei uns gesichtet${st.offenGesichtet?`, ${st.offenGesichtet} noch offen`:""})`:""} · ${st.belegt||0} belegt.`:""}${st.pruefen?` <span style="color:var(--down)">${st.pruefen} mit unplausiblen Daten — ohne Urteil.</span>`:""}</div>`;
@@ -3681,14 +3833,14 @@ function profiRangliste(ws, st){
   const gut = ws.filter(w=>w.belegt), rest = ws.filter(w=>!w.belegt).slice(0, 10);
   const zeile = (w,i) => { const f = w.rendite>=0 ? "var(--up)" : "var(--down)";
     const sp = Object.entries(w.bySport||{}).sort((a,b)=>b[1][0]-a[1][0]).map(([k,v])=>`${k} ${v[0]}`).join(" · ");
-    return `<a class="nz w2z profz" href="https://polymarket.com/profile/${encodeURIComponent(w.wallet)}" target="_blank" rel="noopener" style="text-decoration:none">
+    return `<div class="nz w2z profz" ${klick(profiName(w), profiDetail(w))} style="cursor:pointer">
       <div class="nz-l"><span class="rang">${w.belegt?i+1:"·"}</span>${sportIco(w.sport)}<div style="min-width:0"><div class="n">${esc(w.name||("Wallet "+w.wallet.slice(2,6)))}${w.gesichtet?` <span style="color:var(--text-3)" title="zuletzt in unseren Märkten als Wal gesehen">· bei uns gesichtet</span>`:""}</div>
         <div class="l">${w.n} Positionen · ${w.treffer!=null?w.treffer+" % Treffer · ":""}Ø ${usd((w.einsatz||0)/Math.max(1,w.n))}${w.offen?` · <span style="color:var(--poly)">${w.offen} offen bei uns</span>`:""}</div>
         <div class="l">${esc(sp)}${w.renditeUg!=null?` · mind. ${w.renditeUg>0?"+":""}${dez(w.renditeUg)} %`:""}</div>
         ${w.pruefen?`<div class="l" style="color:var(--down);white-space:normal">Kein Urteil: ${esc(w.pruefen)}</div>`:""}</div></div>
       <div class="nz-r"><b style="color:${f}">${w.rendite==null?"–":(w.rendite>0?"+":"")+dez(w.rendite)+" %"}</b><small>Rendite 90 T</small></div>
       <div class="nz-r"><b style="color:${(w.gewinn||0)>=0?"var(--up)":"var(--down)"}">${(w.gewinn||0)>=0?"+":"−"}${usd(Math.abs(w.gewinn||0))}</b><small>Gewinn</small></div>
-    </a>`; };
+    </div>`; };
   return kopf + `<div class="nchart">${gut.map(zeile).join("") || `<div class="leer">Noch keine geprüfte Wallet besteht.</div>`}</div>
     ${rest.length?`<details class="ov-mehr"><summary>Geprüft, aber nicht belegt (${rest.length})</summary><div class="ov-mehr-i nchart">${rest.map(zeile).join("")}</div></details>`:""}`;
 }
@@ -5276,6 +5428,7 @@ function seitePoly(D){
   const leer = teile.filter(t=>t[1].startsWith('<div class="leer">')), voll = teile.filter(t=>!t[1].startsWith('<div class="leer">'));
   return `<div class="grid">
     <div class="panel c12 kz-panel">${polyKennzahlen(D)}</div>
+    ${profiBuehne(D)}
     ${(p.setzen||[]).length?`<div class="panel c12"><div class="ph"><h3>Belegte Wale setzen gerade</h3><span class="hint">schlagen nachweislich den Schlusskurs</span></div>${setzenKarten(p.setzen)}</div>`:""}
     ${voll.map(([t,html])=>`<div class="panel c12"><div class="ph"><h3>${t==="Dauerzufluss"?"🔁 ":""}${t}</h3><span class="hint">${t==="Dauerzufluss"?"3 Abschnitte à 10 Min in Folge dieselbe Seite vorn":"Käufe der letzten 30 Min je Seite"}</span></div>${html}</div>`).join("")}
     <div class="panel c12"><div class="ph"><h3>Märkte, nächste 30 Stunden</h3><span class="hint">Preis in Cent = Wahrscheinlichkeit · darunter neues Geld der letzten 30 Min</span>
@@ -6546,6 +6699,8 @@ document.addEventListener("click", e=>{
   const g = e.target.closest("[data-geh]"); if(g){ burger(false); gehe(g.dataset.geh); window.scrollTo({top:0}); return; }
   if(e.target.closest("#s-cards") && cardsKlick(e)) return;
   if(e.target.closest("#s-statistik") && statKlick(e)){ $("#s-statistik").innerHTML = seiteStatistik(); return; }
+  const pfs = e.target.closest("[data-pfsp],[data-pfso],[data-pfalle]"); if(pfs){ if(pfs.dataset.pfsp) profiSport = pfs.dataset.pfsp;
+    if(pfs.dataset.pfso) profiSort = pfs.dataset.pfso; if(pfs.hasAttribute("data-pfalle")) profiAlle = !profiAlle; neuBauen("#s-poly", seitePoly(D)); return; }
   const rg = e.target.closest("[data-rang]"); if(rg){ filterRang = rg.dataset.rang; neuBauen("#s-poly", seitePoly(D)); return; }
   const sp = e.target.closest("[data-sport]"); if(sp){ filterSport = sp.dataset.sport; neuBauen("#s-poly", seitePoly(D)); return; }
   const hf = e.target.closest("[data-hzf]"); if(hf){ hzFilter = hf.dataset.hzf; $("#hz-stats").innerHTML = hzStatsListe(D.hz.chancenBuch||{}); return; }

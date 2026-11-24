@@ -1138,13 +1138,20 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
         if not isinstance(v, dict) or (v.get("n") or 0) < 20 or (v.get("v") or 0) < 5:   # v5 = W5 + Gebühr + Fußball-Präfixe
             continue
         bs = v.get("bySport") or {}
-        haupt = max(bs.items(), key=lambda kv: kv[1][0])[0] if bs else None
+        haupt = max(bs.items(), key=lambda kv: kv[1][1])[0] if bs else None   # nach Einsatz (Artemiion: 386 E-Sport-Wetten, Geld im Tennis)
         profis.append({"wallet": pw, "name": v.get("name"), "n": v.get("n"), "rendite": v.get("rendite"), "renditeUg": v.get("renditeUg"),
                        "gewinn": round(v.get("gewinn") or 0), "einsatz": round(v.get("einsatz") or 0), "treffer": round(100 * (v.get("wins") or 0) / v["n"]),
                        "sport": haupt, "bySport": {k: [x[0], round(100 * x[2] / x[1], 1) if x[1] else None] for k, x in bs.items()},
                        # Regel W6: unter 2 % Rendite kein Profi (Auflösungs-Käufer mit 99 % Treffer und +0,1 %)
                        "belegt": bool(v.get("belegt")) and (v.get("rendite") or 0) >= 2, "board": v.get("board"), "ts": v.get("ts"), "offen": len(pos_je.get(pw) or []),
-                       "pruefen": v.get("pruefen"), "hinweis": v.get("hinweis"), "gesichtet": v.get("gesichtet")})
+                       "pruefen": v.get("pruefen"), "hinweis": v.get("hinweis"), "gesichtet": v.get("gesichtet"),
+                       # 24.11. Wallet-Seite: Steckbrief aus poly_profis.steckbrief (erst nach Neu-Wertung vorhanden)
+                       "einsatzSport": {k: [round(x[1]), round(x[2])] for k, x in bs.items()},
+                       **{k: v.get(k) for k in ("kurve", "letzte", "preis", "preisBand", "top5", "neff", "groesste") if v.get(k)},
+                       "jetzt": [{"markt": p.get("key"), "seite": p.get("side"), "usd": round(float(p.get("usd") or 0)),
+                                  "einstieg": p.get("entryPrice") or p.get("firstPrice"), "preis": p.get("lastPrice") or p.get("firstPrice"),
+                                  "anpfiff": p.get("koTs"), "sport": p.get("sport")}
+                                 for p in sorted(pos_je.get(pw) or [], key=lambda p: -float(p.get("usd") or 0))[:5]]})
     profis.sort(key=lambda r: (not r["belegt"], -(r["renditeUg"] if r["renditeUg"] is not None else -999)))
     bewiesen |= {r["wallet"] for r in profis if r["belegt"]}
     # Für Markierungen, PK1, CM1, „Belegte Wale setzen gerade": eine Liste aus W3-Wallets und W4-Profis

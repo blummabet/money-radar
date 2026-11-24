@@ -94,6 +94,7 @@ def wertung(zeilen, fuss, ab_ts):
     gesehen = set()
     out = {"n": 0, "einsatz": 0.0, "gewinn": 0.0, "wins": 0, "uSum": 0.0, "uSq": 0.0, "gSq": 0.0, "gc": 0.0, "cSq": 0.0,
            "bySport": {}, "unplausibel": 0, "ohneFeld": 0, "unbekannt": {}}
+    wetten = []                                   # 24.11. Wallet-Seite: (Zeit, Einsatz, Gewinn, Sport, Titel, Seite, Ø Preis)
     for z in zeilen or []:
         if not isinstance(z, dict):
             continue
@@ -148,10 +149,57 @@ def wertung(zeilen, fuss, ab_ts):
         b[0] += 1
         b[1] += kosten
         b[2] += g
+        wetten.append((t if isinstance(t, (int, float)) else ab_ts, kosten, g, sp,
+                       z.get("title") or z.get("event_title") or slug, z.get("outcome"),
+                       ap if isinstance(ap, (int, float)) else None))
+    out.update(steckbrief(wetten, ab_ts))
     for k in ("einsatz", "gewinn", "uSum", "uSq", "gSq", "gc", "cSq"):
         out[k] = round(out[k], 3)
     out["unbekannt"] = dict(sorted(out["unbekannt"].items(), key=lambda kv: -kv[1])[:15])
     return out
+
+
+KURVE_PUNKTE = 30
+
+
+def steckbrief(wetten, ab_ts):
+    """24.11. (Lucas: „wen könnte ich da kopieren oder was macht der"): Gewinnkurve, letzte Wetten, Stil. REIN.
+    kurve = kumulierter Gewinn am Ende jedes 3-Tage-Abschnitts (30 Punkte über 90 Tage).
+    preisBand = Einsatz-Anteil % mit Einstieg < 35 ¢ (Außenseiter) / 35–65 ¢ / > 65 ¢ (Favorit).
+    top5 = Gewinn der 5 besten Wetten (zeigt, ob der Gewinn an wenigen Wetten hängt). neff = (ΣC)²/ΣC²."""
+    if len(wetten) < 20:                          # Seite zeigt erst ab 20 Wetten (Speicher sparen)
+        return {"kurve": []}
+    wetten = sorted(wetten, key=lambda x: x[0])
+    schritt = FENSTER_TAGE * 86400 / KURVE_PUNKTE
+    kurve, summe, i = [], 0.0, 0
+    for k in range(KURVE_PUNKTE):
+        ende = ab_ts + (k + 1) * schritt
+        while i < len(wetten) and wetten[i][0] < ende:
+            summe += wetten[i][2]
+            i += 1
+        kurve.append(round(summe))
+    while i < len(wetten):                         # jünger als das Fenster-Ende (Uhr) → letzter Punkt
+        summe += wetten[i][2]
+        i += 1
+    kurve[-1] = round(summe)
+    band, mit_preis, gew_preis = [0.0, 0.0, 0.0], 0.0, 0.0
+    for _, c, _, _, _, _, p in wetten:
+        if p is None:
+            continue
+        band[0 if p < 0.35 else 1 if p <= 0.65 else 2] += c
+        mit_preis += c
+        gew_preis += c * p
+    C = sum(w[1] for w in wetten)
+    cq = sum(w[1] * w[1] for w in wetten)
+    return {"kurve": kurve,
+            "letzte": [{"t": int(w[0]), "ti": str(w[4] or "")[:70], "o": str(w[5] or "")[:30], "c": round(w[1]),
+                        "g": round(w[2]), "p": round(w[6], 3) if w[6] is not None else None, "sp": w[3]}
+                       for w in reversed(wetten[-8:])],
+            "preis": round(gew_preis / mit_preis, 3) if mit_preis else None,
+            "preisBand": [round(100 * b / mit_preis) for b in band] if mit_preis else None,
+            "top5": round(sum(sorted((w[2] for w in wetten), reverse=True)[:5])),
+            "neff": round(C * C / cq, 1) if cq else None,
+            "groesste": round(max(w[1] for w in wetten))}
 
 
 def urteil(w):
@@ -225,14 +273,16 @@ def lauf(get, maerkte, stat, zeit_ok=lambda: True, lern=None):
     wallets = d.get("wallets") or {}
     # Reihenfolge: gesichtete Wale ohne aktuelle Wertung → Bestenliste ohne aktuelle Wertung → älteste Wertung zuerst
     frisch_fehler = lambda w: not alt((wallets.get(w) or {}).get("fehlerTs"), 6)   # noqa: E731  (400er nicht jeden Lauf)
-    reihe = sorted(kand, key=lambda w: (frisch_fehler(w), (wallets.get(w) or {}).get("v") == VERSION, w not in sicht,
-                                        (wallets.get(w) or {}).get("ts") or ""))
+    # 24.11.: Wertungen ohne Steckbrief (Kurve, letzte Wetten) gelten als veraltet — belegte zuerst nachholen
+    aktuell = lambda w: (wallets.get(w) or {}).get("v") == VERSION and "kurve" in (wallets.get(w) or {})   # noqa: E731
+    reihe = sorted(kand, key=lambda w: (frisch_fehler(w), aktuell(w), not (wallets.get(w) or {}).get("belegt"),
+                                        w not in sicht, (wallets.get(w) or {}).get("ts") or ""))
     ab_ts = (JETZT - timedelta(days=FENSTER_TAGE)).timestamp()
     gemacht = 0
     for w in reihe:
         if gemacht >= PROFI_JE_LAUF or not zeit_ok() or time.time() - t0 > PROFI_S:
             break
-        if (wallets.get(w) or {}).get("v") == VERSION and not alt((wallets.get(w) or {}).get("ts"), NEU_TAGE * 24):
+        if aktuell(w) and not alt((wallets.get(w) or {}).get("ts"), NEU_TAGE * 24):
             continue
         if frisch_fehler(w):
             continue
