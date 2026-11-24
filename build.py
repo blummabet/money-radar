@@ -2762,7 +2762,8 @@ def belegte_positionen(wallets, track, *quellen):
                 return
         w = bew[wallet]
         liste.append({"wallet": wallet, "seite": seite, "usd": round(float(usd)), "preis": preis,
-                      "clv": w.get("fensterClv"), "clvUg": w.get("clvUg"), "n": w.get("fensterN")})
+                      "clv": w.get("fensterClv"), "clvUg": w.get("clvUg"), "n": w.get("fensterN"),
+                      "profi": w.get("profi"), "rendite": w.get("rendite"), "renditeUg": w.get("renditeUg")})
 
     for p in ((track or {}).get("open") or {}).values():
         if isinstance(p, dict) and zukunft(p.get("koTs"), nach_h=2.2, bis_h=72):
@@ -2851,7 +2852,8 @@ def cm1(belegt, maerkte, wallets):
             out.append({"key": key, "titel": m.get("titel"), "liga": m.get("league"), "sport": m.get("sport"), "anpfiff": m.get("koTs"),
                         "seite": x["seite"], "preis": p, "quote": round(1 / p, 3), "usd": x["usd"], "faktor": round(x["usd"] / su, 2),
                         "schnittUsd": su, "wallet": x["wallet"], "clv": w.get("fensterClv"), "clvUg": w.get("clvUg"), "n": w.get("fensterN"),
-                        "roi": w.get("roi"), "nGeld": w.get("nGeld"),
+                        "roi": w.get("roi"), "nGeld": w.get("nGeld"), "profi": w.get("profi"), "name": w.get("name"),
+                        "rendite": w.get("rendite"), "renditeUg": w.get("renditeUg"), "gewinn": w.get("gewinn"),
                         "rang": next((i + 1 for i, v in enumerate(wallets or []) if v["wallet"] == x["wallet"]), None),
                         "pnl": w.get("pnl"), "mit": [{"w": y["wallet"][-4:], "usd": y["usd"]} for y in mit],
                         "gegenUsd": sum(y["usd"] for y in gegen), "marktUsd": m.get("totalUsd"),

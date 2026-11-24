@@ -1715,7 +1715,7 @@ def _poly_gegenwal(d, x):
     """Public-Regel 18: bewährtes Geld auf der Gegenseite desselben Polymarket-Markts — Beschreibung oder None."""
     key, ausw = str(x.get("id")), str(x.get("auswahl"))
     gegen = [w for w in (d.get("polyBelegt") or {}).get(key) or []
-             if str(w.get("seite")) != ausw and (w.get("usd") or 0) >= GEGENWAL_MIN_USD and (w.get("clvUg") or 0) > 0]
+             if str(w.get("seite")) != ausw and (w.get("usd") or 0) >= GEGENWAL_MIN_USD and ((w.get("clvUg") or 0) > 0 or w.get("profi"))]
     if gegen:
         w = max(gegen, key=lambda w: w.get("usd") or 0)
         return {"quelle": "belegt", "seite": w.get("seite"), "usd": round(w.get("usd") or 0), "wallet": str(w.get("wallet"))[-4:]}
@@ -2046,9 +2046,14 @@ def cm1_push(d):
              f"🕒 {anpfiff(x.get('anpfiff'))}", "",
              f"🎯 <b>{e(x['seite'])} @ {q2(x['quote'])}</b>  ({round(x['preis'] * 100)}¢ auf Polymarket)", "",
              "<b>Warum</b>",
-             f"✅ Bewährte Wallet {e(str(x['wallet'])[2:6])}" + (f" (Nr. {x['rang']})" if x.get("rang") else "")
-             + f": schlägt den Schlusskurs um Ø {q2(x.get('clv'))} pp, sicher ≥ {q2(x.get('clvUg'))} pp, {x.get('n')} Wetten",
+             (f"✅ Sport-Profi {e(str(x.get('name') or str(x['wallet'])[2:6])[:24])}: {x.get('n')} Wetten in 90 Tagen, Rendite "
+              f"{'+' if (x.get('rendite') or 0) >= 0 else ''}{q2(x.get('rendite'))} % (sicher ≥ {q2(x.get('renditeUg'))} %)"
+              if x.get("profi") else
+              f"✅ Bewährte Wallet {e(str(x['wallet'])[2:6])}" + (f" (Nr. {x['rang']})" if x.get("rang") else "")
+              + f": schlägt den Schlusskurs um Ø {q2(x.get('clv'))} pp, sicher ≥ {q2(x.get('clvUg'))} pp, {x.get('n')} Wetten"),
              # 24.11. Regel W3: was sie bei uns und bei Polymarket insgesamt verdient hat
+             (f"✅ Gewinn damit: <b>{geld(x['gewinn'], '$')}</b>" if isinstance(x.get("gewinn"), (int, float)) else "✅ Polymarket-Positionen geprüft (W4–W6)")
+             if x.get("profi") else
              f"✅ Ihre Wetten bei uns: <b>{'+' if (x.get('roi') or 0) > 0 else ''}{q2(x.get('roi'))} %</b> Rendite ({x.get('nGeld')} abgerechnet)"
              + (f" · Polymarket gesamt <b>{geld(x['pnl'], '$')}</b>" if isinstance(x.get("pnl"), (int, float)) else ""),
              f"✅ Sie hält <b>{geld(x['usd'], '$')}</b> = <b>{q2(x['faktor'])}×</b> ihren üblichen Einsatz ({geld(x['schnittUsd'], '$')})",
