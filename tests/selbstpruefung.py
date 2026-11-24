@@ -184,6 +184,16 @@ def _():
     nah(f["flach"], -5.0, 0.01)
 
 
+@pruefe("Public-Ergebnis: Nachwuchsspiel zählt nie fürs Profispiel (Feyenoord – Porto 24.11.)")
+def _():
+    import build, bilanz
+    t0 = datetime(2026, 11, 24, 18, 58, tzinfo=timezone.utc)
+    jung = (bilanz._team("Feyenoord Youth"), bilanz._team("Porto U19"), datetime(2026, 11, 24, 15, tzinfo=timezone.utc), [0, 1], "Feyenoord Youth", "Porto U19")
+    gleich(build._public_gewonnen({"spiel": "Feyenoord – Porto", "auswahl": "Porto"}, t0, [jung]), None, "U19-Ergebnis fürs Profispiel")
+    profi = (bilanz._team("Feyenoord"), bilanz._team("Porto"), datetime(2026, 11, 24, 20, tzinfo=timezone.utc), [1, 2], "Feyenoord", "Porto")
+    gleich(build._public_gewonnen({"spiel": "Feyenoord – Porto", "auswahl": "Porto"}, t0, [jung, profi]), True)
+
+
 @pruefe("Top 3 T10: Bestätigung nötig, nicht kurz vor Anpfiff, live kein Sieg bei Gleichstand")
 def _():
     import top3

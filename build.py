@@ -3577,11 +3577,12 @@ def _public_gewonnen(p, t0, erg):
         treffer = [e for e in erg if e[0] == th and e[1] == tg and timedelta(hours=-3) <= (e[2] - t0) <= timedelta(hours=1)]
     # 17.11.2026 (Rundum-Check): „Man Utd – Roma" fand auch „Man Utd U19 – Roma U19" (gleicher Tag, erstes Wort gleich)
     # → zwei Treffer → offen. Nachwuchs/Frauen nur mit Nachwuchs/Frauen paaren.
-    if len(treffer) > 1:
-        def _jung(n):
-            return bool(re.search(r"\b(u\s?1\d|u\s?2[0-3]|ii|b|women|w|frauen|reserves?)\b", str(n or "").lower()))
-        j = _jung(p.get("spiel"))
-        treffer = [e for e in treffer if _jung(f"{e[4]} {e[5]}") == j]
+    # 24.11.: IMMER prüfen, nicht nur bei zwei Treffern — Public „Feyenoord – Porto" (Anpfiff 21:00) stand um 20:00 schon
+    # als gewonnen, weil „Feyenoord Youth – Porto U19" (0:1, Youth League am Nachmittag) der einzige fertige Treffer war.
+    def _jung(n):
+        return bool(re.search(r"\b(u\s?1\d|u\s?2[0-3]|ii|b|women|w|frauen|reserves?|youth|juniors?|primavera)\b", str(n or "").lower()))
+    j = _jung(p.get("spiel"))
+    treffer = [e for e in treffer if _jung(f"{e[4]} {e[5]}") == j]
     if len(treffer) != 1:
         return None
     _, _, _, ft, heim, gast = treffer[0]
