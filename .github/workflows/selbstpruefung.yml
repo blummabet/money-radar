@@ -1,0 +1,43 @@
+name: Selbstprüfung
+
+# 24.11. (Lucas: „die kleine Fassung, ja"): nach jeder Code-Änderung die Kernrechnungen mit erfundenen Daten prüfen
+# (tests/selbstpruefung.py). Läuft auf GitHub, nicht auf dem Mac — der Seitenbau wird nicht aufgehalten.
+# Schlägt etwas fehl: eine Meldung in den Money-Kanal (nie Public).
+on:
+  push:
+    branches: [main]
+    paths: ["**.py", "site/index.html", "tests/**", ".github/workflows/selbstpruefung.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: selbstpruefung
+  cancel-in-progress: true
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Prüfen
+        run: python3 tests/selbstpruefung.py 2>&1 | tee pruefung.log
+        shell: bash
+      - name: Melden, wenn etwas fehlschlägt
+        if: failure()
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_TEST_CHAT_ID }}
+        run: |
+          [ -n "$TOKEN" ] && [ -n "$CHAT" ] || exit 0
+          F=$(grep '✗' pruefung.log | head -5 | sed 's/^ *//')
+          T=$(printf '🧪 Selbstprüfung fehlgeschlagen nach Commit %s\n%s\n\nDetails: %s/%s/actions/runs/%s' "${GITHUB_SHA::7}" "$F" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          curl -s -o /dev/null "https://api.telegram.org/bot${TOKEN}/sendMessage" --data-urlencode "chat_id=${CHAT}" --data-urlencode "text=${T}"
