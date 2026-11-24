@@ -43,6 +43,7 @@ PROFI_JE_LAUF = 60       # 24.11.: Lauf braucht ~45 s von 240 s — 40 Wallets �
 PROFI_S = 120
 FENSTER_TAGE = 90
 MIN_N = 50
+MIN_RENDITE = 0.02   # Regel W6 (24.11.): Auflösungs-Käufer (99 % Treffer, +0,1 %) sind kein Signal
 VERSION = 5        # 2: Einsatz aus Stück × Ø Preis statt total_cost_usdc · 3: W5 (gewichtet, Plausibilität) · 4: + Gebühr · 5: Fußball-Präfixe fest + Archiv, Einsatz ≥ Verlust
 WAL_USD = 500
 SICHT_TAGE = 30
@@ -58,8 +59,8 @@ FUSS_FEST = ("epl", "lal", "sea", "bun", "fl1", "ucl", "uel", "uecl", "unl", "ml
              "uru", "par", "ecu", "chl", "isr", "cyp", "hrv", "srb", "bul", "hun", "svk", "svn", "ire", "wal", "ind",
              "tha", "vie", "idn", "mys", "qat", "uae", "egy", "mar", "rsa", "can", "usl", "bun2", "lal2", "sea2", "fl2",
              "efl1", "efl2", "argpn", "ukr1", "dfb", "coppa", "afc", "caf", "concacaf", "conmebol", "kor1", "jpn1",
-             "afcq", "conl", "uwcl", "wcl", "uefq", "cafq", "conq", "nwsl", "wsl", "ligamx", "uecq")
-RAUS = ("esoccer", "fifa25", "efootball", "btc", "eth", "sol", "xrp", "doge", "bnb", "crypto", "hype", "atp", "wta", "nba", "nfl", "mlb", "nhl", "ncaa", "cbb", "cfb", "wnba", "ufc", "mma", "f1", "nascar", "pga", "golf")
+             "uslc", "afcq", "conl", "uwcl", "wcl", "uefq", "cafq", "conq", "nwsl", "wsl", "ligamx", "uecq")
+RAUS = ("esoccer", "fifa25", "efootball", "btc", "eth", "sol", "xrp", "doge", "bnb", "crypto", "hype", "elon", "ballon", "crint", "cric", "ipl", "atp", "wta", "nba", "nfl", "mlb", "nhl", "ncaa", "cbb", "cfb", "wnba", "ufc", "mma", "f1", "nascar", "pga", "golf")
 _PRAEFIX = re.compile(r"^([a-z0-9]+)-")
 
 
@@ -161,7 +162,7 @@ def urteil(w):
     rest = max(0.0, (w.get("gSq") or 0) - 2 * R * (w.get("gc") or 0) + R * R * (w.get("cSq") or 0))
     se = math.sqrt(n / (n - 1) * rest) / C
     ug = 100 * (R - Z * se)
-    return bool(n >= MIN_N and R > 0 and ug > 0), round(100 * R, 1), round(ug, 1)
+    return bool(n >= MIN_N and R >= MIN_RENDITE and ug > 0), round(100 * R, 1), round(ug, 1)
 
 
 def plausibel(w, abgeschnitten=False):

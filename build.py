@@ -1059,7 +1059,8 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
         profis.append({"wallet": pw, "name": v.get("name"), "n": v.get("n"), "rendite": v.get("rendite"), "renditeUg": v.get("renditeUg"),
                        "gewinn": round(v.get("gewinn") or 0), "einsatz": round(v.get("einsatz") or 0), "treffer": round(100 * (v.get("wins") or 0) / v["n"]),
                        "sport": haupt, "bySport": {k: [x[0], round(100 * x[2] / x[1], 1) if x[1] else None] for k, x in bs.items()},
-                       "belegt": bool(v.get("belegt")), "board": v.get("board"), "ts": v.get("ts"), "offen": len(pos_je.get(pw) or []),
+                       # Regel W6: unter 2 % Rendite kein Profi (Auflösungs-Käufer mit 99 % Treffer und +0,1 %)
+                       "belegt": bool(v.get("belegt")) and (v.get("rendite") or 0) >= 2, "board": v.get("board"), "ts": v.get("ts"), "offen": len(pos_je.get(pw) or []),
                        "pruefen": v.get("pruefen"), "hinweis": v.get("hinweis"), "gesichtet": v.get("gesichtet")})
     profis.sort(key=lambda r: (not r["belegt"], -(r["renditeUg"] if r["renditeUg"] is not None else -999)))
     bewiesen |= {r["wallet"] for r in profis if r["belegt"]}
