@@ -2798,7 +2798,10 @@ _FUELL = {"fc", "cf", "sc", "ac", "as", "afc", "club", "de", "del", "la", "the",
 
 _GENERISCH = {"real", "united", "city", "atletico", "athletic", "sporting", "deportivo", "racing", "inter", "internazionale",
               "saint", "dinamo", "club", "union", "nacional", "independiente", "universidad", "town", "rovers", "wanderers",
-              "olimpia", "esporte", "clube", "sport", "america", "mineiro", "paris", "new", "york", "san", "santa"}
+              "olimpia", "esporte", "clube", "sport", "america", "mineiro", "paris", "new", "york", "san", "santa",
+              # 25.11. (Club Brugge U19 – Liverpool U19: „U19" machte beide Teams „gleich" → Heim/Gast ohne Seite,
+              # nur Remis blieb → „100 % Remis"): Alters-/Mannschafts-Zusätze sind kein Kernwort
+              "u17", "u18", "u19", "u20", "u21", "u22", "u23", "ii", "b", "women", "w", "youth", "reserves", "res"}
 _ALIAS = {"utd": "united", "man": "manchester", "atl": "atletico", "atletico": "atletico", "mg": "mineiro",
           "rennais": "rennes", "mgladbach": "gladbach", "monchengladbach": "gladbach", "borussia": "", "nottm": "nottingham",
           "wolves": "wolverhampton", "spurs": "tottenham", "psg": "paris", "munchen": "munich", "koln": "cologne",
@@ -3001,10 +3004,15 @@ def geld_toepfe(radar, poly_alle, hr, pf=None, belegt=None):
             k = _seite(v["name"], sp["heim"], sp["gast"])
             if k:
                 seiten[k] = seiten.get(k, 0) + (v.get("eur") or 0)
+        # 25.11. (Lucas, Brugge U19: €182 im Sieg-Markt, €39k im Spiel — fast alles auf Über 3,5): ein fast leerer Sieg-Markt
+        # ist keine Aufteilung des Geldes. Unter €1.000 und unter 10 % des Spiels → keine Seiten (die Karte nennt dann
+        # den Markt, in dem das Geld liegt).
+        if sum(seiten.values()) < 1000 and sum(seiten.values()) < 0.1 * (sp.get("eur") or 0):
+            seiten = {}
         spiele.append({"id": sp["id"], "heim": sp["heim"], "gast": sp["gast"], "liga": sp["liga"], "land": sp.get("land"),
                        "anpfiff": sp["anpfiff"], "live": sp.get("live"), "top5": bool(sp.get("top5")), "sport": "Fußball",
                        "entschieden": bool(sp.get("entschieden")),
-                       "q": {"betfair": {"betrag": sp["eur"], "seiten": seiten, "quoten": sp.get("quoten")}}})
+                       "q": {"betfair": {"betrag": sp["eur"], "seiten": seiten, "quoten": sp.get("quoten"), "geldAuf": sp.get("geldAuf")}}})
 
     def finden(heim, gast, anpfiff):
         """Beide Teams passen (Anpfiff ±3 h) — oder Anpfiff fast gleich (±20 Min) und ein Team sicher, das andere locker."""

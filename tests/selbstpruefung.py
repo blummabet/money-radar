@@ -203,6 +203,14 @@ def _():
     assert erw and 2.25 < erw * 1.15, erw              # 15 Min ohne Tor, 1,90 → 2,25: das erklärt die Uhr
 
 
+@pruefe("Seiten: U19 macht Heim und Gast nicht gleich (Club Brugge U19 – Liverpool U19, 25.11.)")
+def _():
+    import build
+    gleich(build._seite("Liverpool U19", "Club Brugge U19", "Liverpool U19"), "gast")
+    gleich(build._seite("Club Brugge U19", "Club Brugge U19", "Liverpool U19"), "heim")
+    gleich(build._seite("Man Utd", "Manchester United", "Liverpool"), "heim")
+
+
 @pruefe("Top 3 T10: Bestätigung nötig, nicht kurz vor Anpfiff, live kein Sieg bei Gleichstand")
 def _():
     import top3
