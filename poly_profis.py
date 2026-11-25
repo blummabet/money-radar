@@ -63,7 +63,11 @@ FUSS_FEST = ("epl", "lal", "sea", "bun", "fl1", "ucl", "uel", "uecl", "unl", "ml
 # 24.11.: Frage-Märkte (Langzeit/Spezial: „will-arsenal-win-the-premier-league", „what-…", „how-many-…") sind keine
 # Spiele — raus, sonst meldet der Wächter sie als unbekannte Liga
 RAUS = ("will", "highest", "lowest", "temperature", "weather", "what", "how", "who", "which", "when", "where", "does", "is", "can", "top", "most", "us", "2026", "2027",
-        "esoccer", "fifa25", "efootball", "btc", "eth", "sol", "xrp", "doge", "bnb", "crypto", "hype", "elon", "ballon", "crint", "cric", "ipl", "atp", "wta", "nba", "nfl", "mlb", "nhl", "ncaa", "cbb", "cfb", "wnba", "ufc", "mma", "f1", "nascar", "pga", "golf")
+        "esoccer", "fifa25", "efootball", "btc", "eth", "sol", "xrp", "doge", "bnb", "crypto", "hype", "elon", "ballon", "crint", "cric", "ipl", "atp", "wta", "nba", "nfl", "mlb", "nhl", "ncaa", "cbb", "cfb", "wnba", "ufc", "mma", "f1", "nascar", "pga", "golf",
+        # 25.11. (Wächter: bitcoin 825, ethereum 335): ausgeschriebene Krypto-Namen und andere Nicht-Sport-Themen gleich mit
+        "bitcoin", "ethereum", "solana", "ripple", "dogecoin", "cardano", "litecoin", "chainlink", "avalanche", "hyperliquid",
+        "pepe", "shiba", "tron", "sui", "spx", "sp500", "nasdaq", "dow", "gold", "silver", "oil", "fed", "fomc", "cpi",
+        "trump", "election", "presidential", "mayor", "nobel", "oscars", "grammys", "eurovision")
 _PRAEFIX = re.compile(r"^([a-z0-9]+)-")
 
 
