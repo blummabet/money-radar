@@ -3184,8 +3184,17 @@ function feedGeschichten(D, E){
     if(e.live && frisch && (!g.live || (e.live.min!=null && g.live.min==null))) g.live = e.live;
   }
   const jetzt = Date.now();
+  // 25.11. (Lucas: Radnicki Nis „5' · 0:0", im Spiel schon 0:1): Minute und Stand kamen aus der Meldung (Stand zur
+  // Meldezeit). Jetzt der aktuelle Stand aus dem Betfair-Radar, sonst die jüngste Meldung mit Live-Stand.
+  const radarLive = new Map((D.radar?.spiele||[]).filter(s=>s.live).map(s=>[feedKey(s.heim, s.gast), s.live]));
   return [...G.values()].map(g=>{
     g.ev.sort((a,b)=>(new Date(b.zeit||0)-new Date(a.zeit||0)) || (b.gewicht-a.gewicht));
+    const jung = g.ev.find(e=>e.live && e.live.min!=null && (!e.zeit || jetzt-new Date(e.zeit) < 3*36e5));
+    if(g.live){ const r = radarLive.get(g.k);
+      if(r) g.live = r;
+      else { const qu = jung || g.ev.find(e=>e.live);   // nicht (mehr) im Radar: hochgerechnete Minute > 100 → Spiel ist aus
+        const jetztMin = qu?.live?.min!=null && qu.zeit ? qu.live.min + (jetzt-new Date(qu.zeit))/6e4 : null;
+        if(jetztMin!=null && jetztMin > 100){ g.live = null; g.aus = true; } else g.live = qu?.live || g.live; } }
     g.zeit = g.ev[0].zeit; g.quellen = [...new Set(g.ev.filter(e=>e.k!=="push"&&e.k!=="hz").map(e=>e.q))];
     g.alterMin = g.zeit ? (jetzt-new Date(g.zeit))/6e4 : 9999;
     // Gewicht: frisch zählt, mehrere Quellen zählen doppelt, Serien schwer
