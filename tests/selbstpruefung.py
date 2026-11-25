@@ -194,6 +194,15 @@ def _():
     gleich(build._public_gewonnen({"spiel": "Feyenoord – Porto", "auswahl": "Porto"}, t0, [jung, profi]), True)
 
 
+@pruefe("R40: Über-Quote steigt stärker als die Uhr (Legia U19 25.11.) — normaler Uhr-Anstieg nicht")
+def _():
+    import markout
+    erw = markout.uhr_erwartung("Over/Under 3.5 Goals", "Over 3.5 Goals", 1.44, 0, 6, [0, 0])
+    assert erw and 2.10 > erw * 1.15, erw              # Legia: 1,44 → 2,10 in 6 Min ist Lay-Verdacht
+    erw = markout.uhr_erwartung("Over/Under 2.5 Goals", "Over 2.5 Goals", 1.90, 20, 35, [0, 0])
+    assert erw and 2.25 < erw * 1.15, erw              # 15 Min ohne Tor, 1,90 → 2,25: das erklärt die Uhr
+
+
 @pruefe("Top 3 T10: Bestätigung nötig, nicht kurz vor Anpfiff, live kein Sieg bei Gleichstand")
 def _():
     import top3

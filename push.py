@@ -1638,7 +1638,24 @@ def serie(d):
         # Über-Quote ohne Tor ganz normal mit der Uhr, das ist kein Lay-Zeichen.
         sieg_markt = not re.search(r"Over/Under|Goals|Correct Score", str(x.get("markt") or ""))
         lay_verdacht = bool(x.get("live") and sieg_markt and q and q0 and q > q0 * 1.15 and not x.get("tor"))
-        if lay_verdacht:
+        # Regel R40 (25.11., Lucas: Legia U19 – Super Nova U19, Über 3,5: Serie ab 1,44, live 6' 0:0 schon 2,10, 10' 2,46 —
+        # „Stats, dass es normal 8:0 stehen müsste, und steht 1:0"): Tor-Linien steigen ohne Tor mit der Uhr — aber nur so
+        # weit, wie die Tor-Rate es erklärt. Liegt die Quote > 15 % über dem, was die Uhr seit Serienbeginn allein ergäbe
+        # (markout.uhr_erwartung, Poisson), war das gematchte Geld eher Lay → wie R8: kein Public, Hinweis im Money-Channel.
+        uhr_lay = None
+        if x.get("live") and not sieg_markt and q and q0 and not x.get("tor"):
+            import markout as _m
+            mi40, st40 = _live_von(d, x["id"])
+            if isinstance(mi40, (int, float)) and st40:
+                m0 = max(0, mi40 - (x.get("dauerMin") or 0))
+                erw40 = _m.uhr_erwartung(x.get("markt"), x.get("auswahl"), q0, m0, mi40, list(st40)) if mi40 > m0 else None
+                if erw40 and q > erw40 * 1.15:
+                    uhr_lay = erw40
+                    lay_verdacht = True
+        if uhr_lay:
+            lay_hinweis = (f"⚠️ <i>Quote stieg von {q2(q0)} auf {q2(q)} ohne Tor — die Uhr allein erklärt nur ~{q2(uhr_lay)}. "
+                           f"Gematchtes Geld kann auch Lay sein: der Markt glaubt eher weniger an diese Seite.</i>\n")
+        elif lay_verdacht:
             lay_hinweis = (f"⚠️ <i>Quote stieg um {round(100 * (q / q0 - 1))} % ohne Tor — mehr als die Spielzeit erklärt. "
                            f"Gematchtes Geld kann auch Lay sein: der Markt glaubt eher weniger an diese Seite.</i>\n")
         qg_ = _geld_quote(d, x["id"], x["markt"], x["auswahl"])
@@ -1666,7 +1683,9 @@ def serie(d):
                    markt=_markt_de(x["markt"]), anpfiff=x.get("anpfiff"), live=bool(x.get("live")), minute=mi_, stand=st_,
                    gruende=[f"{_pbalken(x.get('anteil'))} {x.get('anteil')} % des Geldes",
                             f"⏱ {x['n']}× in Folge · +{geld(x['eur'])} in {_dauer(x.get('dauerMin'))}"])
-        pub["layVerdacht"] = lay_verdacht           # Public-Regel 8
+        pub["layVerdacht"] = lay_verdacht           # Public-Regel 8 (Sieg-Markt) / R40 (Tor-Linie gegen die Uhr)
+        if uhr_lay:
+            pub["r40"] = True
         # Regel S8 → in main(): live erst die zweite (oder spätere) Push-Stufe derselben Serie ist ein Public-Kandidat
         _mit(pub, x.get("eur"), x.get("n"))
         pub["x"] = {"n": x["n"], "min": x.get("dauerMin"), "anteil": x.get("anteil"), "q0": q0, "saeulen": (x.get("saeulen") or [])[-24:]}
@@ -1675,7 +1694,7 @@ def serie(d):
         yield key, text + (T1_ZEILE if klar else ""), None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"],
-                                "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht, "qGeld": qg_,
+                                "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht, "layUhr": bool(uhr_lay), "qGeld": qg_,
                                 "n": x.get("n"), "dauerMin": x.get("dauerMin"),
                                 **({"uhrDrop": uhr_drop, "regelD": "D1"} if uhr_drop is not None else {}),
                                 **({"klar": True, "regelT": "T1"} if klar else {})}, (None if klar else pub)

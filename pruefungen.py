@@ -23,6 +23,8 @@ REGISTER = [
      "arten": ["walStreit"], "ab": "2026-11-24T10:00", "ziel": 50, "vergleich": ["wal"]},
     {"id": "W9", "frage": "Profis unter der Top-Grenze (walProfiB) schlechter als die gepushten Wal-Einstiege?",
      "arten": ["walProfiB"], "ab": "2026-11-24T12:00", "ziel": 50, "vergleich": ["wal"]},
+    {"id": "R40", "frage": "Live-Dauerzufluss auf Tor-Linie, Quote stieg stärker als die Uhr (Lay-Verdacht): schlechter als normale Dauerzuflüsse? Dann bleibt die Public-Sperre.",
+     "arten": ["serieLayUhr"], "ab": "2026-11-25T12:40", "ziel": 40, "vergleich": ["serie"]},
     {"id": "W12", "frage": "Profi-Einstiege (Top-Profi ≥ 3× Schnitt, unter $5k) so gut wie Wal-Einstiege? Dann in den Public; sonst Schwelle rauf.",
      "arten": ["profiEin"], "ab": "2026-11-24T17:30", "ziel": 40, "vergleich": ["wal", "profiWal"]},
     {"id": "R39", "frage": "Polymarket-Dauerzufluss mit bewährtem Geld dagegen im Minus? Dann wieder sperren.",
