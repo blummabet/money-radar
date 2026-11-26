@@ -1319,7 +1319,8 @@ def poly(track, upcoming, whale_ledger, offen_maerkte=None, trades_ledger=None, 
                      "liga": z.get("league"), "zeit": z.get("sentAt"), "status": z.get("status")})
     wale.sort(key=lambda r: r["zeit"] or "", reverse=True)
     return {"wallets": wallets, "belegtListe": belegt_liste, "profis": [r for r in profis if r["belegt"]][:80] + [{k: v for k, v in r.items() if k not in ("kurve", "letzte")}
-                                                            for r in profis if not r["belegt"]][:10],   # 24.11.: alle belegten (Seite „Alle zeigen") "profiStand": profi_stand, "liveWallets": live_wallets, "gewinnListen": gewinn_listen, "maerkte": auswahl, "walPushes": wale[:20], "setzen": setzen[:20],
+                                                            for r in profis if not r["belegt"]][:10],   # 24.11.: alle belegten (Seite „Alle zeigen")
+            "profiStand": profi_stand, "liveWallets": live_wallets, "gewinnListen": gewinn_listen, "maerkte": auswahl, "walPushes": wale[:20], "setzen": setzen[:20],
             "tradesPushes": tp[:40], "tradesBilanz": bil, "tradesSeit": (trades_record or {}).get("startAb"),
             "regel": {"minN": MIN_N, "minSchnittUsd": MIN_SCHNITT_USD, "minFenster": MIN_FENSTER}}
 

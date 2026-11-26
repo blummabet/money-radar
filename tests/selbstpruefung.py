@@ -322,6 +322,23 @@ def _():
         py_compile.compile(str(p), doraise=True)
 
 
+@pruefe("Python: kein Code im Kommentar verschluckt (24.11.: Poly-Märkte fehlten zwei Tage)")
+def _():
+    import io, tokenize
+    muster = re.compile(r'"\w+":\s*[a-z_][\w\.]*(\[|\(|,|$)')
+    for p in list(WURZEL.glob("*.py")) + list((WURZEL / "stake").glob("*.py")) + list((WURZEL / "social").glob("*.py")):
+        for t in tokenize.generate_tokens(io.StringIO(p.read_text(encoding="utf-8")).readline):
+            if t.type == tokenize.COMMENT and len(muster.findall(t.string)) >= 2:
+                raise AssertionError(f"{p.name}:{t.start[0]} Code im Kommentar: {t.string[:80]}")
+    import ast
+    baum = ast.parse((WURZEL / "build.py").read_text(encoding="utf-8"))
+    fn = next(n for n in baum.body if isinstance(n, ast.FunctionDef) and n.name == "poly")
+    ret = [n for n in ast.walk(fn) if isinstance(n, ast.Return) and isinstance(n.value, ast.Dict)][-1]
+    keys = {k.value for k in ret.value.keys if isinstance(k, ast.Constant)}
+    fehlt = {"maerkte", "profiStand", "liveWallets", "gewinnListen", "walPushes", "setzen", "profis"} - keys
+    assert not fehlt, f"build.poly liefert nicht: {sorted(fehlt)}"
+
+
 if __name__ == "__main__":
     print(f"Selbstprüfung: {len(FEHLER)} Fehler" if FEHLER else "Selbstprüfung: alles in Ordnung")
     sys.exit(1 if FEHLER else 0)
