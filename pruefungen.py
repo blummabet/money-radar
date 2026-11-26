@@ -41,6 +41,8 @@ REGISTER = [
      "arten": ["cm1Profi"], "ab": "2026-11-24T09:00", "ziel": 60, "vergleich": ["cm1"]},
     {"id": "D8D9", "frage": "Druck-Radar seit D8 (hinten mit einem Tor: kein Abkühlen) und D9 (xG ohne Schuss halb): Rendite mindestens so gut wie davor (D6: +4,9 %)?",
      "arten": ["druck"], "ab": "2026-11-26T20:30", "ziel": 100},
+    {"id": "EW-Tor", "frage": "Ecken-Welle (Team hinten/gleich): macht das Welle-Team öfter das nächste Tor als der Gegner? Dann Ecken im Druck-Index stärker gewichten.",
+     "arten": [], "ab": "2026-11-26T20:30", "datum": "2026-12-14"},
     {"id": "TP1", "frage": "Torprofil „torreich – erst ≤ 1 Tor“: Treffer über Quote und Rendite über Druck-Radar allein?",
      "arten": ["torHinweis"], "ab": "2026-11-22T18:00", "ziel": 100, "vergleich": ["druck"]},
     {"id": "CPO1", "frage": "CPO (Cash · Pressure · Odds): Rendite über Druck-Radar allein?",

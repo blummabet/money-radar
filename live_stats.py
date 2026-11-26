@@ -229,6 +229,17 @@ def welle_buch(d, cache, live_ids, neue_ticks):
                     b["naechste"] = "eigen" if (dh > 0) == (j == 0) else "gegner"
                 elif dh > 0 and dg > 0:
                     b["naechste"] = "unklar"
+            # 26.11. (Lucas, Union SG – Lech: Welle bei 1:2, kurz danach 2:2): wer macht das nächste Tor nach der Welle?
+            st_alt, st = b.get("stLetzt") or b.get("stand") or [0, 0], p.get("st")
+            if b.get("tor") is None and isinstance(st, list) and len(st) == 2 and st != st_alt:
+                th, tg = _zahl(st[0]) - _zahl(st_alt[0]), _zahl(st[1]) - _zahl(st_alt[1])
+                if (th > 0) != (tg > 0):
+                    b["tor"] = "eigen" if (th > 0) == (j == 0) else "gegner"
+                    b["torMin"] = p["m"]
+                elif th > 0 and tg > 0:
+                    b["tor"] = "unklar"
+            if isinstance(st, list) and len(st) == 2:
+                b["stLetzt"] = st
             b["eckLetzt"], b["mLetzt"], b["tsLetzt"] = p["eck"], p["m"], e.get("ts") or b["tsLetzt"]
         alt_min = (JETZT - (_zeit(b["tsLetzt"]) or JETZT)).total_seconds() / 60
         if b["mLetzt"] >= 88 or (b["id"] not in live_ids and alt_min > 20) or alt_min > 180:
@@ -238,6 +249,8 @@ def welle_buch(d, cache, live_ids, neue_ticks):
             b["status"] = "abgerechnet"
             if b["naechste"] is None:
                 b["naechste"] = "keine"
+            if b.get("tor") is None and "stLetzt" in b:      # nur Wellen, die seit 26.11. mitgeführt wurden
+                b["tor"] = "keins"
     w["liste"] = w["liste"][-2000:]
     w["zuletzt"] = {k: v for k, v in w["zuletzt"].items() if JETZT - (_zeit(v[0]) or JETZT) < timedelta(hours=3)}
     WELLE.parent.mkdir(exist_ok=True)
@@ -248,7 +261,12 @@ def welle_buch(d, cache, live_ids, neue_ticks):
         nx = [b for b in z if b.get("naechste") in ("eigen", "gegner")]
         return {"n": n, "weitere2": round(100 * sum(1 for b in z if b["win"]) / n) if n else None,
                 "naechsteEigen": round(100 * sum(1 for b in nx if b["naechste"] == "eigen") / len(nx)) if nx else None,
-                "schnitt": round(sum(b.get("weitere") or 0 for b in z) / n, 1) if n else None}
+                "schnitt": round(sum(b.get("weitere") or 0 for b in z) / n, 1) if n else None,
+                # nächstes Tor (seit 26.11.): nT = Wellen mit Tor-Messung, torEigen/torGegner/torKeins in %
+                **({"nT": len(t), "torEigen": round(100 * sum(1 for b in t if b["tor"] == "eigen") / len(t)),
+                    "torGegner": round(100 * sum(1 for b in t if b["tor"] == "gegner") / len(t)),
+                    "torKeins": round(100 * sum(1 for b in t if b["tor"] == "keins") / len(t))}
+                   if (t := [b for b in z if b.get("tor") in ("eigen", "gegner", "keins")]) else {"nT": 0})}
     return {"gesamt": len(w["liste"]), "offen": sum(1 for b in w["liste"] if b["status"] == "offen"),
             "alle": gr(ab), "hinten": gr([b for b in ab if b["lage"] == "hinten"]), "gleich": gr([b for b in ab if b["lage"] == "gleich"])}
 

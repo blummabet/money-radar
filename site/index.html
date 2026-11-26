@@ -4752,7 +4752,11 @@ function welleMessung(D){
   const a = W.alle||{};
   return `<div class="t3-mess"><span class="t3-mess-t">🚩 Ecken-Welle</span><span><b>${W.gesamt}</b> erkannt${W.offen?` · ${W.offen} laufen`:""}</span>
     ${a.n ? `<span>danach noch ≥ 2 Ecken: <b>${a.weitere2} %</b> (${a.n} Spiele, Schnitt +${dez(a.schnitt)})</span>${a.naechsteEigen!=null?`<span>nächste Ecke eigenes Team: <b>${a.naechsteEigen} %</b></span>`:""}
-      ${W.hinten?.n && W.gleich?.n ? `<span>hinten ${W.hinten.weitere2} % · gleich ${W.gleich.weitere2} %</span>` : ""}` : `<span>noch keine abgerechnet</span>`}</div>`;
+      ${W.hinten?.n && W.gleich?.n ? `<span>hinten ${W.hinten.weitere2} % · gleich ${W.gleich.weitere2} %</span>` : ""}` : `<span>noch keine abgerechnet</span>`}
+    ${(()=>{ const h = W.hinten||{}, g = W.gleich||{};   // 26.11.: wer macht das nächste Tor nach der Welle?
+      if(!(h.nT||g.nT)) return `<span>nächstes Tor: wird seit 26.11. mitgemessen</span>`;
+      const z = (x,n) => x.nT ? `${n}: eigenes Team <b>${x.torEigen} %</b> · Gegner ${x.torGegner} % · keins ${x.torKeins} % (${x.nT})` : "";
+      return `<span>nächstes Tor — ${[z(h,"hinten"), z(g,"gleich")].filter(Boolean).join(" · ")}</span>`; })()}</div>`;
 }
 // Lucas 01.11. („nur 2 Spiele ist untertrieben, wenn live mehr los ist"): die nächsten bis zu 4 kompakt darunter
 function druckZeile(x){

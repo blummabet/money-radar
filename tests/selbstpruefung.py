@@ -322,6 +322,23 @@ def _():
         py_compile.compile(str(p), doraise=True)
 
 
+@pruefe("Ecken-Welle: nächstes Tor wird mitgeschrieben")
+def _():
+    import live_stats as L
+    alt = L.WELLE
+    try:
+        L.WELLE = Path(tempfile.mkdtemp()) / "w.json"
+        b = {"id": "1", "heim": "A", "gast": "B", "liga": "x", "seite": "heim", "min": 59, "stand": [1, 2], "lage": "hinten", "n": 6,
+             "eckAn": [8, 0], "eckLetzt": [8, 0], "mLetzt": 59, "naechste": None, "ts": L.JETZT.isoformat(),
+             "tsLetzt": L.JETZT.isoformat(), "status": "offen", "win": None, "regel": 1}
+        L.WELLE.write_text(json.dumps({"liste": [b], "zuletzt": {}}))
+        cache = {"1": {"ts": L.JETZT.isoformat(), "verlauf": [{"m": 66, "st": [2, 2], "eck": [9, 0], "xg": [1.8, 1.2], "at": [8, 2], "echt": True}]}}
+        L.welle_buch({"radar": {"spiele": []}}, cache, {"1"}, [])
+        gleich(json.loads(L.WELLE.read_text())["liste"][0].get("tor"), "eigen", "Ausgleich nach Welle = eigenes Tor")
+    finally:
+        L.WELLE = alt
+
+
 @pruefe("Druck D8/D9: hinten mit einem Tor kühlt nicht ab, xG ohne Schuss halb")
 def _():
     import live_stats as L
