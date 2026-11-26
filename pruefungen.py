@@ -39,6 +39,8 @@ REGISTER = [
      "arten": ["cm1"], "ab": "2026-11-20T18:00", "ziel": 60, "vergleich": ["wal"]},
     {"id": "CM1-Profi", "frage": "Claude-Master-Lage nur durch Sport-Profis — besser als CM1?",
      "arten": ["cm1Profi"], "ab": "2026-11-24T09:00", "ziel": 60, "vergleich": ["cm1"]},
+    {"id": "D8D9", "frage": "Druck-Radar seit D8 (hinten mit einem Tor: kein Abkühlen) und D9 (xG ohne Schuss halb): Rendite mindestens so gut wie davor (D6: +4,9 %)?",
+     "arten": ["druck"], "ab": "2026-11-26T20:30", "ziel": 100},
     {"id": "TP1", "frage": "Torprofil „torreich – erst ≤ 1 Tor“: Treffer über Quote und Rendite über Druck-Radar allein?",
      "arten": ["torHinweis"], "ab": "2026-11-22T18:00", "ziel": 100, "vergleich": ["druck"]},
     {"id": "CPO1", "frage": "CPO (Cash · Pressure · Odds): Rendite über Druck-Radar allein?",

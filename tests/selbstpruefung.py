@@ -322,6 +322,30 @@ def _():
         py_compile.compile(str(p), doraise=True)
 
 
+@pruefe("Druck D8/D9: hinten mit einem Tor kühlt nicht ab, xG ohne Schuss halb")
+def _():
+    import live_stats as L
+    def v(m, st, xg, at, eck, sch):
+        return {"m": m, "st": st, "xg": xg, "at": at, "eck": eck, "sch": sch, "echt": True}
+    # Union SG – Lech 26.11.: Anschlusstor 54', danach weiter Druck
+    union = {"verlauf": [v(43, [0, 2], [1.34, 0.96], [5, 2], [2, 0], [9, 5]), v(49, [0, 2], [1.36, 1.16], [5, 2], [4, 0], [10, 5]),
+                         v(54, [1, 2], [1.45, 1.16], [7, 2], [6, 0], [12, 5]), v(59, [1, 2], [1.56, 1.16], [7, 2], [8, 0], [12, 5])]}
+    r = L.druck_von(union)
+    assert r["seite"] == "heim" and r["index"] >= 50, f"D8: Union nur {r['index']}"
+    # 1:3 hinten → D6 gilt weiter (Abkühlen)
+    union3 = {"verlauf": [{**x, "st": [x["st"][0], 3]} for x in union["verlauf"]]}
+    assert L.druck_von(union3)["teams"]["heim"]["index"] < r["teams"]["heim"]["index"]
+    # Jablonec – Lugano: xG-Sprung ohne Schuss
+    jab = {"verlauf": [v(45, [0, 0], [0.27, 0.27], [0, 0], [2, 0], [7, 5]), v(50, [0, 0], [0.66, 0.31], [0, 1], [2, 0], [7, 6]),
+                       v(60, [0, 0], [0.66, 0.39], [0, 1], [3, 1], [7, 7])]}
+    j = L.druck_von(jab)["teams"]["heim"]
+    mit_schuss = L.druck_von({"verlauf": [{**x, "sch": [x["sch"][0] + (1 if x["m"] >= 50 else 0), x["sch"][1]]} for x in jab["verlauf"]]})["teams"]["heim"]
+    assert j["index"] < mit_schuss["index"], "D9: xG ohne Schuss nicht gedämpft"
+    # fehlende Schussdaten dämpfen nicht
+    ohne = L.druck_von({"verlauf": [{**x, "sch": [None, None], "at": [None, None]} for x in jab["verlauf"]]})["teams"]["heim"]
+    assert ohne["index"] == mit_schuss["index"]
+
+
 @pruefe("Python: kein Code im Kommentar verschluckt (24.11.: Poly-Märkte fehlten zwei Tage)")
 def _():
     import io, tokenize

@@ -123,7 +123,10 @@ def druck_von(e):
         # Druck ist, kann es wieder rein"): hat das Team schon getroffen, zählt als „unbezahlter" Druck nur das xG SEIT
         # seinem letzten Tor (erster Punkt mit dem jetzigen Torstand). Direkt nach dem Tor ist das fast 0 = Abkühlen;
         # baut das Team weiter Druck auf, steigt der Index von selbst wieder.
-        if _zahl(stand[i]) > 0:
+        # D8 (26.11., Lucas, Union SG – Lech 1:2: 6 Ecken in 16 Min, Index 31): liegt das Team nach seinem Tor weiter mit
+        # GENAU einem Tor hinten, kühlt es nicht ab — es rennt weiter an, das unverwertete xG zählt ganz.
+        hinten_eins = _zahl(stand[1 - i]) - _zahl(stand[i]) == 1
+        if _zahl(stand[i]) > 0 and not hinten_eins:
             seit = next((r for r in vl if isinstance(r.get("m"), (int, float)) and _zahl((r.get("st") or [0, 0])[i]) >= _zahl(stand[i])
                          and r["xg"][i] is not None), None)
             if seit is not None:
@@ -132,6 +135,13 @@ def druck_von(e):
         # letzten 15 Min — Druck, der schon „bezahlt" ist. Tore im Fenster ziehen deshalb je 1 xG und 1 Schuss aufs Tor ab.
         tore_fenster = max(0.0, _zahl(stand[i]) - _zahl((q.get("st") or [0, 0])[i])) if q else 0.0
         dxg = max(0.0, xg - _zahl(q["xg"][i]) - tore_fenster) * f if q and q["xg"][i] is not None else 0.0
+        # D9 (26.11., Jablonec – Lugano: Index 62 aus einem xG-Sprung 0,27 → 0,66 ohne neuen Schuss): xG-Zuwachs ohne einen
+        # einzigen neuen Schuss im Fenster zählt nur halb (geblockte Chance oder nachgereichtes xG der API).
+        if q and dxg > 0:
+            paare = [((p.get(f) or [None, None])[i], (q.get(f) or [None, None])[i]) for f in ("sch", "at")]
+            bekannt = [b_ - a_ for b_, a_ in paare if isinstance(b_, (int, float)) and isinstance(a_, (int, float))]
+            if bekannt and max(bekannt) <= 0:          # nur wenn Schussdaten da sind — fehlende Daten halbieren nicht
+                dxg *= 0.5
         dat = max(0.0, _zahl(p["at"][i]) - _zahl(q["at"][i]) - tore_fenster) * f if q else 0.0
         deck = max(0.0, _zahl(p["eck"][i]) - _zahl(q["eck"][i])) * f if q else 0.0
         wert = ueber + 1.2 * dxg + 0.12 * dat + 0.04 * deck
