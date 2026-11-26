@@ -3699,6 +3699,7 @@ def _pub_zeile(p, zeilen, buch, erg_pub, erg_poly, nz):
             zeilen.append([t0.strftime("%Y-%m-%dT%H:%M"), art_p, r_, w_,
                            q_p, None, best[6], best[7], 1 if p.get("live") else 0, best[9],
                            str(p.get("auswahl") or "")[:40] or best[10], best[11] if len(best) > 11 else None])
+            _vorko_anhaengen(zeilen[-1], t0, p.get("anpfiff") or (p.get("m") or {}).get("anpfiff"), p.get("live"))
             # Lucas 08.11.: Polymarket-Schattenbuch — derselbe Tipp zum Polymarket-Preis im Moment des Posts.
             # „publicPoly": zur Poly-Quote abgerechnet, usd = Liquidität bis +2 Cent, faktor = gepostete Quote.
             # „publicPolyNein": gab es auf Polymarket nicht — Grund in Spalte „lage", Ergebnis zur geposteten Quote.
@@ -3781,6 +3782,16 @@ STAT_ARCHIV = BASIS / ".push_state" / "stat_archiv"
 def _stat_schluessel(z):
     art = re.sub(r"(Wdh|Spaeter|Klar)$", "", str(z[1]))
     return f"{z[0]}|{art}|{z[9]}|{z[10]}"
+
+
+def _vorko_anhaengen(zeile, t0, anpfiff, live):
+    """26.11. (Lucas, Celta – Bournemouth public 7 h vor Anpfiff: „Zeit kannst mitmessen … relativ guter Vergleichswert"):
+    Minuten vom Signal bis Anpfiff als Feld „vorKo" (Index 19), nur vor Anpfiff."""
+    k = ts(anpfiff) if anpfiff else None
+    if live or not k or not t0 or k <= t0:
+        return
+    zeile.extend([None] * (19 - len(zeile)))
+    zeile.append(int((k - t0).total_seconds() // 60))
 
 
 def _stat_archiv(buch_zeilen):
@@ -3905,6 +3916,7 @@ def statistik(burst, finder):
         if isinstance(b.get("ueb"), (int, float)):
             zeilen[-1].extend([None] * (18 - len(zeilen[-1])))
             zeilen[-1].append(b["ueb"])
+        _vorko_anhaengen(zeilen[-1], ts(b["ts"]), b.get("anpfiff"), b.get("live"))
     # Abhilfe 2: jede abgerechnete Zeile aus dem Push-Buch landet in einem Monats-Archiv (kompakt, ~120 Byte je Zeile);
     # was aus dem Buch gefallen ist, kommt von dort zurück. ~1–2 MB je Monat, in der Tagessicherung enthalten.
     try:
@@ -3980,7 +3992,7 @@ def statistik(burst, finder):
     except Exception as exc:  # noqa: BLE001
         print(f"  topf-dynamik: {exc}")
     zeilen.sort(key=lambda z: z[0])
-    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake", "qg", "sp", "clvx", "ueb"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake", "qg", "sp", "clvx", "ueb", "vorKo"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     _sg = (BASIS / "site" / "statistik.json").stat().st_size
     if _sg > SPEICHER_GRENZEN["statistik"]:
         FEHLER.append(f"Speicher: statistik.json {_sg / 1e6:.1f} MB — ältere Monate verdichten")

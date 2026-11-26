@@ -55,6 +55,8 @@ REGISTER = [
      "arten": ["serieLang"], "ab": "2026-11-24T12:55", "ziel": 30, "vergleich": ["serieWdh"]},
     {"id": "LD7", "frage": "Nachhaltiger Quoten-Drop live: Rendite über null, und mit Druck (dropDruck) besser als ohne (dropNachh)?",
      "arten": ["dropNachh", "dropDruck"], "ab": "2026-11-24T13:30", "ziel": 100, "vergleich": ["dropDruck"]},
+    {"id": "VK", "frage": "Public-Tipps nach Abstand zum Anpfiff (Feld vorKo): laufen frühe (> 4 h vorher) schlechter als knappe (< 1 h)? Dann frühe aufs nächste Zeitfenster schieben.",
+     "arten": ["public"], "ab": "2026-11-26T14:20", "datum": "2026-12-14"},
     {"id": "UEB", "frage": "Top-5/CL/EL: treffen Signale mit großem Überschuss (Feld ueb: pp mehr Geld als die Quote erwarten lässt) besser als blinder Fluss (≈ 0 pp)? Nach Überschuss-Stufen und Favorit/Außenseiter aufschlüsseln.",
      "arten": ["serie", "zufluss", "live", "public", "top3"], "ab": "2026-11-26T10:00", "datum": "2026-12-14"},
     {"id": "S7", "frage": "Stake unter 5 % des Betfair-Volumens: ist 5 % die richtige Grenze?",
