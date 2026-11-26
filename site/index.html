@@ -2145,6 +2145,8 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .sb-sn{font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-s b{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.1}.sb-s b small{font-size:11px;margin-left:1px;color:var(--text-3)}
 .sb-s.an b{color:var(--poly)}
+.sb-gv{display:block;height:4px;border-radius:999px;background:var(--panel-3);overflow:hidden;margin-top:3px}.sb-gv i{display:block;height:100%;background:var(--poly)}
+.sb-gp{font-size:10.5px;color:var(--text-3);white-space:nowrap}
 .sb-m{font-size:12px;line-height:1;min-height:13px;display:flex;gap:2px}.sb-m i{font-style:normal}
 .sb-sig{display:flex;flex-direction:column;gap:7px;min-width:0}
 .sb-l{display:flex;gap:9px;align-items:flex-start;min-width:0}
@@ -5616,8 +5618,14 @@ function signalSpiele(D){
   return Object.values(S).filter(top5Ok).map(g=>{
     const preise = Object.entries(M[g.key]?.preise || F[g.key]?.jetzt || {}).filter(([k])=>!/^gegen /.test(k));
     const seiten = {};   // sbSeite → {name, preis, belegt, wallets, fluss, serie}
-    const add = (name) => seiten[sbSeite(name)] ||= {name, preis:null, belegt:0, wallets:[], fluss:0, serie:0};
+    const add = (name) => seiten[sbSeite(name)] ||= {name, preis:null, geld:null, belegt:0, wallets:[], fluss:0, serie:0};
     for(const [k,v] of preise) add(k).preis = v;
+    // 26.11. (Lucas: „Polymarket liefert alles — ich will die Verteilung"): Geld je Seite = offene Positionen (Halter)
+    // aus dem Topf, sonst die Käufe je Seite aus dem Fluss
+    const tq = (D.toepfe||[]).find(t=>t.q?.poly?.key===g.key)?.q?.poly;
+    const geldS = tq?.seiten && tq.labels ? Object.fromEntries(Object.entries(tq.seiten).map(([k,v])=>[tq.labels[k]||k, v])) : (F[g.key]?.alle || {});
+    const geldGes = Object.values(geldS).reduce((a,v)=>a+(+v||0),0);
+    if(geldGes >= 500 && !/more-markets|\(Tore\)/i.test(g.key+" "+g.titel)) for(const [k,v] of Object.entries(geldS)) add(k).geld = (+v||0)/geldGes;   // Tor-Nebenmärkte: Linien gemischt → keine Verteilung
     for(const o of g.wallets){ const s = add(o.seite); s.belegt += o.usd||0; s.wallets.push(o); if(s.preis==null) s.preis = o.jetzt ?? o.preis; }
     if(g.fluss) add(g.fluss.auf).fluss = g.fluss.usd;
     if(g.serie) add(g.serie.auf).serie = g.serie.n;
@@ -5645,7 +5653,9 @@ function signalZeile(g){
   const reihe = sv.length===3 && g.sport==="Fußball" ? [sv[0], sv.find(s=>sbSeite(s.name)==="draw")||sv[1], sv.filter(s=>sbSeite(s.name)!=="draw").at(-1)].filter((x,i,a)=>a.indexOf(x)===i) : sv.slice(0,3);
   const kachel = s => { const an = s.belegt>0||s.fluss>0||s.serie>0;
     const marken = [s.belegt>0&&`<i title="belegte Wallets ${usd(s.belegt)}">${s.wallets.some(o=>o.profi)?"🎯":"🐋"}</i>`, s.fluss>0&&`<i title="neues Geld ${usd(s.fluss)} in 30 Min">💸</i>`, s.serie>0&&`<i title="${s.serie}× Dauerzufluss">🔁</i>`].filter(Boolean).join("");
-    return `<div class="sb-s${an?" an":""}"><span class="sb-sn">${lab(s.name)}</span><b>${s.preis!=null?Math.round(s.preis*100):"–"}<small>¢</small></b><span class="sb-m">${marken||"&nbsp;"}</span></div>`; };
+    return `<div class="sb-s${an?" an":""}"><span class="sb-sn">${lab(s.name)}</span><b>${s.preis!=null?Math.round(s.preis*100):"–"}<small>¢</small></b>
+      ${s.geld!=null?`<span class="sb-gv" title="Anteil am Geld im Markt (offene Positionen)"><i style="width:${Math.round(s.geld*100)}%"></i></span><span class="sb-gp">${Math.round(s.geld*100)} % Geld</span>`:""}
+      <span class="sb-m">${marken||"&nbsp;"}</span></div>`; };
   const status = g.einig ? `<span class="sb-bad ok" title="Mehrere Signale zeigen auf dieselbe Seite">✓ Signale einig</span>` : g.uneinig ? `<span class="sb-bad nein" title="Die Signale zeigen auf verschiedene Seiten">⚔ Signale uneinig</span>` : "";
   const wl = [...g.wallets].sort((a,b)=>(b.profi-a.profi)||(b.usd-a.usd));
   const belegt = wl.reduce((a,o)=>a+(o.usd||0),0);

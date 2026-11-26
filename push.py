@@ -1387,13 +1387,24 @@ def verteilung(d, b):
             e_ = _VT_CACHE["pm"].get(sid) or {}
             lab = e_.get("labels") or {}
             seiten = {lab.get(k, k): float(v or 0) for k, v in (e_.get("seiten") or {}).items()}
+            if seiten:                                   # Seiten ohne offene Positionen fehlen sonst → Anteil 0, nicht „unbekannt"
+                for k_ in lab:
+                    seiten.setdefault(lab[k_], 0.0)
             if not seiten or sum(seiten.values()) < 500:
                 pf = next((m for m in (d.get("polyFluss") or {}).get("maerkte") or [] if str(m.get("key")) == sid), {})
                 seiten = {str(k): float(v or 0) for k, v in (pf.get("alle") or {}).items()}
             ges = sum(seiten.values())
             if ges < 500:
                 return None
-            ziel = [k for k in seiten if k in (b.get("auswahl"), b.get("anzeige")) or _team_gleich(k, b.get("anzeige") or b.get("auswahl"))]
+            # 26.11. (Lucas: „Polymarket liefert alles — wie können wir die Verteilung nicht haben?"): das Remis-Label heißt
+            # „Draw (Celta vs. Bournemouth)" und enthält beide Teamnamen → zwei Treffer → None → R34 „Verteilung unbekannt".
+            # Erst exakter Name; Remis-Labels nur, wenn auch die Auswahl ein Remis ist.
+            want = b.get("anzeige") or b.get("auswahl")
+            remis_w = bool(re.match(r"^(draw|remis|the draw|unentschieden)\b", str(want or ""), re.I))
+            ziel = [k for k in seiten if k in (b.get("auswahl"), b.get("anzeige"))]
+            if not ziel:
+                ziel = [k for k in seiten if bool(re.match(r"^draw\b", str(k), re.I)) == remis_w
+                        and (remis_w or _team_gleich(k, want))]
             return (round(seiten[ziel[0]] / ges, 3), round(ges)) if len(ziel) == 1 else None
     except Exception as exc:  # noqa: BLE001
         print(f"  verteilung: {exc}")

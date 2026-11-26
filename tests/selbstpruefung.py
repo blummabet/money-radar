@@ -225,6 +225,18 @@ def _():
     gleich(push.r41_erwartung({"live": False}, 1.68, None, None, True), 1.68)
 
 
+@pruefe("R34 Polymarket-Verteilung: Remis-Label mit beiden Teamnamen stört nicht (Celta – Bournemouth 26.11.)")
+def _():
+    import push
+    push._VT_CACHE["pm"] = {"uel-cel1-bou-2026-11-26": {"labels": {"heim": "RC Celta de Vigo", "remis": "Draw (RC Celta de Vigo vs. AFC Bournemouth)",
+                                                                   "gast": "AFC Bournemouth"}, "seiten": {"heim": 14947.0, "gast": 146469.0}}}
+    try:
+        gleich(push.verteilung({}, {"id": "uel-cel1-bou-2026-11-26", "art": "pserie", "auswahl": "AFC Bournemouth"}), (0.907, 161416))
+        gleich(push.verteilung({}, {"id": "uel-cel1-bou-2026-11-26", "art": "pserie", "auswahl": "Draw", "anzeige": "Remis"}), (0.0, 161416))
+    finally:
+        push._VT_CACHE.pop("pm", None)
+
+
 @pruefe("Top 3 T10: Bestätigung nötig, nicht kurz vor Anpfiff, live kein Sieg bei Gleichstand")
 def _():
     import top3
