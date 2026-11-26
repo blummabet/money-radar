@@ -65,6 +65,7 @@ ARTEN = {"serie": "Dauerzufluss", "pserie": "Dauerzufluss Polymarket", "wal": "W
          "dropDruck": "Live: Quote fällt nachhaltig gegen die Uhr, Druck-Index ≥ 55 — Regel LD7, still, ab 24.11.",
          "top3Aus": "Top-3-Kandidat, von Regel T10 herausgefiltert (Betfair) — nicht gezeigt, ab 24.11.",
          "top3pAus": "Top-3-Kandidat, von Regel T10 herausgefiltert (Polymarket) — nicht gezeigt, ab 24.11.",
+         "serieLay41": "Dauerzufluss, dessen Quote seit Serienbeginn ohne Tor > 5 % stieg (über dem Uhr-Anteil; Lay-Verdacht, Regel R41, ab 26.11.) — nicht public",
          "serieLayUhr": "Live-Dauerzufluss auf eine Tor-Linie, deren Quote ohne Tor > 15 % über der Uhr-Erwartung stieg (Lay-Verdacht, Regel R40, ab 25.11.) — nicht public",
          "profiWal": "Profi-Wal: Top-Sport-Profi (W9/W10) setzt über der Wal-Schwelle (Regel W12, ab 24.11.)",
          "profiEin": "Profi-Einstieg: Top-Sport-Profi setzt ≥ 3× seinen Schnitt, ab $1.000, unter der Wal-Schwelle (Regeln W11/W12, ab 24.11.)",

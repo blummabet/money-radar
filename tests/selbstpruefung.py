@@ -211,6 +211,20 @@ def _():
     gleich(build._seite("Man Utd", "Manchester United", "Liverpool"), "heim")
 
 
+@pruefe("R41: Quote seit Serienbeginn gestiegen (Machida 26.11.) — Uhr-Anstieg live bleibt erlaubt")
+def _():
+    import push
+    mach = {"live": True, "dauerMin": 45, "auswahl": "FC Machida", "heim": "Svay Rieng FC", "gast": "FC Machida", "markt": "Match Odds",
+            "marktVerteilung": [["Svay Rieng FC", 0, 4.7], ["The Draw", 0, 3.6], ["FC Machida", 0, 1.80]]}
+    e = push.r41_erwartung(mach, 1.68, 1, [0, 0], True)
+    assert e and 1.80 > e * 1.05, e                     # Serie vor Anpfiff ab 1,68, Push beim Anpfiff zu 1,80 → gesperrt
+    ars = {"live": True, "dauerMin": 20, "auswahl": "Arsenal", "heim": "Arsenal", "gast": "Chelsea", "markt": "Match Odds",
+           "marktVerteilung": [["Arsenal", 0, 2.3], ["The Draw", 0, 3.0], ["Chelsea", 0, 4.0]]}
+    e = push.r41_erwartung(ars, 2.10, 50, [0, 0], True)
+    assert e and 2.30 < e * 1.05, e                     # 30.–50. Min 0:0, 2,10 → 2,30: erklärt die Uhr
+    gleich(push.r41_erwartung({"live": False}, 1.68, None, None, True), 1.68)
+
+
 @pruefe("Top 3 T10: Bestätigung nötig, nicht kurz vor Anpfiff, live kein Sieg bei Gleichstand")
 def _():
     import top3

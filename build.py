@@ -3540,7 +3540,7 @@ WDH_ARTEN = ("serie", "zufluss", "live", "pinn", "pserie", "wal", "stake")
 # 16.11. (Lucas: „Top 3 und Druckradar messen wir, aber in der Statistik ist es nicht drin"): beide als eigene Arten.
 # Top 3 wie top3.py misst: je Spiel nur der ERSTE Einzug („top3"/„top3p"), jede spätere Auswahl im selben Spiel „top3Spaeter".
 UEBERSICHT_ARTEN = ("top3", "top3p", "druck", "druckVorn")
-STAT_ARTEN = {*UEBERSICHT_ARTEN, "serieLayUhr", "profiWal", "profiEin", "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "top3Aus", "top3pAus", "serieLang", "dropNachh", "dropDruck", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis"}
+STAT_ARTEN = {*UEBERSICHT_ARTEN, "serieLay41", "serieLayUhr", "profiWal", "profiEin", "pinnLinie", "ki", "kiModell", "kiTop3", "stake", "serie", "zufluss", "live", "ht", "fix", "pinn", "pserie", "wal", "serieFuehrt", "serieRuhig", "pserieGegen", "htGegen05", "htGegen15", "liveFuehrt", "stakeFuehrt", "stakeTeam", "layGegen", "walKlein", "ueberQuote", "ueberQuoteTop3", "bfDrop", "bfUhr", "pk1", "pk1Streit", "pk1Profi", "cm1Profi", "walUnter", "walStreit", "walProfiB", "top3Aus", "top3pAus", "serieLang", "dropNachh", "dropDruck", "cm1", "mm1", "mm1Bein", "mm2", "mmA", "mmABein", "mmA2", "cpo", "cpoFaellt", "stakeKlein", "torHinweis"}
 
 
 # 09.11. (Lucas: Barcelona „offen"): von Hand nachgeschlagene Ergebnisse für Public-Signale, die vor dem eigenen
@@ -3857,7 +3857,9 @@ def statistik(burst, finder):
             doppelt.add(k_)
         if art_ == "wal" and b.get("typ") in ("profiWal", "profiEin"):   # Regel W12 (24.11.): eigene Bilanz je Push-Art
             art_ = b["typ"]
-        if art_ == "serie" and b.get("layUhr"):      # Regel R40 (25.11.): Tor-Linie stieg stärker als die Uhr — eigens gezählt
+        if art_ == "serie" and b.get("lay41"):       # Regel R41 (26.11.): Quote stieg seit Serienbeginn > 5 % über die Uhr
+            art_ = "serieLay41"
+        elif art_ == "serie" and b.get("layUhr"):      # Regel R40 (25.11.): Tor-Linie stieg stärker als die Uhr — eigens gezählt
             art_ = "serieLayUhr"
         elif art_ == "serie" and b.get("erstLang"):    # Regel S8 (24.11.): erster Live-Push schon ≥ 5× — eigens gezählt
             art_ = "serieLang"

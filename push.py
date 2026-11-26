@@ -1545,6 +1545,26 @@ def _zeitlich(x) -> str:
 _GD = {}
 
 
+def r41_erwartung(x, q0, mi, stand, sieg_markt):
+    """Regel R41: Quote, die bei Serienbeginn q0 ohne Tor JETZT zu erwarten wäre. Vor Anpfiff = q0 (die Uhr erklärt
+    nichts); live q0 × Uhr-Faktor (markout.uhr_erwartung von Serienbeginn bis jetzt ÷ Modell-Quote bei Serienbeginn — das
+    Modell rechnet ohne Marge). None, wenn live nicht rechenbar. REIN."""
+    if not x.get("live"):
+        return q0
+    if not isinstance(mi, (int, float)) or not stand:
+        return None
+    import markout as _m
+    m0 = max(0, mi - (x.get("dauerMin") or 0))
+    if mi <= m0 + 0.5:
+        return q0
+    sq = {v[0]: (q0 if v[0] == x["auswahl"] else v[2]) for v in x.get("marktVerteilung") or []
+          if isinstance(v, (list, tuple)) and len(v) > 2 and isinstance(v[2], (int, float)) and v[2] > 1}
+    kw = {"sieg_q0": sq, "heim": x.get("heim"), "gast": x.get("gast")} if sieg_markt else {}
+    e1 = _m.uhr_erwartung(x.get("markt"), x.get("auswahl"), q0, m0, mi, list(stand), **kw)
+    e0 = _m.uhr_erwartung(x.get("markt"), x.get("auswahl"), q0, m0, m0 + 0.01, list(stand), **kw)
+    return q0 * e1 / e0 if e1 and e0 else None
+
+
 def ueberschuss(d, beleg):
     """26.11. (Lucas: „dass da nicht einfach blind Geld am Favoriten gesetzt wird" — Top-5/CL/EL): Wie viel MEHR Geld liegt
     auf der Auswahl, als ihre Quote erwarten lässt? Anteil des gematchten Geldes im Markt minus Wahrscheinlichkeit aus den
@@ -1678,7 +1698,22 @@ def serie(d):
                 if erw40 and q > erw40 * 1.15:
                     uhr_lay = erw40
                     lay_verdacht = True
-        if uhr_lay:
+        # Regel R41 (26.11., Lucas: Svay Rieng – Machida, Serie ab 1,68 vor Anpfiff, Public beim Anpfiff zu 1,80 —
+        # „wieder ein Kackpick"): R27/R28 sperrten steigende Quoten nur VOR Anpfiff, R8 live erst ab +15 %. Jetzt für
+        # jeden Dauerzufluss: Quote beim Push gegen die Quote bei Serienbeginn, abzüglich dessen, was die Uhr erklärt
+        # (läuft die Serie live; vor Anpfiff erklärt sie nichts). Bleibt ohne Tor > 5 % Anstieg → Lay-Verdacht wie R8/R40.
+        r41 = None
+        if not lay_verdacht and q and q0 and not x.get("tor"):
+            mi41, st41 = _live_von(d, x["id"]) if x.get("live") else (None, None)
+            erw41 = r41_erwartung(x, q0, mi41, st41, sieg_markt)
+            if erw41 and q > erw41 * 1.05:
+                r41 = erw41
+                lay_verdacht = True
+        if r41:
+            lay_hinweis = (f"⚠️ <i>Quote stieg seit Serienbeginn von {q2(q0)} auf {q2(q)}"
+                           + (f" — die Uhr erklärt nur ~{q2(r41)}" if abs(r41 - q0) >= 0.01 else "")
+                           + ". Gematchtes Geld kann auch Lay sein: der Markt glaubt eher weniger an diese Seite.</i>\n")
+        elif uhr_lay:
             lay_hinweis = (f"⚠️ <i>Quote stieg von {q2(q0)} auf {q2(q)} ohne Tor — die Uhr allein erklärt nur ~{q2(uhr_lay)}. "
                            f"Gematchtes Geld kann auch Lay sein: der Markt glaubt eher weniger an diese Seite.</i>\n")
         elif lay_verdacht:
@@ -1712,6 +1747,8 @@ def serie(d):
         pub["layVerdacht"] = lay_verdacht           # Public-Regel 8 (Sieg-Markt) / R40 (Tor-Linie gegen die Uhr)
         if uhr_lay:
             pub["r40"] = True
+        if r41:
+            pub["r41"] = True
         # Regel S8 → in main(): live erst die zweite (oder spätere) Push-Stufe derselben Serie ist ein Public-Kandidat
         _mit(pub, x.get("eur"), x.get("n"))
         pub["x"] = {"n": x["n"], "min": x.get("dauerMin"), "anteil": x.get("anteil"), "q0": q0, "saeulen": (x.get("saeulen") or [])[-24:]}
@@ -1720,7 +1757,7 @@ def serie(d):
         yield key, text + (T1_ZEILE if klar else ""), None, {"art": "serie", "id": x["id"], "heim": x["heim"], "gast": x["gast"], "liga": x.get("liga"),
                                 "anpfiff": x.get("anpfiff"), "top5": x.get("top5"), "live": bool(x.get("live")),
                                 "markt": x["markt"], "auswahl": x["auswahl"], "quote": q, "eur": x["eur"],
-                                "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht, "layUhr": bool(uhr_lay), "qGeld": qg_,
+                                "quoteStart": q0, "anteil": x.get("anteil"), "lay": lay_verdacht, "layUhr": bool(uhr_lay), "lay41": bool(r41), "qGeld": qg_,
                                 "n": x.get("n"), "dauerMin": x.get("dauerMin"),
                                 **({"uhrDrop": uhr_drop, "regelD": "D1"} if uhr_drop is not None else {}),
                                 **({"klar": True, "regelT": "T1"} if klar else {})}, (None if klar else pub)
