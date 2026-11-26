@@ -2337,7 +2337,7 @@ WI_NAMEN = {"pmHalter": "Polymarket-Halter", "pmFehler": "Polymarket-Abrufe", "p
             "pmWertung": "Polymarket-Wallet-Wertung", "pmVerfall": "Polymarket-Positionen", "pmPnl": "Polymarket-Lebensbilanz",
             "pmFluss": "Polymarket-Fluss", "bfLeer": "Betfair-Radar", "lsLeer": "Live-Statistik",
             "pmProfi": "Polymarket-Profi-Prüfung", "pmProfiFehler": "Polymarket-Profi-Prüfung", "pmProfiDaten": "Polymarket-Profi-Daten",
-            "pmProfiStau": "Polymarket-Profi-Prüfung", "pmProfiLuecke": "Polymarket-Sportart-Zuordnung"}
+            "pmProfiStau": "Polymarket-Profi-Prüfung", "pmProfiLuecke": "Polymarket-Sportart-Zuordnung", "pmFelder": "Polymarket-Daten"}
 
 
 def inhalt_pruefen(d):
@@ -2387,6 +2387,12 @@ def inhalt_pruefen(d):
     if gross:
         aus["pmProfiLuecke"] = ("Polymarket-Sportart-Zuordnung", "unbekannte Slug-Präfixe mit vielen Positionen: "
                                 + ", ".join(f"{k} ({v})" for k, v in gross[:6]) + " — Sportart nachtragen, sonst fehlen sie in der Wertung")
+    # 26.11.: ein verschluckter Kommentar nahm build.poly „setzen"/„maerkte" weg — zwei Tage keine Wal-Pushes, niemand merkte es
+    po = d.get("poly")
+    if isinstance(po, dict) and po.get("wallets"):
+        fehlt = [k for k in ("setzen", "maerkte", "walPushes") if k not in po]
+        if fehlt:
+            aus["pmFelder"] = ("Polymarket-Daten", "Feld fehlt in den Seitendaten: " + ", ".join(fehlt) + " — keine Wal-/Profi-Pushes, Märkte leer")
     pf = d.get("polyFluss") or {}
     if isinstance(pf.get("maerkte"), list) and not pf["maerkte"] and ts(pf.get("stand")):
         aus["pmFluss"] = ("Polymarket-Fluss", "Lauf ohne einen einzigen Markt mit Käufen")

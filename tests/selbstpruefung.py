@@ -337,6 +337,9 @@ def _():
     keys = {k.value for k in ret.value.keys if isinstance(k, ast.Constant)}
     fehlt = {"maerkte", "profiStand", "liveWallets", "gewinnListen", "walPushes", "setzen", "profis"} - keys
     assert not fehlt, f"build.poly liefert nicht: {sorted(fehlt)}"
+    import push
+    assert "pmFelder" in push.inhalt_pruefen({"poly": {"wallets": [{"wallet": "0x1"}]}}), "Wächter merkt fehlende Poly-Felder nicht"
+    assert "pmFelder" not in push.inhalt_pruefen({"poly": {"wallets": [{"wallet": "0x1"}], "setzen": [], "maerkte": [], "walPushes": []}})
 
 
 if __name__ == "__main__":
