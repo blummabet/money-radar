@@ -2226,6 +2226,18 @@ body.auf-cards #ligaschalter,body.auf-statistik #ligaschalter{display:none}
 .sk-eu{font-size:12.5px;font-weight:700;white-space:nowrap}
 @media (max-width:1180px){.sk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sk-bil{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:700px){.sk-grid{grid-template-columns:minmax(0,1fr)}.sk-ez{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}.sk-ed{display:none}.sk-eu{grid-column:1}}
+/* 26.11. Polymarket-Nebenmärkte als Tabelle */
+.mm{display:flex;flex-direction:column}
+.mm-z{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(70px,.9fr);gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.mm-z:first-child{border-top:0}
+.mm-n{min-width:0;display:flex;flex-direction:column}.mm-n b{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mm-n small{font-size:11.5px;color:var(--poly);font-weight:600}
+.mm-s{min-width:0;border:1px solid var(--line);border-radius:10px;padding:5px 8px;background:var(--panel-2);display:grid;grid-template-columns:auto 1fr;column-gap:6px;align-items:baseline}
+.mm-s.an{border-color:color-mix(in srgb,var(--poly) 55%,transparent);background:color-mix(in srgb,var(--poly) 9%,var(--panel-2))}
+.mm-s span{font-size:12px;color:var(--text-2);grid-column:1/-1}.mm-s b{font-size:17px;font-weight:800}.mm-s b small{font-size:10px;color:var(--text-3)}
+.mm-s em{font-style:normal;font-size:11px;color:var(--text-3);text-align:right}.mm-k{grid-column:1/-1;font-style:normal;font-size:11.5px;font-weight:700;color:var(--up)}
+.mm-v{height:6px;border-radius:999px;background:var(--panel-3);overflow:hidden;align-self:end}.mm-v i{display:block;height:100%;background:var(--poly)}
+.mm-vp{font-size:10.5px;color:var(--text-3);grid-column:4;margin-top:-4px}
+@media (max-width:700px){.mm-z{grid-template-columns:minmax(0,1fr) minmax(0,1fr);row-gap:6px}.mm-n{grid-column:1/-1}.mm-v{grid-column:1/-1}.mm-vp{grid-column:1/-1;margin-top:-2px}}
 </style>
 </head>
 <body>
@@ -3667,6 +3679,45 @@ const top5Ok = x => ligaModus==="alle" || (ligaModus==="ohne" ? !x.top5 : !!x.to
 // Lucas 23.10. („Poly-Overlay ansprechender, super zu lesen, intuitiv"): EIN Polymarket-Fenster für Markt- und
 // Fluss-Karten — Kopf, Kernaussage als Chips, Preis-Balken mit dem neuen Geld je Ausgang, ein Säulenbild der Käufe,
 // größte Käufe als Zeilen, Halter, andere Quellen. Aufbau wie das Betfair-Fenster.
+// 26.11. (Lucas, Olympiakos – Milan „(Tore)": 9 Kacheln „Ol… AC… Un… Ov…", Favorit „Under (1st Half O/U 2.5) 90 ¢" —
+// „Idee, wie wir das besser kriegen"): Nebenmärkte (more-markets) nach Markt gruppieren — je Zeile ein Markt mit seinen
+// zwei Seiten, Preis, Käufe 30 Min und Geld-Aufteilung. Aktive Märkte oben, ruhige eingeklappt.
+function mmGruppe(k, heim, gast){
+  const s = String(k), z = x => String(x).replace(".", ",");
+  const nein = /^gegen /.test(s), b = s.replace(/^gegen /, "");
+  if(/^Both Teams to Score in First Half$/.test(b)) return {g:"Beide treffen, 1. HZ", s: nein?"Nein":"Ja", o: nein?1:0};
+  if(/^Both Teams to Score$/.test(b)) return {g:"Beide treffen", s: nein?"Nein":"Ja", o: nein?1:0};
+  let m = b.match(/^(Over|Under) \((.*?)\s*O\/U (\d+(?:\.\d)?)\)$/);
+  if(m){ const was = m[2].trim(); let g;
+    if(!was) g = `Tore ${z(m[3])}`;
+    else if(/^1st Half$/.test(was)) g = `Tore 1. HZ ${z(m[3])}`;
+    else if(/^2nd Half$/.test(was)) g = `Tore 2. HZ ${z(m[3])}`;
+    else { const hz = /1st Half$/.test(was); g = `${was.replace(/\s*1st Half$/,"")} Tore${hz?" 1. HZ":""} ${z(m[3])}`; }
+    return {g, s: m[1]==="Over"?"Über":"Unter", o: m[1]==="Over"?0:1}; }
+  m = b.match(/^(.*?) \((.*?) \((-?\d+(?:\.\d)?)\)\)$/);
+  if(m) return {g:`Handicap ${m[2]} ${z(m[3]).replace("-","−")}`, s: m[1], o: m[1]===m[2]?0:1};
+  return {g: b, s: nein?"Nein":"Ja", o: nein?1:0};
+}
+function mmTabelle(f, mk, titel){
+  const preise = mk?.preise || f?.preise || f?.jetzt || {}, s30 = f?.fenster?.["30"]?.seiten || {}, alle = f?.alle || {};
+  const G = {};
+  for(const k of new Set([...Object.keys(preise), ...Object.keys(s30), ...Object.keys(alle)])){
+    const x = mmGruppe(k); const g = G[x.g] ||= {name:x.g, seiten:[], k30:0, ges:0};
+    const kauf = s30[k]||0, geld = alle[k]||0;
+    g.seiten.push({k, s:x.s, o:x.o, p:preise[k], kauf, geld}); g.k30 += kauf; g.ges += geld; }
+  const L = Object.values(G).filter(g=>g.seiten.length>=2).map(g=>({...g, seiten:g.seiten.sort((a,b)=>a.o-b.o).slice(0,2)}))
+    .sort((a,b)=>(b.k30-a.k30) || (b.ges-a.ges));
+  if(!L.length) return "";
+  const zeile = g => { const [a,b] = g.seiten, sum = (a.geld||0)+(b.geld||0), an = a.kauf>=b.kauf ? a : b;
+    const sz = x => `<div class="mm-s${g.k30>0&&x===an?" an":""}"><span>${esc(x.s)}</span><b>${x.p!=null?Math.round(x.p*100):"–"}<small>¢</small></b>
+      <em>${x.p>0?"Quote "+q2(1/x.p):""}</em>${x.kauf>=50?`<i class="mm-k">+${usd(x.kauf)}</i>`:""}</div>`;
+    return `<div class="mm-z"><div class="mm-n"><b>${esc(g.name)}</b>${g.k30>=50?`<small>+${usd(g.k30)} in 30 Min</small>`:""}</div>${sz(a)}${sz(b)}
+      ${sum>=100?`<div class="mm-v" title="Geld im Markt (Käufe, so weit die Abfrage reicht): ${esc(a.s)} ${Math.round(100*a.geld/sum)} %, ${esc(b.s)} ${Math.round(100*b.geld/sum)} %"><i style="width:${(100*a.geld/sum).toFixed(0)}%"></i></div><small class="mm-vp">${Math.round(100*a.geld/sum)} : ${Math.round(100*b.geld/sum)} Geld</small>`:`<div></div><span></span>`}</div>`; };
+  const aktiv = L.filter(g=>g.k30>=50), ruhig = L.filter(g=>g.k30<50);
+  return `<div><h4>Märkte <small>aktive zuerst · Käufe der letzten 30 Min · Geld = Käufe je Seite</small></h4>
+    <div class="mm">${(aktiv.length?aktiv:L.slice(0,4)).map(zeile).join("")}</div>
+    ${ruhig.length&&aktiv.length?liste(`Weitere ${ruhig.length} Märkte ohne Käufe`, "", `<div class="mm">${ruhig.map(zeile).join("")}</div>`):""}</div>`;
+}
 function polyFenster(key){
   const f = (D.polyFluss?.maerkte||[]).find(x=>x.key===key), mk = (D.poly.maerkte||[]).find(x=>x.key===key);
   const titel = f?.titel || mk?.spiel || key, sport = f?.sport || mk?.sport, liga = f?.liga || mk?.liga;
@@ -3694,7 +3745,8 @@ function polyFenster(key){
   if(se) c.push(`<span class="dc bf" style="--f:var(--poly);color:var(--poly)">🔁 läuft: ${se.n}× in Folge · ${esc(lab(se.auswahl))} · ${usd(se.usd)}</span>`);
   const pw = (D.poly.tradesPushes||[]).filter(p=>p.markt===key).slice(0,2);
   for(const p of pw) c.push(`<span class="dc bf" style="--f:var(--poly);color:var(--poly)">📣 Wal-Push ${uhr(p.zeit)} · ${esc(seiteName(p.seite))} @ ${Math.round((p.preis||0)*100)} ¢${p.status==="won"?" ✓":p.status==="lost"?" ✗":""}</span>`);
-  if(lead) c.push(`<span class="dc stand">🏷 Favorit: <b>${esc(seiteName(lead))}</b> ${Math.round((mk?.preise||f?.preise||{})[lead]*100)} ¢</span>`);
+  const nebenM = /-more-markets$/.test(key);
+  if(lead && !nebenM) c.push(`<span class="dc stand">🏷 Favorit: <b>${esc(seiteName(lead))}</b> ${Math.round((mk?.preise||f?.preise||{})[lead]*100)} ¢</span>`);
   if(f && neu>0) c.push(nenn ? `<span class="dc stark">⚡ +${usd(neu)} <small>gekauft in 30 Min</small></span>` : `<span class="dc leise">ruhig: +${usd(neu)} in 30 Min</span>`);
   if(f && nenn && w30.auf) c.push(`<span class="dc" title="Von allen Käufen der letzten 30 Min gingen ${w30.anteil} % auf diese Seite">→ <b>${esc(lab(w30.auf))}</b> bekam ${usd(w30.usd)} von ${usd(neu)} <small>(${w30.anteil} %)</small></span>`);
   // ein einzelner Käufer macht den ganzen Schub aus → wichtig zu wissen (ein Wal ist kein Markt)
@@ -3732,7 +3784,7 @@ function polyFenster(key){
       <div class="pd-leg"><span><i class="bel"></i>belegte Wallet (schlägt den Schlusskurs)</span><span><i></i>andere große Halter</span><span>je Stück eine Wallet</span></div></div></div>` : "";
   const sp = t ? (D.radar.spiele||[]).find(x=>x.id===t.id) : null;
   return `<tr class="detail"><td colspan="5"><div class="det">
-    ${kopf}${chips}${preisBalken}${saeulen}${gross}${halter}
+    ${kopf}${chips}${nebenM ? mmTabelle(f, mk, titel) : preisBalken}${saeulen}${gross}${halter}
     ${sp?`<div><h4>Dasselbe Spiel auf Betfair</h4>${geldSaeulen(sp)||""}</div>`:""}
     <div><a href="https://polymarket.com/event/${encodeURIComponent(key.replace(/-more-markets$/,""))}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;display:inline-block">Markt auf Polymarket öffnen</a></div>
   </div></td></tr>`;
