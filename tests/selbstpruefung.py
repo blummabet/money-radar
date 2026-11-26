@@ -322,6 +322,17 @@ def _():
         py_compile.compile(str(p), doraise=True)
 
 
+@pruefe("Public R42: live Geld auf das führende Team geht nicht in den Kanal")
+def _():
+    import public
+    m = {"art": "serie", "quote": 1.9, "liga": "UEFA Champions League", "live": True, "spiel": "Olympiakos – AC Milan",
+         "auswahl": "Olympiakos", "stand": [1, 1], "minute": 60}
+    assert public.passt(m), "gleich-Stand muss erlaubt bleiben"
+    assert not public.passt({**m, "stand": [2, 1]}), "R42: Olympiakos führt 2:1"
+    assert public.passt({**m, "stand": [1, 2]}), "hinten bleibt erlaubt"
+    assert public.passt({**m, "live": False, "stand": None}), "vor Anpfiff unberührt"
+
+
 @pruefe("Ecken-Welle: nächstes Tor wird mitgeschrieben")
 def _():
     import live_stats as L

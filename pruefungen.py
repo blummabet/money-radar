@@ -43,6 +43,8 @@ REGISTER = [
      "arten": ["druck"], "ab": "2026-11-26T20:30", "ziel": 100},
     {"id": "EW-Tor", "frage": "Ecken-Welle (Team hinten/gleich): macht das Welle-Team öfter das nächste Tor als der Gegner? Dann Ecken im Druck-Index stärker gewichten.",
      "arten": [], "ab": "2026-11-26T20:30", "datum": "2026-12-14"},
+    {"id": "T3-vorn", "frage": "Top 3 live auf das führende Team (Feld lage = vorn): bleibt die Rendite über 0, wenn die Untergrenze bei 200 Tipps feststeht? Sonst aus den Top 3 nehmen (mindestens Top-5-Ligen).",
+     "arten": ["top3"], "ab": "2026-10-31T00:00", "datum": "2026-12-20"},
     {"id": "TP1", "frage": "Torprofil „torreich – erst ≤ 1 Tor“: Treffer über Quote und Rendite über Druck-Radar allein?",
      "arten": ["torHinweis"], "ab": "2026-11-22T18:00", "ziel": 100, "vergleich": ["druck"]},
     {"id": "CPO1", "frage": "CPO (Cash · Pressure · Odds): Rendite über Druck-Radar allein?",
