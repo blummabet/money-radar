@@ -1545,6 +1545,32 @@ def _zeitlich(x) -> str:
 _GD = {}
 
 
+def ueberschuss(d, beleg):
+    """26.11. (Lucas: „dass da nicht einfach blind Geld am Favoriten gesetzt wird" — Top-5/CL/EL): Wie viel MEHR Geld liegt
+    auf der Auswahl, als ihre Quote erwarten lässt? Anteil des gematchten Geldes im Markt minus Wahrscheinlichkeit aus den
+    Quoten (auf 100 % normiert), in Prozentpunkten. 75 % auf einen 1,30-Favoriten ≈ 0 pp = blinder Fluss; 92 % ≈ +15 pp.
+    Nur Messung (Statistik-Feld „ueb"), keine Regel. Betfair-Märkte: Sieg-Markt aus „verteilung", sonst maerkteDetail/Abs."""
+    if not beleg or beleg.get("id") is None or not beleg.get("auswahl"):
+        return None
+    sp = next((s for s in (d.get("radar") or {}).get("spiele") or [] if str(s.get("id")) == str(beleg.get("id"))), None)
+    if not sp:
+        return None
+    markt, ausw = str(beleg.get("markt") or ""), str(beleg.get("auswahl"))
+    if markt in ("", "Match Odds") or not markt:
+        reihe = [{"name": v.get("name"), "eur": v.get("eur"), "quote": v.get("quote")} for v in sp.get("verteilung") or []]
+    else:
+        m = next((m for m in (sp.get("maerkteDetail") or []) + (sp.get("maerkteAbs") or []) if m.get("name") == markt), None)
+        reihe = (m or {}).get("auswahl") or []
+    ges = sum(float(r.get("eur") or 0) for r in reihe)
+    inv = [1 / r["quote"] for r in reihe if isinstance(r.get("quote"), (int, float)) and r["quote"] > 1]
+    if ges < 1000 or len(inv) != len(reihe) or len(reihe) < 2:
+        return None
+    eig = next((r for r in reihe if str(r.get("name")) == ausw), None)
+    if not eig:
+        return None
+    return round(100 * float(eig.get("eur") or 0) / ges - 100 * (1 / eig["quote"]) / sum(inv), 1)
+
+
 def _uhr_drop(x, q, q_start, minute_jetzt):
     """Regel D1 (Lucas 18.11. 11:23, Kasem Bundit U21 77' 1:0, Über 1,5: „war da der Quotendrop nicht etwas, das man
     highlighten sollte?"): live steigt eine Quote meist mit der Uhr (Über ohne Tor, Führender …). Fällt sie während der
@@ -2513,6 +2539,13 @@ def main() -> int:
             if erster_lauf:
                 gesehen[key] = JETZT.isoformat()
                 continue
+            try:                             # 26.11.: Überschuss mitschreiben (nur Messung)
+                if beleg is not None and beleg.get("ueb") is None:
+                    u_ = ueberschuss(d, beleg)
+                    if u_ is not None:
+                        beleg["ueb"] = u_
+            except Exception as exc:  # noqa: BLE001
+                print(f"  ueberschuss: {exc}")
             try:                             # 17.11.: Spanne Back/Lay mitschreiben, Hinweis bei dünnem Markt
                 sp_ = spanne(d, beleg)
                 if sp_:

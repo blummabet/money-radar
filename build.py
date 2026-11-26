@@ -3899,6 +3899,10 @@ def statistik(burst, finder):
         if isinstance(sx, (int, float)) or clvx is not None:
             zeilen[-1].extend([None] * (16 - len(zeilen[-1])))
             zeilen[-1].extend([sx, clvx])
+        # 26.11.: Überschuss (pp mehr Geld als die Quote erwarten lässt, push.ueberschuss) — Messung für Top-Bewerbe
+        if isinstance(b.get("ueb"), (int, float)):
+            zeilen[-1].extend([None] * (18 - len(zeilen[-1])))
+            zeilen[-1].append(b["ueb"])
     # Abhilfe 2: jede abgerechnete Zeile aus dem Push-Buch landet in einem Monats-Archiv (kompakt, ~120 Byte je Zeile);
     # was aus dem Buch gefallen ist, kommt von dort zurück. ~1–2 MB je Monat, in der Tagessicherung enthalten.
     try:
@@ -3974,7 +3978,7 @@ def statistik(burst, finder):
     except Exception as exc:  # noqa: BLE001
         print(f"  topf-dynamik: {exc}")
     zeilen.sort(key=lambda z: z[0])
-    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake", "qg", "sp", "clvx"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (BASIS / "site" / "statistik.json").write_text(json.dumps({"stand": iso(JETZT), "felder": ["zeit", "art", "r", "w", "quote", "clv", "liga", "top5", "live", "titel", "auswahl", "lage", "usd", "faktor", "stake", "qg", "sp", "clvx", "ueb"], "zeilen": zeilen}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     _sg = (BASIS / "site" / "statistik.json").stat().st_size
     if _sg > SPEICHER_GRENZEN["statistik"]:
         FEHLER.append(f"Speicher: statistik.json {_sg / 1e6:.1f} MB — ältere Monate verdichten")
