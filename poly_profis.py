@@ -67,7 +67,11 @@ RAUS = ("will", "highest", "lowest", "temperature", "weather", "what", "how", "w
         # 25.11. (Wächter: bitcoin 825, ethereum 335): ausgeschriebene Krypto-Namen und andere Nicht-Sport-Themen gleich mit
         "bitcoin", "ethereum", "solana", "ripple", "dogecoin", "cardano", "litecoin", "chainlink", "avalanche", "hyperliquid",
         "pepe", "shiba", "tron", "sui", "spx", "sp500", "nasdaq", "dow", "gold", "silver", "oil", "fed", "fomc", "cpi",
-        "trump", "election", "presidential", "mayor", "nobel", "oscars", "grammys", "eurovision")
+        "trump", "election", "presidential", "mayor", "nobel", "oscars", "grammys", "eurovision",
+        # 27.11. (Wächter: bknbl 340 = Basketball NBL Australien): Basketball-Ligen außerhalb der NBA
+        "euroleague", "eurocup", "nbl", "kbl", "cba", "acb", "wkbl")
+# Polymarket-Basketball trägt „bk" + Liga („bknbl", „bkcba", „bkkbl" …) — als Familie raus, nicht je Liga nachtragen
+_RAUS_FAMILIE = ("bk",)
 _PRAEFIX = re.compile(r"^([a-z0-9]+)-")
 
 
@@ -82,7 +86,8 @@ UNSERE = ("Fußball", "E-Sport", "Tennis")
 def sportart(slug, fuss):
     """fuss = gelernte Präfixe: dict {präfix: Sport} oder (alt) Menge von Fußball-Präfixen."""
     p = praefix(slug)
-    if not p or p in RAUS:
+    if not p or p in RAUS or (p.startswith(_RAUS_FAMILIE) and p not in ESPORT and p not in TENNIS
+                              and not (isinstance(fuss, dict) and fuss.get(p) in UNSERE)):
         return None
     if p in ESPORT:
         return "E-Sport"
@@ -113,7 +118,7 @@ def wertung(zeilen, fuss, ab_ts):
         sp = sportart(slug, fuss)
         if not sp:
             pf = praefix(slug)
-            if pf and pf not in RAUS and not (isinstance(fuss, dict) and pf in fuss):
+            if pf and pf not in RAUS and not pf.startswith(_RAUS_FAMILIE) and not (isinstance(fuss, dict) and pf in fuss):
                 out["unbekannt"][pf] = out["unbekannt"].get(pf, 0) + 1
             continue
         # Einsatz = gekaufte Stück (gesamt) × Ø Einstieg. total_cost_usdc schrumpft bei Teilverkäufen (Rest-Basis) —

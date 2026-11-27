@@ -322,6 +322,13 @@ def _():
         py_compile.compile(str(p), doraise=True)
 
 
+@pruefe("Polymarket: Basketball-Präfixe (bk…) gelten als fremde Sportart, nicht als Lücke")
+def _():
+    import poly_profis as P
+    assert P.sportart("bknbl-per-syd-2026-11-27", {}) is None
+    assert P.sportart("bkcba-bj-sh-2026-11-27", {"bkcba": "Fußball"}) == "Fußball", "gelernte Fußball-Präfixe gewinnen"
+
+
 @pruefe("Abgesagt: Polymarket ≥ 95 ¢ vor Anpfiff oder API-Football PST → markiert, Pushes lassen es aus")
 def _():
     import abgesagt as A
