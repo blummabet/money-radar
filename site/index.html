@@ -115,6 +115,11 @@ main{padding:22px 28px 60px;min-width:0}
 .mini-liste b{color:var(--text)}
 
 .feed{display:flex;flex-direction:column}
+/* 27.11. Säule antippen → Betrag und Quote */
+.gs-info{font-size:12.5px;color:var(--text-3);margin:2px 0 6px;min-height:18px;font-variant-numeric:tabular-nums}
+.gs-info.an{color:var(--text)}
+.gs-b i{cursor:pointer}
+.gs-b i.gs-an{outline:2px solid var(--text);outline-offset:1px}
 /* Wo am meisten liegt */
 .toepfe{display:grid;gap:10px}
 .mw-sch{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
@@ -2546,6 +2551,11 @@ function auswahlFarbe(s, markt, auswahl, sonst){
   if(_nk(a) && _nk(a)===_nk(s.heim)) return "var(--ph-h)"; if(_nk(a) && _nk(a)===_nk(s.gast)) return "var(--ph-a)";
   return sonst;
 }
+function gsInfo(el){
+  const box = el.closest(".gs")?.previousElementSibling; if(!box || !box.classList.contains("gs-info")) return;
+  el.parentElement.querySelectorAll("i.gs-an").forEach(x=>x.classList.remove("gs-an")); el.classList.add("gs-an");
+  box.textContent = el.dataset.info || "keine Daten für diese Säule"; box.classList.add("an");
+}
 function geldSaeulen(s){
   const S = s.saeulen; if(!S || !(S.w||[]).some(v=>v>0)) return "";
   const v = S.w, n = v.length, roh = Math.max(1, ...v.map(x=>x||0));
@@ -2586,7 +2596,12 @@ function geldSaeulen(s){
   const gf = tf(fokus, "var(--bf)"), gz = tf(zw, "var(--pin)");
   const bars = v.map((x,i)=>{ const f = fokus ? Math.min(x||0, fokus.w[i]||0) : 0, z2 = zw ? Math.min(Math.max(0, (x||0)-f), zw.w[i]||0) : 0;
     const unbek = fokus && x>0 && fokus.w[i]==null;      // 24.10.: für diese Säule ist die Aufteilung je Auswahl nicht gespeichert
-    return `<i class="${x==null?"leer":""}${unbek?" unbek":""}${fokus?" mitfokus":live(i)?" lv":""}${i===top?" top":""}" style="height:${x?Math.max(3, x/mx*100).toFixed(1):0}%" title="${uhrVon(i)}–${uhrVon(i+1)}: ${x==null?"keine Daten":"+"+eur(x)+(fokus&&f?`, davon ${eur(f)} auf ${auswahlDe(fokus.auswahl)}`:"")+(z2?`, ${eur(z2)} auf ${auswahlDe(zw.auswahl)}`:"")}">${f&&x?`<b style="height:${(f/x*100).toFixed(1)}%"></b>`:""}${z2&&x?`<u style="bottom:${(f/x*100).toFixed(1)}%;height:${(z2/x*100).toFixed(1)}%"></u>`:""}</i>`; }).join("");
+    // 27.11. (Lucas, Istra – Varaždin: „zu welcher Quote kam das Geld? beim Draufklicken ein kleines Fenster"): Antippen
+    // zeigt Zeit, Betrag und je Auswahl die Quote am Anfang der Säule (vorher) → am Ende (nachher)
+    const qz = t => { const a_ = t.q?.[i], b_ = t.q?.[i+1]; return a_ ? ` @ ${q2(a_)}${b_ && Math.abs(b_-a_)>=0.01?` → ${q2(b_)}`:""}` : ""; };
+    const info = x==null ? "" : `${uhrVon(i)}–${uhrVon(i+1)} · +${eur(x)}` + [fokus&&f?[fokus,f]:null, zw&&z2?[zw,z2]:null].filter(Boolean)
+      .map(([t,b_])=>` · ${eur(b_)} auf ${auswahlDe(t.auswahl)}${qz(t)}`).join("") + (x-f-z2>0 && (f||z2)?` · Rest ${eur(x-f-z2)}`:"");
+    return `<i data-info="${esc(info)}" onclick="gsInfo(this)" class="${x==null?"leer":""}${unbek?" unbek":""}${fokus?" mitfokus":live(i)?" lv":""}${i===top?" top":""}" style="height:${x?Math.max(3, x/mx*100).toFixed(1):0}%" title="${uhrVon(i)}–${uhrVon(i+1)}: ${x==null?"keine Daten":"+"+eur(x)+(fokus&&f?`, davon ${eur(f)} auf ${auswahlDe(fokus.auswahl)}`:"")+(z2?`, ${eur(z2)} auf ${auswahlDe(zw.auswahl)}`:"")}">${f&&x?`<b style="height:${(f/x*100).toFixed(1)}%"></b>`:""}${z2&&x?`<u style="bottom:${(f/x*100).toFixed(1)}%;height:${(z2/x*100).toFixed(1)}%"></u>`:""}</i>`; }).join("");
   const fokusSumme = fokus ? fokus.w.reduce((a,b)=>a+(b||0),0) : 0;
   const marken = [];
   if(S.ko!=null) marken.push(`<span class="gs-ko" style="left:${X(S.ko).toFixed(2)}%"></span>`);
@@ -2602,6 +2617,7 @@ function geldSaeulen(s){
   return `<h4>Neues Geld auf Betfair <small>je 10 Min · letzte 6 h</small></h4>
     <div class="gs-kz"><span><b>+${eur(ges)}</b> in 6 h, ganzes Spiel</span><span>größter Schub <b>+${eur(v[top])}</b> um ${uhrVon(top)}</span><span><b>${eur(st)}</b> gematcht</span></div>
     ${fokus?`<div class="gs-leg"><span><i class="f" style="background:${gf}"></i><b>${esc(auswahlDe(fokus.auswahl))}</b> ${esc(marktDe(fokus.markt))} · +${eur(fokusSumme)} <em>(${warum})</em></span>${zw?`<span><i style="background:${gz}"></i><b>${esc(auswahlDe(zw.auswahl))}</b> ${esc(marktDe(zw.markt))} · +${eur(summe(zw))}</span>`:""}<span><i></i>${zw?"Rest":"übrige Märkte"}</span>${v.some((x,i)=>x>0 && fokus.w[i]==null)?`<span><i class="u"></i>Aufteilung nicht gespeichert</span>`:""}</div>`:""}
+    <div class="gs-info" aria-live="polite">Säule antippen: Betrag und Quote</div>
     <div class="gs"><div class="gs-g">${linienY.map(y=>`<span style="bottom:${(y/mx*100).toFixed(2)}%"><em>${eur(y)}</em></span>`).join("")}</div><div class="gs-b" style="grid-template-columns:${spalten};--gf:${gf};--gz:${gz}">${bars}</div>${marken.join("")}<div class="gs-x">${achse}</div></div>`;
 }
 function spielVerlauf(s){

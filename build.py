@@ -2033,17 +2033,34 @@ def betfair_radar(prices, bf_hist, norm, norm_state=None):
                     return float(v[0]) if isinstance(v, list) and v else 0.0
                 letzt = next((x for x in reversed(stände) if x), None) or {}
                 erst_ = next((x for x in stände if x), None) or {}
-                def quote_ok(d, nm):         # Geld zu Quoten unter 1,15 ist Absicherung (wie bei der Liga-Norm)
-                    v = d.get(nm)
-                    return not (isinstance(v, list) and len(v) > 1 and isinstance(v[1], (int, float)) and v[1] < 1.15)
+                def sel_q(sl, mk, nm):
+                    v = ((sl or {}).get(mk) or {}).get(nm)
+                    return v[1] if isinstance(v, list) and len(v) > 1 and isinstance(v[1], (int, float)) else None
+
+                def quote_ok(mk, nm):        # Geld zu Quoten unter 1,15 ist Absicherung (wie bei der Liga-Norm)
+                    # 27.11. (Lucas, Istra – Varaždin: „war das grau, weil die Quote schon zu niedrig war?"): nicht nur die
+                    # Quote JETZT zählt — stand die Auswahl im Fenster irgendwann ≥ 1,15, bleibt sie farbig
+                    qs = [q for q in (sel_q(x, mk, nm) for x in stände if x) if q]
+                    return not qs or max(qs) >= 1.15
                 kand = sorted(((sel_vol(letzt, mk, nm) - sel_vol(erst_, mk, nm), mk, nm) for mk, d in letzt.items() if isinstance(d, dict)
-                               for nm in d if quote_ok(d, nm)), reverse=True)[:5]
+                               for nm in d if quote_ok(mk, nm)), reverse=True)[:5]
                 for gesamt, mk, nm in kand:
                     if gesamt < 300:
                         continue
                     w = [round(max(0, sel_vol(stände[k + 1], mk, nm) - sel_vol(stände[k], mk, nm))) if stände[k] and stände[k + 1] else None
                          for k in range(36)]
-                    teile.append({"markt": mk, "auswahl": nm, "w": w})
+                    # 27.11.: Quote VOR jeder Säule (Stand am Säulenanfang) — damit sieht man, zu welchem Preis das Geld kam
+                    q = [sel_q(stände[k], mk, nm) if stände[k] else None for k in range(36)]
+                    teile.append({"markt": mk, "auswahl": nm, "w": w, "q": q})
+                # 27.11. (Istra – Varaždin: Über 2,5 bekam €1,36 Mio in einer Säule, die Spielsumme dort nur €1,14 Mio, in der
+                # nächsten €2,03 Mio — davon €1,6 Mio grau): die Spielsumme (totalMatched) springt bei großen Live-Beträgen.
+                # Die Säulenhöhe kommt deshalb aus derselben Quelle wie die Farben — Summe der Zuwächse aller Auswahlen.
+                for k in range(36):
+                    if stände[k] and stände[k + 1]:
+                        su = sum(max(0.0, sel_vol(stände[k + 1], mk, nm) - sel_vol(stände[k], mk, nm))
+                                 for mk, d in stände[k + 1].items() if isinstance(d, dict) for nm in d)
+                        if su > 0 or werte[k] is not None:
+                            werte[k] = round(su)
             if erster is not None:
                 saeulen = {"w": werte, "start": int(start.timestamp() // 60), "schritt": 10,
                            "ko": (int((ko_t - start).total_seconds() // 600) if ko_t and start <= ko_t <= JETZT else None),
