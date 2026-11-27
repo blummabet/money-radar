@@ -348,6 +348,25 @@ def budget():
     return max(0, min(MAX_JE_LAUF, int(rest * ANTEIL / laeufe))), {"limit": limit, "verbraucht": akt}
 
 
+def _naechster(sp, fixtures) -> str:
+    """„ ≈ API-Heim – API-Gast (HH:MM, Status)" für den ähnlichsten Live-Kandidaten, sonst „"."""
+    from difflib import SequenceMatcher
+    from betfair_name_bridge import _skelett
+    def r(x, y):
+        return SequenceMatcher(None, _skelett(x), _skelett(y)).ratio()
+    best, wert = None, 0.0
+    for fx in fixtures or []:
+        t = fx.get("teams") or {}
+        h, a = (t.get("home") or {}).get("name"), (t.get("away") or {}).get("name")
+        w = max(r(sp.get("heim"), h), r(sp.get("gast"), a), r(sp.get("heim"), a), r(sp.get("gast"), h))
+        if w > wert:
+            best, wert = (h, a, (fx.get("fixture") or {}).get("date"), ((fx.get("fixture") or {}).get("status") or {}).get("short")), w
+    if not best or wert < 0.5:
+        return " (kein ähnlicher Live-Kandidat bei API-Football)"
+    z = _zeit(best[2])
+    return f" ≈ {best[0]} – {best[1]} ({z.strftime('%H:%M') if z else '?'} UTC, {best[3]})"
+
+
 def zuordnen(sp, fixtures):
     from betfair_name_bridge import pair_matches, compatible, paar_aehnlich
     ko = _zeit(sp.get("anpfiff"))
@@ -656,7 +675,9 @@ def main() -> int:
                     break
                 fx = zuordnen(sp, fixtures)
                 if not fx:
-                    diag["ohneZuordnung"].append(f"{sp.get('heim')} – {sp.get('gast')}")
+                    # 27.11. (Lucas, MVV – Jong PSV ohne Statistik): den ähnlichsten API-Kandidaten mitschreiben, damit man
+                    # sieht, ob es am Namen, am Anpfiff oder an fehlender Abdeckung liegt
+                    diag["ohneZuordnung"].append(f"{sp.get('heim')} – {sp.get('gast')}{_naechster(sp, fixtures)}")
                     continue
                 fid = (fx.get("fixture") or {}).get("id")
                 hid = ((fx.get("teams") or {}).get("home") or {}).get("id")
