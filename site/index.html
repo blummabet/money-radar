@@ -4268,8 +4268,11 @@ function kompaktPinnacle(D, n){
   return `<div class="pn-grid">${z.map(pinKarte).join("")}</div>`;
 }
 function toepfeListe(D, n, nLauf=8){
-  const alle = lf(D.toepfe||[]).filter(top5Ok);
-  if(!alle.length) return `<div class="leer">Gerade keine Spiele mit nennenswertem Geld${ligaModus==="ohne"?" außerhalb der Top-5":""}.</div>`;
+  // 27.11. (Lucas, Eerste Divisie: „die Spiele sind abgesagt, dann hast du Irrsinnssummen auf Polymarket"): abgesagte /
+  // verlegte Spiele (API-Football-Status oder Polymarket ≥ 95 ¢ vor Anpfiff) nicht oben, sondern eingeklappt am Ende
+  const roh = lf(D.toepfe||[]).filter(top5Ok), abg = roh.filter(t=>t.abgesagt), alle = roh.filter(t=>!t.abgesagt);
+  const abgBlock = abg.length ? liste(`Abgesagt oder verlegt: ${abg.length}`, "", `<div class="tz-liste" style="margin-top:10px">${abg.map(t=>`<div title="${esc(t.abgesagt)}">${topfZeile(t)}<div class="s" style="margin:-4px 0 8px;color:var(--text-3);font-size:12px">⛔ ${esc(t.abgesagt)}</div></div>`).join("")}</div>`) : "";
+  if(!alle.length) return `<div class="leer">Gerade keine Spiele mit nennenswertem Geld${ligaModus==="ohne"?" außerhalb der Top-5":""}.</div>${abgBlock}`;
   const hatSeiten = t => Object.values(t.seiten||{}).some(v=>v>0);
   const vor = alle.filter(t=>!t.laeuft && hatSeiten(t)), ohne = alle.filter(t=>!t.laeuft && !hatSeiten(t)), lauf = alle.filter(t=>t.laeuft).sort((a,b)=>liveNeu(b)-liveNeu(a));
   const max = Math.max(1, ...alle.map(t=>t.gesamt));
@@ -4279,7 +4282,7 @@ function toepfeListe(D, n, nLauf=8){
     ${ohne.length>3?liste(`Weitere ${ohne.length-3}`, "", `<div class="tz-liste" style="margin-top:10px">${ohne.slice(3).map(topfZeile).join("")}</div>`):""}` : "";
   return `<div class="toepfe duos">${vor.slice(0,n).map((t,i)=>topfKarte(t,i,max)).join("")}</div>
     ${vor.length>n?liste(`Weitere ${vor.length-n} Spiele vor Anpfiff`, "", `<div class="tz-liste" style="margin-top:10px">${vor.slice(n).map(topfZeile).join("")}</div>`):""}
-    ${laufBlock}`;
+    ${laufBlock}${abgBlock}`;
 }
 function kompaktZufluss(D, n){
   const z = lf(D.zufluss30||[]).slice(0,n);

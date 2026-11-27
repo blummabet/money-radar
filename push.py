@@ -27,6 +27,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import abgesagt
 import public as pubmod
 
 BASIS = Path(__file__).resolve().parent
@@ -2554,6 +2555,10 @@ def main() -> int:
             key, text, pause_h = item[:3]
             beleg = item[3] if len(item) > 3 else None
             pub = item[4] if len(item) > 4 else None
+            # 27.11. (Lucas, Eerste Divisie abgesagt: $330k auf Polymarket-Remis zu 98,5 ¢): abgesagte Spiele nicht pushen
+            if abgesagt.betroffen(d, beleg):
+                gesehen.setdefault(key, JETZT.isoformat())
+                continue
             alt = gesehen.get(key)
             if alt and (pause_h is None or (JETZT - ts(alt)).total_seconds() < pause_h * 3600):
                 continue
@@ -2789,6 +2794,13 @@ def main() -> int:
         try:                         # Public-Regel 4: zu den Terminen den besten Kandidaten aus dem Topf
             _jetzt_live = {public._norm(f"{x.get('heim')} – {x.get('gast')}"): (x.get("live") or {}).get("stand")
                            for x in (d.get("radar") or {}).get("spiele") or [] if x.get("live")}
+            # 27.11.: Kandidaten aus abgesagten Spielen raus, bevor gewählt wird
+            _ab = set()
+            for _s in (d.get("radar") or {}).get("spiele") or []:
+                if _s.get("abgesagt"):
+                    _ab |= public._spiel_keys(f"{_s.get('heim')} – {_s.get('gast')}")
+            for _k in [k for k, c in (pub_stand.get('topf') or {}).items() if public._spiel_keys((c.get('m') or {}).get('spiel')) & _ab]:
+                pub_stand['topf'].pop(_k, None)
             for _c in (pub_stand.get('topf') or {}).values():      # R34: Verteilung vor der Auswahl frisch lesen
                 _qb = (_c.get('m') or {}).get('_q')
                 _vt = verteilung(d, _qb) if _qb else None

@@ -731,6 +731,12 @@ def main() -> int:
             print(f"live_stats: Torprofil {len(d.get('torprofil') or {})} Spiele · {ab} Abrufe")
     except Exception as exc:  # noqa: BLE001
         print("live_stats: Torprofil", exc)
+    try:                                         # 27.11. abgesagte/verlegte Spiele (Polymarket ≥ 95 ¢ / API-Football-Status)
+        import abgesagt
+        ab_n = abgesagt.lauf(d, get if os.environ.get("APISPORTS_KEY") else None, zuordnen)
+        print(f"live_stats: abgesagt {len(d.get('abgesagt') or {})} · {ab_n} Abrufe")
+    except Exception as exc:  # noqa: BLE001
+        print("live_stats: abgesagt", exc)
     DATEN.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"live_stats: {len(d['liveStats'])} Spiele mit Statistik, Kandidaten {len(kand)}, Kontingent {info}")
     print(f"live_stats: fällig {diag['faellig']} · Budget {diag['budget']} · abgerufen {diag['abgerufen']} · ohne Zuordnung "

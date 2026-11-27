@@ -322,6 +322,25 @@ def _():
         py_compile.compile(str(p), doraise=True)
 
 
+@pruefe("Abgesagt: Polymarket ≥ 95 ¢ vor Anpfiff oder API-Football PST → markiert, Pushes lassen es aus")
+def _():
+    import abgesagt as A
+    import live_stats as L
+    from datetime import datetime, timezone
+    jetzt = datetime(2026, 11, 27, 15, 30, tzinfo=timezone.utc)
+    t = {"id": "36355210", "heim": "VVV Venlo", "gast": "RKC Waalwijk", "anpfiff": "2026-11-27T19:00:00Z", "live": None,
+         "q": {"poly": {"key": "ned2-ven-waa-2026-11-27", "preise": {"heim": 0.0145, "remis": 0.985, "gast": 0.0065}}}}
+    assert "36355210" in A.aus_poly([t], jetzt)
+    assert not A.aus_poly([{**t, "q": {"poly": {"preise": {"heim": 0.6, "remis": 0.25, "gast": 0.15}}}}], jetzt)
+    assert not A.aus_poly([{**t, "anpfiff": "2026-11-27T15:40:00Z"}], jetzt), "kurz vor Anpfiff nicht (Favorit kann hoch stehen)"
+    sp = {"id": "1", "heim": "Jong FC Utrecht", "gast": "Almere City", "anpfiff": "2026-11-27T19:00:00Z"}
+    fx = {"teams": {"home": {"name": "Jong Utrecht"}, "away": {"name": "Almere City FC"}}, "fixture": {"date": "2026-11-27T19:00:00+00:00", "status": {"short": "PST"}}}
+    gleich(A.aus_apif([sp], [fx], L.zuordnen)["1"]["status"], "PST")
+    d = {"abgesagt": {"36355210": {}}, "toepfe": [t]}
+    assert A.betroffen(d, {"id": "ned2-ven-waa-2026-11-27-draw"}) and A.betroffen(d, {"id": "36355210"})
+    assert not A.betroffen(d, {"id": "ned2-vvv-ajx-2026-11-28"})
+
+
 @pruefe("Live-Statistik: Umschrift-Namen werden zugeordnet (Al-Quadisiya/Al-Qadisiyah), fremde Vereine nicht")
 def _():
     import live_stats as L
