@@ -322,6 +322,18 @@ def _():
         py_compile.compile(str(p), doraise=True)
 
 
+@pruefe("Live-Statistik: Umschrift-Namen werden zugeordnet (Al-Quadisiya/Al-Qadisiyah), fremde Vereine nicht")
+def _():
+    import live_stats as L
+    from betfair_name_bridge import paar_aehnlich
+    sp = {"heim": "Al-Quadisiya (KSA)", "gast": "Al-Feiha", "anpfiff": "2026-11-27T14:20:00+00:00"}
+    fx = lambda h, a, d="2026-11-27T14:20:00+00:00": {"teams": {"home": {"name": h}, "away": {"name": a}}, "fixture": {"date": d}}
+    gleich(L.zuordnen(sp, [fx("Al-Qadisiyah FC", "Al-Fayha"), fx("Al-Nassr", "Al-Hilal")])["teams"]["home"]["name"], "Al-Qadisiyah FC")
+    assert L.zuordnen(sp, [fx("Al-Qadisiyah FC", "Al-Fayha"), fx("Al-Qadisiyah", "Al Fayha FC")]) is None, "zwei Kandidaten = nicht raten"
+    assert not paar_aehnlich("Al Nassr", "Al Hilal", "Al Nasr", "Al Ain"), "eine Seite allein reicht nicht"
+    assert not paar_aehnlich("Real Madrid", "Getafe", "Real Sociedad", "Girona")
+
+
 @pruefe("Public R42: live Geld auf das führende Team geht nicht in den Kanal")
 def _():
     import public

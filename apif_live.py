@@ -70,9 +70,9 @@ def zuordnen(spiel, live_fixtures):
     Spielen ist es das EINZIGE solche. Ein Team spielt nicht zweimal zur selben Zeit — die
     Eindeutigkeit ist der Schutz, nicht die Schreibweise.
     """
-    from betfair_name_bridge import pair_matches, compatible
+    from betfair_name_bridge import pair_matches, compatible, paar_aehnlich
     ko = _zeit(spiel.get("kickoff"))
-    streng, locker = [], []
+    streng, locker, aehnlich = [], [], []
     for fx in live_fixtures or []:
         t = fx.get("teams") or {}
         h, a = (t.get("home") or {}).get("name"), (t.get("away") or {}).get("name")
@@ -90,9 +90,13 @@ def zuordnen(spiel, live_fixtures):
             streng.append(fx)
         elif any(compatible(x, y) for x in (spiel.get("home"), spiel.get("away")) for y in (h, a)):
             locker.append(fx)
+        elif paar_aehnlich(spiel.get("home"), spiel.get("away"), h, a):
+            aehnlich.append(fx)
     if streng:
         return streng[0] if len(streng) == 1 else None    # zwei Kandidaten = nicht raten
-    return locker[0] if len(locker) == 1 else None
+    if locker:
+        return locker[0] if len(locker) == 1 else None
+    return aehnlich[0] if len(aehnlich) == 1 else None    # 27.11.: Umschrift (Al-Quadisiya/Al-Qadisiyah)
 
 
 def statistik(stat_response, heim_id):

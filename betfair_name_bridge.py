@@ -60,6 +60,32 @@ def compatible(a, b) -> bool:
     return bool(wa & wb)
 
 
+_FUELL = {"fc", "sc", "cf", "club", "al", "el", "afc", "fk", "sk", "ac"}
+
+
+def _skelett(x) -> str:
+    """Name ohne Klammer-Zusatz („(KSA)"), ohne Füllwörter (FC, Al …), nur a-z0-9 zusammen."""
+    import re
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(x or "")).encode("ascii", "ignore").decode().lower()
+    t = re.sub(r"\(.*?\)", " ", t)
+    return "".join(w for w in re.sub(r"[^a-z0-9]", " ", t).split() if w not in _FUELL)
+
+
+def paar_aehnlich(home, away, cand_home, cand_away) -> bool:
+    """27.11. (Lucas, Saudi Pro League ohne Statistik: Betfair „Al-Quadisiya (KSA) – Al-Feiha", API-Football
+    „Al-Qadisiyah – Al-Fayha"): arabische/kyrillische Umschriften weichen in Vokalen ab, kein Wort passt exakt.
+    BEIDE Seiten müssen ähnlich sein (je ≥ 0,55, zusammen ≥ 1,45) — eine allein reicht nie („Al Nassr"/„Al Nasr"
+    sind zwei Vereine). Nur als letzte Stufe und nur bei genau einem Kandidaten zum selben Anpfiff verwenden."""
+    from difflib import SequenceMatcher
+    r = lambda x, y: SequenceMatcher(None, _skelett(x), _skelett(y)).ratio() if _skelett(x) and _skelett(y) else 0.0
+    for a1, a2 in ((cand_home, cand_away), (cand_away, cand_home)):
+        x, y = r(home, a1), r(away, a2)
+        if min(x, y) >= 0.55 and x + y >= 1.45:
+            return True
+    return False
+
+
 def pair_matches(home, away, cand_home, cand_away) -> bool:
     """Beide Seiten kompatibel — in einer der beiden Richtungen (Heimrecht kann kippen)."""
     return ((compatible(home, cand_home) and compatible(away, cand_away))
