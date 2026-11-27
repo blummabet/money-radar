@@ -346,6 +346,20 @@ def _():
     d = {"abgesagt": {"36355210": {}}, "toepfe": [t]}
     assert A.betroffen(d, {"id": "ned2-ven-waa-2026-11-27-draw"}) and A.betroffen(d, {"id": "36355210"})
     assert not A.betroffen(d, {"id": "ned2-vvv-ajx-2026-11-28"})
+    # gemerkt über den Anpfiff hinaus, außer das Spiel läuft doch
+    alt = A.CACHE
+    try:
+        A.CACHE = Path(tempfile.mkdtemp()) / "a.json"
+        d1 = {"toepfe": [t], "radar": {"spiele": []}}
+        A.lauf(d1, None, L.zuordnen, jetzt)
+        d2 = {"toepfe": [{**t, "q": {}}], "radar": {"spiele": []}}
+        A.lauf(d2, None, L.zuordnen, jetzt + timedelta(hours=4))
+        assert "36355210" in d2["abgesagt"] and d2["toepfe"][0].get("abgesagt"), "nach Anpfiff vergessen"
+        d3 = {"toepfe": [{**t, "q": {}, "live": {"min": 12}}], "radar": {"spiele": []}}
+        A.lauf(d3, None, L.zuordnen, jetzt + timedelta(hours=4))
+        assert "36355210" not in d3["abgesagt"], "läuft doch → nicht mehr abgesagt"
+    finally:
+        A.CACHE = alt
 
 
 @pruefe("Live-Statistik: Umschrift-Namen werden zugeordnet (Al-Quadisiya/Al-Qadisiyah), fremde Vereine nicht")

@@ -81,6 +81,20 @@ def lauf(d, get, zuordnen, jetzt=None):
         CACHE.write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
     spiele = (d.get("radar") or {}).get("spiele") or []
     ab = {**aus_poly(d.get("toepfe"), jetzt), **aus_apif(spiele, fx, zuordnen)}
+    # 27.11. abends: die 95-¢-Regel greift nur bis 20 Min vor Anpfiff — danach tauchten VVV – RKC & Co. wieder oben auf.
+    # Einmal erkannt bleibt gemerkt (36 h), außer das Spiel läuft doch (Radar meldet live).
+    live = {str(s.get("id")) for s in spiele if s.get("live")} | {str(t.get("id")) for t in d.get("toepfe") or [] if t.get("live")}
+    merk = {k: v for k, v in (c.get("merk") or {}).items()
+            if k not in live and jetzt - (_zeit(v.get("ts")) or jetzt) < timedelta(hours=36)}
+    for k, v in ab.items():
+        merk.setdefault(k, {**v, "ts": jetzt.isoformat()})
+    ab = {k: {x: y for x, y in v.items() if x != "ts"} for k, v in merk.items()}
+    c["merk"] = merk
+    try:
+        CACHE.parent.mkdir(exist_ok=True)
+        CACHE.write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
     d["abgesagt"] = ab
     for s in spiele:
         if str(s.get("id")) in ab:
