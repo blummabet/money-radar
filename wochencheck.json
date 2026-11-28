@@ -1,0 +1,69 @@
+{
+ "datum": "23.11.2026",
+ "woche": "16.–22. November",
+ "fazit": "Leicht negative Public-Woche (38 Tipps, −1,3 Einh.), genau auf dem Niveau aller Pushes (−3,2 %) — der Topf hat diese Woche weder geholfen noch geschadet, die nicht gesendeten Kandidaten lagen mit −11,2 % aber klar schlechter. Über 30 Tage bleibt der Public bei +8,3 % gegen +2,5 % aller Pushes. Größte Baustellen: Betfair-Geld auf Über und Live-Dauerzufluss ohne zweite Quelle. Die Wale haben die Woche mit −18,4 Einh. belastet, im Public aber kaum (R36/R3).",
+ "zahlen": [
+  {
+   "name": "Public",
+   "wert": "−3,3 %",
+   "sub": "38 Tipps · −1,3 Einh. · 53 % bei 56 % erwartet"
+  },
+  {
+   "name": "Alle Pushes",
+   "wert": "−3,2 %",
+   "sub": "742 Tipps · −23,7 Einh."
+  },
+  {
+   "name": "Public 30 Tage",
+   "wert": "+8,3 %",
+   "sub": "169 Tipps · +14,1 Einh. (± 7,5)"
+  },
+  {
+   "name": "Woche davor (Public)",
+   "wert": "−17,0 %",
+   "sub": "44 Tipps · −7,5 Einh."
+  }
+ ],
+ "punkte": [
+  {
+   "art": "raus",
+   "titel": "Betfair-Geld auf Über vor Anpfiff sperren?",
+   "text": "Seit 04.11. Betfair-Geld auf Über vor Anpfiff: 28 Tipps, 39 % bei 56 % erwartet, −30,8 % (± 16,7), seit 16.11. 10 · −45 %. Wirkung auf den Public klein: dort kamen in 30 Tagen nur 3 solche Picks durch (Sperre wäre vorbeugend)."
+  },
+  {
+   "art": "info",
+   "titel": "P18: noch beobachten (korrigiert)",
+   "text": "Für den Public zählen nur gesperrte Live-Team-Siege: 18 Tipps, +28,3 % (± 26,1), erlaubte live +15,2 % (102). Unter 20 Tipps — Sperre schadet wohl nicht viel, Aufheben erst ab ~30."
+  },
+  {
+   "art": "schlecht",
+   "titel": "Wackelt: Dauerzufluss live ohne zweite Quelle",
+   "text": "Public-Picks, die nur aus Betfair-Dauerzufluss kamen: 30 Tage 35 Tipps, 43 % bei 56 % erwartet, −22,4 % (± 15,6). Mit Pinnacle/Live-Zufluss/Polymarket dabei deutlich besser. Noch beobachten, Vorschlag: Prüfung nach 50."
+  },
+  {
+   "art": "gut",
+   "titel": "Sperren wirken: PL, SE4, Wal ab $10k",
+   "text": "Premier League gesperrt: 26 Tipps −48 % (± 16). Abgeebbter Dauerzufluss live still: −16,7 % (269) gegen gepusht −2,5 %. Wal seit 03.11. ab $10k +6,5 % (67), darunter −16,4 % (125). Keine Länderspiele mehr im Public."
+  },
+  {
+   "art": "info",
+   "titel": "Wal: R3 + R36 lassen fast nichts übrig",
+   "text": "Wale ab $10k mit ≥ 2× Faktor: nur 8 Tipps (−34 %); ab $10k unter 2×: 59 · +12,0 % (± 15,3) — die werden von R3 geblockt. Beobachten, ob R3 neben R36 noch nötig ist."
+  },
+  {
+   "art": "info",
+   "titel": "Stake-Paket Team-Sieg abgekühlt",
+   "text": "30 Tage vor Anpfiff 53 Tipps, +37,8 % (± 18,9) — seit dem eigenen Push (16.11.) aber nur 12 · −19 %. Klopft weiter an, vor einem Public-Einzug noch bis ~30 neue Tipps warten."
+  },
+  {
+   "art": "schlecht",
+   "titel": "Neue stille Signale laufen schlecht",
+   "text": "Top 3 ab Regel 6: 443 · −10,4 % (± 4,5). Gegen die Uhr ab LD4: 285 · −16,8 %. CPO: 50 · −21,6 %. MM2: 136 · −10,1 %. Nichts davon im Public — gut so; Betfair-Drops (BD) dagegen 38 · +28,7 % (± 19,3), beobachten."
+  },
+  {
+   "art": "info",
+   "titel": "Nations-League-Sperre kostet Geld",
+   "text": "Gesperrte NL-Betfair-Pushes seit 14.11.: 39 Tipps, +26,4 % (± 15,1). Die Sperre war eine bewusste Entscheidung („zu mühsam“) — nur zur Kenntnis."
+  }
+ ]
+}
