@@ -322,6 +322,43 @@ def _():
         py_compile.compile(str(p), doraise=True)
 
 
+@pruefe("Pinnacle aus API-Football: Ligen wählen, Quoten lesen, in pinnacle_alle.json fortschreiben")
+def _():
+    import apif_pinn as A
+    import os
+    from datetime import datetime, timezone
+    lg = {"response": [
+        {"league": {"id": 344, "name": "Primera División", "type": "League"}, "country": {"name": "Bolivia"},
+         "seasons": [{"year": 2026, "current": True, "coverage": {"odds": True}}]},
+        {"league": {"id": 345, "name": "Copa", "type": "Cup"}, "country": {"name": "Bolivia"}, "seasons": [{"year": 2026, "current": True, "coverage": {"odds": True}}]},
+        {"league": {"id": 346, "name": "Nacional B", "type": "League"}, "country": {"name": "Bolivia"}, "seasons": [{"year": 2026, "current": True, "coverage": {"odds": False}}]}]}
+    gleich(A.ligen_waehlen(lg), [(344, 2026, "Bolivia: Primera División")])
+    odds = [{"fixture": {"id": 9}, "bookmakers": [
+        {"id": 8, "bets": [{"id": 1, "values": [{"value": "Home", "odd": "9"}, {"value": "Draw", "odd": "9"}, {"value": "Away", "odd": "9"}]}]},
+        {"id": 4, "bets": [{"id": 1, "values": [{"value": "Home", "odd": "1.80"}, {"value": "Draw", "odd": "3.60"}, {"value": "Away", "odd": "4.50"}]},
+                           {"id": 5, "values": [{"value": "Over 2.5", "odd": "1.95"}, {"value": "Under 2.5", "odd": "1.90"}]}]}]}]
+    q = A.quoten_lesen(odds)
+    gleich(q[9]["x"], [1.8, 3.6, 4.5])
+    jetzt = datetime(2026, 11, 28, 10, 0, tzinfo=timezone.utc)
+    fx = [{"fixture": {"id": 9, "date": "2026-11-30T00:00:00+00:00", "status": {"short": "NS"}},
+           "teams": {"home": {"name": "Nacional Potosi"}, "away": {"name": "Bolivar"}}}]
+    evs = A.events_bauen(q, fx, jetzt)
+    assert len(evs) == 1 and abs(sum(evs[0]["pinn"]) - 1) < 1e-9 and evs[0]["ln"]["ou"][0] == 2.5
+    assert not A.events_bauen(q, [{**fx[0], "fixture": {**fx[0]["fixture"], "date": "2026-12-20T00:00:00+00:00"}}], jetzt), "über 7 Tage"
+    import pinnacle_scan
+    alt = os.getcwd()
+    try:
+        os.chdir(tempfile.mkdtemp())
+        Path("pinnacle_alle.json").write_text(json.dumps({"spiele": {"soccer_epl|A|B|2026-11-29T15:00": {
+            "key": "soccer_epl", "liga": "EPL", "heim": "A", "gast": "B", "anpfiff": "2026-11-29T15:00:00+00:00", "fein": [], "grob": []}}}))
+        pinnacle_scan.fortschreiben({"apif_bolivia_344": evs}, [{"key": "apif_bolivia_344", "title": "Bolivia: Primera División"}], jetzt)
+        sp = json.loads(Path("pinnacle_alle.json").read_text())["spiele"]
+        assert any(k.startswith("apif_bolivia_344|Nacional Potosi") for k in sp), "API-Football-Spiel fehlt"
+        assert "soccer_epl|A|B|2026-11-29T15:00" in sp, "Odds-API-Spiel darf nicht verschwinden"
+    finally:
+        os.chdir(alt)
+
+
 @pruefe("Polymarket: Basketball-Präfixe (bk…) gelten als fremde Sportart, nicht als Lücke")
 def _():
     import poly_profis as P

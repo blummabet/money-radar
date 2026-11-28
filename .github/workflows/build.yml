@@ -177,6 +177,12 @@ jobs:
           PY
           if [ -n "$ODDS_API_KEY" ]; then timeout 200 python3 ../pinnacle_konsens.py || echo "Pinnacle-Lauf fehlgeschlagen, Seite nimmt den letzten eigenen Stand"; fi
           rm -f poly_money_broad_close.json poly_money_upcoming.json poly_money_broad_live.json liga_poly_prices.json pinnacle_poly_scan.json
+      # 28.11. (Lucas: Bolivien-Drop nicht gesehen): Pinnacle aus API-Football für Ligen ohne Odds-API-Abdeckung, alle 3 h
+      - name: Pinnacle aus API-Football (Südamerika & Co., alle 3 h)
+        env:
+          APISPORTS_KEY: ${{ secrets.APISPORTS_KEY }}
+        run: |
+          cd .pin && timeout 120 python3 ../apif_pinn.py || echo "Pinnacle aus API-Football fehlgeschlagen"
       - name: Daten verdichten
         run: python3 build.py
       # 10.11. (Lucas): Report-Tageswerte (Stake, Betfair, Polymarket) — getrennt von Picks und Pushes, nur gelesen

@@ -345,7 +345,9 @@ def pinn_drops(prices, bf_hist=None):
     for sid, e in (roh.get("spiele") or {}).items():
         jetzt_p = e.get("jetzt")
         ko = ts(e.get("anpfiff"))
-        if not jetzt_p or not ko or JETZT - (ts(jetzt_p[0]) or JETZT) > timedelta(minutes=20):
+        # 28.11.: Pinnacle aus API-Football (Schlüssel „apif_…") kommt nur alle 3 h — dort gilt ein Stand 3¼ h als frisch
+        frisch = timedelta(hours=3, minutes=15) if str(e.get("key") or "").startswith("apif_") else timedelta(minutes=20)
+        if not jetzt_p or not ko or JETZT - (ts(jetzt_p[0]) or JETZT) > frisch:
             continue                                   # kein frischer Stand → nichts behaupten
         top5 = e.get("key") in PINN_TOP5_KEYS
         m = bf_spiel(e)
@@ -456,7 +458,11 @@ _KEY_LAND = (("epl", "GB"), ("efl", "GB"), ("england", "GB"), ("spl", "GB"), ("g
              ("turkey", "TR"), ("greece", "GR"), ("austria", "AT"), ("switzerland", "CH"), ("denmark", "DK"),
              ("norway", "NO"), ("sweden", "SE"), ("poland", "PL"), ("russia", "RU"), ("brazil", "BR"),
              ("argentina", "AR"), ("chile", "CL"), ("mexico", "MX"), ("usa", "US"), ("japan", "JP"), ("korea", "KR"),
-             ("australia", "AU"), ("china", "CN"), ("uefa", "International"), ("conmebol", "International"))
+             ("australia", "AU"), ("china", "CN"), ("uefa", "International"), ("conmebol", "International"),
+             # 28.11. Pinnacle aus API-Football (apif_pinn.py, Schlüssel „apif_<land>_<id>")
+             ("bolivia", "BO"), ("peru", "PE"), ("colombia", "CO"), ("ecuador", "EC"), ("paraguay", "PY"),
+             ("uruguay", "UY"), ("venezuela", "VE"), ("costa-rica", "CR"), ("honduras", "HN"), ("guatemala", "GT"),
+             ("el-salvador", "SV"))
 
 
 def key_land(k):
